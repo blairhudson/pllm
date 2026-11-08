@@ -1,6 +1,6 @@
 //! Closed request rescale construction; no source proof or execution authority.
 use super::*;
-use crate::replicated_decoder::program::EmissionContext;
+use crate::replicated_decoder::program::{ControllerAccounting, EmissionContext};
 use std::mem::size_of_val;
 
 struct Parts {
@@ -11,7 +11,7 @@ struct Parts {
 /// Named query/return owners in addition to the existing AssemblyInventory.
 /// Rescale owns scalar parameters, so its tickets have no borrowed row backing.
 /// Bounds are logical source owners, not a compiler-stack/allocator/RSS claim.
-fn controls(attempt_bytes: usize) -> Result<usize, Error> {
+fn controls<G: ControllerAccounting>(attempt_bytes: usize) -> Result<usize, Error> {
     let r = tensor::WorkPreflightWorkspace::resources();
     let mut bytes = add(size_of_val(&r), size_of_val(&r))?;
     // Named lexical guards: outer lower_next, compact preparation, prepared-map
@@ -47,11 +47,11 @@ fn controls(attempt_bytes: usize) -> Result<usize, Error> {
     slot!(size_of::<
         Result<(tensor::Program, tensor::ProducedCertificate), Error>,
     >());
-    slot!(size_of::<&EmissionContext<'static>>());
+    slot!(size_of::<&EmissionContext<'_, G>>());
     Ok(bytes)
 }
 
-fn peak<F>(lanes: usize, _: &F, attempt_bytes: usize) -> Result<usize, Error> {
+fn peak<G: ControllerAccounting, F>(lanes: usize, _: &F, attempt_bytes: usize) -> Result<usize, Error> {
     if lanes == 0 || lanes > MAX_VALUES {
         return Err(Error::Bounds);
     }
@@ -72,26 +72,26 @@ fn peak<F>(lanes: usize, _: &F, attempt_bytes: usize) -> Result<usize, Error> {
     bytes = bytes.max(add(a.owner, templates)?);
     // Keep the query/parts overlap reserved through construction/publication.
     // No refund/reacquire or phase retirement inside this helper.
-    add(bytes, controls(attempt_bytes)?)
+    add(bytes, controls::<G>(attempt_bytes)?)
 }
 
 impl PreparedTensorMap {
-    pub(in crate::replicated_decoder) fn request_rescale_peak(
-        context: &EmissionContext<'_>,
+    pub(in crate::replicated_decoder) fn request_rescale_peak<G: ControllerAccounting>(
+        context: &EmissionContext<'_, G>,
         lanes: usize,
     ) -> Result<usize, Error> {
         let mut attempt = context.attempt();
         context.check_open()?;
         let admit = |bytes| context.admit_phase(bytes, 0);
-        let result = peak(lanes, &admit, size_of_val(&attempt));
+        let result = peak::<G, _>(lanes, &admit, size_of_val(&attempt));
         if result.is_ok() {
             attempt.commit();
         }
         result
     }
 
-    fn request_rescale_parts(
-        context: &EmissionContext<'_>,
+    fn request_rescale_parts<G: ControllerAccounting>(
+        context: &EmissionContext<'_, G>,
         lanes: usize,
         input: Interval,
         shift: u8,
@@ -99,7 +99,7 @@ impl PreparedTensorMap {
         let mut attempt = context.attempt();
         context.check_open()?;
         // Control/query slots admitted before workspace/factory packaging.
-        context.admit_phase(controls(size_of_val(&attempt))?, 0)?;
+        context.admit_phase(controls::<G>(size_of_val(&attempt))?, 0)?;
         context.admit_phase(Self::request_rescale_peak(context, lanes)?, 0)?;
         let width = lanes.min(tensor::MAX_TILE_LANES);
         let remainder = lanes % width;
@@ -130,8 +130,8 @@ impl PreparedTensorMap {
         Ok(Parts { full, tail })
     }
 
-    pub(in crate::replicated_decoder) fn admit_request_rescale_reuse(
-        context: &EmissionContext<'_>,
+    pub(in crate::replicated_decoder) fn admit_request_rescale_reuse<G: ControllerAccounting>(
+        context: &EmissionContext<'_, G>,
         lanes: usize,
         input: Interval,
         shift: u8,
@@ -141,8 +141,8 @@ impl PreparedTensorMap {
         Ok(())
     }
 
-    pub(in crate::replicated_decoder) fn rescale_request(
-        context: &EmissionContext<'_>,
+    pub(in crate::replicated_decoder) fn rescale_request<G: ControllerAccounting>(
+        context: &EmissionContext<'_, G>,
         lanes: usize,
         input: Interval,
         shift: u8,

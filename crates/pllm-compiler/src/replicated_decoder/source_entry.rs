@@ -4,7 +4,9 @@ use super::*;
 use crate::original_source::{self, OriginalSourcePlan};
 use crate::plan_input::json;
 use crate::replicated_decoder::source_registry::{self, SourceConstructionOwners, SourceRegistry};
-use pllm_garble::shared_allocation::OwnedExternalCharge;
+use pllm_garble::shared_allocation::{
+    Budget, Error as NativeError, OwnedBudgetResources, OwnedExternalCharge,
+};
 use pllm_garble::shared_allocation::{OwnedBudget, OwnedCharged, MAX_ALLOCATION_BYTES};
 
 #[path = "source_entry_compact_pending.rs"]
@@ -16,6 +18,191 @@ fn add(a: usize, b: usize) -> Result<usize, Error> {
 }
 fn bytes<T>(n: usize) -> Result<usize, Error> {
     n.checked_mul(size_of::<T>()).ok_or(Error::Bounds)
+}
+
+fn prefix_bounds_error<T>(_: T) -> Error {
+    Error::Bounds
+}
+
+// These helpers are used only to evaluate the typed constants below. Overflow
+// fails constant evaluation rather than silently weakening the source union.
+const fn source_union_weight<T>(count: usize) -> usize {
+    match size_of::<T>().checked_mul(count) {
+        Some(value) => value,
+        None => panic!("source union weight overflow"),
+    }
+}
+
+const fn source_union_sum<const N: usize>(weights: [usize; N]) -> usize {
+    let mut total = 0usize;
+    let mut index = 0;
+    while index < N {
+        total = match total.checked_add(weights[index]) {
+            Some(value) => value,
+            None => panic!("source union sum overflow"),
+        };
+        index += 1;
+    }
+    total
+}
+
+// Corrected zero-padding recipe (24): conservative typed, non-test SOURCE
+// union, not a physical peak, exact minimum or resource/work funding proof.
+// Q remains unchanged; this additional E neither subtracts Q nor repeats Arc
+// backing. Opaque U, CAS retries, cleanup and post-JSON custody remain open.
+const KCTOR: usize = source_union_sum([
+    source_union_weight::<usize>(13),
+    source_union_weight::<bool>(4),
+    source_union_weight::<NativeError>(2),
+    source_union_weight::<std::sync::atomic::AtomicUsize>(2),
+    source_union_weight::<Budget>(4),
+    source_union_weight::<Result<Budget, NativeError>>(3),
+    source_union_weight::<Result<OwnedBudget, NativeError>>(6),
+    source_union_weight::<OwnedBudgetResources>(2),
+    source_union_weight::<Result<OwnedBudgetResources, NativeError>>(1),
+    source_union_weight::<&Budget>(4),
+    source_union_weight::<Result<(), NativeError>>(4),
+    source_union_weight::<()>(3),
+    source_union_weight::<Arc<Budget>>(1),
+    source_union_weight::<OwnedBudget>(1),
+]);
+const KUSED: usize = source_union_sum([
+    source_union_weight::<&Budget>(1),
+    source_union_weight::<&std::sync::atomic::AtomicUsize>(1),
+    source_union_weight::<std::sync::atomic::Ordering>(1),
+    source_union_weight::<usize>(2),
+]);
+// 61 source occurrences; Layout::extend returns (Layout, usize), in that order.
+const KRESOURCES: usize = source_union_sum([
+    source_union_weight::<usize>(26),
+    source_union_weight::<std::alloc::Layout>(3),
+    source_union_weight::<&std::alloc::Layout>(3),
+    source_union_weight::<(std::alloc::Layout, usize)>(1),
+    source_union_weight::<Result<(std::alloc::Layout, usize), std::alloc::LayoutError>>(1),
+    source_union_weight::<Result<(std::alloc::Layout, usize), NativeError>>(1),
+    source_union_weight::<std::alloc::LayoutError>(1),
+    source_union_weight::<[usize; 7]>(1),
+    source_union_weight::<std::array::IntoIter<usize, 7>>(1),
+    source_union_weight::<&mut std::array::IntoIter<usize, 7>>(1),
+    source_union_weight::<Option<usize>>(3),
+    source_union_weight::<Result<usize, NativeError>>(3),
+    source_union_weight::<NativeError>(9),
+    source_union_weight::<OwnedBudgetResources>(1),
+    source_union_weight::<Result<OwnedBudgetResources, NativeError>>(6),
+]);
+const KRESERVE_FIXED: usize = source_union_sum([
+    source_union_weight::<usize>(19),
+    source_union_weight::<&Budget>(1),
+    source_union_weight::<&std::sync::atomic::AtomicUsize>(2),
+    source_union_weight::<std::sync::atomic::Ordering>(3),
+    source_union_weight::<Option<usize>>(5),
+    source_union_weight::<bool>(1),
+    source_union_weight::<Result<usize, usize>>(1),
+    source_union_weight::<Result<usize, NativeError>>(1),
+    source_union_weight::<NativeError>(3),
+    source_union_weight::<Result<(), NativeError>>(2),
+    source_union_weight::<()>(1),
+]);
+const KCHARGE: usize = source_union_sum([
+    source_union_weight::<usize>(7),
+    source_union_weight::<&OwnedBudget>(1),
+    source_union_weight::<&Budget>(1),
+    source_union_weight::<&Arc<Budget>>(1),
+    source_union_weight::<Option<usize>>(1),
+    source_union_weight::<Result<usize, NativeError>>(1),
+    source_union_weight::<NativeError>(3),
+    source_union_weight::<Result<(), NativeError>>(1),
+    source_union_weight::<()>(1),
+    source_union_weight::<Arc<Budget>>(1),
+    source_union_weight::<OwnedExternalCharge>(1),
+    source_union_weight::<Result<OwnedExternalCharge, NativeError>>(4),
+]);
+const KCALLER: usize = source_union_sum([
+    source_union_weight::<usize>(56),
+    source_union_weight::<i32>(1),
+    source_union_weight::<bool>(3),
+    source_union_weight::<&[u8]>(3),
+    source_union_weight::<Option<(&[u8], &[u8])>>(1),
+    source_union_weight::<&OwnedBudget>(2),
+    source_union_weight::<OwnedBudget>(2),
+    source_union_weight::<OwnedExternalCharge>(3),
+    source_union_weight::<Option<OwnedExternalCharge>>(4),
+    source_union_weight::<Result<OwnedBudget, NativeError>>(1),
+    source_union_weight::<Result<OwnedBudget, Error>>(1),
+    source_union_weight::<Result<OwnedExternalCharge, NativeError>>(2),
+    source_union_weight::<Result<OwnedExternalCharge, Error>>(2),
+    source_union_weight::<Result<SourceRequestImport, Error>>(5),
+    source_union_weight::<Error>(10),
+    source_union_weight::<NativeError>(3),
+]);
+const DELTA_CALLER: usize = source_union_sum([
+    source_union_weight::<usize>(3),
+    source_union_weight::<&OwnedBudget>(1),
+    source_union_weight::<()>(1),
+    source_union_weight::<Result<usize, NativeError>>(1),
+    source_union_weight::<Result<usize, Error>>(1),
+    source_union_weight::<Result<(), NativeError>>(1),
+    source_union_weight::<Result<(), Error>>(1),
+    source_union_weight::<Result<SourceRequestImport, Error>>(2),
+    source_union_weight::<Error>(6),
+    source_union_weight::<NativeError>(2),
+]);
+const KAPI: usize = source_union_sum([
+    source_union_weight::<usize>(2),
+    source_union_weight::<&OwnedBudget>(1),
+    source_union_weight::<&Budget>(1),
+    source_union_weight::<Result<(), NativeError>>(2),
+]);
+const HFIXED: usize = source_union_sum([
+    source_union_weight::<usize>(31),
+    source_union_weight::<(usize, usize)>(6),
+    source_union_weight::<Option<usize>>(8),
+    source_union_weight::<Result<usize, NativeError>>(10),
+    source_union_weight::<NativeError>(4),
+]);
+const NC: usize = 16;
+const NR: usize = 2;
+const FIXED: usize = source_union_sum([
+    KCTOR,
+    KUSED,
+    KRESOURCES,
+    match KRESERVE_FIXED.checked_mul(4) {
+        Some(value) => value,
+        None => panic!("source union reserve multiplicity overflow"),
+    },
+    match KCHARGE.checked_mul(2) {
+        Some(value) => value,
+        None => panic!("source union charge multiplicity overflow"),
+    },
+    KCALLER,
+    DELTA_CALLER,
+    KAPI,
+    HFIXED,
+]);
+
+fn source_union_quote() -> Result<usize, NativeError> {
+    let widths = OwnedBudgetResources::reserve_update_layout();
+    let closure_bytes = NC.checked_mul(widths.0);
+    let closure_bytes = match closure_bytes {
+        Some(value) => value,
+        None => return Err(NativeError::Resource),
+    };
+    let reference_bytes = NR.checked_mul(widths.1);
+    let reference_bytes = match reference_bytes {
+        Some(value) => value,
+        None => return Err(NativeError::Resource),
+    };
+    let subtotal = FIXED.checked_add(closure_bytes);
+    let subtotal = match subtotal {
+        Some(value) => value,
+        None => return Err(NativeError::Resource),
+    };
+    let total = subtotal.checked_add(reference_bytes);
+    let total = match total {
+        Some(value) => value,
+        None => return Err(NativeError::Resource),
+    };
+    Ok(total)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -141,6 +328,301 @@ pub(super) struct CreatedInputs<'s> {
     pub(super) charge: OwnedExternalCharge,
     // Only the prequoted actual input-emission path can mint this aggregate.
     created: (),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ReceiverState {
+    Empty,
+    Entering,
+    CleanupOnly,
+    Complete,
+    Drained,
+}
+
+struct ReceiverAttempt<'a>(&'a mut ReceiverState);
+impl Drop for ReceiverAttempt<'_> {
+    fn drop(&mut self) {
+        if *self.0 == ReceiverState::Entering {
+            *self.0 = ReceiverState::CleanupOnly;
+        }
+    }
+}
+
+#[derive(Default)]
+struct PendingMap {
+    key: Option<String>,
+    shape: Vec<usize>,
+    owner: Option<usize>,
+    norm: Option<BlockNorms>,
+}
+
+/// Inactive input/declaration/context prerequisite, NOT importer/seal custody.
+/// New resident slots, move overlap and control work remain UNFUNDED/OPEN.
+/// Field order destroys payloads before their actual covering reservations.
+struct InputReceiver<'loan> {
+    builder: Option<Builder>,
+    inputs: Option<BTreeMap<String, SourceView>>,
+    pending_code: Option<Code>,
+    pending_map: PendingMap,
+    declaration: request_origin::DeclarationReceiver,
+    setup: Option<request_origin::compact_storage::ResidentSetup>,
+    binding: Option<request_origin::PreparedSourceBinding>,
+    original: Arc<OriginalSourcePlan>,
+    public: Arc<PublicSource>,
+    state: ReceiverState,
+    imports: Option<OwnedExternalCharge>,
+    controller: Option<std::cell::RefCell<request_origin::compact_storage::ControllerLoan<'loan>>>,
+}
+
+// Source-logical inline component; not a complete frontier/admission quote.
+fn input_receiver_bytes() -> Result<usize, Error> {
+    bytes::<InputReceiver<'_>>(1)
+}
+
+impl Drop for InputReceiver<'_> {
+    fn drop(&mut self) {
+        drop(self.builder.take());
+        drop(self.inputs.take());
+        drop(self.pending_code.take());
+        drop(std::mem::take(&mut self.pending_map));
+        self.declaration.retire_payloads();
+        drop(self.setup.take());
+        #[cfg(test)]
+        RECEIVER_DROP.with(|record| record.set(Some((
+            self.builder.is_none() && self.inputs.is_none()
+                && self.pending_map.shape.capacity() == 0 && self.pending_code.is_none(),
+            self.original.budget().used_bytes(),
+            self.imports.as_ref().map(|c| (c.charged_bytes(), c.budget() as *const _ as usize)).unwrap_or((0, 0)),
+            self.controller.as_ref().map(|c| {
+                use request_origin::compact_storage::ControllerAccounting;
+                let loan = c.borrow();
+                (loan.charged_bytes(), if loan.is_for(self.original.budget()) {
+                    self.original.budget() as *const _ as usize
+                } else { 0 })
+            }).unwrap_or((0, 0)),
+        ))));
+        // Import coverage follows dependent fields. The lexical loan cannot
+        // release its original controller, retained by the enclosing owner.
+    }
+}
+
+impl<'loan> InputReceiver<'loan> {
+    /// No validation/fallible factory before genuine owners become resident.
+    /// Arc wrapping allocates; it is not an allocation-free custody claim.
+    fn new(
+        original: OriginalSourcePlan,
+        public: Arc<PublicSource>,
+        imports: OwnedExternalCharge,
+        controller: request_origin::compact_storage::ControllerLoan<'loan>,
+        cap: usize,
+    ) -> Self {
+        Self {
+            builder: Some(Builder::default()), inputs: Some(BTreeMap::new()),
+            pending_code: None, pending_map: PendingMap::default(),
+            declaration: request_origin::DeclarationReceiver::empty(),
+            setup: Some(request_origin::compact_storage::ResidentSetup::empty(cap)), binding: None,
+            original: Arc::new(original), public, state: ReceiverState::Empty,
+            imports: Some(imports), controller: Some(std::cell::RefCell::new(controller)),
+        }
+    }
+
+    fn prepare<'s>(
+        &mut self,
+        manifest: &'s Manifest,
+        registry: &'s SourceRegistry<'s>,
+    ) -> Result<(), Error> {
+        use request_origin::compact_storage::ControllerAccounting;
+        if self.state != ReceiverState::Empty {
+            return Err(Error::Retired);
+        }
+        self.state = ReceiverState::Entering;
+        let Self { builder, inputs, pending_code, pending_map, declaration, setup,
+            binding, original, public, state, imports, controller } = self;
+        // This guard borrows ONLY state; all payloads remain in their fields.
+        let attempt = ReceiverAttempt(state);
+        let builder = builder.as_mut().ok_or(Error::Binding)?;
+        let inputs = inputs.as_mut().ok_or(Error::Binding)?;
+        let setup = setup.as_mut().ok_or(Error::Binding)?;
+        let imports = imports.as_mut().ok_or(Error::Binding)?;
+        let controller = controller.as_ref().ok_or(Error::Binding)?.borrow();
+        if !controller.is_for(original.budget()) {
+            return Err(Error::Binding);
+        }
+        let q = quote_imports(original, manifest, registry, public, imports)?;
+        if imports.payload_bytes() < q.payload_bytes {
+            return Err(Error::Bounds);
+        }
+        original.prepay_compiler_metadata(imports, q.metadata_work).map_err(|_| Error::Bounds)?;
+        public.check_registry(registry)?;
+        let sources = request_origin::RequestSources::new(manifest, registry, Arc::clone(public))?;
+        original.budget().admit_peak(original.budget().used_bytes()).map_err(|_| Error::Bounds)?;
+        *builder = empty_builder(manifest, registry);
+        builder.allocated = source_norms::import_envelope(&manifest.norms)?.total_bytes;
+        let node_capacity = add(q.declarations, 1)?;
+        builder.nodes.try_reserve_exact(node_capacity).map_err(|_| Error::Allocation)?;
+        if builder.nodes.capacity() != node_capacity {
+            return Err(Error::Allocation);
+        }
+        for (key, source) in &manifest.tensors {
+            if source.public_q18.is_some() {
+                continue;
+            }
+            let lanes = source.shape.iter().try_fold(1usize, |n, &d| n.checked_mul(d).ok_or(Error::Bounds))?;
+            *pending_code = Some(Code::PublicInput {
+                key: key.clone(), digest: source.digest, row_l1: source.row_l1,
+                row_squared_norm: source.row_squared_norm,
+                row_l1_squared_sum: source.row_l1_squared_sum,
+            });
+            pending_map.key = Some(key.clone());
+            pending_map.shape = source.shape.clone();
+            pending_map.norm = manifest.norms.get(key).cloned();
+            pending_map.owner = Some(builder.push_retained(pending_code, lanes, Interval::new(source.lower, source.upper)?)?);
+            #[cfg(test)]
+            receiver_checkpoint(1)?;
+            // Concrete String/usize ordering has no user callbacks or returned
+            // allocator errors. No failpoint/fallibility between take and insert.
+            let owner = pending_map.owner.take().expect("resident public owner");
+            inputs.insert(pending_map.key.take().expect("resident map key"), SourceView {
+                owner, shape: std::mem::take(&mut pending_map.shape),
+            });
+            if let Some(norm) = pending_map.norm.take() {
+                builder.public_norms.insert(owner, norm);
+            }
+        }
+        request_origin::declare_into(builder, original, &sources, imports, pending_code, declaration)?;
+        setup.prepare(declaration, &sources, builder, imports, &*controller)?;
+        *binding = Some(sources.prepared_binding());
+        *attempt.0 = ReceiverState::Complete;
+        Ok(())
+    }
+
+    fn refuse_drain(&mut self) {
+        if self.state != ReceiverState::Drained { self.state = ReceiverState::CleanupOnly; }
+        self.declaration.refuse_drain();
+    }
+
+    fn check_transport(&self, sources: Option<&request_origin::RequestSources<'_>>, empty: bool) -> Result<(), Error> {
+        use request_origin::compact_storage::ControllerAccounting;
+        if self.state != ReceiverState::Complete || !empty || self.pending_code.is_some()
+            || self.pending_map.key.is_some() || self.pending_map.owner.is_some()
+            || self.pending_map.norm.is_some() || self.pending_map.shape.capacity() != 0
+        { return Err(Error::Binding); }
+        let builder = self.builder.as_ref().ok_or(Error::Binding)?;
+        let inputs = self.inputs.as_ref().ok_or(Error::Binding)?;
+        let sources = sources.ok_or(Error::Binding)?;
+        if !sources.matches_prepared(self.binding.as_ref().ok_or(Error::Binding)?)
+            || !self.declaration.prepared_for(&self.original, &self.public)
+            || !self.imports.as_ref().ok_or(Error::Binding)?.is_for(self.original.budget())
+            || !self.controller.as_ref().ok_or(Error::Binding)?.borrow().is_for(self.original.budget())
+            || self.setup.is_none()
+        { return Err(Error::Binding); }
+        // Immutable successful-prepare invariants, not a new source authority.
+        sources.check_prepared_maps(builder, inputs)?;
+        Ok(())
+    }
+
+    fn drain_complete<'s>(&mut self, sources: &mut Option<request_origin::RequestSources<'s>>,
+        dst: &mut Option<request_origin::compact_storage::ResidentEmission<'s, 'loan>>,
+    ) -> Result<(), Error> {
+        resident_commit::drain(self, sources, dst)
+    }
+}
+
+// Separate leaf: compact_pending must not inherit field construction access.
+pub(in crate::replicated_decoder::program) mod resident_commit {
+    use super::*;
+
+    pub(in crate::replicated_decoder::program) struct ResidentCommit<'s, 'loan> {
+        created: CreatedInputs<'s>,
+        setup: request_origin::compact_storage::ResidentSetup,
+        context: request_origin::compact_storage::ResidentContextOwners,
+        loan: std::cell::RefCell<request_origin::compact_storage::ControllerLoan<'loan>>,
+    }
+
+    // Source-logical inline component; not a complete frontier/admission quote.
+    fn resident_commit_bytes() -> Result<usize, Error> {
+        bytes::<ResidentCommit<'_, '_>>(1)
+    }
+
+    impl<'s, 'loan> ResidentCommit<'s, 'loan> {
+        // Only storage can construct this destination. No raw-parts getter,
+        // arbitrary callback, constructor, Clone or Default is exposed.
+        pub(in crate::replicated_decoder::program) fn install(self,
+            destination: request_origin::compact_storage::ResidentCommitDestination<'_, 's, 'loan>,
+        ) {
+            let Self { created, setup, context, loan } = self;
+            destination.install(created, setup, context, loan);
+        }
+    }
+
+    pub(super) fn drain<'s, 'loan>(receiver: &mut InputReceiver<'loan>,
+        sources: &mut Option<request_origin::RequestSources<'s>>,
+        dst: &mut Option<request_origin::compact_storage::ResidentEmission<'s, 'loan>>,
+    ) -> Result<(), Error> {
+        if let Err(error) = receiver.check_transport(sources.as_ref(), dst.is_none()) {
+            receiver.refuse_drain();
+            return Err(error);
+        }
+        let InputReceiver { builder, inputs, declaration, setup, imports, controller, state, binding, .. } = receiver;
+        // Both receivers and the destination are checked before extraction.
+        let checked = match declaration.prevalidate_drain(builder.as_ref().expect("checked builder"), sources, true) {
+            Ok(checked) => checked,
+            Err(error) => { *state = ReceiverState::CleanupOnly; return Err(error); }
+        };
+        // Clone existing context references before extracting any owner.
+        let context = request_origin::compact_storage::ResidentContextOwners::for_drain(&checked);
+        // Concrete infallible commit: no callback, allocation, new RefCell,
+        // fallible validation or live-payload destruction until installation.
+        let permit = checked.commit();
+        let created = CreatedInputs { builder: builder.take().expect("checked builder"),
+            inputs: inputs.take().expect("checked maps"), permit,
+            charge: imports.take().expect("checked import coverage"), created: () };
+        let commit = ResidentCommit {
+            created, setup: setup.take().expect("checked setup"), context,
+            loan: controller.take().expect("checked lexical loan"),
+        };
+        request_origin::compact_storage::install_resident_commit(commit, dst);
+        *binding = None;
+        *state = ReceiverState::Drained;
+        Ok(())
+    }
+}
+
+/// Whole-owner commit: rejection leaves both slots, backing and debit intact.
+fn transfer_complete<'loan>(
+    src: &mut Option<InputReceiver<'loan>>,
+    dst: &mut Option<InputReceiver<'loan>>,
+) -> Result<(), Error> {
+    if src.as_ref().ok_or(Error::Retired)?.state != ReceiverState::Complete {
+        return Err(Error::Binding);
+    }
+    if dst.is_some() {
+        return Err(Error::Binding);
+    }
+    *dst = src.take();
+    Ok(())
+}
+
+#[cfg(test)]
+thread_local! {
+    // (resident checkpoint, panic rather than returned refusal).
+    static RECEIVER_FAULT: std::cell::Cell<Option<(u8, bool)>> = const { std::cell::Cell::new(None) };
+    static RECEIVER_DROP: std::cell::Cell<Option<(bool, usize, (usize, usize), (usize, usize))>> = const { std::cell::Cell::new(None) };
+}
+#[cfg(test)]
+pub(super) fn receiver_checkpoint(point: u8) -> Result<(), Error> {
+    RECEIVER_FAULT.with(|fault| {
+        if let Some((armed, panic)) = fault.get() {
+            if armed == point {
+                fault.set(None);
+                if panic {
+                    panic!("resident input checkpoint {point}");
+                }
+                return Err(Error::Binding);
+            }
+        }
+        Ok(())
+    })
 }
 
 /// Consumes source + admission on every outcome: no retry token/borrowed plan is
@@ -392,6 +874,11 @@ fn server_controller_bytes() -> usize {
 }
 
 fn pending_controller_bytes() -> usize {
+    // Logical coverage assignment: three inline phase envelopes for ingress
+    // staging, pending assembly/transfer and destination Pending. Wrapper/result
+    // terms below are unchanged. This is not a measured SOURCE census, a full
+    // transition-capacity proof, transitive payload coverage or a physical stack
+    // lifetime claim. Other storage, cleanup and opaque U remain unproved.
     3 * size_of::<Pending>()
         + size_of::<SourceRequestImport>()
         + size_of::<Result<SourceRequestImport, Error>>()
@@ -646,21 +1133,24 @@ impl SourceRequestImport {
         if raw.is_empty() || raw.len() > 1 << 20 {
             return Err(Error::Bounds);
         }
-        let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).map_err(|_| Error::Bounds)?;
+        let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).map_err(prefix_bounds_error)?;
+        let bootstrap = source_union_quote().map_err(prefix_bounds_error)?;
+        root.reserve_bootstrap(bootstrap).map_err(prefix_bounds_error)?;
         // Full actual Pending/control layouts, before all source factories.
         // SAME guard subsequently transfers into emission/finalization.
         let controller = root
             .charge_external(pending_controller_bytes())
-            .map_err(|_| Error::Bounds)?;
+            .map_err(prefix_bounds_error)?;
         // Additional named server controller/return slots BEFORE C9 factories.
         // Caller CPython backing/allocator/RSS remains outside this logical
         // counter; import_json preserves E11's explicit borrowed-copy window.
-        let _server_controls = server
-            .map(|_| {
+        let _server_controls = match server {
+            Some(_) => Some(
                 root.charge_external(server_controller_bytes())
-                    .map_err(|_| Error::Bounds)
-            })
-            .transpose()?;
+                    .map_err(prefix_bounds_error)?,
+            ),
+            None => None,
+        };
         let server_document = server
             .map(|(experiment, _)| import_json(&root, experiment))
             .transpose()?;
@@ -861,93 +1351,291 @@ impl SourceRequestImport {
     }
 }
 
+#[cfg(not(test))]
+type HandoffIngress = ingress::OwnedSourceIngress;
+#[cfg(not(test))]
+pub(in crate::replicated_decoder::program) type HandoffSlot<T> = T;
+#[cfg(test)]
+pub(in crate::replicated_decoder::program) type HandoffSlot<T> = Observed<T>;
+
+// Test-only mirror preserves the actual ingress field/drop order. No observer
+// enters real ingress, Pending or downstream owners.
+#[cfg(test)]
+struct HandoffIngress {
+    directory: Observed<Option<Arc<snapshot_directory::OwnedSnapshotDirectory>>>,
+    original: Observed<OriginalSourcePlan>,
+    raw: Observed<SourceIngressRaw>,
+    limits: original_source::Limits,
+    storage: crate::replicated_decoder::sdk::SourceStorage,
+    controller: Observed<OwnedExternalCharge>,
+    root: OwnedBudget,
+}
+
+#[cfg(test)]
+pub(in crate::replicated_decoder::program) struct Observed<T> {
+    value: T,
+    after: AfterDrop,
+}
+#[cfg(test)]
+struct AfterDrop {
+    trace: Option<Arc<Trace>>,
+    event: Event,
+    armed: bool,
+}
+#[cfg(test)]
+#[derive(Clone, Copy)]
+pub(in crate::replicated_decoder::program) enum Event {
+    DirectorySlot,
+    OriginalSlot,
+    RawSlot,
+    ManifestSlot,
+    ControllerCharge,
+    CreatedInputs,
+}
+#[cfg(test)]
+pub(in crate::replicated_decoder::program) struct Trace {
+    next: std::sync::atomic::AtomicUsize,
+    completed: [std::sync::atomic::AtomicUsize; 5],
+    // Inert identity only; never dereferenced.
+    budget_id: usize,
+}
+#[cfg(test)]
+impl Drop for AfterDrop {
+    fn drop(&mut self) {
+        // Normal nonpanicking destruction only, not unwind-completion evidence.
+        // The test retains its Arc until all markers have retired.
+        if self.armed {
+            if let Some(trace) = &self.trace {
+                let ordinal = trace.next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                // Separate per-instance traces reuse the original-slot cell for
+                // the constructor's complete CreatedInputs aggregate.
+                let index = match self.event {
+                    Event::CreatedInputs => Event::OriginalSlot as usize,
+                    event => event as usize,
+                };
+                trace.completed[index]
+                    .store(ordinal, std::sync::atomic::Ordering::Relaxed);
+            }
+        }
+    }
+}
+
+#[cfg(not(test))]
+pub(in crate::replicated_decoder::program) fn slot_ref<T>(slot: &HandoffSlot<T>) -> &T {
+    slot
+}
+#[cfg(test)]
+pub(in crate::replicated_decoder::program) fn slot_ref<T>(slot: &HandoffSlot<T>) -> &T {
+    &slot.value
+}
+#[cfg(not(test))]
+fn slot_mut<T>(slot: &mut HandoffSlot<T>) -> &mut T {
+    slot
+}
+#[cfg(test)]
+fn slot_mut<T>(slot: &mut HandoffSlot<T>) -> &mut T {
+    &mut slot.value
+}
+#[cfg(not(test))]
+pub(in crate::replicated_decoder::program) fn slot_take<T>(slot: HandoffSlot<T>) -> T {
+    slot
+}
+#[cfg(test)]
+pub(in crate::replicated_decoder::program) fn slot_take<T>(slot: HandoffSlot<T>) -> T {
+    let Observed { value, mut after } = slot;
+    after.armed = false;
+    value
+}
+
+#[cfg(test)]
+pub(in crate::replicated_decoder::program) fn observe<T>(value: T, trace: Option<&Arc<Trace>>, event: Event) -> Observed<T> {
+    Observed {
+        value,
+        after: AfterDrop { trace: trace.map(Arc::clone), event, armed: true },
+    }
+}
+
+#[cfg(test)]
+impl Trace {
+    pub(in crate::replicated_decoder::program) fn new(budget: &Budget) -> Arc<Self> {
+        Arc::new(Self {
+            next: std::sync::atomic::AtomicUsize::new(1),
+            completed: std::array::from_fn(|_| std::sync::atomic::AtomicUsize::new(0)),
+            budget_id: budget as *const _ as usize,
+        })
+    }
+    pub(in crate::replicated_decoder::program) fn completion(&self, event: Event) -> usize {
+        let index = match event {
+            Event::CreatedInputs => Event::OriginalSlot as usize,
+            event => event as usize,
+        };
+        self.completed[index].load(std::sync::atomic::Ordering::Relaxed)
+    }
+    pub(in crate::replicated_decoder::program) fn budget_id(&self) -> usize {
+        self.budget_id
+    }
+    pub(in crate::replicated_decoder::program) fn next_ordinal(&self) -> usize {
+        self.next.load(std::sync::atomic::Ordering::Relaxed)
+    }
+}
+
+#[cfg(test)]
+fn wrap_handoff(
+    ingress: ingress::OwnedSourceIngress,
+    manifest: OwnedCharged<Manifest>,
+    trace: Option<&Arc<Trace>>,
+) -> (HandoffIngress, HandoffSlot<OwnedCharged<Manifest>>) {
+    let ingress::OwnedSourceIngress {
+        directory, original, raw, limits, storage, controller, root,
+    } = ingress;
+    (
+        HandoffIngress {
+            directory: observe(directory, trace, Event::DirectorySlot),
+            original: observe(original, trace, Event::OriginalSlot),
+            raw: observe(raw, trace, Event::RawSlot),
+            limits,
+            storage,
+            controller: observe(controller, trace, Event::ControllerCharge),
+            root,
+        },
+        observe(manifest, trace, Event::ManifestSlot),
+    )
+}
+
 impl ingress::OwnedSourceIngress {
     // Shared worker/publisher transition; never constructs a Budget or reparses
     // raw configuration. All inputs are owned fields of the genuine ingress.
     fn into_pending(self, manifest: OwnedCharged<Manifest>) -> Result<SourceRequestImport, Error> {
-        let Self {
-            directory,
-            original,
-            raw,
-            limits,
-            storage,
-            controller,
-            root,
-        } = self;
-        if !std::ptr::eq(manifest.budget(), root.budget())
-            || !std::ptr::eq(original.budget(), root.budget())
-            || !std::ptr::eq(raw.budget(), root.budget())
-            || !controller.is_for(root.budget())
+        #[cfg(not(test))]
         {
-            return Err(Error::Binding);
+            pending_transition(self, manifest)
         }
-        check_source(&original, manifest.payload())?;
-        let directory = match (storage, directory) {
-            (crate::replicated_decoder::sdk::SourceStorage::Compact, Some(owner)) => {
-                owner.check_budget(root.budget())?;
-                Some(owner)
-            }
-            (crate::replicated_decoder::sdk::SourceStorage::Compact, None) => Some(
-                snapshot_directory::OwnedSnapshotDirectory::create(&original, &controller, &root)?,
-            ),
-            (crate::replicated_decoder::sdk::SourceStorage::Expanded, None) => None,
-            _ => return Err(Error::Binding),
-        };
-        let mut registry = root.charge_external(0).map_err(|_| Error::Bounds)?;
-        let mut imports = root.charge_external(0).map_err(|_| Error::Bounds)?;
+        #[cfg(test)]
+        {
+            let (ingress, manifest) = wrap_handoff(self, manifest, None);
+            pending_transition(ingress, manifest)
+        }
+    }
+
+    #[cfg(test)]
+    fn into_pending_observed(
+        self,
+        manifest: OwnedCharged<Manifest>,
+        trace: &Arc<Trace>,
+    ) -> Result<SourceRequestImport, Error> {
+        let (ingress, manifest) = wrap_handoff(self, manifest, Some(trace));
+        pending_transition(ingress, manifest)
+    }
+}
+
+fn pending_transition(
+    ingress: HandoffIngress,
+    manifest: HandoffSlot<OwnedCharged<Manifest>>,
+) -> Result<SourceRequestImport, Error> {
+    // Bind in this order so refusal/unwind retires manifest before intact
+    // ingress. This makes no claim that moved-from parameter storage retires.
+    let ingress = ingress;
+    let manifest = manifest;
+    if !std::ptr::eq(slot_ref(&manifest).budget(), ingress.root.budget())
+        || !std::ptr::eq(slot_ref(&ingress.original).budget(), ingress.root.budget())
+        || !std::ptr::eq(slot_ref(&ingress.raw).budget(), ingress.root.budget())
+        || !slot_ref(&ingress.controller).is_for(ingress.root.budget())
+    {
+        return Err(Error::Binding);
+    }
+    check_source(slot_ref(&ingress.original), slot_ref(&manifest).payload())?;
+    let new_directory = match (ingress.storage, slot_ref(&ingress.directory).as_ref()) {
+        (crate::replicated_decoder::sdk::SourceStorage::Compact, Some(owner)) => {
+            owner.check_budget(ingress.root.budget())?;
+            None
+        }
+        (crate::replicated_decoder::sdk::SourceStorage::Compact, None) => Some(
+            snapshot_directory::OwnedSnapshotDirectory::create(
+                slot_ref(&ingress.original),
+                slot_ref(&ingress.controller),
+                &ingress.root,
+            )?,
+        ),
+        (crate::replicated_decoder::sdk::SourceStorage::Expanded, None) => None,
+        _ => return Err(Error::Binding),
+    };
+    // Preparation borrows intact ingress; later preparation locals retire
+    // before new_directory, manifest and ingress on refusal/unwind. Partial
+    // directory creation likewise borrows ingress. Escaped Arcs, allocator
+    // cleanup, abort and full-resource funding are outside this ordering claim.
+    let (importer, registry, imports) = {
+        let directory = slot_ref(&ingress.directory).as_ref().or(new_directory.as_ref());
+        let mut registry = ingress.root.charge_external(0).map_err(|_| Error::Bounds)?;
+        let mut imports = ingress.root.charge_external(0).map_err(|_| Error::Bounds)?;
         let owners = SourceConstructionOwners {
-            manifest: manifest.payload(),
+            manifest: slot_ref(&manifest).payload(),
             incoming: None,
             public: None,
-            retained_baseline_bytes: root
+            retained_baseline_bytes: ingress.root
                 .budget()
                 .used_bytes()
                 .checked_sub(registry.payload_bytes())
                 .ok_or(Error::Bounds)?,
         };
-        let q = SourceRegistry::original_construction_quote(&original, &owners, MAX_PROGRAM_BYTES)?;
+        let q = SourceRegistry::original_construction_quote(slot_ref(&ingress.original), &owners, MAX_PROGRAM_BYTES)?;
         registry
             .resize_payload(q.new_owned_peak_bytes)
             .map_err(|_| Error::Bounds)?;
         let descriptors = SourceRegistry::from_original_records_checked(
-            &original,
+            slot_ref(&ingress.original),
             &owners,
             &registry,
             MAX_PROGRAM_BYTES,
         )?;
-        let q = PublicSourceImport::construction_quote(&descriptors, root.budget().used_bytes())?;
+        let q = PublicSourceImport::construction_quote(&descriptors, ingress.root.budget().used_bytes())?;
         q.admit(MAX_PROGRAM_BYTES)?;
         imports
             .resize_payload(q.new_owned_peak_bytes)
             .map_err(|_| Error::Bounds)?;
-        root.budget()
-            .admit_peak(root.budget().used_bytes())
+        ingress.root.budget()
+            .admit_peak(ingress.root.budget().used_bytes())
             .map_err(|_| Error::Bounds)?;
         let importer = PublicSourceImport::new_checked_location(
             &descriptors,
-            root.budget()
+            ingress.root.budget()
                 .used_bytes()
                 .checked_sub(imports.payload_bytes())
                 .ok_or(Error::Bounds)?,
             MAX_PROGRAM_BYTES,
-            directory.as_ref().map(|owner| {
+            directory.map(|owner| {
                 Arc::clone(owner) as Arc<dyn pllm_core::public_file::SnapshotDirectory>
             }),
         )?;
-        Ok(SourceRequestImport(Some(Pending {
-            directory,
-            importer,
-            original,
-            manifest,
-            raw,
-            limits,
-            storage,
-            registry,
-            imports,
-            controller,
-            root,
-        })))
-    }
+        (importer, registry, imports)
+    };
+    // Commit only after the last fallible call and the preparation borrows.
+    let HandoffIngress {
+        directory,
+        original,
+        raw,
+        limits,
+        storage,
+        controller,
+        root,
+    } = ingress;
+    let directory = slot_take(directory).or(new_directory);
+    let original = slot_take(original);
+    let raw = slot_take(raw);
+    let controller = slot_take(controller);
+    let manifest = slot_take(manifest);
+    Ok(SourceRequestImport(Some(Pending {
+        directory,
+        importer,
+        original,
+        manifest,
+        raw,
+        limits,
+        storage,
+        registry,
+        imports,
+        controller,
+        root,
+    })))
 }
 
 #[cfg(test)]

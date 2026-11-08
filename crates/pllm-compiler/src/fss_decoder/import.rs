@@ -3,12 +3,92 @@
 //! The caller authenticates checkpoint files and prices its read buffers separately.
 use super::source::TensorImport;
 use super::{
-    sdk, vector, Capacity, Error, Limits, Program, RotaryCoefficients, Source, Tensor, WeightDtype,
+    sdk, vector, AdmissionContext, AdmissionFailure, AdmissionGate, AdmissionStage,
+    Capacity, Error, Limits, Program, RotaryCoefficients, Source, Tensor, WeightDtype,
 };
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
 pub const MAX_FRAME_BYTES: usize = 64 * 1024;
+
+#[cfg(test)]
+mod description_tests {
+    use super::*;
+
+    fn tiny() -> SourceBuilder {
+        let config = pllm_types::canonical_bytes(&serde_json::json!({
+            "model_type":"gpt2", "n_embd":2, "n_head":1, "n_layer":1,
+            "n_positions":4, "vocab_size":3, "n_inner":2
+        }));
+        let mut builder = SourceBuilder::new(&config, 1, 1, sdk::GPT2_NUMERIC).unwrap();
+        let shapes = builder.admitted().unwrap().source_shapes.clone();
+        for (name, shape) in shapes {
+            builder.append(&name, WeightDtype::F32, 0,
+                &vec![0; shape.iter().product::<usize>() * 4]).unwrap();
+        }
+        builder
+    }
+
+    #[test]
+    fn imported_description_retains_normal_tensor_totals_without_authority() {
+        let normal = tiny().seal_with_schedule(super::super::OnlineSchedule::TensorV1).unwrap();
+        let description = tiny().describe_with_schedule_context(super::super::OnlineSchedule::TensorV1).unwrap();
+        assert!(matches!(description.extent, DescriptionExtent::Complete));
+        assert_eq!(format!("{:?}", description.resources), format!("{:?}", normal.program.resources()));
+        assert!(description.first_material.is_none());
+        assert!(description.material_wire_bytes.is_none());
+        assert!(!std::mem::needs_drop::<SourceDescription>());
+    }
+
+    #[test]
+    fn imported_description_retains_seal_error_context() {
+        let mut builder = tiny();
+        builder.cancel();
+        let failure = builder.describe_with_schedule_context(super::super::OnlineSchedule::TensorV1).unwrap_err();
+        assert_eq!(failure.error, Error::Consumed);
+        assert_eq!(failure.context.unwrap().gate, AdmissionGate::SourceAssembly);
+    }
+
+    #[test]
+    fn imported_description_work_policy_default_and_opt_in_keep_same_tiny_totals() {
+        let online = super::super::OnlineSchedule::TensorV1;
+        let old = tiny().describe_with_schedule_context(online).unwrap();
+        let default = tiny().describe_with_work_policy_context(online,
+            SourceDescriptionWorkPolicy::Default).unwrap();
+        assert_eq!(format!("{old:?}"), format!("{default:?}"));
+        assert!(default.work_policy.is_none());
+        let adopted = tiny().describe_with_work_policy_context(online,
+            SourceDescriptionWorkPolicy::MixedWork40).unwrap();
+        assert!(matches!(adopted.extent, DescriptionExtent::Complete));
+        assert_eq!(format!("{:?}", adopted.resources), format!("{:?}", default.resources));
+        assert_eq!(adopted.first_material, default.first_material);
+        assert_eq!(adopted.work_policy, Some(("mixed-work-40", 1usize << 40)));
+        assert!(adopted.material_wire_bytes.is_none());
+        assert!(!std::mem::needs_drop::<SourceDescription>());
+    }
+
+    #[test]
+    fn imported_description_frame_options_preserve_tiny_totals_and_default() {
+        let online = super::super::OnlineSchedule::TensorV1;
+        let baseline = tiny().describe_with_schedule_context(online).unwrap();
+        for policy in [SourceDescriptionWorkPolicy::Default, SourceDescriptionWorkPolicy::MixedWork40] {
+            let old = tiny().describe_with_work_policy_context(online, policy).unwrap();
+            let default = tiny().describe_with_options_context(online, policy, false).unwrap();
+            assert_eq!(format!("{old:?}"), format!("{default:?}"));
+            assert!(!default.observe_peer_frames);
+            assert!(default.first_frame_refusal.is_none());
+            assert!(default.first_frame_selection.is_none());
+            let observed = tiny().describe_with_options_context(online, policy, true).unwrap();
+            assert!(observed.observe_peer_frames);
+            assert!(matches!(observed.extent, DescriptionExtent::Complete));
+            assert_eq!(format!("{:?}", observed.resources), format!("{:?}", baseline.resources));
+            assert!(observed.first_frame_refusal.is_none());
+            assert!(observed.first_frame_selection.is_none());
+            assert!(observed.material_wire_bytes.is_none());
+            assert!(!std::mem::needs_drop::<SourceDescription>());
+        }
+    }
+}
 
 pub struct SourceBuilder {
     pending: Option<Pending>,
@@ -45,6 +125,52 @@ pub struct ImportedSource {
     pub phases: sdk::SourcePhaseAdmission,
     pub outputs: usize,
     pub numeric_profile: &'static str,
+}
+
+/// Finite source-description policy, never an execution or funding allowance.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SourceDescriptionWorkPolicy {
+    #[default]
+    Default,
+    MixedWork40,
+}
+
+impl SourceDescriptionWorkPolicy {
+    pub(super) fn ceiling(self, default: usize) -> Result<usize, Error> {
+        match self {
+            Self::Default => Ok(default),
+            Self::MixedWork40 => usize::try_from(1u64 << 40).map_err(|_| Error::Unsupported),
+        }
+    }
+}
+
+/// Scalars only; no source custody, binding, obligations, capsule or Program.
+#[derive(Clone, Copy, Debug)]
+pub struct SourceDescription {
+    /// Partial records are raw accounting: fields can reflect different progress
+    /// within a failed kernel after a mid-update overflow, not a coherent prefix.
+    pub resources: super::Resources,
+    pub first_material: Option<AdmissionContext>,
+    pub first_material_selection: Option<usize>,
+    /// Opt-in predicted cumulative peer-frame observation, not actual transport.
+    pub observe_peer_frames: bool,
+    pub first_frame_refusal: Option<AdmissionContext>,
+    pub first_frame_selection: Option<usize>,
+    pub extent: DescriptionExtent,
+    pub selection: usize,
+    pub node: usize,
+    /// Unsupported: peer-frame totals are not material-wire packet totals.
+    pub material_wire_bytes: Option<usize>,
+    /// Present only for explicit opt-in; mixed ledger units, not a host bound.
+    pub work_policy: Option<(&'static str, usize)>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum DescriptionExtent {
+    /// Walk finished despite observed material/opt-in frame refusals; NOT admission,
+    /// execution, funding authority or trained-method fit.
+    Complete,
+    Partial(AdmissionFailure<Error>),
 }
 
 /// Logical phase/overlap proof. The schedule fields partition the *existing*
@@ -232,10 +358,21 @@ impl SourceBuilder {
         self,
         online: super::OnlineSchedule,
     ) -> Result<ImportedProgram, Error> {
-        let imported = self.seal_source()?;
-        let ownership = compile_ownership(&imported.plan, &imported.source, imported.phases)?;
+        self.seal_with_schedule_context(online).map_err(|failure| failure.error)
+    }
+
+    /// Same consuming seal and admission path; diagnostics retain public scalars only.
+    pub fn seal_with_schedule_context(
+        self,
+        online: super::OnlineSchedule,
+    ) -> Result<ImportedProgram, AdmissionFailure<Error>> {
+        let imported = self.seal_source().map_err(|error| AdmissionFailure::from(error)
+            .with_context_if_absent(AdmissionContext::new(AdmissionStage::SourceSeal, AdmissionGate::SourceAssembly)))?;
+        let ownership = compile_ownership(&imported.plan, &imported.source, imported.phases)
+            .map_err(|error| AdmissionFailure::from(error).with_context_if_absent(
+                AdmissionContext::new(AdmissionStage::CompileOwnership, AdmissionGate::Ownership)))?;
         let limits = Limits::for_capacity(imported.source.capacity());
-        let program = Program::compile_with_schedule(
+        let program = Program::compile_with_schedule_context(
             &imported.plan,
             imported.source,
             imported.outputs,
@@ -245,16 +382,82 @@ impl SourceBuilder {
         // Compatibility assertion, not a late primary gate: the pre-call floor
         // above follows the current core formula and is tested against resources.
         if program.resources().metadata_bytes < ownership.schedule_metadata_credit_floor {
-            return Err(Error::Context);
+            return Err(AdmissionFailure::from(Error::Context).with_context_if_absent(
+                AdmissionContext::new(AdmissionStage::CompileOwnership, AdmissionGate::Ownership)));
         }
         if program.profile() != imported.numeric_profile {
-            return Err(Error::Context);
+            return Err(AdmissionFailure::from(Error::Context).with_context_if_absent(
+                AdmissionContext::new(AdmissionStage::SourceCompile, AdmissionGate::ProgramConstruction)));
         }
         Ok(ImportedProgram {
             program,
             input_digest: imported.input_digest,
             execution_binding: imported.execution_binding,
             ownership,
+        })
+    }
+
+    /// Consume genuine imported Source through the existing descriptive walker.
+    /// Only cumulative material refusal is observed; no execution owner escapes.
+    pub fn describe_with_schedule_context(
+        self, online: super::OnlineSchedule,
+    ) -> Result<SourceDescription, AdmissionFailure<Error>> {
+        self.describe_with_work_policy_context(online, SourceDescriptionWorkPolicy::Default)
+    }
+
+    /// Consume Source for scalar description with one finite mixed-work ceiling.
+    /// All other ceilings and all existing accounting operations are unchanged.
+    pub fn describe_with_work_policy_context(
+        self, online: super::OnlineSchedule, policy: SourceDescriptionWorkPolicy,
+    ) -> Result<SourceDescription, AdmissionFailure<Error>> {
+        self.describe_with_options_context(online, policy, false)
+    }
+
+    /// Observe only predicted cumulative peer frames, never actual transport or
+    /// public-copy/native limits. No execution owner or material visitor escapes.
+    pub fn describe_with_options_context(
+        self, online: super::OnlineSchedule, policy: SourceDescriptionWorkPolicy,
+        observe_peer_frames: bool,
+    ) -> Result<SourceDescription, AdmissionFailure<Error>> {
+        let imported = self.seal_source().map_err(|error| AdmissionFailure::from(error)
+            .with_context_if_absent(AdmissionContext::new(AdmissionStage::SourceSeal, AdmissionGate::SourceAssembly)))?;
+        let ownership = compile_ownership(&imported.plan, &imported.source, imported.phases)
+            .map_err(|error| AdmissionFailure::from(error).with_context_if_absent(
+                AdmissionContext::new(AdmissionStage::CompileOwnership, AdmissionGate::Ownership)))?;
+        let mut limits = Limits::for_capacity(imported.source.capacity());
+        limits.max_work = policy.ceiling(limits.max_work).map_err(|error|
+            AdmissionFailure::from(error).with_context_if_absent(AdmissionContext::new(
+                AdmissionStage::SourceCompile, AdmissionGate::ProgramConstruction)))?;
+        let expected_profile = imported.numeric_profile;
+        let diagnostic = Program::diagnose_validated_options(&imported.plan, imported.source,
+            imported.outputs, limits, online, policy, observe_peer_frames, |program| {
+                if program.resources().metadata_bytes < ownership.schedule_metadata_credit_floor {
+                    return Err(AdmissionFailure::from(Error::Context).with_context_if_absent(
+                        AdmissionContext::new(AdmissionStage::CompileOwnership, AdmissionGate::Ownership)));
+                }
+                if program.profile() != expected_profile {
+                    return Err(AdmissionFailure::from(Error::Context).with_context_if_absent(
+                        AdmissionContext::new(AdmissionStage::SourceCompile, AdmissionGate::ProgramConstruction)));
+                }
+                Ok(())
+            })?;
+        Ok(SourceDescription {
+            resources: diagnostic.resources,
+            first_material: diagnostic.first_material,
+            first_material_selection: diagnostic.first_material_selection,
+            observe_peer_frames,
+            first_frame_refusal: diagnostic.first_frame_refusal,
+            first_frame_selection: diagnostic.first_frame_selection,
+            extent: match diagnostic.extent {
+                super::runtime::DiagnosticExtent::Complete => DescriptionExtent::Complete,
+                super::runtime::DiagnosticExtent::Partial(failure) => DescriptionExtent::Partial(failure),
+            },
+            selection: diagnostic.selection, node: diagnostic.node,
+            material_wire_bytes: diagnostic.material_wire_bytes,
+            work_policy: match policy {
+                SourceDescriptionWorkPolicy::Default => None,
+                SourceDescriptionWorkPolicy::MixedWork40 => Some(("mixed-work-40", limits.max_work)),
+            },
         })
     }
 

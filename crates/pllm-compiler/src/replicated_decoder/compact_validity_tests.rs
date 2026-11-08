@@ -367,6 +367,9 @@ fn local_guard_full_tail_arcs_reused_without_reset_and_frozen_owner_lives() {
         panic!("local transitions")
     };
     assert_eq!(first.runs.len(), 2); // 128 * 3 + six-lane tail, not 390 entries
+    assert_eq!(first.runs.capacity(), 4); // allocated tile extent != coalesced count
+    assert_eq!(first.metadata_bytes().unwrap(), 4 * std::mem::size_of::<Option<GuardRun>>()
+        + std::mem::size_of::<RunStorage>() + 2 * std::mem::size_of::<usize>());
     assert_eq!(first.runs[0].tiles, 3);
     assert_eq!(first.runs[1].lanes, 6);
     assert_eq!(second.incoming, first_sticky);

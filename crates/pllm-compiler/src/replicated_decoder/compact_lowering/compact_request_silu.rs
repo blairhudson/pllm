@@ -1,7 +1,8 @@
 //! Request-only closed guarded-SiLU preparation; no new source/row authority.
 use super::*;
+use crate::replicated_decoder::program::request_origin::compact_storage::ControllerAccounting;
 
-impl CompactGraph<'_, '_> {
+impl<G: ControllerAccounting> CompactGraph<'_, '_, G> {
     pub(super) fn prepare_request_silu(
         &self,
         lanes: usize,

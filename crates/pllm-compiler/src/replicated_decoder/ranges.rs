@@ -53,11 +53,15 @@ impl Builder {
 
         // Returned fragmented view metadata is retained alongside the graph's
         // ordinary construction-view allowance. Each tile contributes one span;
-        // conservatively allow twice its rounded descriptor capacity.
+        // retain the two-backing allowance with an exact descriptor pool.
         let tiles = words.len().div_ceil(tensor::MAX_TILE_LANES);
         self.admission_stage = "checked_range_view_metadata";
-        self.charge_program_bytes(tiles.checked_mul(128).ok_or(Error::Bounds)?)?;
-        let mut safe_words = Words::new();
+        self.charge_program_bytes(
+            Words::span_pool_bytes(tiles)
+                .and_then(|bytes| bytes.checked_mul(2))
+                .ok_or(Error::Bounds)?,
+        )?;
+        let mut safe_words = Words::try_with_spans(tiles)?;
         for tile in words.chunks(tensor::MAX_TILE_LANES) {
             let n = tile.len();
             self.admission_stage = "checked_range_input_gather";

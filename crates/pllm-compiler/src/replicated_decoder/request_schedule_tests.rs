@@ -7,7 +7,7 @@ use crate::replicated_decoder::{
 };
 
 #[path = "compact_request_storage_tests.rs"]
-mod compact_request_storage_tests;
+pub(in crate::replicated_decoder::program) mod compact_request_storage_tests;
 #[path = "rotary_creation_tests.rs"]
 mod rotary_creation_tests;
 #[path = "source_bias_tests.rs"]

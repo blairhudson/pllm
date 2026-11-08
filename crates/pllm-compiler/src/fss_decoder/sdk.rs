@@ -667,6 +667,7 @@ fn config_attributes(document: &Value, rotary: bool) -> Result<(), String> {
 
 fn allowed_attributes(op: &ModelOperation) -> Result<(), String> {
     let keys: &[&str] = match op.operator {
+        Op::GeluErf | Op::Tanh | Op::AttentionMask => return Err(reject("source-FP32 forward operators have no FSS decoder executor")),
         Op::TokenLookup => &[
             "weight",
             "weight_shape",

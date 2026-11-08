@@ -4,6 +4,54 @@ use super::super::source_entry::SourceRequestImport;
 use super::*;
 use crate::replicated_decoder::runtime::BoundaryProgress;
 
+#[test]
+fn original_controller_lexical_loan_identity_survives_local_unwind() {
+    use compact_storage::{ControllerAccounting, ControllerLoan};
+    let (entry, _) = importer(3);
+    let result = entry.consume_compact(|created, mut controller, _, _, _| {
+        let plan = Arc::clone(&created.permit.history.origin.payload().source);
+        let identity = std::ptr::from_ref(&controller) as usize;
+        let payload = controller.payload_bytes();
+        let charged = controller.charged_bytes();
+        let used = plan.budget().used_bytes();
+        let unwind = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let loan = ControllerLoan::new(&mut controller);
+            assert_eq!(loan.controller_identity(), identity);
+            assert!(loan.is_for(plan.budget()));
+            assert_eq!(loan.payload_bytes(), payload);
+            assert_eq!(loan.charged_bytes(), charged);
+            panic!("loan-only ordinary unwind");
+        }));
+        assert!(unwind.is_err());
+        assert_eq!(std::ptr::from_ref(&controller) as usize, identity);
+        assert_eq!(controller.payload_bytes(), payload);
+        assert_eq!(controller.charged_bytes(), charged);
+        assert_eq!(plan.budget().used_bytes(), used);
+        let scope = compact_storage::EmissionScope::new(created, controller, MAX_PROGRAM_BYTES)?;
+        scope.into_owned(|_, _, _| Ok(()))
+    });
+    assert!(result.is_ok());
+}
+#[test]
+fn original_context_phase_overflow_preserves_work_charge_and_burns() {
+    let (entry, _) = importer(3);
+    let result = entry.consume_compact(|created, controller, _, _, _| {
+        let mut scope = compact_storage::EmissionScope::new(created, controller, MAX_PROGRAM_BYTES)?;
+        let (_, context, _) = scope.parts();
+        let work = context.work();
+        let payload = context.controller_payload_bytes();
+        let identity = context.controller_identity();
+        let result = context.admit_phase(usize::MAX, 0);
+        assert!(matches!(&result, Err(Error::Bounds)));
+        assert!(matches!(context.check_open(), Err(Error::Binding)));
+        assert_eq!(context.work(), work);
+        assert_eq!(context.controller_payload_bytes(), payload);
+        assert_eq!(context.controller_identity(), identity);
+        result
+    });
+    assert!(matches!(result, Err(Error::Bounds)));
+}
+
 fn importer(vocabulary: usize) -> (SourceRequestImport, Manifest) {
     importer_with_unsafe_row(vocabulary, false)
 }
@@ -245,6 +293,10 @@ fn compact_sealed_program_publication_exact_and_one_short_burns_with_original_na
         assert!(outside.borrow().budget().used_bytes() >= outside.borrow().payload_bytes());
     }
 }
+pub(in crate::replicated_decoder::program) fn genuine_legacy_root_fixture() -> super::super::source_entry::compact_pending::sealed::LegacyRoot {
+    genuine_history_fixture().0
+}
+
 fn genuine_history_fixture() -> (WholeHistory, Manifest, Arc<OwnedCharged<Origin>>) {
     use super::super::compact_storage::compact_history::PendingCompactHistory;
     let (entry, manifest) = importer_geometry_with_original_row(3, true, 2, true);
@@ -748,7 +800,7 @@ fn importer_geometry(
 ) -> (SourceRequestImport, Manifest) {
     importer_geometry_with_original_row(vocabulary, unsafe_row, width, false)
 }
-fn importer_geometry_with_original_row(
+pub(in crate::replicated_decoder::program) fn importer_geometry_with_original_row(
     vocabulary: usize,
     unsafe_row: bool,
     width: usize,
@@ -1127,6 +1179,84 @@ fn source_chain_temporary_retirement_preserves_original_admitted_peak() {
         "real manifest/import/permit temporaries retired"
     );
     assert_eq!(source.budget().admitted_peak_bytes(), peak);
+}
+
+#[test]
+fn consuming_pending_prebox_bounds_completes_actual_slots_before_controller() {
+    use source_entry::{compact_pending as pending, Event, Trace};
+    let (entry, _) = importer(4);
+    // Retain ONLY the observation counter before installing separate pressure.
+    let observation = pending::test_root(&entry);
+    let identity = pending::test_controller_identity(&entry);
+    let trace = Trace::new(observation.budget());
+    assert_eq!(trace.next_ordinal(), 1);
+    assert_eq!(trace.budget_id(), identity.0);
+    let pressure = pending::test_hold_remaining(&entry);
+    assert_eq!(pending::test_controller_identity(&entry), identity);
+    assert_eq!(observation.budget().used_bytes(), MAX_PROGRAM_BYTES);
+    let mut entered = false;
+    let result = entry.consume_compact_observed(&trace, |_, _, _, _, _| {
+        entered = true;
+        Ok(())
+    });
+    assert!(matches!(result, Err(Error::Bounds)));
+    assert!(!entered, "prebox refusal never invokes emit");
+    let controller = trace.completion(Event::ControllerCharge);
+    assert!(controller > 0);
+    for event in [Event::DirectorySlot, Event::OriginalSlot, Event::ManifestSlot, Event::RawSlot] {
+        let completed = trace.completion(event);
+        assert!(completed > 0 && completed < controller);
+    }
+    let mut completed = [
+        trace.completion(Event::DirectorySlot),
+        trace.completion(Event::OriginalSlot),
+        trace.completion(Event::ManifestSlot),
+        trace.completion(Event::RawSlot),
+        controller,
+    ];
+    completed.sort_unstable();
+    assert_eq!(completed, [1, 2, 3, 4, 5]);
+    assert_eq!(controller, 5);
+    assert_eq!(trace.next_ordinal(), 6);
+    // All five completion markers belong to actual moved slots, including the
+    // non-Clone controller. None-directory proves only its Option slot.
+    // SOURCE sensitivity, not an executed mutation: old early destructuring
+    // declares controller after raw/manifest/original/directory, so reverse local
+    // destruction reports controller first on this same prebox Bounds return.
+    // Counter values establish pressure/identity, never destruction order.
+    drop(pressure);
+    drop(observation);
+}
+
+#[test]
+fn emission_constructor_contrived_undersize_completes_actual_created_before_guard() {
+    use source_entry::{Event, Trace};
+    let (entry, _) = importer(4);
+    entry.with_created(|created, mut guard| {
+        // Deliberate precondition refusal, NOT a naturally reachable production
+        // sizing defect. Move this exact incoming controller; mint no replacement.
+        let identity = guard.budget() as *const _ as usize;
+        let trace = Trace::new(guard.budget());
+        assert_eq!(trace.next_ordinal(), 1);
+        assert_eq!(trace.budget_id(), identity);
+        guard.resize_payload(0).unwrap();
+        assert_eq!(guard.budget() as *const _ as usize, identity);
+        assert_eq!(guard.payload_bytes(), 0);
+        let result = compact_storage::EmissionScope::new_observed(
+            created, guard, MAX_PROGRAM_BYTES, &trace,
+        );
+        assert!(matches!(result, Err(Error::Bounds)));
+        let created = trace.completion(Event::CreatedInputs);
+        let controller = trace.completion(Event::ControllerCharge);
+        assert!(created > 0 && controller > created);
+        assert_eq!(created, 1);
+        assert_eq!(controller, 2);
+        assert_eq!(trace.next_ordinal(), 3);
+        // SOURCE sensitivity only: separate created/guard parameters without
+        // PreEmissionScope retire guard before created on this required-size
+        // refusal. The shared constructor body, not a historical fake, is traced.
+        Ok(())
+    }).unwrap();
 }
 
 #[test]

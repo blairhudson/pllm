@@ -511,8 +511,79 @@ impl Program {
         limits: Limits,
         online: OnlineSchedule,
     ) -> Result<Self, Error> {
+        Self::compile_with_schedule_context(plan, source, selections, limits, online)
+            .map_err(|failure| failure.error)
+    }
+
+    pub fn compile_with_schedule_context(
+        plan: &DecoderPlan,
+        source: Source,
+        selections: usize,
+        limits: Limits,
+        online: OnlineSchedule,
+    ) -> Result<Self, AdmissionFailure<Error>> {
+        let context = AdmissionContext::new(AdmissionStage::SourceCompile, AdmissionGate::ProgramConstruction);
+        let mut program = Self::construct_with_schedule(plan, source, selections, limits, online)
+            .map_err(|error| AdmissionFailure::from(error).with_context_if_absent(context))?;
+        super::runtime::preflight_context(&mut program)
+            .map_err(|failure| failure.with_context_if_absent(context))?;
+        Ok(program)
+    }
+
+    // Consumes authentic Source custody but never returns an admitted Program.
+    // Default construction retains the normal hard ceilings and structural checks.
+    pub(super) fn diagnose_with_schedule(
+        plan: &DecoderPlan, source: Source, selections: usize,
+        limits: Limits, online: OnlineSchedule,
+    ) -> Result<super::runtime::Diagnostic, AdmissionFailure<Error>> {
+        Self::diagnose_validated(plan, source, selections, limits, online,
+            super::import::SourceDescriptionWorkPolicy::Default, |_| Ok(()))
+    }
+
+    pub(super) fn diagnose_validated(
+        plan: &DecoderPlan, source: Source, selections: usize,
+        limits: Limits, online: OnlineSchedule,
+        policy: super::import::SourceDescriptionWorkPolicy,
+        validate: impl FnOnce(&Self) -> Result<(), AdmissionFailure<Error>>,
+    ) -> Result<super::runtime::Diagnostic, AdmissionFailure<Error>> {
+        Self::diagnose_validated_options(plan, source, selections, limits, online,
+            policy, false, validate)
+    }
+
+    pub(super) fn diagnose_validated_options(
+        plan: &DecoderPlan, source: Source, selections: usize,
+        limits: Limits, online: OnlineSchedule,
+        policy: super::import::SourceDescriptionWorkPolicy, observe_peer_frames: bool,
+        validate: impl FnOnce(&Self) -> Result<(), AdmissionFailure<Error>>,
+    ) -> Result<super::runtime::Diagnostic, AdmissionFailure<Error>> {
+        let context = AdmissionContext::new(AdmissionStage::SourceCompile, AdmissionGate::ProgramConstruction);
+        let program = Self::construct_with_work_policy(plan, source, selections, limits, online, policy)
+            .map_err(|error| AdmissionFailure::from(error).with_context_if_absent(context))?;
+        validate(&program)?;
+        Ok(super::runtime::diagnose(&program, observe_peer_frames))
+    }
+
+    fn construct_with_schedule(
+        plan: &DecoderPlan,
+        source: Source,
+        selections: usize,
+        limits: Limits,
+        online: OnlineSchedule,
+    ) -> Result<Self, Error> {
+        Self::construct_with_work_policy(plan, source, selections, limits, online,
+            super::import::SourceDescriptionWorkPolicy::Default)
+    }
+
+    // Only the consuming scalar-description path can select a nondefault policy.
+    // There is one constructor body; no executable public constructor opts in.
+    fn construct_with_work_policy(
+        plan: &DecoderPlan, source: Source, selections: usize,
+        limits: Limits, online: OnlineSchedule,
+        policy: super::import::SourceDescriptionWorkPolicy,
+    ) -> Result<Self, Error> {
         let capacity = source.capacity();
-        let hard = Limits::for_capacity(capacity);
+        let mut hard = Limits::for_capacity(capacity);
+        hard.max_work = policy.ceiling(hard.max_work)?;
         if plan.schema_version.capacity() > 1024
             || plan.model_family.capacity() > 1024
             || plan.adapter.capacity() > 1024
@@ -706,6 +777,7 @@ impl Program {
             let mut dot_proof = None;
             let mut affine_proof = None;
             let (code, shape, range) = match op.operator {
+                Op::GeluErf | Op::Tanh | Op::AttentionMask => return Err(Error::Unsupported),
                 Op::TokenLookup => {
                     if op.inputs.len() != 1 || declared.len() != 3 || declared[..2] != [1, initial]
                     {
@@ -1503,7 +1575,6 @@ impl Program {
         if std::env::var_os("PLLM_FSS_ADMISSION_DEBUG").is_some() {
             eprintln!("FSS public range construction complete; beginning kernel admission");
         }
-        super::runtime::preflight(&mut program)?;
         Ok(program)
     }
     pub fn digest(&self) -> [u8; 32] {

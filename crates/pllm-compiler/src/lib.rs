@@ -33,6 +33,16 @@ mod decoder_boundary;
 mod decoder_continuation;
 mod decoder_matrix_inventory;
 mod decoder_runtime_schedule;
+mod forward_runtime_schedule;
+pub use forward_runtime_schedule::{
+    lower_forward_runtime_schedule, forward_input_preflight, ForwardMemoryQuote,
+    ForwardMemoryInput, forward_memory_input_from_plan, quote_forward_memory_input,
+    forward_memory_input_from_summary, validate_forward_composition,
+    lower_forward_runtime_schedule_with_limits,
+    forward_composition_memory_bytes,
+    ForwardRuntimeSchedule, ForwardRuntimeStep, quote_forward_memory,
+    FORWARD_RUNTIME_SCHEDULE_SCHEMA_VERSION,
+};
 mod delegated_decoder;
 pub mod delegation_publication_inventory;
 pub mod encrypted_level_schedule;
@@ -514,6 +524,13 @@ pub fn decoder_coverage(
         serde_json::from_slice::<ExperimentPipeline>(bytes)
             .is_ok_and(|pipeline| decoder_boundary::selected(&pipeline))
     });
+    // An operator-level coverage row can contain both token boundary lookups
+    // and client-local position tables. Only a successful admitted schedule
+    // establishes this mixed placement; a descriptive domain alone cannot.
+    let local_position_lookup = baseline_runtime_complete && plan.prefill.operations.iter().any(|op| {
+        op.operator == ModelOperator::TokenLookup && pllm_models::describe_embedding(op)
+            .is_ok_and(|embedding| embedding.domain == pllm_models::EmbeddingDomain::AbsolutePositions)
+    });
     let mut occurrences = BTreeMap::<ModelOperator, u64>::new();
     for operation in plan
         .prefill
@@ -632,6 +649,9 @@ pub fn decoder_coverage(
                                     "pllm/masked-linear@0.1.0-alpha.1"
                                 }
                             }
+                            ModelOperator::TokenLookup if local_position_lookup => {
+                                "pllm/client-transformer-runtime@0.1.0-alpha.1"
+                            }
                             ModelOperator::TokenLookup | ModelOperator::OutputHead => {
                                 if private_boundary {
                                     "pllm/private-lookup-full-head/v1@0.1.0-alpha.1"
@@ -705,6 +725,8 @@ pub fn decoder_coverage(
                                 "scheduled by the complete model-aware prepared masked-linear runtime; this is distinct from the fixed-Q10 research composite"
                             }
                         }
+                        ModelOperator::TokenLookup if local_position_lookup =>
+                            "token-domain tables remain at the quantized client boundary; absolute-position tables execute client-local outside provider protection",
                         ModelOperator::TokenLookup | ModelOperator::OutputHead => if private_boundary {
                             "scheduled as coupled private lookup and complete additive full head at two committed boundary parties; operator independence needs deployment evidence"
                         } else { "scheduled at the quantized client boundary by the complete model-aware runtime" },
@@ -1806,6 +1828,9 @@ pub(crate) fn classify_decoder_composition(
         return Err("pipeline composition must use canonical compact sorted JSON bytes".into());
     }
     validate_experiment_model(&pipeline.model)?;
+    if pipeline.components.contains_key("numeric") {
+        return Err("numeric descriptors are unsupported by the decoder runtime".into());
+    }
     Ok(match validate_decoder_linear_composition(&pipeline) {
         Ok(kind) => kind,
         Err(_) => DecoderCompositionKind::Other,
@@ -1815,6 +1840,9 @@ pub(crate) fn classify_decoder_composition(
 fn validate_decoder_linear_composition(
     pipeline: &ExperimentPipeline,
 ) -> Result<DecoderCompositionKind, String> {
+    if pipeline.components.contains_key("numeric") {
+        return Err("numeric descriptors are unsupported by the decoder runtime".into());
+    }
     retained_decoder::validate_state_component(pipeline)?;
     validate_all_link_composition(pipeline)?;
     if pipeline.components.get("cache").is_some_and(|cache| {

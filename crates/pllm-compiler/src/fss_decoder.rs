@@ -14,6 +14,8 @@ mod energy;
 pub mod import;
 #[path = "fss_decoder/program.rs"]
 mod program;
+#[path = "fss_decoder/resource_quote.rs"]
+mod resource_quote;
 #[path = "fss_decoder/runtime.rs"]
 mod runtime;
 #[path = "fss_decoder/sdk.rs"]
@@ -24,6 +26,7 @@ mod source;
 pub mod transport;
 pub use capacity::Capacity;
 pub use pllm_garble::fusefss_backend::Error;
+pub use pllm_garble::shared_allocation::{AdmissionContext, AdmissionFailure, AdmissionGate, AdmissionStage};
 pub use program::{Limits, OnlineSchedule, Program, Resources};
 pub use runtime::{Driver, MaterialVisitor, NativeOutput, TokenShares, Worker};
 pub use source::{RotaryCoefficients, Source, Tensor, WeightDtype};
@@ -31,6 +34,10 @@ pub use source::{RotaryCoefficients, Source, Tensor, WeightDtype};
 #[cfg(test)]
 #[path = "fss_decoder/conformance.rs"]
 mod conformance;
+
+#[cfg(test)]
+#[path = "fss_decoder/admission_context_tests.rs"]
+mod admission_context_tests;
 
 const MASK: u64 = (1u64 << 50) - 1;
 const HALF: i128 = 1i128 << 49;

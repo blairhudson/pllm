@@ -7,13 +7,15 @@ use super::compact_attention_scores::{
 };
 use super::compact_attention_softmax::{RowView, Rows as SoftmaxRows};
 use super::*;
+use crate::replicated_decoder::program::request_origin::compact_storage::ControllerAccounting;
 use puma::multiply::norm::RowEnergyProof;
+use pllm_garble::shared_allocation::OwnedExternalCharge;
 use std::mem::{size_of, size_of_val};
 
 /// Private creation-bound evidence. No constructor accepts a mass integer.
 /// RowView owns the SAME original invocation Arc (including its certificate).
-pub(super) struct Probability<'s> {
-    native: RowView<'s>,
+pub(super) struct Probability<'s, G = OwnedExternalCharge> {
+    native: RowView<'s, G>,
     predecessor: PublishedView,
     program: Arc<tensor::Program>,
     prefix_offset: usize,
@@ -24,9 +26,9 @@ pub(super) struct Probability<'s> {
     input: Interval,
     output: Interval,
 }
-impl<'s> Probability<'s> {
+impl<'s, G: ControllerAccounting> Probability<'s, G> {
     fn from_rows(
-        rows: &SoftmaxRows<'s>,
+        rows: &SoftmaxRows<'s, G>,
         prefix: &PublishedView,
         inner: usize,
     ) -> Result<Self, Error> {
@@ -91,7 +93,7 @@ impl<'s> Probability<'s> {
         self.native.predecessor_programs()
     }
 }
-pub(super) struct ValueRow<'s> {
+pub(super) struct ValueRow<'s, G = OwnedExternalCharge> {
     pub(super) gather: ScoreGather,
     pub(super) gather_offset: usize,
     pub(super) input_bounds: Interval,
@@ -100,12 +102,12 @@ pub(super) struct ValueRow<'s> {
     pub(super) value_start: usize,
     pub(super) tile_start: usize,
     pub(super) tile_count: usize,
-    pub(super) probability: Option<Probability<'s>>,
+    pub(super) probability: Option<Probability<'s, G>>,
 }
-pub(super) struct Values<'s> {
+pub(super) struct Values<'s, G = OwnedExternalCharge> {
     pub(super) probabilities: PublishedView,
     pub(super) values: PublishedView,
-    pub(super) rows: Vec<ValueRow<'s>>,
+    pub(super) rows: Vec<ValueRow<'s, G>>,
     pub(super) tiles: Vec<ScoreTile>,
     pub(super) width: usize,
     pub(super) keys: usize,
@@ -138,11 +140,11 @@ pub(super) struct OwnedValues {
     pub(super) work: WorkBudget,
     pub(super) bounds: Interval,
 }
-impl<'s> Values<'s> {
+impl<'s, G: ControllerAccounting> Values<'s, G> {
     pub(super) fn into_owned(
         self,
-        context: &EmissionContext<'s>,
-        conversion: &super::compact_attention_softmax::owning::Conversion<'_, 's>,
+        context: &EmissionContext<'s, G>,
+        conversion: &super::compact_attention_softmax::owning::Conversion<'_, 's, G>,
     ) -> Result<OwnedValues, Error> {
         let retained = add_bytes(
             array_bytes::<OwnedValueRow>(self.rows.len())?,
@@ -157,14 +159,7 @@ impl<'s> Values<'s> {
             .rows
             .iter()
             .try_fold(self.rows.len(), |n, row| add_bytes(n, row.inner))?;
-        context
-            .plan()
-            .prepay_compiler_metadata(
-                &context.reservation(),
-                u64::try_from(visits.checked_mul(8).ok_or(Error::Bounds)?)
-                    .map_err(|_| Error::Bounds)?,
-            )
-            .map_err(|_| Error::Bounds)?;
+        context.prepay_metadata(u64::try_from(visits.checked_mul(8).ok_or(Error::Bounds)?).map_err(|_| Error::Bounds)?)?;
         let mut rows = Vec::new();
         #[cfg(test)]
         super::frozen_region::owning::conversion_probe::allocation();
@@ -259,7 +254,7 @@ impl ValueLayout {
         ))
     }
 }
-impl Values<'_> {
+impl<G: ControllerAccounting> Values<'_, G> {
     pub(super) fn layout(&self) -> Result<ValueLayout, Error> {
         if self.sequence == 0
             || self.keys < self.sequence
@@ -304,7 +299,7 @@ impl Values<'_> {
     }
     pub(super) fn retained_bytes(&self) -> Result<usize, Error> {
         add_bytes(
-            array_bytes::<ValueRow<'_>>(self.rows.capacity())?,
+            array_bytes::<ValueRow<'_, G>>(self.rows.capacity())?,
             array_bytes::<ScoreTile>(self.tiles.capacity())?,
         )
     }
@@ -356,13 +351,15 @@ struct View {
     shape: [usize; 4],
     rank: usize,
 }
-struct Sink<'a, 'g, 's> {
-    graph: &'a CompactGraph<'g, 's>,
-    result: Values<'s>,
+struct SinkFor<'a, 'g, 's, G: ControllerAccounting = OwnedExternalCharge> {
+    graph: &'a CompactGraph<'g, 's, G>,
+    result: Values<'s, G>,
     pending: Option<RightGather>,
     current: usize,
 }
-impl MatrixSink for Sink<'_, '_, '_> {
+#[cfg(test)]
+type Sink<'a, 'g, 's> = SinkFor<'a, 'g, 's, OwnedExternalCharge>;
+impl<G: ControllerAccounting> MatrixSink for SinkFor<'_, '_, '_, G> {
     type Owner = usize;
     type Mass = usize;
     type Output = usize;
@@ -503,7 +500,7 @@ impl MatrixSink for Sink<'_, '_, '_> {
         *out += lanes;
     }
 }
-impl AttentionSink for Sink<'_, '_, '_> {
+impl<G: ControllerAccounting> AttentionSink for SinkFor<'_, '_, '_, G> {
     type View = View;
     type Words = Span;
     type Word = Word;
@@ -766,10 +763,10 @@ fn same_input(a: &PublishedView, b: &PublishedView) -> bool {
         && a.logical == b.logical
         && a.bounds == b.bounds
 }
-impl<'s> CompactGraph<'_, 's> {
+impl<'s, G: ControllerAccounting> CompactGraph<'_, 's, G> {
     fn values_peak(&self, rows: usize, tiles: usize, attempt: usize) -> Result<usize, Error> {
         let backing = add_bytes(
-            array_bytes::<ValueRow<'s>>(rows)?,
+            array_bytes::<ValueRow<'s, G>>(rows)?,
             array_bytes::<ScoreTile>(tiles)?,
         )?;
         let mut peak = add_bytes(
@@ -781,20 +778,20 @@ impl<'s> CompactGraph<'_, 's> {
                 peak = add_bytes(peak, $bytes)?;
             };
         }
-        slot!(size_of::<Sink<'_, '_, '_>>());
-        slot!(2 * size_of::<Values<'s>>());
-        slot!(2 * size_of::<Result<Values<'s>, Error>>());
-        slot!(2 * size_of::<Vec<ValueRow<'s>>>());
+        slot!(size_of::<SinkFor<'_, '_, '_, G>>());
+        slot!(2 * size_of::<Values<'s, G>>());
+        slot!(2 * size_of::<Result<Values<'s, G>, Error>>());
+        slot!(2 * size_of::<Vec<ValueRow<'s, G>>>());
         slot!(2 * size_of::<Vec<ScoreTile>>());
-        slot!(2 * size_of::<ValueRow<'s>>());
+        slot!(2 * size_of::<ValueRow<'s, G>>());
         slot!(2 * size_of::<ScoreTile>());
         slot!(2 * size_of::<RightGather>());
         slot!(2 * size_of::<Option<RightGather>>());
-        slot!(2 * size_of::<Option<Probability<'s>>>());
-        slot!(2 * size_of::<Result<Probability<'s>, Error>>());
-        slot!(2 * size_of::<RowView<'s>>());
+        slot!(2 * size_of::<Option<Probability<'s, G>>>());
+        slot!(2 * size_of::<Result<Probability<'s, G>, Error>>());
+        slot!(2 * size_of::<RowView<'s, G>>());
         slot!(
-            2 * size_of::<Result<Option<&super::compact_attention_softmax::OwnedRow<'s>>, Error>>()
+            2 * size_of::<Result<Option<&super::compact_attention_softmax::OwnedRow<'s, G>>, Error>>()
         );
         slot!(6 * size_of::<View>());
         slot!(2 * size_of::<Result<View, Error>>());
@@ -817,7 +814,7 @@ impl<'s> CompactGraph<'_, 's> {
         shape: &[usize],
         probabilities: &PublishedView,
         values: &PublishedView,
-    ) -> Result<Values<'s>, Error> {
+    ) -> Result<Values<'s, G>, Error> {
         let context = self.request_admission.ok_or(Error::Binding)?;
         let mut attempt = context.attempt();
         context.check_open()?;
@@ -859,13 +856,7 @@ impl<'s> CompactGraph<'_, 's> {
             .and_then(|n| n.checked_add(rows.checked_mul(rows)?))
             .and_then(|n| n.checked_mul(32))
             .ok_or(Error::Bounds)?;
-        context
-            .plan()
-            .prepay_compiler_metadata(
-                &context.reservation(),
-                u64::try_from(visits).map_err(|_| Error::Bounds)?,
-            )
-            .map_err(|_| Error::Bounds)?;
+        context.prepay_metadata(u64::try_from(visits).map_err(|_| Error::Bounds)?)?;
         let mut records = Vec::new();
         records
             .try_reserve_exact(rows)
@@ -889,13 +880,13 @@ impl<'s> CompactGraph<'_, 's> {
             work: WorkBudget::default(),
             bounds: Interval::new(0, 0)?,
         };
-        let mut sink = Sink {
+        let mut sink = SinkFor {
             graph: self,
             result,
             pending: None,
             current: 0,
         };
-        let p = Sink::view(
+        let p = SinkFor::<G>::view(
             Span {
                 kind: 0,
                 start: 0,
@@ -906,7 +897,7 @@ impl<'s> CompactGraph<'_, 's> {
             },
             &probabilities.logical.dimensions[..4],
         );
-        let v = Sink::view(
+        let v = SinkFor::<G>::view(
             Span {
                 kind: 1,
                 start: 0,

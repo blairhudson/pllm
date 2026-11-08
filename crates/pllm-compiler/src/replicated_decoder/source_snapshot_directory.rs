@@ -47,7 +47,8 @@ struct DirectoryPayload {
     directory: tempfile::TempDir,
 }
 pub(in crate::replicated_decoder) struct OwnedSnapshotDirectory {
-    payload: OwnedCharged<DirectoryPayload>, // payload dies before original lease
+    payload: Option<OwnedCharged<DirectoryPayload>>, // payload dies before original lease
+    pending: Option<Arc<RawSnapshotDirectory>>,
 }
 impl OwnedSnapshotDirectory {
     #[cfg(test)]
@@ -55,7 +56,28 @@ impl OwnedSnapshotDirectory {
         FACTORIES.with(|n| n.get())
     }
     pub(in crate::replicated_decoder) fn path(&self) -> &Path {
-        self.payload.payload().directory.path()
+        if let Some(pending) = &self.pending { return pending.path(); }
+        self.payload.as_ref().expect("legacy directory").payload().directory.path()
+    }
+    /// Same location contract, but adopted before any filesystem acquisition.
+    pub(in crate::replicated_decoder) fn prepare(
+        original: &OriginalSourcePlan, controller: &OwnedExternalCharge, root: &OwnedBudget,
+    ) -> Result<Arc<Self>, Error> {
+        let pending = RawSnapshotDirectory::prepare_mode(original, controller, root, true)?;
+        Ok(Arc::new(Self { payload: None, pending: Some(pending) }))
+    }
+    pub(in crate::replicated_decoder) fn start(&self) -> Result<(), Error> {
+        let pending = self.pending.as_ref().ok_or(Error::Binding)?;
+        pending.start_mode(RawSnapshotDirectory::parent_device()?, true)
+    }
+    pub(in crate::replicated_decoder) fn retire(&self) -> Result<(), Error> {
+        self.pending.as_ref().ok_or(Error::Binding)?.retire()
+    }
+    #[cfg(test)]
+    pub(in crate::replicated_decoder) fn pending_state_for_tests(&self) -> (bool, bool, bool, bool) {
+        let pending = self.pending.as_ref().expect("pending compact directory");
+        let (anchor, directory, attempted) = pending.retention_for_tests();
+        (anchor, directory, attempted, pending.acquisition_unknown_for_tests())
     }
     fn quote() -> Result<usize, Error> {
         let (layout, _) = Layout::new::<[AtomicUsize; 2]>()
@@ -152,13 +174,14 @@ impl OwnedSnapshotDirectory {
         if !std::ptr::eq(payload.budget(), original.budget()) {
             return Err(Error::Binding);
         }
-        Ok(Arc::new(Self { payload }))
+        Ok(Arc::new(Self { payload: Some(payload), pending: None }))
     }
     pub(in crate::replicated_decoder) fn check_budget(
         &self,
         budget: &pllm_garble::shared_allocation::Budget,
     ) -> Result<(), Error> {
-        if !std::ptr::eq(self.payload.budget(), budget) {
+        if let Some(pending) = &self.pending { return pending.check_budget(budget); }
+        if !std::ptr::eq(self.payload.as_ref().ok_or(Error::Binding)?.budget(), budget) {
             return Err(Error::Binding);
         }
         Ok(())
@@ -169,11 +192,13 @@ impl SnapshotDirectory for OwnedSnapshotDirectory {
         Self::path(self)
     }
     fn check_file(&self, file: pllm_core::public_file::FileBacking) -> Result<(), String> {
+        if let Some(pending) = &self.pending { return pending.check_file(file); }
         #[cfg(unix)]
         {
             use std::os::unix::fs::MetadataExt;
             let anchor = self
                 .payload
+                .as_ref().ok_or("directory unavailable")?
                 .payload()
                 .anchor
                 .metadata()
@@ -191,7 +216,7 @@ impl SnapshotDirectory for OwnedSnapshotDirectory {
     }
 }
 
-/// Raw-only two-phase location. This object is adopted before its first factory;
+/// Shared two-phase location. This object is adopted before its first factory;
 /// every partial factory result stays here until explicit fallible retirement.
 /// Legacy OwnedSnapshotDirectory/drop behavior above is deliberately unchanged.
 pub(in crate::replicated_decoder) struct RawSnapshotDirectory {
@@ -209,22 +234,50 @@ struct RawDirectoryState {
     attempted: bool,
     retire_attempted: bool,
     retired: bool,
+    // A third-party factory error cannot prove that no directory was created.
+    // No returned handle/path means uncertainty, NOT a live-directory claim.
+    acquisition_unknown: bool,
+}
+#[cfg(test)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(in crate::replicated_decoder) enum CompactFault { Before, Opaque, Directory, Anchor, Metadata, Remove }
+#[cfg(test)]
+thread_local! {
+    static COMPACT_FAULT: std::cell::Cell<Option<CompactFault>> = const { std::cell::Cell::new(None) };
+}
+#[cfg(test)]
+pub(in crate::replicated_decoder) fn set_compact_fault(fault: Option<CompactFault>) {
+    COMPACT_FAULT.with(|slot| slot.set(fault));
+}
+#[cfg(test)]
+fn compact_fault(point: CompactFault) -> Result<(), Error> {
+    if COMPACT_FAULT.with(|slot| slot.get()) == Some(point) { Err(Error::Binding) } else { Ok(()) }
 }
 impl RawSnapshotDirectory {
     pub(in crate::replicated_decoder) fn prepare(
         original: &OriginalSourcePlan, controller: &OwnedExternalCharge, root: &OwnedBudget,
     ) -> Result<Arc<Self>, Error> {
+        Self::prepare_mode(original, controller, root, false)
+    }
+    fn prepare_mode(
+        original: &OriginalSourcePlan, controller: &OwnedExternalCharge, root: &OwnedBudget,
+        wrapped: bool,
+    ) -> Result<Arc<Self>, Error> {
         if !std::ptr::eq(root.budget(), original.budget()) || !controller.is_for(root.budget()) {
             return Err(Error::Binding);
         }
-        let bytes = add(OwnedSnapshotDirectory::quote()?, size_of::<Self>())?;
+        // quote() already includes the directory wrapper and one Arc control.
+        // Compact wraps the shared pending location: pay its second Arc too,
+        // on this SAME original ledger, without changing any admission ceiling.
+        let control = if wrapped { size_of::<[AtomicUsize; 2]>() } else { 0 };
+        let bytes = add(OwnedSnapshotDirectory::quote()?, add(size_of::<Self>(), control)?)?;
         if add(root.budget().used_bytes(), bytes)? > MAX_PROGRAM_BYTES { return Err(Error::Bounds); }
         original.prepay_compiler_metadata(controller, 64).map_err(|_| Error::Bounds)?;
         let charge = root.charge_external(bytes).map_err(|_| Error::Bounds)?;
         Ok(Arc::new(Self { path: std::sync::OnceLock::new(),
             state: std::sync::Mutex::new(RawDirectoryState {
                 anchor: None, directory: None, retained: None, attempted: false,
-                retire_attempted: false, retired: false,
+                retire_attempted: false, retired: false, acquisition_unknown: false,
             }), charge }))
     }
     pub(in crate::replicated_decoder) fn parent_device() -> Result<u64, Error> {
@@ -237,24 +290,43 @@ impl RawSnapshotDirectory {
         #[cfg(not(unix))] { Err(Error::Binding) }
     }
     pub(in crate::replicated_decoder) fn start(self: &Arc<Self>, device: u64) -> Result<(), Error> {
+        self.start_mode(device, false)
+    }
+    fn start_mode(self: &Arc<Self>, device: u64, compact: bool) -> Result<(), Error> {
         let mut state = self.state.lock().map_err(|_| Error::Binding)?;
         if state.attempted || state.retired { return Err(Error::Retired); }
         state.attempted = true;
         state.retained = Some(Arc::clone(self));
         if Self::parent_device()? != device { return Err(Error::Binding); }
+        #[cfg(test)]
+        if compact { compact_fault(CompactFault::Before)?; }
         #[cfg(test)] FACTORIES.with(|n| n.set(n.get() + 1));
         // Store the directory BEFORE path-copy/anchor/fstat, so errors cannot
         // accidentally turn TempDir::drop into a retirement proof.
+        state.acquisition_unknown = compact;
+        #[cfg(test)]
+        if compact { compact_fault(CompactFault::Opaque)?; }
         state.directory = Some(tempfile::Builder::new().prefix(PREFIX)
             .rand_bytes(RANDOM_BYTES).tempdir_in(parent()?).map_err(|_| Error::Binding)?);
+        state.acquisition_unknown = false;
         let directory = state.directory.as_ref().ok_or(Error::Binding)?;
         self.path.set(directory.path().to_path_buf()).map_err(|_| Error::Binding)?;
+        #[cfg(test)]
+        if compact { compact_fault(CompactFault::Directory)?; }
         state.anchor = Some(tempfile::tempfile_in(self.path()).map_err(|_| Error::Binding)?);
+        #[cfg(test)]
+        if compact { compact_fault(CompactFault::Anchor)?; }
         #[cfg(unix)] {
             use std::os::unix::fs::MetadataExt;
             let anchor = state.anchor.as_ref().ok_or(Error::Binding)?.metadata().map_err(|_| Error::Binding)?;
             if anchor.dev() != device || anchor.len() != 0 { return Err(Error::Binding); }
+            if compact {
+                let directory = self.path().metadata().map_err(|_| Error::Binding)?;
+                if !directory.is_dir() || directory.dev() != anchor.dev() { return Err(Error::Binding); }
+            }
         }
+        #[cfg(test)]
+        if compact { compact_fault(CompactFault::Metadata)?; }
         Ok(())
     }
     pub(in crate::replicated_decoder) fn retire(&self) -> Result<(), Error> {
@@ -262,9 +334,11 @@ impl RawSnapshotDirectory {
         if state.retired { return Ok(()); }
         if state.retire_attempted { return Err(Error::Retired); }
         state.retire_attempted = true;
+        if state.acquisition_unknown { return Err(Error::Binding); }
         if let Some(directory) = state.directory.as_ref() {
             // A successful explicit syscall is proof; Drop is not. Failed
             // removal leaves the exact directory object and charge retained.
+            #[cfg(test)] compact_fault(CompactFault::Remove)?;
             std::fs::remove_dir(directory.path()).map_err(|_| Error::Binding)?;
         }
         if let Some(directory) = state.directory.take() { let _ = directory.keep(); }
@@ -284,6 +358,10 @@ impl RawSnapshotDirectory {
     pub(in crate::replicated_decoder) fn retention_for_tests(&self) -> (bool, bool, bool) {
         let state = self.state.lock().unwrap();
         (state.anchor.is_some(), state.directory.is_some(), state.retire_attempted)
+    }
+    #[cfg(test)]
+    pub(in crate::replicated_decoder) fn acquisition_unknown_for_tests(&self) -> bool {
+        self.state.lock().unwrap().acquisition_unknown
     }
 }
 impl SnapshotDirectory for RawSnapshotDirectory {

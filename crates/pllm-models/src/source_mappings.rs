@@ -12,6 +12,230 @@ use super::{
 use serde::Deserialize;
 use serde_json::Value;
 
+/// Forward-only source registry. Source spellings and checkpoint paths remain
+/// here; the encoder builder consumes validated geometry and semantic roles.
+pub(super) struct EncoderSource {
+    model_type: &'static str,
+    pub(super) family: &'static str,
+    pub(super) adapter: &'static str,
+    pub(super) digest_domain: &'static str,
+    architectures: [&'static str; 2],
+    prefixes: [&'static str; 2],
+    globals: &'static [(&'static str, &'static str)],
+    layer_prefix: &'static str,
+    layers: &'static [(&'static str, &'static str)],
+}
+
+const ENCODER_SOURCES: &[EncoderSource] = &[EncoderSource {
+    model_type: "bert", family: "bert", adapter: "pllm.bert.encoder.v1",
+    digest_domain: "pllm.bert.forward_source_config.v1",
+    architectures: ["BertModel", "BertForSequenceClassification"],
+    prefixes: ["", "bert."],
+    globals: &[
+        ("tokens", "embeddings.word_embeddings"),
+        ("positions", "embeddings.position_embeddings"),
+        ("segments", "embeddings.token_type_embeddings"),
+        ("embedding_norm", "embeddings.LayerNorm"),
+        ("pooler", "pooler.dense"), ("classifier", "classifier"),
+    ],
+    layer_prefix: "encoder.layer",
+    layers: &[
+        ("query", "attention.self.query"), ("key", "attention.self.key"),
+        ("value", "attention.self.value"), ("attention_output", "attention.output.dense"),
+        ("attention_norm", "attention.output.LayerNorm"),
+        ("intermediate", "intermediate.dense"), ("output", "output.dense"),
+        ("output_norm", "output.LayerNorm"),
+    ],
+}];
+
+impl EncoderSource {
+    pub(super) fn maximum_artifact_bytes(&self, classifier: bool, layer_digits: usize) -> Result<usize, ModelError> {
+        let prefix = self.prefixes[usize::from(classifier)].len();
+        let globals = self.globals.iter().map(|(role,path)|
+            (if *role == "classifier" { 0 } else { prefix }) + path.len() + ".weight".len()).max().unwrap_or(0);
+        let layer = self.layers.iter().map(|(_,path)| path.len()).max().unwrap_or(0);
+        prefix.checked_add(self.layer_prefix.len()).and_then(|n| n.checked_add(layer_digits))
+            .and_then(|n| n.checked_add(layer)).and_then(|n| n.checked_add("..weight".len()))
+            .map(|n| n.max(globals)).ok_or_else(|| crate::forward_plan::invalid("artifact name length overflow"))
+    }
+    pub(super) fn artifact(&self, classifier: bool, layer: Option<u64>, role: &str, bias: bool)
+        -> Result<String, ModelError> {
+        let prefix = self.prefixes[usize::from(classifier)];
+        let suffix = if bias { "bias" } else { "weight" };
+        if let Some(layer) = layer {
+            let path = self.layers.iter().find(|(r, _)| *r == role)
+                .ok_or_else(|| ModelError::Unsupported("unknown encoder artifact role".into()))?.1;
+            Ok(format!("{prefix}{}.{layer}.{path}.{suffix}", self.layer_prefix))
+        } else {
+            let path = self.globals.iter().find(|(r, _)| *r == role)
+                .ok_or_else(|| ModelError::Unsupported("unknown encoder global role".into()))?.1;
+            Ok(format!("{}{}.{suffix}", if role == "classifier" { "" } else { prefix }, path))
+        }
+    }
+}
+
+pub(super) const FORWARD_EXACT_DECIMALS: &[&str] = &["layer_norm_eps"];
+
+pub(super) fn forward_geometry(document: &Value, max_sequence: u64)
+    -> Result<(&'static EncoderSource, crate::encoder_blocks::Geometry<'_>), ModelError> {
+    let source = ENCODER_SOURCES.iter().find(|s| document.get("model_type").and_then(Value::as_str) == Some(s.model_type))
+        .ok_or_else(|| ModelError::Unsupported("source has no registered forward factory".into()))?;
+    let geometry = parse_encoder_source(document, max_sequence, source)?;
+    Ok((source,geometry))
+}
+
+fn parse_encoder_source<'a>(document: &'a Value, max_sequence: u64, source: &EncoderSource)
+    -> Result<crate::encoder_blocks::Geometry<'a>, ModelError> {
+    use crate::forward_plan::invalid;
+    let o = document.as_object().ok_or_else(|| invalid("encoder source must be object"))?;
+    let positive = |key: &str| o.get(key).and_then(Value::as_u64).filter(|n| *n > 0)
+        .ok_or_else(|| invalid(&format!("{key} must be explicit positive JSON integer")));
+    let architecture = document.get("architectures").and_then(Value::as_array)
+        .filter(|a| a.len() == 1).and_then(|a| a[0].as_str())
+        .ok_or_else(|| invalid("one explicit encoder architecture required"))?;
+    let classifier = if architecture == source.architectures[0] { false }
+        else if architecture == source.architectures[1] { true }
+        else { return Err(ModelError::Unsupported("unsupported encoder architecture".into())); };
+    let mut g = crate::encoder_blocks::Geometry {
+        hidden: positive("hidden_size")?, intermediate: positive("intermediate_size")?,
+        layers: positive("num_hidden_layers")?, heads: positive("num_attention_heads")?,
+        vocabulary: positive("vocab_size")?, positions: positive("max_position_embeddings")?,
+        segments: positive("type_vocab_size")?, epsilon: crate::encoder_blocks::Decimal::Text(""), labels: None,
+    };
+    let eps = o.get("layer_norm_eps").ok_or_else(|| invalid("explicit layer_norm_eps required"))?;
+    g.epsilon = match eps {
+        Value::String(s) => crate::encoder_blocks::Decimal::Text(s),
+        Value::Number(n) => crate::encoder_blocks::Decimal::Number(n),
+        _ => return Err(invalid("invalid layer_norm_eps")),
+    };
+    g.epsilon.positive_f32()?;
+    if o.get("hidden_act").and_then(Value::as_str) != Some("gelu")
+        || o.get("position_embedding_type").and_then(Value::as_str) != Some("absolute") {
+        return Err(ModelError::Unsupported("encoder needs exact GELU and absolute positions".into()));
+    }
+    const KEYS: &[&str] = &[
+        "model_type", "architectures", "vocab_size", "hidden_size", "num_hidden_layers",
+        "num_attention_heads", "intermediate_size", "max_position_embeddings", "type_vocab_size",
+        "hidden_act", "layer_norm_eps", "position_embedding_type", "is_decoder", "is_encoder_decoder",
+        "add_cross_attention", "pruned_heads", "chunk_size_feed_forward", "use_cache",
+        "hidden_dropout_prob", "attention_probs_dropout_prob", "classifier_dropout", "_attn_implementation",
+        "torch_dtype", "dtype", "output_attentions", "output_hidden_states", "return_dict", "pad_token_id",
+        "initializer_range", "_name_or_path", "transformers_version", "finetuning_task", "problem_type",
+        "num_labels", "id2label", "label2id",
+    ];
+    for key in o.keys() {
+        if !KEYS.contains(&key.as_str()) {
+            return Err(ModelError::Unsupported(format!("unsupported encoder source field {key}")));
+        }
+    }
+    for key in ["is_decoder", "is_encoder_decoder", "add_cross_attention", "output_attentions", "output_hidden_states"] {
+        if o.get(key).is_some_and(|v| v.as_bool() != Some(false)) { return Err(invalid(&format!("{key} must be false"))); }
+    }
+    for key in ["use_cache", "return_dict"] {
+        if o.get(key).is_some_and(|v| !v.is_boolean()) { return Err(invalid(&format!("{key} must be boolean"))); }
+    }
+    if o.get("pruned_heads").is_some_and(|v| !v.as_object().is_some_and(|o| o.is_empty()))
+        || o.get("chunk_size_feed_forward").is_some_and(|v| v.as_u64() != Some(0)) {
+        return Err(invalid("pruning and feed-forward chunking unsupported"));
+    }
+    for key in ["hidden_dropout_prob", "attention_probs_dropout_prob", "classifier_dropout"] {
+        if let Some(v) = o.get(key) {
+            if key == "classifier_dropout" && v.is_null() { continue; }
+            if !v.as_f64().is_some_and(|n| n.is_finite() && (0.0..=1.0).contains(&n)) {
+                return Err(invalid("dropout must be finite in [0,1]"));
+            }
+        }
+    }
+    if o.get("_attn_implementation").is_some_and(|v| !v.is_null() && v.as_str() != Some("eager")) {
+        return Err(invalid("only eager attention supported"));
+    }
+    for key in ["torch_dtype", "dtype"] {
+        if o.get(key).is_some_and(|v| !v.is_null() && v.as_str() != Some("float32")) {
+            return Err(invalid("source dtype must be float32"));
+        }
+    }
+    if o.get("pad_token_id").is_some_and(|v| !v.is_null() && !v.as_u64().is_some_and(|n| n < g.vocabulary)) {
+        return Err(invalid("pad_token_id outside vocabulary"));
+    }
+    if o.get("initializer_range").is_some_and(|v| !v.as_f64().is_some_and(|n| n.is_finite() && n >= 0.0)) {
+        return Err(invalid("initializer_range must be finite nonnegative"));
+    }
+    for key in ["_name_or_path", "transformers_version"] {
+        if o.get(key).is_some_and(|v| !v.is_string()) { return Err(invalid("source metadata must be string")); }
+    }
+    if o.get("finetuning_task").is_some_and(|v| !v.is_null() && !v.is_string()) {
+        return Err(invalid("finetuning_task must be null or string"));
+    }
+    if o.get("problem_type").is_some_and(|v| !v.is_null() && !matches!(v.as_str(),
+        Some("regression" | "single_label_classification" | "multi_label_classification"))) {
+        return Err(invalid("unsupported loss metadata problem_type"));
+    }
+    let explicit_labels = if o.contains_key("num_labels") { Some(positive("num_labels")?) } else { None };
+    // Null maps mean absent metadata, not an implicit class count. A present
+    // num_labels must still be a positive integer; classifiers never default C.
+    let id2label = o.get("id2label").filter(|v| !v.is_null()).map(|v| v.as_object().ok_or_else(|| invalid("id2label must be object or null"))).transpose()?;
+    let label2id = o.get("label2id").filter(|v| !v.is_null()).map(|v| v.as_object().ok_or_else(|| invalid("label2id must be object or null"))).transpose()?;
+    let resolved = explicit_labels.or_else(|| id2label.map(|m| m.len() as u64));
+    if let Some(labels) = id2label {
+        let count = labels.len() as u64;
+        if count == 0 || resolved != Some(count) { return Err(invalid("label count mismatch")); }
+        for (key,value) in labels {
+            let index = key.parse::<u64>().ok().filter(|n| *n < count)
+                .filter(|_| key == "0" || !key.starts_with('0'))
+                .filter(|_| key.bytes().all(|b| b.is_ascii_digit()))
+                .ok_or_else(|| invalid("id2label must use canonical contiguous integer keys"))?;
+            let label = value.as_str()
+                .ok_or_else(|| invalid("id2label must have canonical contiguous integer keys and string labels"))?;
+            // Borrowed comparisons, prepaid by generic source-comparison work.
+            // No BTreeSet, formatted index, epsilon clone or graph precedes quote.
+            if labels.iter().any(|(other,v)| other < key && v.as_str() == Some(label)) {
+                return Err(invalid("id2label labels must be unique"));
+            }
+            if label2id.is_some_and(|inverse| inverse.get(label).and_then(Value::as_u64) != Some(index)) {
+                return Err(invalid("label2id must be exact inverse"));
+            }
+        }
+    }
+    if let Some(inverse) = label2id {
+        if id2label.is_none_or(|labels| labels.len() != inverse.len()) { return Err(invalid("label2id requires exact id2label inverse")); }
+    }
+    if classifier { g.labels = Some(resolved.ok_or_else(|| invalid("classifier requires explicit label cardinality"))?); }
+    // Geometry/expansion admission precedes any graph allocation and any source
+    // canonicalization. Metadata values above never choose execution operators.
+    g.validate(max_sequence)?;
+    Ok(g)
+}
+
+pub(super) const SOURCE_CONTEXT_ALIASES: &[&str] = &[
+    "max_position_embeddings",
+    "max_sequence_length",
+    "seq_length",
+    "n_positions",
+];
+
+/// Resolve source scalar aliases without supplying an execution default. Every
+/// present spelling must be a positive JSON integer and agree with the others.
+pub(super) fn resolve_positive_integer_aliases(
+    object: &serde_json::Map<String, Value>,
+    ordered_aliases: &[&str],
+) -> Result<Option<u64>, ModelError> {
+    let mut resolved = None;
+    for &alias in ordered_aliases {
+        if let Some(value) = object.get(alias) {
+            let value = value.as_u64().filter(|value| *value > 0).ok_or_else(|| {
+                ModelError::InvalidConfig(format!("{alias} must be a positive JSON integer"))
+            })?;
+            if resolved.is_some_and(|previous| previous != value) {
+                return Err(ModelError::InvalidConfig(format!(
+                    "contradictory source integer alias {alias}"
+                )));
+            }
+            resolved = Some(value);
+        }
+    }
+    Ok(resolved)
+}
+
 /// Maps semantic artifact roles to exact checkpoint names. The decoder graphs
 /// depend on roles; only inspected source mappings contain checkpoint paths.
 #[derive(Debug, Eq, PartialEq)]

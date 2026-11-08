@@ -600,6 +600,9 @@ fn operation_tensors<'a>(
     let attrs = &op.attributes;
     let mut tensors = Vec::new();
     let matrix = match op.operator {
+        ModelOperator::GeluErf | ModelOperator::Tanh | ModelOperator::AttentionMask => {
+            return Err("source-FP32 forward operators have no network decoder placement".into());
+        }
         ModelOperator::Linear => {
             let region = super::lower_model_linear_region(graph, graph.mode, op)?;
             Some(vec![

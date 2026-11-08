@@ -11,6 +11,7 @@ use std::io::Write;
 pub(in crate::replicated_decoder) enum Custody {
     Expanded(ExpandedCustody),
     Compact(super::super::source_entry::compact_pending::sealed::SealedOwnedStorage),
+    ResidentCompact(super::super::source_entry::compact_pending::sealed::ResidentSealedOwnedStorage),
 }
 pub(in crate::replicated_decoder) struct ExpandedCustody {
     pub(super) projections: Vec<Option<rotary_creation::CreatedOperator>>,
@@ -47,7 +48,7 @@ impl Custody {
     pub(in crate::replicated_decoder) fn expanded(&self) -> Result<&ExpandedCustody, Error> {
         match self {
             Self::Expanded(c) => Ok(c),
-            Self::Compact(_) => Err(Error::Binding),
+            Self::Compact(_) | Self::ResidentCompact(_) => Err(Error::Binding),
         }
     }
     pub(in crate::replicated_decoder) fn expanded_mut(
@@ -55,7 +56,7 @@ impl Custody {
     ) -> Result<&mut ExpandedCustody, Error> {
         match self {
             Self::Expanded(c) => Ok(c),
-            Self::Compact(_) => Err(Error::Binding),
+            Self::Compact(_) | Self::ResidentCompact(_) => Err(Error::Binding),
         }
     }
     pub(in crate::replicated_decoder) fn compact(
@@ -63,19 +64,29 @@ impl Custody {
     ) -> Option<&super::super::source_entry::compact_pending::sealed::SealedOwnedStorage> {
         match self {
             Self::Compact(c) => Some(c),
-            Self::Expanded(_) => None,
+            Self::Expanded(_) | Self::ResidentCompact(_) => None,
+        }
+    }
+    pub(in crate::replicated_decoder) fn resident_compact(
+        &self,
+    ) -> Option<&super::super::source_entry::compact_pending::sealed::ResidentSealedOwnedStorage> {
+        match self {
+            Self::ResidentCompact(c) => Some(c),
+            Self::Expanded(_) | Self::Compact(_) => None,
         }
     }
     pub(in crate::replicated_decoder) fn public(&self) -> &Arc<PublicSource> {
         match self {
             Self::Expanded(c) => c.public(),
             Self::Compact(c) => c.public(),
+            Self::ResidentCompact(c) => c.public(),
         }
     }
     pub(in crate::replicated_decoder) fn retained_bytes(&self) -> usize {
         match self {
             Self::Expanded(c) => c.retained_bytes(),
             Self::Compact(c) => c.retained_bytes(),
+            Self::ResidentCompact(c) => c.retained_bytes(),
         }
     }
     pub(super) fn prepay_bias_metadata(&self, visits: usize) -> Result<(), Error> {
@@ -202,6 +213,7 @@ pub(super) fn quote(
     )?;
     for inline in [
         size_of::<LogicalComplete<'_>>(),
+        // Actual enum extent includes both concrete compact owner layouts.
         size_of::<Custody>(),
         size_of::<Program>(),
         bytes::<usize>(2)?,
@@ -307,6 +319,15 @@ pub(in crate::replicated_decoder::program) struct Attempt {
     pub(super) committed: bool,
 }
 impl Attempt {
+    // Same original HistoryOrigin, same armed attempt, same call position after
+    // controller resize. Construction stays here; fields gain no visibility.
+    // Parent-private like existing origin access, not a source/public issuer.
+    pub(super) fn retain_compact_history(origin: &HistoryOrigin) -> Self {
+        Self {
+            origin: Arc::clone(&origin.0),
+            committed: false,
+        }
+    }
     /// Final private publication only, after canonical and startup checks.
     pub(in crate::replicated_decoder::program) fn commit_publication(&mut self) {
         self.committed = true;
@@ -478,6 +499,8 @@ impl Program {
     ) -> Result<Worker, Error> {
         let owner = self.request_custody.as_ref().ok_or(Error::Binding)?;
         if let Some(compact) = owner.compact() {
+            compact.check_completed()?;
+        } else if let Some(compact) = owner.resident_compact() {
             compact.check_completed()?;
         } else if owner
             .expanded()?

@@ -40,6 +40,331 @@ fn observer_only_bytes() -> usize {
     OwnedBudget::resources().unwrap().initial_reserved_bytes
 }
 
+// Authoring only: safe filesystem fixtures; no runtime qualification claimed.
+fn pending_fixture() -> Publisher {
+    let (config, _, _) = crate::replicated_decoder::tests::fixture_sources("qwen2", false);
+    Publisher::prepare_compact_source_request(&experiment(), &config, 4, 2, [2; 32], [3; 32]).unwrap()
+}
+struct CompactFaultReset;
+impl Drop for CompactFaultReset {
+    fn drop(&mut self) {
+        program::source_entry::snapshot_directory::set_compact_fault(None);
+    }
+}
+#[test]
+fn pending_compact_cancel_is_terminal_until_explicit_retirement() {
+    let mut publisher = pending_fixture();
+    let key = publisher.shapes().first().unwrap().0.clone();
+    let budget = counter(&publisher);
+    let native = publisher.compact.as_deref().unwrap() as *const CompactPublisher;
+    let before = budget.budget().used_bytes();
+    publisher.cancel();
+    assert!(publisher.has_retained_compact());
+    assert_eq!(publisher.compact.as_deref().unwrap() as *const CompactPublisher, native);
+    assert!(matches!(publisher.compact.as_ref().unwrap().custody.as_ref().unwrap().state,
+        CompactDirectoryState::Failed));
+    let original = counter(&publisher);
+    assert!(std::ptr::eq(budget.budget(), original.budget()));
+    drop(original);
+    assert_eq!(budget.budget().used_bytes(), before);
+    assert_eq!(publisher.compact_start().unwrap_err(), "compact acquisition already attempted");
+    assert_eq!(publisher.append(&key, 0, &0f32.to_le_bytes()).unwrap_err(),
+        "compact acquisition not ready");
+    assert!(publisher.has_retained_compact());
+    assert_eq!(publisher.compact.as_deref().unwrap() as *const CompactPublisher, native);
+    assert!(matches!(publisher.compact.as_ref().unwrap().custody.as_ref().unwrap().state,
+        CompactDirectoryState::Failed));
+    let original = counter(&publisher);
+    assert!(std::ptr::eq(budget.budget(), original.budget()));
+    drop(original);
+    assert_eq!(budget.budget().used_bytes(), before);
+    assert_eq!(publisher.compact.as_ref().unwrap().custody.as_ref().unwrap()
+        .directory.pending_state_for_tests(), (false, false, false, false));
+    publisher.compact_retire().unwrap();
+    assert!(matches!(publisher.compact.as_ref().unwrap().stage, Stage::Retired));
+    assert!(budget.budget().used_bytes() < before);
+    let retired = budget.budget().used_bytes();
+    publisher.compact_retire().unwrap();
+    assert_eq!(budget.budget().used_bytes(), retired);
+    drop(publisher);
+    assert_eq!(budget.budget().used_bytes(), observer_only_bytes());
+}
+#[test]
+fn pending_compact_premature_append_is_terminal_until_explicit_retirement() {
+    let mut publisher = pending_fixture();
+    let key = publisher.shapes().first().unwrap().0.clone();
+    let budget = counter(&publisher);
+    let native = publisher.compact.as_deref().unwrap() as *const CompactPublisher;
+    let before = budget.budget().used_bytes();
+    assert_eq!(publisher.append(&key, 0, &0f32.to_le_bytes()).unwrap_err(),
+        "compact acquisition not ready");
+    assert!(publisher.has_retained_compact());
+    assert_eq!(publisher.compact.as_deref().unwrap() as *const CompactPublisher, native);
+    assert!(matches!(publisher.compact.as_ref().unwrap().custody.as_ref().unwrap().state,
+        CompactDirectoryState::Failed));
+    let original = counter(&publisher);
+    assert!(std::ptr::eq(budget.budget(), original.budget()));
+    drop(original);
+    assert_eq!(budget.budget().used_bytes(), before);
+    assert_eq!(publisher.compact_start().unwrap_err(), "compact acquisition already attempted");
+    assert_eq!(publisher.append(&key, 0, &0f32.to_le_bytes()).unwrap_err(),
+        "compact acquisition not ready");
+    assert!(publisher.has_retained_compact());
+    assert_eq!(publisher.compact.as_deref().unwrap() as *const CompactPublisher, native);
+    assert!(matches!(publisher.compact.as_ref().unwrap().custody.as_ref().unwrap().state,
+        CompactDirectoryState::Failed));
+    let original = counter(&publisher);
+    assert!(std::ptr::eq(budget.budget(), original.budget()));
+    drop(original);
+    assert_eq!(budget.budget().used_bytes(), before);
+    assert_eq!(publisher.compact.as_ref().unwrap().custody.as_ref().unwrap()
+        .directory.pending_state_for_tests(), (false, false, false, false));
+    publisher.compact_retire().unwrap();
+    assert!(matches!(publisher.compact.as_ref().unwrap().stage, Stage::Retired));
+    assert!(budget.budget().used_bytes() < before);
+    let retired = budget.budget().used_bytes();
+    publisher.compact_retire().unwrap();
+    assert_eq!(budget.budget().used_bytes(), retired);
+    drop(publisher);
+    assert_eq!(budget.budget().used_bytes(), observer_only_bytes());
+}
+#[test]
+fn pending_compact_is_close_ready_without_directory_acquisition() {
+    let mut publisher = pending_fixture();
+    let budget = counter(&publisher);
+    let before = budget.budget().used_bytes();
+    let native = publisher.compact.as_deref().unwrap() as *const CompactPublisher;
+    assert_eq!(publisher.collection_disk_directory().unwrap(),
+        program::source_entry::snapshot_directory::parent().unwrap());
+    publisher.compact_retire().unwrap();
+    assert_eq!(publisher.compact.as_deref().unwrap() as *const CompactPublisher, native);
+    assert!(budget.budget().used_bytes() < before);
+    let after = budget.budget().used_bytes();
+    publisher.compact_retire().unwrap();
+    assert_eq!(budget.budget().used_bytes(), after);
+    assert!(publisher.compact_start().is_err());
+    drop(publisher);
+    assert_eq!(budget.budget().used_bytes(), observer_only_bytes());
+}
+#[test]
+fn compact_start_failure_before_factory_has_no_directory_to_retire() {
+    use program::source_entry::snapshot_directory::{self as directory, CompactFault};
+    let _reset = CompactFaultReset;
+    let mut publisher = pending_fixture();
+    let budget = counter(&publisher);
+    directory::set_compact_fault(Some(CompactFault::Before));
+    assert!(publisher.compact_start().is_err());
+    let custody = publisher.compact.as_ref().unwrap().custody.as_ref().unwrap();
+    assert_eq!(custody.directory.pending_state_for_tests(), (false, false, false, false));
+    publisher.compact_retire().unwrap();
+    drop(publisher);
+    assert_eq!(budget.budget().used_bytes(), observer_only_bytes());
+}
+#[test]
+fn compact_synthetic_pre_factory_uncertainty_retains_unknown_not_a_live_handle() {
+    use program::source_entry::snapshot_directory::{self as directory, CompactFault};
+    let _reset = CompactFaultReset;
+    let mut publisher = pending_fixture();
+    let budget = counter(&publisher);
+    let charge = budget.budget().used_bytes();
+    // Synthetic failure BEFORE tempfile's factory call, after uncertainty is
+    // marked. No failure inside its mkdir implementation is injected/observed.
+    directory::set_compact_fault(Some(CompactFault::Opaque));
+    assert!(publisher.compact_start().is_err());
+    assert!(publisher.collection_disk_directory().is_err());
+    let native = publisher.compact.as_deref().unwrap() as *const CompactPublisher;
+    assert_eq!(publisher.compact.as_ref().unwrap().custody.as_ref().unwrap()
+        .directory.pending_state_for_tests(), (false, false, false, true));
+    directory::set_compact_fault(None);
+    assert!(publisher.compact_retire().is_err());
+    assert!(publisher.compact_retire().is_err());
+    assert_eq!(publisher.compact.as_deref().unwrap() as *const CompactPublisher, native);
+    assert_eq!(budget.budget().used_bytes(), charge);
+    assert_eq!(publisher.compact.as_ref().unwrap().custody.as_ref().unwrap()
+        .directory.pending_state_for_tests(), (false, false, true, true));
+    let retained = assert_failed_directory_charge_survives_drop(publisher, &budget);
+    // No returned path/handle exists here. Only unresolved charge is observable;
+    // do not turn this pre-factory synthetic uncertainty into live-file evidence.
+    assert_eq!(budget.budget().used_bytes(), retained);
+}
+#[test]
+fn compact_partial_acquisition_keeps_original_owner_until_explicit_retirement() {
+    use program::source_entry::snapshot_directory::{self as directory, CompactFault};
+    // Existing cuts: returned directory plus copied path; returned anonymous
+    // anchor; completed metadata checks. Not faults inside tempfile internals.
+    for point in [CompactFault::Directory, CompactFault::Anchor, CompactFault::Metadata] {
+        let _reset = CompactFaultReset;
+        let mut publisher = pending_fixture();
+        let budget = counter(&publisher);
+        let native = publisher.compact.as_deref().unwrap() as *const CompactPublisher;
+        let charge = budget.budget().used_bytes();
+        directory::set_compact_fault(Some(point));
+        assert!(publisher.compact_start().is_err());
+        let custody = publisher.compact.as_ref().unwrap().custody.as_ref().unwrap();
+        let path = custody.directory.path().to_path_buf();
+        assert!(path.is_dir());
+        assert_eq!(budget.budget().used_bytes(), charge);
+        assert_eq!(publisher.compact.as_deref().unwrap() as *const CompactPublisher, native);
+        assert!(publisher.compact_start().is_err());
+        directory::set_compact_fault(None);
+        publisher.compact_retire().unwrap();
+        assert!(!path.exists());
+        let retired = budget.budget().used_bytes();
+        publisher.compact_retire().unwrap();
+        assert_eq!(budget.budget().used_bytes(), retired);
+        drop(publisher);
+        assert_eq!(budget.budget().used_bytes(), observer_only_bytes());
+    }
+}
+#[test]
+fn compact_remove_error_preserves_exact_stage_directory_and_charge_without_retry() {
+    use program::source_entry::snapshot_directory::{self as directory, CompactFault};
+    let _reset = CompactFaultReset;
+    let mut publisher = pending_fixture();
+    let budget = counter(&publisher);
+    publisher.compact_start().unwrap();
+    let path = publisher.collection_disk_directory().unwrap().to_path_buf();
+    let owner = publisher.compact.as_deref().unwrap() as *const CompactPublisher;
+    let original = counter(&publisher);
+    assert!(std::ptr::eq(budget.budget(), original.budget()));
+    drop(original);
+    let before = budget.budget().used_bytes();
+    directory::set_compact_fault(Some(CompactFault::Remove));
+    assert!(publisher.compact_retire().is_err());
+    directory::set_compact_fault(None); // No reset/recovery privilege follows.
+    assert!(publisher.compact_retire().is_err());
+    assert!(publisher.compact_start().is_err());
+    assert!(path.is_dir());
+    assert_eq!(publisher.compact.as_deref().unwrap() as *const CompactPublisher, owner);
+    assert!(matches!(publisher.compact.as_ref().unwrap().stage, Stage::Collecting(_)));
+    assert_eq!(budget.budget().used_bytes(), before);
+    let retained = assert_failed_directory_charge_survives_drop(publisher, &budget);
+    assert!(path.is_dir()); // Drop did NOT automatically retry successful removal.
+    // Test-only fixture removal is NOT product retirement. No publisher or
+    // directory Arc remains on the caller stack to hold the native location.
+    std::fs::remove_dir(&path).unwrap();
+    assert!(!path.exists());
+    assert_eq!(budget.budget().used_bytes(), retained);
+}
+// Keep only the original accounting observer and a Weak wrapper observation.
+// Publisher/collector allocations legitimately disappear on Drop; the shared
+// directory's original charge must remain, without a caller-owned directory Arc.
+fn assert_failed_directory_charge_survives_drop(publisher: Publisher, budget: &OwnedBudget) -> usize {
+    let wrapper = Arc::downgrade(&publisher.compact.as_ref().unwrap().custody.as_ref().unwrap().directory);
+    let before = budget.budget().used_bytes();
+    drop(publisher);
+    assert!(wrapper.upgrade().is_none(), "caller-facing directory wrapper was not dropped");
+    let retained = budget.budget().used_bytes();
+    assert!(retained > observer_only_bytes() && retained < before,
+        "payload must drop, original location charge must remain above observer-only baseline");
+    drop(wrapper);
+    assert_eq!(budget.budget().used_bytes(), retained);
+    retained
+}
+#[test]
+fn compact_nonempty_path_replacement_retains_both_directories_and_original_charge() {
+    use program::source_entry::snapshot_directory as directory;
+    let mut publisher = pending_fixture();
+    let budget = counter(&publisher);
+    publisher.compact_start().unwrap();
+    let path = publisher.collection_disk_directory().unwrap().to_path_buf();
+    let fixture = tempfile::tempdir_in(directory::parent().unwrap()).unwrap();
+    let moved = fixture.path().join("original");
+    std::fs::rename(&path, &moved).unwrap();
+    std::fs::create_dir(&path).unwrap();
+    let marker = path.join("replacement-marker");
+    std::fs::write(&marker, b"replacement belongs to fixture").unwrap();
+    let before = budget.budget().used_bytes();
+    // Existing nonrecursive removal must fail on nonempty replacement. This
+    // does NOT assert an inode-identity policy for an empty replacement.
+    assert!(publisher.compact_retire().is_err());
+    assert!(publisher.compact_retire().is_err());
+    assert_eq!(budget.budget().used_bytes(), before);
+    let retained = assert_failed_directory_charge_survives_drop(publisher, &budget);
+    assert!(moved.is_dir() && path.is_dir());
+    assert_eq!(std::fs::read(&marker).unwrap(), b"replacement belongs to fixture");
+    // External fixture cleanup, NOT native retirement/recovery or refund proof.
+    std::fs::remove_file(&marker).unwrap();
+    std::fs::remove_dir(&path).unwrap();
+    drop(fixture);
+    assert_eq!(budget.budget().used_bytes(), retained);
+}
+#[cfg(unix)]
+#[test]
+fn compact_symlink_path_replacement_never_removes_target_or_refunds_on_drop() {
+    use program::source_entry::snapshot_directory as directory;
+    let mut publisher = pending_fixture();
+    let budget = counter(&publisher);
+    publisher.compact_start().unwrap();
+    let path = publisher.collection_disk_directory().unwrap().to_path_buf();
+    let fixture = tempfile::tempdir_in(directory::parent().unwrap()).unwrap();
+    let moved = fixture.path().join("original");
+    let target = fixture.path().join("target");
+    std::fs::rename(&path, &moved).unwrap();
+    std::fs::create_dir(&target).unwrap();
+    std::os::unix::fs::symlink(&target, &path).unwrap();
+    let before = budget.budget().used_bytes();
+    assert!(publisher.compact_retire().is_err()); // rmdir does not follow symlink.
+    assert!(publisher.compact_retire().is_err());
+    assert_eq!(budget.budget().used_bytes(), before);
+    let retained = assert_failed_directory_charge_survives_drop(publisher, &budget);
+    assert!(std::fs::symlink_metadata(&path).unwrap().file_type().is_symlink());
+    assert!(target.is_dir() && moved.is_dir());
+    std::fs::remove_file(&path).unwrap(); // External fixture cleanup only.
+    drop(fixture);
+    assert_eq!(budget.budget().used_bytes(), retained);
+}
+#[test]
+fn compact_externally_unlinked_directory_is_not_native_retirement_or_refund_proof() {
+    let mut publisher = pending_fixture();
+    let budget = counter(&publisher);
+    publisher.compact_start().unwrap();
+    let path = publisher.collection_disk_directory().unwrap().to_path_buf();
+    std::fs::remove_dir(&path).unwrap(); // Fixture interference, not native close.
+    let before = budget.budget().used_bytes();
+    assert!(publisher.compact_retire().is_err());
+    assert!(publisher.compact_retire().is_err());
+    assert_eq!(publisher.compact.as_ref().unwrap().custody.as_ref().unwrap()
+        .directory.pending_state_for_tests(), (true, true, true, false));
+    assert_eq!(budget.budget().used_bytes(), before);
+    let retained = assert_failed_directory_charge_survives_drop(publisher, &budget);
+    assert!(!path.exists());
+    assert_eq!(budget.budget().used_bytes(), retained);
+}
+#[test]
+fn compact_collection_failure_does_not_implicitly_drop_acquired_directory() {
+    let mut publisher = pending_fixture();
+    let budget = counter(&publisher);
+    publisher.compact_start().unwrap();
+    let path = publisher.collection_disk_directory().unwrap().to_path_buf();
+    let native = publisher.compact.as_deref().unwrap() as *const CompactPublisher;
+    let (key, shape) = publisher.shapes().first().unwrap().clone();
+    let elements = shape.iter().product::<usize>();
+    let (_, _, values) = crate::replicated_decoder::tests::fixture_sources("qwen2", false);
+    let values = &values[&key];
+    assert_eq!(values.len(), elements);
+    assert!(elements > 0 && elements <= CHUNK);
+    let bytes = values.iter().enumerate().flat_map(|(index, value)| {
+        let value = if index == 0 { f32::NAN } else { *value as f32 / ONE as f32 };
+        value.to_le_bytes()
+    }).collect::<Vec<_>>();
+    assert_eq!(bytes.len(), elements * 4); // Full first tensor, exact F32 framing.
+    assert_eq!(&bytes[..4], &f32::NAN.to_le_bytes());
+    // Actual first key, offset zero and full valid frame pass ordering/length
+    // guards. Scan's first-lane conversion maps NaN to Bounds, not Binding.
+    assert_eq!(publisher.append(&key, 0, &bytes).unwrap_err(), Error::Bounds.to_string());
+    assert!(path.is_dir());
+    assert_eq!(publisher.compact.as_deref().unwrap() as *const CompactPublisher, native);
+    assert!(budget.budget().used_bytes() > observer_only_bytes()); // Same original counter.
+    assert!(publisher.compact_start().is_err());
+    publisher.compact_retire().unwrap();
+    assert!(!path.exists());
+    let retired = budget.budget().used_bytes();
+    publisher.compact_retire().unwrap();
+    assert_eq!(budget.budget().used_bytes(), retired);
+    drop(publisher);
+    assert_eq!(budget.budget().used_bytes(), observer_only_bytes());
+}
 
 #[test]
 fn compact_route_requires_two_epochs_and_real_experiment_before_collection() {

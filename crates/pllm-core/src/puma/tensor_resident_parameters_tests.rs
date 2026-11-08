@@ -33,6 +33,19 @@ fn distinct_tail() -> ResidentFactorySource<'static> {
         .resident_rotary_parameters(input(), cosine, sine)
 }
 
+fn exact_source(tail: bool) -> ResidentFactorySource<'static> {
+    let (mut cosine, mut sine) = if tail {
+        (vec![0, ONE].into_boxed_slice(), vec![ONE, 0].into_boxed_slice())
+    } else {
+        (vec![ONE, ONE / 2].into_boxed_slice(), vec![0, -ONE / 2].into_boxed_slice())
+    };
+    let mut source = None;
+    Construction::RotaryHalf { rows: 1, width: 4, cosine_len: 2, sine_len: 2 }
+        .install_exact_rotary_source(&mut source, input(), &mut cosine, &mut sine).unwrap();
+    assert!(cosine.is_empty() && sine.is_empty());
+    source.unwrap()
+}
+
 fn backing(body: &FactoryBody<'_>) -> Backing {
     // Independent owned scalar copies, NOT references or another owner of the
     // original backing. These bounded fixtures have at most two coefficients.
@@ -57,6 +70,12 @@ fn backing(body: &FactoryBody<'_>) -> Backing {
                 construction,
             }
         }
+        ParameterStore::RotaryExact { input, cosine, sine } => Backing {
+            allocation: (cosine.as_ptr(), cosine.len(), cosine.len(), sine.as_ptr(), sine.len(), sine.len()),
+            cosine: [cosine.first().copied().unwrap_or(0), cosine.get(1).copied().unwrap_or(0)],
+            sine: [sine.first().copied().unwrap_or(0), sine.get(1).copied().unwrap_or(0)],
+            input: *input, construction,
+        },
         _ => panic!("expected original owned rotary rows"),
     }
 }
@@ -80,8 +99,101 @@ fn priced() -> ResidentNativeSchedule<'static> {
     owner
 }
 
+#[test]
+fn exact_native_work_fit_and_one_short_precede_builder_acquisition() {
+    for fits in [false, true] {
+        let mut owner = priced();
+        let requested = owner.summary().unwrap().work;
+        assert!(requested.operations() > 0);
+        let mut total = WorkBudget::local();
+        let original = total;
+        let cap = total.operations() + requested.operations() - u64::from(!fits);
+        assert_eq!(owner.admit(&mut CallerWorkLedger::new(&mut total, cap, u64::MAX).unwrap()).is_ok(), fits);
+        assert!(owner.full_finish.builder.is_none() && owner.tail_finish.builder.is_none());
+        let mut output = None;
+        if fits {
+            assert_eq!(total, original.checked_add(requested).unwrap());
+            owner.build_into(&mut output, &mut None).unwrap();
+            assert!(output.is_some());
+        } else {
+            assert_eq!(total, original);
+            assert_eq!(owner.build_into(&mut output, &mut None), Err(Error::Phase));
+            assert!(output.is_none() && owner.full_finish.builder.is_none());
+        }
+    }
+}
+
 fn phase_error() -> WorkPreflightError {
     WorkPreflightError::Native(Error::Phase)
+}
+
+#[test]
+fn exact_rotary_installer_geometry_refusals_preserve_original_coefficient_boxes() {
+    for (cosine_len, sine_len) in [(1, 2), (2, 1), (0, 2), (2, 0)] {
+        let mut cosine = vec![ONE; cosine_len].into_boxed_slice();
+        let mut sine = vec![0; sine_len].into_boxed_slice();
+        let original = (cosine.as_ptr(), cosine.len(), sine.as_ptr(), sine.len());
+        let mut destination = None;
+        let result = Construction::RotaryHalf { rows: 1, width: 4, cosine_len: 2, sine_len: 2 }
+            .install_exact_rotary_source(&mut destination, input(), &mut cosine, &mut sine);
+        assert_eq!(result, Err(WorkPreflightError::ParameterBinding));
+        assert!(destination.is_none());
+        assert_eq!((cosine.as_ptr(), cosine.len(), sine.as_ptr(), sine.len()), original);
+        assert!(cosine.iter().all(|&value| value == ONE));
+        assert!(sine.iter().all(|&value| value == 0));
+    }
+}
+
+#[test]
+fn exact_rotary_installer_occupied_refusal_preserves_both_original_sources() {
+    let construction = Construction::RotaryHalf { rows: 1, width: 4, cosine_len: 2, sine_len: 2 };
+    let mut destination = Some(exact_source(true));
+    let installed = backing(&destination.as_ref().unwrap().body);
+    let mut cosine = vec![ONE, ONE / 2].into_boxed_slice();
+    let mut sine = vec![0, -ONE / 2].into_boxed_slice();
+    let original = (cosine.as_ptr(), cosine.len(), sine.as_ptr(), sine.len());
+    assert_eq!(construction.install_exact_rotary_source(&mut destination, input(), &mut cosine, &mut sine), Err(phase_error()));
+    assert_eq!(backing(&destination.as_ref().unwrap().body), installed);
+    assert_eq!((cosine.as_ptr(), cosine.len(), sine.as_ptr(), sine.len()), original);
+    assert_eq!(&*cosine, &[ONE, ONE / 2]);
+    assert_eq!(&*sine, &[0, -ONE / 2]);
+    drop(destination.take());
+    construction.install_exact_rotary_source(&mut destination, input(), &mut cosine, &mut sine).unwrap();
+    let transferred = backing(&destination.as_ref().unwrap().body);
+    assert_eq!((transferred.allocation.0, transferred.allocation.1,
+        transferred.allocation.3, transferred.allocation.4), original);
+    assert!(cosine.is_empty() && sine.is_empty());
+}
+
+#[test]
+fn exact_rotary_source_keeps_original_coefficient_and_failed_native_backing() {
+    let construction = Construction::RotaryHalf { rows: 1, width: 4, cosine_len: 2, sine_len: 2 };
+    let mut cosine = vec![ONE, ONE].into_boxed_slice();
+    let mut sine = vec![0, 0].into_boxed_slice();
+    let coefficients = (cosine.as_ptr(), sine.as_ptr());
+    let mut source = None;
+    construction.install_exact_rotary_source(&mut source, input(), &mut cosine, &mut sine).unwrap();
+    assert!(cosine.is_empty() && sine.is_empty());
+    let mut owner = WorkPreflightWorkspace::resident_schedule();
+    owner.install(&mut source, None, 1).unwrap();
+    let before = backings(&owner);
+    assert_eq!((before.0.allocation.0, before.0.allocation.3), coefficients);
+    owner.bind().unwrap();
+    owner.preflight(&mut WorkPreflightWorkspace::empty()).unwrap();
+    let mut total = WorkBudget::local();
+    owner.admit(&mut CallerWorkLedger::new(&mut total, u64::MAX, u64::MAX).unwrap()).unwrap();
+    let charged = total;
+    resident_builder::arm_affine_reserve_failure(2, false);
+    let mut output = None;
+    assert_eq!(owner.build_into(&mut output, &mut None), Err(Error::Allocation));
+    assert_eq!(backings(&owner), before);
+    assert_eq!(total, charged);
+    let resident = owner.full_finish.builder.as_ref().unwrap();
+    assert_eq!(resident.builder.as_ref().unwrap().0.public_affines[0].len(), 4);
+    assert_eq!(resident.pending_affine.extent(), 4);
+    assert!(output.is_none());
+    assert_eq!(owner.build_into(&mut output, &mut None), Err(Error::Phase));
+    assert_eq!(backings(&owner), before);
 }
 
 fn panic_at(stage: TestStage, invocation: usize) {
@@ -150,7 +262,7 @@ fn output_snapshot(output: &FactoryOutput) -> OutputSnapshot {
         public_affine_count: p.public_affine_count,
         table_backing: std::array::from_fn(|i| {
             let table = &p.public_affines[i];
-            (!table.is_empty()).then_some((table.as_ptr(), table.capacity()))
+            (!table.is_empty()).then_some((table.as_ptr(), table.len()))
         }),
         work: p.work,
         certificate: output.certificate(),
@@ -163,8 +275,8 @@ fn assert_rotary_tables(output: &FactoryOutput, cosine: [i64; 4], sine: [i64; 4]
     let p = output.program();
     assert_eq!(p.lanes, 4);
     assert_eq!(p.public_affine_count, 2);
-    assert_eq!(p.public_affines[0].as_slice(), &cosine.map(|left| Affine { left, right: 0, constant: 0 }));
-    assert_eq!(p.public_affines[1].as_slice(), &sine.map(|left| Affine { left, right: 0, constant: 0 }));
+    assert_eq!(&*p.public_affines[0], &cosine.map(|left| Affine { left, right: 0, constant: 0 }));
+    assert_eq!(&*p.public_affines[1], &sine.map(|left| Affine { left, right: 0, constant: 0 }));
     assert_eq!(output.certificate(), ProducedCertificate::None);
 }
 
@@ -545,7 +657,234 @@ fn parameter_build_tail_unwind_keeps_caller_resident_full_output_and_both_rows()
     assert!(tail_out.is_none());
     assert_eq!(backings(&owner), before);
     assert_eq!(total, charged);
-    // No claim about native Builder/temporary-result retention inside its call.
+    // This hook is before tail construction; the test below reaches its backing.
+}
+
+#[test]
+fn parameter_second_native_table_ready_failure_retains_original_full_or_tail_backing() {
+    for tail_failure in [false, true] {
+        for unwind in [false, true] {
+            let mut full = Some(source(1));
+            let mut tail = Some(distinct_tail());
+            let mut owner = WorkPreflightWorkspace::resident_schedule();
+            owner.install(&mut full, Some(&mut tail), 2).unwrap();
+            let parameters = backings(&owner);
+            owner.bind().unwrap();
+            owner.preflight(&mut WorkPreflightWorkspace::empty()).unwrap();
+            let mut total = WorkBudget::local();
+            owner.admit(&mut CallerWorkLedger::new(&mut total, u64::MAX, u64::MAX).unwrap()).unwrap();
+            let charged = total;
+            let mut full_out = None;
+            let mut tail_out = None;
+            // Each native row acquires two tables. Fault after initializing and
+            // sealing the second, before handoff. This is NOT null injection
+            // or an allocator-safety/RSS test.
+            resident_builder::arm_affine_reserve_failure(if tail_failure { 4 } else { 2 }, unwind);
+            let result = catch_unwind(AssertUnwindSafe(|| owner.build_into(&mut full_out, &mut tail_out)));
+            if unwind {
+                assert!(result.is_err());
+            } else {
+                assert_eq!(result.unwrap(), Err(Error::Allocation));
+            }
+            assert_eq!(owner.phase, Phase::Burned);
+            assert_eq!(total, charged);
+            assert_eq!(backings(&owner), parameters);
+            assert_eq!(full_out.is_some(), tail_failure);
+            assert!(tail_out.is_none());
+            let slot = if tail_failure { &owner.tail_finish } else { &owner.full_finish };
+            let resident = slot.builder.as_ref().unwrap();
+            let program = &resident.builder.as_ref().unwrap().0;
+            assert_eq!(program.public_affine_count, 1);
+            assert_eq!(program.public_affines[0].len(), 4);
+            let first = (program.public_affines[0].as_ptr(), program.public_affines[0].len());
+            let pending = (resident.pending_affine.as_ptr(), resident.pending_affine.extent());
+            assert_eq!(pending, resident_builder::reserved_affine());
+            assert_eq!(resident.pending_affine.len(), 4);
+            assert!(matches!(resident.pending_affine, ExactStorage::Ready(_)));
+            assert_eq!(resident.state, ResidentState::Failed);
+            assert!(slot.program.is_none());
+            let completed = full_out.as_ref().map(output_snapshot);
+            assert_eq!(owner.build_into(&mut full_out, &mut tail_out), Err(Error::Phase));
+            let slot = if tail_failure { &owner.tail_finish } else { &owner.full_finish };
+            let resident = slot.builder.as_ref().unwrap();
+            let program = &resident.builder.as_ref().unwrap().0;
+            assert_eq!((program.public_affines[0].as_ptr(), program.public_affines[0].len()), first);
+            assert_eq!((resident.pending_affine.as_ptr(), resident.pending_affine.extent()), pending);
+            assert_eq!(full_out.as_ref().map(output_snapshot), completed);
+            assert_eq!(backings(&owner), parameters);
+            assert_eq!(total, charged);
+        }
+    }
+}
+
+fn check_first_native_table_ready_failure(tail_failure: bool) {
+    for unwind in [false, true] {
+        let mut full = Some(exact_source(false));
+        let mut tail = Some(exact_source(true));
+        let mut owner = WorkPreflightWorkspace::resident_schedule();
+        owner.install(&mut full, Some(&mut tail), 2).unwrap();
+        let parameters = backings(&owner);
+        owner.bind().unwrap();
+        owner.preflight(&mut WorkPreflightWorkspace::empty()).unwrap();
+        let mut total = WorkBudget::local();
+        owner.admit(&mut CallerWorkLedger::new(&mut total, u64::MAX, u64::MAX).unwrap()).unwrap();
+        let charged = total;
+        let mut full_out = None;
+        let mut tail_out = None;
+        // Post-seal seam: invocation 1 or 3. This is Ready, NOT partial fill.
+        resident_builder::arm_affine_reserve_failure(if tail_failure { 3 } else { 1 }, unwind);
+        let result = catch_unwind(AssertUnwindSafe(|| owner.build_into(&mut full_out, &mut tail_out)));
+        if unwind { assert!(result.is_err()); } else { assert_eq!(result.unwrap(), Err(Error::Allocation)); }
+        assert_eq!(owner.phase, Phase::Burned);
+        assert_eq!(total, charged);
+        assert_eq!(backings(&owner), parameters);
+        assert_eq!(full_out.is_some(), tail_failure);
+        assert!(tail_out.is_none());
+        let slot = if tail_failure { &owner.tail_finish } else { &owner.full_finish };
+        let resident = slot.builder.as_ref().unwrap();
+        assert_eq!(resident.state, ResidentState::Failed);
+        assert!(slot.program.is_none());
+        let program = &resident.builder.as_ref().unwrap().0;
+        assert_eq!(program.public_affine_count, 0);
+        assert!(program.public_affines.iter().all(|table| table.is_empty()));
+        assert!(matches!(resident.pending_affine, ExactStorage::Ready(_)));
+        assert_eq!((resident.pending_affine.extent(), resident.pending_affine.len()), (4, 4));
+        let pending = (resident.pending_affine.as_ptr(), resident.pending_affine.extent());
+        assert_eq!(pending, resident_builder::reserved_affine());
+        assert!(!pending.0.is_null());
+        let completed = full_out.as_ref().map(output_snapshot);
+        assert_eq!(owner.build_into(&mut full_out, &mut tail_out), Err(Error::Phase));
+        let slot = if tail_failure { &owner.tail_finish } else { &owner.full_finish };
+        let resident = slot.builder.as_ref().unwrap();
+        assert_eq!((resident.pending_affine.as_ptr(), resident.pending_affine.extent()), pending);
+        assert_eq!(resident.pending_affine.len(), 4);
+        assert_eq!(full_out.as_ref().map(output_snapshot), completed);
+        assert_eq!(backings(&owner), parameters);
+        assert_eq!(total, charged);
+    }
+}
+
+#[test]
+fn parameter_full_first_native_table_ready_error_and_unwind_retain_original_owners() {
+    check_first_native_table_ready_failure(false);
+}
+
+#[test]
+fn parameter_tail_first_native_table_ready_error_and_unwind_retain_original_owners() {
+    check_first_native_table_ready_failure(true);
+}
+
+fn check_native_table_building_prefix_failure(invocation: usize) {
+    for prefix in [1, 3] {
+        for unwind in [false, true] {
+            let tail_failure = invocation > 2;
+            let second_table = invocation % 2 == 0;
+            let mut full = Some(exact_source(false));
+            let mut tail = Some(exact_source(true));
+            let mut owner = WorkPreflightWorkspace::resident_schedule();
+            owner.install(&mut full, Some(&mut tail), 2).unwrap();
+            let parameters = backings(&owner);
+            owner.bind().unwrap();
+            owner.preflight(&mut WorkPreflightWorkspace::empty()).unwrap();
+            let mut total = WorkBudget::local();
+            owner.admit(&mut CallerWorkLedger::new(&mut total, u64::MAX, u64::MAX).unwrap()).unwrap();
+            let charged = total;
+            let mut full_out = None;
+            let mut tail_out = None;
+            resident_builder::arm_affine_initialize_failure(invocation, prefix, unwind);
+            let result = catch_unwind(AssertUnwindSafe(|| owner.build_into(&mut full_out, &mut tail_out)));
+            if unwind { assert!(result.is_err()); } else { assert_eq!(result.unwrap(), Err(Error::Allocation)); }
+            assert_eq!(resident_builder::initialized_affine(), (4, prefix));
+            assert_eq!(owner.phase, Phase::Burned);
+            assert_eq!(total, charged);
+            assert_eq!(backings(&owner), parameters);
+            assert_eq!(full_out.is_some(), tail_failure);
+            assert!(tail_out.is_none());
+            let slot = if tail_failure { &mut owner.tail_finish } else { &mut owner.full_finish };
+            assert!(slot.program.is_none());
+            let resident = slot.builder.as_mut().unwrap();
+            assert_eq!(resident.state, ResidentState::Failed);
+            let program = &resident.builder.as_ref().unwrap().0;
+            assert_eq!(program.public_affine_count, usize::from(second_table));
+            let ready = program.public_affines.each_ref().map(|table| (table.as_ptr(), table.len()));
+            if second_table {
+                assert_eq!(ready[0].1, 4);
+                assert!(!ready[0].0.is_null());
+                assert!(!program.public_affines[0].is_empty());
+                assert_eq!(resident_builder::ready_before_affine_initialize(), Some(ready[0]));
+            } else {
+                assert!(program.public_affines[0].is_empty());
+                let prior = full_out.as_ref().map(|output| {
+                    let table = &output.program().public_affines[1];
+                    (table.as_ptr(), table.len())
+                });
+                assert_eq!(resident_builder::ready_before_affine_initialize(), prior);
+            }
+            assert!(program.public_affines[1].is_empty());
+            assert!(matches!(resident.pending_affine, ExactStorage::Building { .. }));
+            assert_eq!((resident.pending_affine.extent(), resident.pending_affine.len()), (4, prefix));
+            assert!(matches!(resident.pending_affine.ready(), Err(Error::Phase)));
+            assert_eq!(resident.pending_affine.seal(), Err(Error::Phase));
+            assert_eq!((resident.pending_affine.extent(), resident.pending_affine.len()), (4, prefix));
+            // Opaque Building backing: no pointer/contents claim or new allocator accessor.
+            let completed = full_out.as_ref().map(output_snapshot);
+            assert_eq!(owner.build_into(&mut full_out, &mut tail_out), Err(Error::Phase));
+            let slot = if tail_failure { &owner.tail_finish } else { &owner.full_finish };
+            let resident = slot.builder.as_ref().unwrap();
+            let program = &resident.builder.as_ref().unwrap().0;
+            assert_eq!(program.public_affine_count, usize::from(second_table));
+            assert_eq!(program.public_affines.each_ref().map(|table| (table.as_ptr(), table.len())), ready);
+            assert!(matches!(resident.pending_affine, ExactStorage::Building { .. }));
+            assert_eq!((resident.pending_affine.extent(), resident.pending_affine.len()), (4, prefix));
+            assert_eq!(resident.state, ResidentState::Failed);
+            assert_eq!(full_out.as_ref().map(output_snapshot), completed);
+            assert_eq!(backings(&owner), parameters);
+            assert_eq!(total, charged);
+        }
+    }
+}
+
+#[test]
+fn parameter_full_first_native_table_building_prefix_error_and_unwind() {
+    check_native_table_building_prefix_failure(1);
+}
+
+#[test]
+fn parameter_full_second_native_table_building_prefix_error_and_unwind() {
+    check_native_table_building_prefix_failure(2);
+}
+
+#[test]
+fn parameter_tail_first_native_table_building_prefix_error_and_unwind() {
+    check_native_table_building_prefix_failure(3);
+}
+
+#[test]
+fn parameter_tail_second_native_table_building_prefix_error_and_unwind() {
+    check_native_table_building_prefix_failure(4);
+}
+
+#[test]
+fn parameter_private_finish_refuses_occupied_output_before_finishing_or_transfer() {
+    let mut owner = priced();
+    let mut total = WorkBudget::local();
+    owner.admit(&mut CallerWorkLedger::new(&mut total, u64::MAX, u64::MAX).unwrap()).unwrap();
+    let mut occupied = None;
+    owner.build_into(&mut occupied, &mut None).unwrap();
+    let original = output_snapshot(occupied.as_ref().unwrap());
+    let mut builder = Builder::new(4, input()).unwrap();
+    let output = builder.affine(builder.input(), None,
+        Affine { left: 1, right: 0, constant: 0 }).unwrap();
+    let mut slot = NativeFinishSlot::empty();
+    slot.builder = Some(ResidentBuilder::from_builder(builder));
+    assert_eq!(slot.finish_into(output, &mut occupied), Err(Error::Binding));
+    assert_eq!(output_snapshot(occupied.as_ref().unwrap()), original);
+    assert_eq!(slot.builder.as_ref().unwrap().state, ResidentState::Ready);
+    assert!(slot.program.is_none());
+    let mut vacant = None;
+    slot.finish_into(output, &mut vacant).unwrap();
+    assert!(vacant.is_some());
+    assert_eq!(output_snapshot(occupied.as_ref().unwrap()), original);
 }
 
 #[test]

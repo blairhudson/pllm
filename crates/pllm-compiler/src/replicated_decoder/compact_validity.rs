@@ -1,7 +1,12 @@
 //! Compiler-local checked-row custody. No prefix-export or request acceptance issuer.
 use super::*;
+use super::ControllerAccounting;
+use pllm_garble::shared_allocation::OwnedExternalCharge;
 #[path = "compact_rms_admission.rs"]
-mod request_rms;
+pub(super) mod request_rms;
+#[cfg(test)]
+#[path = "compact_lookup_norm_tests.rs"]
+mod lookup_norm_tests;
 
 /// The original immutable import owner and its one continuing sticky scalar.
 /// Never initialized from a caller's numeric ID or a purported bit interval.
@@ -15,10 +20,10 @@ pub(super) struct RequestValidity<'a> {
 }
 
 impl<'a> RequestValidity<'a> {
-    pub(super) fn source_request(
+    pub(super) fn source_request<G: ControllerAccounting>(
         original: &'a Builder,
         origin: Arc<()>,
-        context: &request_origin::compact_storage::EmissionContext<'_>,
+        context: &request_origin::compact_storage::EmissionContext<'_, G>,
     ) -> Result<Self, Error> {
         context.check_imports(original)?;
         Ok(Self {
@@ -61,7 +66,7 @@ impl<'a> RequestValidity<'a> {
         Ok(())
     }
 
-    pub(super) fn check(&self, graph: &CompactGraph<'_, 'a>) -> Result<(), Error> {
+    pub(super) fn check<G: ControllerAccounting>(&self, graph: &CompactGraph<'_, 'a, G>) -> Result<(), Error> {
         if !std::ptr::eq(self.original, graph.imports)
             || !Arc::ptr_eq(&self.origin, &graph.origin)
             || self.original.validity.is_some()
@@ -129,6 +134,7 @@ impl std::ops::DerefMut for CheckedRows<'_> {
 
 /// Same guarded native owners, with the lexical import borrow discharged only
 /// after exact original-owner validation during consuming custody transfer.
+#[derive(Clone)]
 pub(super) struct OwnedCheckedRows {
     pub(super) input: PublishedView,
     pub(super) width: usize,
@@ -136,8 +142,62 @@ pub(super) struct OwnedCheckedRows {
     pub(super) first: usize,
     pub(super) incoming: Option<usize>,
     pub(super) outgoing: Option<usize>,
-    pub(super) runs: Vec<GuardRun>,
+    pub(super) runs: GuardRuns,
     pub(super) work: WorkBudget,
+}
+
+/// Exact tile extent, independently tracked coalesced live-run count. Every
+/// Option entry is initialized before permit admission; unused entries stay None.
+#[derive(Clone)]
+pub(super) struct GuardRuns(Arc<RunStorage>);
+struct RunStorage { slots: tensor::ExactStorage<Option<GuardRun>>, live: usize }
+impl GuardRuns {
+    fn new() -> Self { Self(Arc::new(RunStorage { slots: tensor::ExactStorage::empty(), live: 0 })) }
+    fn allocate(&mut self, tiles: usize) -> Result<(), Error> {
+        Arc::get_mut(&mut self.0).ok_or(Error::Binding)?.slots.acquire_slots(tiles)
+    }
+    pub(super) fn capacity(&self) -> usize { self.0.slots.extent() }
+    pub(super) fn len(&self) -> usize { self.0.live }
+    pub(super) fn shares(&self, other: &Self) -> bool { Arc::ptr_eq(&self.0, &other.0) }
+    fn is_empty(&self) -> bool { self.len() == 0 }
+    fn iter(&self) -> impl Iterator<Item = &GuardRun> {
+        // Building storage has no live runs and never escapes a failed operation.
+        let ready = match &self.0.slots { tensor::ExactStorage::Ready(v) => &v[..], _ => &[] };
+        ready.iter().take(self.0.live).filter_map(Option::as_ref)
+    }
+    fn last_mut(&mut self) -> Option<&mut GuardRun> {
+        let storage = Arc::get_mut(&mut self.0)?;
+        let index = storage.live.checked_sub(1)?;
+        storage.slots.ready_mut().ok()?.get_mut(index)?.as_mut()
+    }
+    fn push(&mut self, run: GuardRun) -> Result<(), Error> {
+        let storage = Arc::get_mut(&mut self.0).ok_or(Error::Binding)?;
+        let slot = storage.slots.ready_mut()?.get_mut(storage.live).ok_or(Error::Bounds)?;
+        if slot.is_some() { return Err(Error::Binding); }
+        *slot = Some(run);
+        storage.live += 1;
+        Ok(())
+    }
+    fn backing_bytes(&self) -> Result<usize, Error> {
+        add_bytes(array_bytes::<Option<GuardRun>>(self.capacity())?,
+            add_bytes(std::mem::size_of::<RunStorage>(), 2 * std::mem::size_of::<usize>())?)
+    }
+}
+impl<'s> IntoIterator for &'s GuardRuns {
+    type Item = &'s GuardRun;
+    type IntoIter = std::iter::FilterMap<std::iter::Take<std::slice::Iter<'s, Option<GuardRun>>>, fn(&'s Option<GuardRun>) -> Option<&'s GuardRun>>;
+    fn into_iter(self) -> Self::IntoIter {
+        let ready = match &self.0.slots { tensor::ExactStorage::Ready(v) => &v[..], _ => &[] };
+        ready.iter().take(self.0.live).filter_map(Option::as_ref)
+    }
+}
+impl std::ops::Index<usize> for GuardRuns {
+    type Output = GuardRun;
+    fn index(&self, index: usize) -> &GuardRun {
+        assert!(index < self.0.live, "coalesced run index");
+        self.0.slots.ready().expect("live runs require ready slots")[index]
+            .as_ref().expect("live run prefix must be initialized")
+    }
 }
 impl CheckedRows<'_> {
     pub(super) fn into_owned(self, original: &Builder) -> Result<OwnedCheckedRows, Error> {
@@ -206,7 +266,12 @@ pub(super) type PreparedTransition<'a> = (
     Option<tensor::AdmittedFactory<'a>>,
 );
 
+#[cfg(test)]
 fn control_slots() -> Result<usize, Error> {
+    control_slots_for::<OwnedExternalCharge>()
+}
+
+fn control_slots_for<G: ControllerAccounting>() -> Result<usize, Error> {
     use std::mem::size_of;
     let mut bytes = 0;
     for slot in [
@@ -214,6 +279,12 @@ fn control_slots() -> Result<usize, Error> {
         size_of::<CheckedRows<'_>>(),
         size_of::<GuardRun>(),
         size_of::<SafeRow<'_, '_>>(),
+        size_of::<LookupRow<'_, '_, '_, G>>(),
+        2 * size_of::<Result<Option<LookupRow<'_, '_, '_, G>>, Error>>(),
+        size_of::<[usize; 7]>(), // lookup metadata prepayment extents
+        size_of::<std::collections::btree_map::Iter<'_, String, SourceTensor>>(),
+        size_of::<std::slice::Iter<'_, BoundImport<'_>>>(),
+        2 * size_of::<Option<(&String, &SourceTensor)>>(),
         4 * size_of::<tensor::Construction>(), // work_frames' concrete array
         2 * size_of::<tensor::ConstructionQuote>(),
         size_of::<Result<tensor::ConstructionQuote, tensor::ConstructionQuoteError>>(),
@@ -311,13 +382,13 @@ impl OwnedCheckedRows {
     }
 
     pub(super) fn metadata_bytes(&self) -> Result<usize, Error> {
-        array_bytes::<GuardRun>(self.runs.capacity())
+        self.runs.backing_bytes()
     }
 
     pub(super) fn baseline(&self) -> Result<usize, Error> {
         self.programs()
             .try_fold(self.metadata_bytes()?, |bytes, program| {
-                add_bytes(bytes, program.resources()?.immutable_template_bytes)
+                add_bytes(bytes, program.immutable_template_bytes()?)
             })
     }
 }
@@ -487,8 +558,8 @@ impl OwnedCheckedRows {
 
 /// Exact original gather hull, from original nodes or compiler-owned output
 /// publications. This is numeric metadata, NOT a validity/row certificate issuer.
-pub(super) fn input_bounds(
-    graph: &CompactGraph<'_, '_>,
+pub(super) fn input_bounds<G: ControllerAccounting>(
+    graph: &CompactGraph<'_, '_, G>,
     view: &PublishedView,
     start: usize,
     lanes: usize,
@@ -622,10 +693,21 @@ pub(super) fn input_bounds(
 
 /// Exact ordered GENERAL row lineage only. A whole-row permutation may move a
 /// row, but cannot change its original full width or supply attention energy.
-pub(super) fn row_energy(
-    graph: &CompactGraph<'_, '_>,
+pub(super) fn row_energy<G: ControllerAccounting>(
+    graph: &CompactGraph<'_, '_, G>,
     input: &PublishedView,
     row: usize,
+) -> Result<Option<u128>, Error> {
+    row_energy_for(graph, input, row, false)
+}
+
+// Lookup proofs are enabled only inside the already-admitted RMS preparation
+// frame. Rotary/attention callers of row_energy retain their existing contract.
+fn row_energy_for<G: ControllerAccounting>(
+    graph: &CompactGraph<'_, '_, G>,
+    input: &PublishedView,
+    row: usize,
+    lookup: bool,
 ) -> Result<Option<u128>, Error> {
     let width = input.logical.row_width();
     if row >= input.lanes / width {
@@ -646,21 +728,139 @@ pub(super) fn row_energy(
             if original.logical.row_width() != width || start % width != 0 {
                 return Ok(None);
             }
-            row_energy(graph, original, start / width)
+            row_energy_for(graph, original, start / width, lookup)
         }
+        PublishedKind::TokenLookup { .. } if lookup => LookupRow::original(graph, input, row)?
+            .map(|proof| proof.energy(graph, input, row))
+            .transpose(),
         PublishedKind::RmsNorm { output_energy, .. } => Ok(Some(*output_energy)),
         PublishedKind::Binary { row_energy, .. } => Ok(*row_energy),
         _ => Ok(graph.complete_row(input, row)?.map(|proof| proof.energy)),
     }
 }
 
-pub(super) fn guarded_energy(
-    graph: &CompactGraph<'_, '_>,
+/// Ephemeral compiler-local custody, never a digest/caller-B issuer. Borrowing
+/// the original graph retains its genuine request, import and source owners;
+/// the producer and ordered row cannot be exchanged for a same-budget graph.
+struct LookupRow<'s, 'g, 'a, G: ControllerAccounting = OwnedExternalCharge> {
+    graph: &'s CompactGraph<'g, 'a, G>,
+    producer: &'s PublishedOp<'a, G>,
+    input: &'s PublishedView,
+    source: &'a SourceTensor,
+    start: usize,
+    width: usize,
+    epoch: usize,
+}
+
+impl<'s, 'g, 'a, G: ControllerAccounting> LookupRow<'s, 'g, 'a, G> {
+    fn original(
+        graph: &'s CompactGraph<'g, 'a, G>,
+        input: &'s PublishedView,
+        row: usize,
+    ) -> Result<Option<Self>, Error> {
+        let context = graph.request_admission.ok_or(Error::Binding)?;
+        context.check_open()?;
+        if graph.prebound_inputs.is_some() || context.request_epoch() != 0 || context.history_input().is_some() {
+            // No continuation/row-transport authority is generalized here.
+            return Err(Error::Binding);
+        }
+        let slot = input.slot.ok_or(Error::Binding)?;
+        let producer = graph.ops.get(slot).ok_or(Error::Binding)?;
+        let PublishedKind::TokenLookup { weight, source, plan } = &producer.kind else {
+            return Err(Error::Binding);
+        };
+        let [vocabulary, width] = source.shape.as_slice() else {
+            return Err(Error::Binding);
+        };
+        let node = graph.imports.nodes.get(*weight).ok_or(Error::Binding)?;
+        let Code::PublicInput {
+            key, digest, row_l1, row_squared_norm, row_l1_squared_sum,
+        } = &node.code else {
+            return Err(Error::Binding);
+        };
+        // Debit the ORIGINAL continuing ledger before the new source/import
+        // walks and proof construction. No fresh reservation, reset or tariff.
+        request_rms::prepay_lookup_proof(graph, key.len())?;
+        graph.validity.check(graph)?;
+        graph.validate_view(input)?;
+        graph.validate_view(&producer.input)?;
+        if !std::ptr::eq(graph.sources, context.registry().source_records())
+            || graph.validity.epoch() != context.request_epoch()
+            || !same_view(input, &producer.output)
+            || input.order != LaneOrder::Linear
+            || input.start != 0
+            || *vocabulary != plan.vocabulary
+            || input.logical.row_width() != *width
+            || producer.input.lanes.checked_mul(*width) != Some(input.lanes)
+        {
+            return Err(Error::Binding);
+        }
+        let token = graph.bound_imports.iter()
+            .find(|bound| bound.semantic == "input.tokens")
+            .ok_or(Error::Binding)?;
+        if !same_view(&producer.input, &token.view) {
+            return Err(Error::Binding);
+        }
+        let (name, retained) = graph.sources.iter()
+            .find(|(_, record)| std::ptr::eq(*record, *source))
+            .ok_or(Error::Binding)?;
+        if name != key
+            || retained.public_q18.is_some()
+            || node.lanes != plan.vocabulary.checked_mul(*width).ok_or(Error::Bounds)?
+            || node.bounds != Interval::new(retained.lower, retained.upper)?
+            || retained.digest != *digest
+            || retained.row_l1 != *row_l1
+            || retained.row_squared_norm != *row_squared_norm
+            || retained.row_l1_squared_sum != *row_l1_squared_sum
+        {
+            return Err(Error::Binding);
+        }
+        let start = row.checked_mul(*width).ok_or(Error::Bounds)?;
+        if row >= producer.input.lanes || start.checked_add(*width).is_none_or(|end| end > input.lanes) {
+            return Err(Error::Shape);
+        }
+        if retained.row_squared_norm.is_none() {
+            // No new premise: the legacy certified recipe must still stand on
+            // its own. A malformed owner above never takes this absence branch.
+            return Ok(None);
+        }
+        Ok(Some(Self {
+            graph, producer, input, source: retained, start, width: *width,
+            epoch: context.request_epoch(),
+        }))
+    }
+
+    fn energy(self, graph: &CompactGraph<'g, 'a, G>, input: &PublishedView, row: usize) -> Result<u128, Error> {
+        let context = graph.request_admission.ok_or(Error::Binding)?;
+        context.check_open()?;
+        if !std::ptr::eq(self.graph, graph)
+            || !same_view(self.input, input)
+            || row.checked_mul(self.width) != Some(self.start)
+            || context.request_epoch() != self.epoch
+            || context.history_input().is_some()
+            || !std::ptr::eq(graph.ops.get(input.slot.ok_or(Error::Binding)?).ok_or(Error::Binding)?, self.producer)
+        {
+            return Err(Error::Binding);
+        }
+        // Publisher statistic: sum of squared ENCODED integers, not Q18 energy.
+        // Existing source_binding/import trust only; no new authentication.
+        self.source.row_squared_norm.ok_or(Error::Binding)
+    }
+}
+
+pub(super) fn guarded_energy<G: ControllerAccounting>(
+    graph: &CompactGraph<'_, '_, G>,
     input: &PublishedView,
     row: usize,
     bound: Option<i64>,
 ) -> Result<Option<u128>, Error> {
-    let energy = row_energy(graph, input, row)?;
+    // Only the initial genuine request opts into the new proof path. Other
+    // epochs/legacy qualifiers keep their own pre-existing certified contract;
+    // a failed proof attempt below is never converted into that legacy path.
+    let lookup = graph.prebound_inputs.is_none() && graph.request_admission.is_some_and(|context| {
+        context.request_epoch() == 0 && context.history_input().is_none()
+    });
+    let energy = row_energy_for(graph, input, row, lookup)?;
     let Some(bound) = bound else {
         return Ok(energy);
     };
@@ -668,12 +868,15 @@ pub(super) fn guarded_energy(
         input.logical.row_width(),
         bound,
     )?;
+    // The owned safe-zero guard preserves E(y)<=min(B,n*C^2). At equality
+    // the ordinary guarded interval already supplies the cap; only a strict
+    // row-energy improvement selects the new premise. B=0 remains legitimate.
     Ok(energy.and_then(|energy| {
         crate::replicated_decoder::checked_row_energy::strict_improvement(energy, cap)
     }))
 }
 
-fn previous_runs<'s>(graph: &'s CompactGraph<'_, '_>) -> impl Iterator<Item = &'s GuardRun> {
+fn previous_runs<'s, G: ControllerAccounting>(graph: &'s CompactGraph<'_, '_, G>) -> impl Iterator<Item = &'s GuardRun> {
     graph
         .ops
         .iter()
@@ -717,7 +920,7 @@ fn work_frames(width: usize, gamma_len: usize, lanes: usize) -> Result<usize, Er
 /// Known original work before compact container factories. Only direct original
 /// state declarations at region start qualify. No unpublished producer proof or
 /// numeric recipe is reconstructed from a declared future output envelope.
-pub(super) fn pending_input_work(
+pub(super) fn pending_input_work_for<G: ControllerAccounting>(
     imports: &Builder,
     semantic: &DecoderGraph,
     start: usize,
@@ -779,7 +982,7 @@ pub(super) fn pending_input_work(
             break;
         }
         let extra = add_bytes(
-            compact_norm::driver_slots()?,
+            compact_norm::driver_slots_for::<G>()?,
             add_bytes(
                 tensor::RmsWorkWorkspace::workspace_bytes(),
                 work_frames(width, coefficients.len(), node.lanes)?,
@@ -832,8 +1035,8 @@ pub(super) fn pending_input_work(
 
 /// Quote native work and ALL pending native/control backing before Vec, Program
 /// or Arc construction. Workspace is native-owned fixed metadata, not a recipe.
-pub(super) fn prepare<'a>(
-    graph: &CompactGraph<'_, 'a>,
+pub(super) fn prepare<'a, G: ControllerAccounting>(
+    graph: &CompactGraph<'_, 'a, G>,
     input: &PublishedView,
     width: usize,
     gamma: &'a SourceTensor,
@@ -871,7 +1074,8 @@ pub(super) fn prepare<'a>(
     if end > MAX_NODES {
         return Err(Error::Bounds);
     }
-    let storage = array_bytes::<GuardRun>(tiles)?;
+    let storage = add_bytes(array_bytes::<Option<GuardRun>>(tiles)?,
+        add_bytes(std::mem::size_of::<RunStorage>(), 2 * std::mem::size_of::<usize>())?)?;
     let gamma_bytes = add_bytes(
         size_of::<SourceTensor>(),
         add_bytes(
@@ -884,7 +1088,7 @@ pub(super) fn prepare<'a>(
     } else {
         0
     };
-    let controls = add_bytes(add_bytes(storage, control_slots()?)?, ticket_slots)?;
+    let controls = add_bytes(add_bytes(storage, control_slots_for::<G>()?)?, ticket_slots)?;
     let baseline = add_bytes(add_bytes(graph.baseline()?, gamma_bytes)?, controls)?;
     let admit = |extra| {
         graph.admit_total_with_source(
@@ -903,7 +1107,7 @@ pub(super) fn prepare<'a>(
         Ok::<(), Error>(())
     };
     admit(add_bytes(
-        compact_norm::driver_slots()?,
+        compact_norm::driver_slots_for::<G>()?,
         add_bytes(
             tensor::RmsWorkWorkspace::workspace_bytes(),
             work_frames(
@@ -1021,18 +1225,18 @@ pub(super) fn prepare<'a>(
         peak,
         add_bytes(
             tensor::RmsWorkWorkspace::workspace_bytes(),
-            compact_norm::driver_slots()?,
+            compact_norm::driver_slots_for::<G>()?,
         )?,
     )?;
     let rms_peak = add_bytes(
         add_bytes(retained, quote.new_peak_bytes)?,
-        compact_norm::factory_slots()?,
+        compact_norm::factory_slots_for::<G>()?,
     )?;
     admit(guard_peak.max(rms_peak))?;
     // Original guard/work validation above still precedes RMS binding. Capture
     // and debit ALL guards, scalar sticky uses and RMS row invocations now,
     // before GuardRun allocation or the FIRST native constructor below.
-    let mut tickets = request_rms::prepare(
+    let request_tickets = request_rms::prepare(
         graph,
         input,
         request_rms::RequestNorm {
@@ -1045,29 +1249,35 @@ pub(super) fn prepare<'a>(
             controls,
         },
     )?;
-    let rms_part = tickets.as_mut().and_then(|tickets| tickets.rms.take());
+    let rms_part = None;
     if checked.is_none() {
         return Ok((None, bounds, energy, work, rms_part));
     }
-    let mut rows = CheckedRows {
-        original: graph.imports,
-        data: OwnedCheckedRows {
+    let mut local_rows = None;
+    let mut pending = if request_tickets { Some(graph.rms_pending.borrow_mut()) } else { None };
+    let (rows, mut tickets) = if let Some(owner) = pending.as_mut() {
+        let request_rms::Tickets { rows, guards, .. } = owner.as_mut().ok_or(Error::Binding)?;
+        let rows = rows.as_mut().ok_or(Error::Binding)?;
+        rows.work = guard_work;
+        (rows, Some(guards))
+    } else {
+        local_rows = Some(OwnedCheckedRows {
             input: input.clone(),
             width,
             accepted: bounds,
             first: graph.next,
             incoming: graph.validity.current(),
             outgoing: graph.validity.current(),
-            runs: Vec::new(),
+            runs: GuardRuns::new(),
             work: guard_work,
-        },
+        });
+        let rows = local_rows.as_mut().ok_or(Error::Binding)?;
+        rows.runs.allocate(tiles)?;
+        (rows, None)
     };
     if tiles != 0 {
         #[cfg(test)]
         STORAGE.with(|n| n.set(n.get() + 1));
-        rows.runs
-            .try_reserve_exact(tiles)
-            .map_err(|_| Error::Allocation)?;
         if rows.runs.capacity() != tiles {
             return Err(Error::Allocation);
         }
@@ -1092,20 +1302,12 @@ pub(super) fn prepare<'a>(
             #[cfg(test)]
             FACTORIES.with(|n| n.set(n.get() + 1));
             let program = if let Some(tickets) = tickets.as_mut() {
-                let (program, certificate) = tickets.guards[tile]
-                    .range
-                    .take()
-                    .ok_or(Error::Binding)?
-                    .build()?
-                    .into_parts();
-                if certificate != tensor::ProducedCertificate::None {
-                    return Err(Error::Binding);
-                }
-                program
+                let guard = tickets.ready_mut()?.get_mut(tile).and_then(Option::as_mut).ok_or(Error::Binding)?;
+                request_rms::build_guard(guard, false)?
             } else {
-                tensor::Program::checked_range(n, incoming, accepted, 0)?
+                Arc::new(tensor::Program::checked_range(n, incoming, accepted, 0)?)
             };
-            (Arc::new(program), true)
+            (program, true)
         };
         let old = rows
             .runs
@@ -1118,20 +1320,12 @@ pub(super) fn prepare<'a>(
             #[cfg(test)]
             FACTORIES.with(|n| n.set(n.get() + 1));
             let program = if let Some(tickets) = tickets.as_mut() {
-                let (program, certificate) = tickets.guards[tile]
-                    .valid
-                    .take()
-                    .ok_or(Error::Binding)?
-                    .build()?
-                    .into_parts();
-                if certificate != tensor::ProducedCertificate::None {
-                    return Err(Error::Binding);
-                }
-                program
+                let guard = tickets.ready_mut()?.get_mut(tile).and_then(Option::as_mut).ok_or(Error::Binding)?;
+                request_rms::build_guard(guard, true)?
             } else {
-                tensor::Program::all_valid(n)?
+                Arc::new(tensor::Program::all_valid(n)?)
             };
-            (Arc::new(program), true)
+            (program, true)
         };
         rows.runs.push(GuardRun {
             first_tile: tile,
@@ -1142,11 +1336,12 @@ pub(super) fn prepare<'a>(
             owns_checked,
             all_valid,
             owns_valid,
-        });
+        })?;
     }
     if tiles != 0 {
         rows.outgoing = Some(graph.next + rows.nodes() - 1);
     }
+    let rows = CheckedRows { original: graph.imports, data: rows.clone() };
     rows.validate(
         graph.imports,
         input,
@@ -1160,10 +1355,7 @@ pub(super) fn prepare<'a>(
             .try_fold(rows.metadata_bytes()?, |bytes, program| {
                 add_bytes(
                     bytes,
-                    add_bytes(
-                        program.resources()?.immutable_template_bytes,
-                        2 * size_of::<usize>(),
-                    )?,
+                    program.immutable_template_bytes()?,
                 )
             })?;
         context.retain(retained)?;

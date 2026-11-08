@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 // Pure aggregate-energy algebra only. No production caller or certificate issuer.
-#[cfg(test)]
+#[allow(dead_code)]
 #[path = "row_energy.rs"]
 mod row_energy;
 
@@ -213,6 +213,9 @@ mod ranges;
 #[cfg(test)]
 #[path = "ranges_tests.rs"]
 mod ranges_tests;
+#[cfg(test)]
+#[path = "range_view_metadata_tests.rs"]
+mod range_view_metadata_tests;
 
 #[path = "attention_energy.rs"]
 mod attention_energy;
@@ -327,6 +330,13 @@ impl Program {
     pub fn storage_kind(&self) -> &'static str {
         if self.compact_storage().is_some() {
             "compact"
+        } else if self
+            .request_custody
+            .as_deref()
+            .and_then(request_origin::schedule::Custody::resident_compact)
+            .is_some()
+        {
+            "compact"
         } else {
             "expanded"
         }
@@ -341,7 +351,14 @@ impl Program {
     pub(super) fn schedule_access(&self) -> schedule_access::PrivateScheduleRef<'_> {
         match self.compact_storage() {
             Some(owner) => schedule_access::PrivateScheduleRef::compact(owner),
-            None => schedule_access::PrivateScheduleRef::expanded(self),
+            None => match self
+                .request_custody
+                .as_deref()
+                .and_then(request_origin::schedule::Custody::resident_compact)
+            {
+                Some(owner) => schedule_access::PrivateScheduleRef::resident_compact(owner),
+                None => schedule_access::PrivateScheduleRef::expanded(self),
+            },
         }
     }
 
@@ -494,6 +511,7 @@ pub(super) fn source_shapes_from_plan(
     for op in &plan.prefill.operations {
         if let Some(name) = op.attributes.get("weight").and_then(|v| v.as_str()) {
             let shape = match op.operator {
+                Op::GeluErf | Op::Tanh | Op::AttentionMask => return Err("source-FP32 operators have no replicated decoder source contract".into()),
                 Op::TokenLookup => vec![vocabulary, *op.output_shape.last().unwrap() as usize],
                 Op::RmsNorm => vec![*op.output_shape.last().unwrap() as usize],
                 Op::Linear | Op::OutputHead => vec![
@@ -972,6 +990,14 @@ impl Builder {
         &mut self,
         mint: request_origin::InputMint,
     ) -> Result<Arc<original_import::InputRecord>, Error> {
+        self.create_request_input_retained(mint, &mut None)
+    }
+
+    fn create_request_input_retained(
+        &mut self,
+        mint: request_origin::InputMint,
+        pending: &mut Option<Code>,
+    ) -> Result<Arc<original_import::InputRecord>, Error> {
         let (rows, bounds) = mint.parts();
         if self
             .nodes
@@ -1002,7 +1028,11 @@ impl Builder {
                 return Err(Error::Allocation);
             }
         }
-        let owner = self.push(Code::Input("input.tokens".into()), rows, bounds)?;
+        if pending.is_some() {
+            return Err(Error::Binding);
+        }
+        *pending = Some(Code::Input("input.tokens".into()));
+        let owner = self.push_retained(pending, rows, bounds)?;
         let record = original_import::request_record(CreatedRequestInput {
             owner,
             rows,
@@ -1042,10 +1072,21 @@ impl Builder {
     }
 
     fn push(&mut self, code: Code, lanes: usize, bounds: Interval) -> Result<usize, Error> {
+        self.push_retained(&mut Some(code), lanes, bounds)
+    }
+
+    /// Keep caller's payload resident through validation, debit and reserve.
+    fn push_retained(
+        &mut self,
+        pending: &mut Option<Code>,
+        lanes: usize,
+        bounds: Interval,
+    ) -> Result<usize, Error> {
+        let code = pending.as_ref().ok_or(Error::Binding)?;
         // A finished/reused Builder cannot relabel an old sealed declaration by
         // creating another Input at its recycled ordinal. Legacy builders have
         // no records and pay no new allocation or changed numeric schedule.
-        if matches!(&code, Code::Input(_))
+        if matches!(code, Code::Input(_))
             && self
                 .original_inputs
                 .iter()
@@ -1074,7 +1115,7 @@ impl Builder {
             self.admission_limit = Some("nodes");
             return Err(Error::Bounds);
         }
-        let metadata = match &code {
+        let metadata = match code {
             Code::Product { norm: Some(_), .. } => {
                 std::mem::size_of::<puma::multiply::norm::RowEnergyProof>()
                     + 2 * std::mem::size_of::<usize>()
@@ -1193,19 +1234,19 @@ impl Builder {
         }
         let id = self.nodes.len();
         self.nodes.try_reserve(1).map_err(|_| Error::Allocation)?;
-        if let Code::Tensor { program, .. } = &code {
+        if let Code::Tensor { program, .. } = code {
             self.tensors
                 .entry(program.digest())
                 .or_insert_with(|| program.clone());
         }
-        if let Code::TensorLoop { program, tail, .. } = &code {
+        if let Code::TensorLoop { program, tail, .. } = code {
             for program in std::iter::once(program).chain(tail) {
                 self.tensors
                     .entry(program.digest())
                     .or_insert_with(|| program.clone());
             }
         }
-        if let Code::PublicLookup { plan, .. } = &code {
+        if let Code::PublicLookup { plan, .. } = code {
             for program in plan.programs() {
                 self.tensors
                     .entry(program.digest())
@@ -1213,7 +1254,8 @@ impl Builder {
             }
         }
         self.nodes.push(Node {
-            code,
+            // Capacity secured above; no callback or fallibility after take.
+            code: pending.take().expect("validated resident code"),
             lanes,
             bounds,
         });
@@ -2439,7 +2481,7 @@ impl Builder {
 }
 
 // Pending E ACK: type re-export only, no constructor or field exposure.
-pub(in crate::replicated_decoder) use request_origin::compact_storage::EmissionContext;
+pub(in crate::replicated_decoder) use request_origin::compact_storage::{ControllerAccounting, EmissionContext};
 
 #[cfg(test)]
 #[path = "prepared_tensor_map/prepared_tensor_request_rescale_tests.rs"]

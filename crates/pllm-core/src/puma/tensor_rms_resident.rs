@@ -79,7 +79,7 @@ impl RmsResidentSlot {
             row_result_bytes: std::mem::size_of::<Result<Builder, Error>>(),
             resident_argument_bytes: std::mem::size_of::<Builder>(),
             args_bytes: std::mem::size_of::<RmsArgs<'_>>(),
-            sink_bytes: std::mem::size_of::<RmsResidentSink<'_>>(),
+            sink_bytes: std::mem::size_of::<ResidentRecipeSink<'_>>(),
             builder_option_bytes: std::mem::size_of::<Option<ResidentBuilder>>(),
             recipe_option_bytes: std::mem::size_of::<Option<(Value, u128)>>(),
             recipe_result_bytes: std::mem::size_of::<Result<(Value, u128), Error>>(),
@@ -117,7 +117,7 @@ impl RmsResidentSlot {
         #[cfg(test)]
         hook(RmsStage::Recipe)?;
         *recipe = Some(numeric::rms_recipe(
-            &mut RmsResidentSink(resident), args.width, args.input,
+            &mut ResidentRecipeSink(resident), args.width, args.input,
             args.gamma, true, args.input_norm,
         )?);
         #[cfg(test)]
@@ -133,9 +133,11 @@ impl RmsResidentSlot {
     }
 }
 
-struct RmsResidentSink<'a>(&'a mut ResidentBuilder);
+// Shared native recipe lens. It borrows the installed owner, never transfers it
+// into a recipe-local Builder. RMS and rotary use the same primitive machinery.
+pub(super) struct ResidentRecipeSink<'a>(pub(super) &'a mut ResidentBuilder);
 
-impl RmsResidentSink<'_> {
+impl ResidentRecipeSink<'_> {
     // Recipe never transfers/removes this Builder. Only finish does so, after
     // this borrow ends. These accesses have the same Builder invariants as before.
     fn builder(&self) -> &Builder {
@@ -146,7 +148,7 @@ impl RmsResidentSink<'_> {
     }
 }
 
-impl SoftmaxSink for RmsResidentSink<'_> {
+impl SoftmaxSink for ResidentRecipeSink<'_> {
     fn node(&self, v: Value, bit: bool) -> Result<Node, Error> {
         SoftmaxSink::node(self.builder(), v, bit)
     }
@@ -203,7 +205,7 @@ impl SoftmaxSink for RmsResidentSink<'_> {
     }
 }
 
-impl RmsSink for RmsResidentSink<'_> {
+impl RmsSink for ResidentRecipeSink<'_> {
     fn gamma(&mut self, input: Value, width: usize, gamma: &[i64]) -> Result<Value, Error> {
         let scales: [Affine; MAX_ROW_LANES] = std::array::from_fn(|i| Affine {
             left: gamma[i % width], right: 0, constant: 0,
@@ -261,22 +263,19 @@ fn hook(stage: RmsStage) -> Result<(), Error> {
 fn observe_gamma(gamma: &[i64]) { GAMMA.with(|g| g.set((gamma.as_ptr(), gamma.len()))); }
 
 #[cfg(test)]
-pub(super) fn observe_affine(table: &Vec<Affine>) {
+pub(super) fn observe_affine(table: &[Affine]) {
     if OBSERVE_NEXT.with(|next| next.replace(false)) {
-        BACKING.with(|backing| backing.set((table.as_ptr(), table.capacity(), 0)));
+        BACKING.with(|backing| backing.set((table.as_ptr(), table.len(), 0)));
     } else if OBSERVE_SECOND.with(|next| next.replace(false)) {
-        SECOND_BACKING.with(|backing| backing.set((table.as_ptr(), table.capacity(), 0)));
+        SECOND_BACKING.with(|backing| backing.set((table.as_ptr(), table.len(), 0)));
     }
 }
 
-// Test-only destruction plumbing: destroy the actual Vec first, then record
+// Test-only destruction plumbing: destroy the actual exact owner first, then record
 // completion for that pointer. No production Drop change, allocator/RSS claim,
 // Arc-alias coverage or guarantee against abort/double panic is implied.
 #[cfg(test)]
-fn teardown(table: &mut Vec<Affine>) {
-    let pointer = table.as_ptr();
-    let capacity = table.capacity();
-    let owned = std::mem::take(table);
+fn teardown<T>(pointer: *const Affine, capacity: usize, owned: T) {
     drop(owned);
     BACKING.with(|backing| {
         let (watched, watched_capacity, drops) = backing.get();
@@ -295,13 +294,18 @@ fn teardown(table: &mut Vec<Affine>) {
 #[cfg(test)]
 impl Drop for Program {
     fn drop(&mut self) {
-        for table in &mut self.public_affines { teardown(table); }
+        for table in &mut self.public_affines {
+            teardown(table.as_ptr(), table.len(), std::mem::take(table));
+        }
     }
 }
 
 #[cfg(test)]
 impl Drop for ResidentBuilder {
-    fn drop(&mut self) { teardown(&mut self.pending_affine); }
+    fn drop(&mut self) {
+        teardown(self.pending_affine.as_ptr(), self.pending_affine.extent(),
+            std::mem::replace(&mut self.pending_affine, ExactStorage::empty()));
+    }
 }
 
 #[cfg(test)]

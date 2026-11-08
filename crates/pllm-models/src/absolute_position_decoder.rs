@@ -1,7 +1,10 @@
 //! Inference-only FP32 semantics: learned positions, affine centered norms,
 //! input/output-oriented fused projections, and an ungated tanh GELU MLP.
 //! Numeric protocol lowering and disclosure/state execution policy are separate.
-use super::source_mappings::{ArtifactLayout, FusedDenseSource, ABSOLUTE_POSITION};
+use super::source_mappings::{
+    resolve_positive_integer_aliases, ArtifactLayout, FusedDenseSource, ABSOLUTE_POSITION,
+    SOURCE_CONTEXT_ALIASES,
+};
 use super::*;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -93,7 +96,19 @@ impl Config {
 }
 
 fn parse(document: &Value, source: &FusedDenseSource<'_>) -> Result<Config, ModelError> {
-    let config: Config = serde_json::from_value(document.clone())
+    let object = document
+        .as_object()
+        .ok_or_else(|| invalid("source must be an object"))?;
+    let positions = resolve_positive_integer_aliases(object, SOURCE_CONTEXT_ALIASES)?
+        .ok_or_else(|| invalid("source requires an explicit context length"))?;
+    // Normalize only the existing temporary deserialization copy. Source keys
+    // remain intact for extension validation; Config and its wire form stay fixed.
+    let mut normalized = object.clone();
+    for &alias in SOURCE_CONTEXT_ALIASES {
+        normalized.remove(alias);
+    }
+    normalized.insert("n_positions".into(), json!(positions));
+    let config: Config = serde_json::from_value(Value::Object(normalized))
         .map_err(|e| ModelError::InvalidJson(e.to_string()))?;
     config.validate(source)?;
     // Do not silently ignore architecture-changing source extensions. These extra
@@ -124,12 +139,11 @@ fn parse(document: &Value, source: &FusedDenseSource<'_>) -> Result<Config, Mode
         "output_attentions",
         "output_hidden_states",
     ];
-    for key in document
-        .as_object()
-        .ok_or_else(|| invalid("source must be an object"))?
-        .keys()
-    {
-        if semantic.get(key).is_none() && !metadata.contains(&key.as_str()) {
+    for key in object.keys() {
+        if semantic.get(key).is_none()
+            && !metadata.contains(&key.as_str())
+            && !SOURCE_CONTEXT_ALIASES.contains(&key.as_str())
+        {
             return Err(unsupported(&format!("unsupported source field {key}")));
         }
     }
@@ -596,32 +610,6 @@ fn projection(
     );
 }
 
-pub(super) fn validate_layer_norm(
-    op: &ModelOperation,
-    shapes: &BTreeMap<String, Vec<u64>>,
-) -> Result<(), ModelError> {
-    let a = &op.attributes;
-    let eps = a["epsilon"].as_str().and_then(|v| v.parse::<f32>().ok());
-    let width = op.output_shape.last().copied().unwrap_or(0);
-    if shapes.get(&op.inputs[0]) != Some(&op.output_shape)
-        || a["axis"] != -1
-        || a["variance"] != "centered_mean_square"
-        || a["compute_dtype"] != "float32"
-        || a["epsilon_placement"] != "inside_sqrt"
-        || a["affine_order"] != "normalize_multiply_add"
-        || eps.is_none_or(|v| !v.is_finite() || v <= 0.0)
-        || a["weight"].as_str().is_none_or(str::is_empty)
-        || a["bias"].as_str().is_none_or(str::is_empty)
-        || a["weight_shape"] != json!([width])
-        || a["bias_shape"] != json!([width])
-    {
-        return Err(ModelError::Incomplete(
-            "invalid centered affine LayerNorm contract".into(),
-        ));
-    }
-    Ok(())
-}
-
 pub(super) fn validate_plan(plan: &DecoderPlan) -> Result<(), ModelError> {
     let source = &ABSOLUTE_POSITION;
     if plan.adapter != source.adapter {
@@ -659,4 +647,199 @@ pub(super) fn validate_plan(plan: &DecoderPlan) -> Result<(), ModelError> {
         ));
     }
     super::validate_state_transition(plan)
+}
+
+#[cfg(test)]
+mod source_parser_tests {
+    use super::*;
+    use pllm_types::canonical_bytes;
+
+    fn source() -> Value {
+        json!({"model_type":"gpt2", "n_embd":4, "n_head":2,
+            "n_layer":1, "n_positions":8, "vocab_size":7})
+    }
+
+    fn without_context() -> Value {
+        let mut document = source();
+        document.as_object_mut().unwrap().remove("n_positions");
+        document
+    }
+
+    fn workload() -> DecoderWorkload {
+        DecoderWorkload {
+            batch: 1,
+            max_input_tokens: 2,
+            max_new_tokens: 2,
+        }
+    }
+
+    #[test]
+    fn every_alias_and_agreeing_subset_preserve_config_and_position_requirement() {
+        let original = source();
+        let baseline = parse(&original, &ABSOLUTE_POSITION).unwrap();
+        let expected = lower_source_json(&original, workload(), &ABSOLUTE_POSITION).unwrap();
+        // All single spellings and every agreeing combination, including all four.
+        for subset in 1..(1usize << SOURCE_CONTEXT_ALIASES.len()) {
+            let mut document = without_context();
+            for (index, &alias) in SOURCE_CONTEXT_ALIASES.iter().enumerate() {
+                if subset & (1 << index) != 0 {
+                    document[alias] = json!(8);
+                }
+            }
+            document["n_ctx"] = json!(8);
+            let config = parse(&document, &ABSOLUTE_POSITION).unwrap();
+            assert_eq!(config, baseline);
+            assert_eq!(canonical_bytes(&config), canonical_bytes(&baseline));
+            let actual = lower_source_json(&document, workload(), &ABSOLUTE_POSITION).unwrap();
+            assert_eq!(actual.config_digest, expected.config_digest);
+            assert_eq!(actual, expected);
+            assert_eq!(actual.digest(), expected.digest());
+            for graph in [&actual.prefill, &actual.decode] {
+                let position = graph
+                    .operations
+                    .iter()
+                    .find(|op| op.id == "position_lookup")
+                    .unwrap();
+                assert_eq!(position.attributes["weight"], "transformer.wpe.weight");
+                assert_eq!(position.attributes["weight_shape"], json!([8, 4]));
+            }
+            // Parsing may not rewrite the caller's source document.
+            assert_eq!(document.get("n_positions").is_some(), subset & 8 != 0);
+        }
+    }
+
+    #[test]
+    fn alias_conflicts_and_malformed_values_cannot_hide_behind_priority() {
+        let malformed = [
+            json!(true),
+            json!(false),
+            Value::Null,
+            json!("8"),
+            json!(8.0),
+            json!(8.5),
+            json!(0),
+            json!(-1),
+            json!([]),
+            json!({}),
+            serde_json::from_str::<Value>("18446744073709551616").unwrap(),
+        ];
+        for &alias in SOURCE_CONTEXT_ALIASES {
+            for value in &malformed {
+                let mut alone = without_context();
+                alone[alias] = value.clone();
+                assert!(parse(&alone, &ABSOLUTE_POSITION).is_err(), "{alias}: {value}");
+            }
+            for &other in SOURCE_CONTEXT_ALIASES {
+                if alias == other {
+                    continue;
+                }
+                let mut document = without_context();
+                document[other] = json!(8);
+                document[alias] = json!(9);
+                assert!(
+                    parse(&document, &ABSOLUTE_POSITION).is_err(),
+                    "{alias} vs {other}"
+                );
+                for value in &malformed {
+                    document[alias] = value.clone();
+                    assert!(
+                        parse(&document, &ABSOLUTE_POSITION).is_err(),
+                        "{alias}: {value}, {other}: 8"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn absent_aliases_have_no_native_default_even_with_n_ctx() {
+        let mut document = without_context();
+        assert_eq!(
+            resolve_positive_integer_aliases(
+                document.as_object().unwrap(),
+                SOURCE_CONTEXT_ALIASES
+            ).unwrap(),
+            None
+        );
+        for n_ctx in [None, Some(8), Some(2048)] {
+            if let Some(value) = n_ctx {
+                document["n_ctx"] = json!(value);
+            }
+            assert!(parse(&document, &ABSOLUTE_POSITION).is_err());
+            assert!(lower_source_json(&document, workload(), &ABSOLUTE_POSITION).is_err());
+        }
+    }
+
+    #[test]
+    fn aliases_keep_native_envelope_and_resolved_n_ctx_consistency() {
+        for &alias in SOURCE_CONTEXT_ALIASES {
+            let mut document = without_context();
+            for positions in [1, 8, 1024] {
+                document[alias] = json!(positions);
+                document["n_ctx"] = json!(positions);
+                assert_eq!(
+                    parse(&document, &ABSOLUTE_POSITION).unwrap().n_positions,
+                    positions
+                );
+                document["n_ctx"] = json!(positions + 1);
+                assert!(parse(&document, &ABSOLUTE_POSITION).is_err());
+            }
+            document.as_object_mut().unwrap().remove("n_ctx");
+            for positions in [1025, 2048, u64::MAX] {
+                document[alias] = json!(positions);
+                assert!(parse(&document, &ABSOLUTE_POSITION).is_err());
+            }
+            document[alias] = json!(8);
+            for value in [Value::Null, json!(true), json!("8"), json!(8.0)] {
+                document["n_ctx"] = value;
+                assert!(parse(&document, &ABSOLUTE_POSITION).is_err());
+            }
+        }
+    }
+
+    #[test]
+    fn old_config_canonical_bytes_and_digest_stay_unchanged() {
+        let document = source();
+        // This is the original direct-deserialization path, without normalization.
+        let old: Config = serde_json::from_value(document.clone()).unwrap();
+        let parsed = parse(&document, &ABSOLUTE_POSITION).unwrap();
+        assert_eq!(canonical_bytes(&parsed), canonical_bytes(&old));
+        let digest = canonical_digest(ABSOLUTE_POSITION.digest_domain, &old);
+        assert_eq!(
+            canonical_digest(ABSOLUTE_POSITION.digest_domain, &parsed),
+            digest
+        );
+        assert_eq!(
+            lower_source_json(&document, workload(), &ABSOLUTE_POSITION)
+                .unwrap()
+                .config_digest,
+            digest
+        );
+        assert_eq!(serde_json::to_value(&parsed).unwrap()["n_positions"], json!(8));
+        for &alias in &SOURCE_CONTEXT_ALIASES[..3] {
+            assert!(serde_json::to_value(&parsed).unwrap().get(alias).is_none());
+        }
+    }
+
+    #[test]
+    fn aliases_do_not_admit_unknown_fields_or_text_config_wrappers() {
+        for &alias in SOURCE_CONTEXT_ALIASES {
+            let mut document = without_context();
+            document[alias] = json!(8);
+            for key in ["context_length", "max_seq_len", "rope_scaling", "text_config"] {
+                let mut extended = document.clone();
+                extended[key] = json!({});
+                assert!(
+                    matches!(
+                        parse(&extended, &ABSOLUTE_POSITION),
+                        Err(ModelError::Unsupported(_))
+                    ),
+                    "{key}"
+                );
+            }
+            let wrapped = json!({"model_type":"gpt2", "text_config":document});
+            assert!(parse(&wrapped, &ABSOLUTE_POSITION).is_err());
+            assert!(lower_source_json(&wrapped, workload(), &ABSOLUTE_POSITION).is_err());
+        }
+    }
 }

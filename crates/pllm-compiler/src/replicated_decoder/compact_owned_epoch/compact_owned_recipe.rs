@@ -7,7 +7,9 @@ use crate::replicated_decoder::program::schedule_finalization::{
     self, BorrowedLaneRefs, BorrowedNode, BorrowedOrderedNodes, BorrowedRecipe,
     GeneratedPublicValues,
 };
-use crate::replicated_decoder::program::source_entry::compact_pending::sealed::FinalizedRoot;
+use crate::replicated_decoder::program::source_entry::compact_pending::sealed::{
+    CustodyOwner, FinalizedRootFor, LegacyRoot,
+};
 use pllm_garble::shared_allocation::ExternalCharge;
 
 enum Coordinates<'s> {
@@ -69,10 +71,10 @@ enum Description<'s> {
 /// COMPLETE, Attempt or source authority test is embedded in recipe traversal.
 /// A future SEALED entry is exclusively E's genuine finalized-loan integration,
 /// not a broadened inspection check or an execution permit supplied here.
-pub(super) struct RecipeBody<'s> {
+pub(super) struct RecipeBody<'s, C: CustodyOwner = LegacyRoot> {
     imports: &'s Builder,
     epoch: &'s OwnedEpoch,
-    sources: SourceLenses<'s>,
+    sources: SourceLenses<'s, C>,
     gathers: Vec<Gather<'s>>,
     work: WorkBudget,
 }
@@ -92,15 +94,15 @@ struct ImportAssociation<'s> {
     lanes: usize,
     bounds: Interval,
 }
-enum SourceLenses<'s> {
+enum SourceLenses<'s, C: CustodyOwner = LegacyRoot> {
     Inspection(Vec<SourceLens<'s>>),
-    Retained(&'s RetainedEpoch),
+    Retained(&'s RetainedEpochFor<C>),
 }
-impl<'s> SourceLenses<'s> {
+impl<'s, C: CustodyOwner> SourceLenses<'s, C> {
     fn get(&self, index: usize) -> Result<SourceLens<'s>, Error> {
         match self {
             Self::Inspection(v) => v.get(index).copied().ok_or(Error::Binding),
-            Self::Retained(epoch) => RetainedEpoch::lens(epoch, index),
+            Self::Retained(epoch) => RetainedEpochFor::<C>::lens(epoch, index),
         }
     }
 }
@@ -109,8 +111,8 @@ impl<'s> SourceLenses<'s> {
 /// InspectionLoan::checked_import_source(owner) -> (&str, &SourceTensor).
 /// E must resolve the import key in this SAME custody's original Manifest and
 /// charge its finite key search. No digest or independently supplied map seals it.
-fn bind_import<'s>(
-    loan: &InspectionLoan<'s>,
+fn bind_import<'s, C: HistoryInspection>(
+    loan: &InspectionLoan<'s, C>,
     owner: usize,
     expected: &'s SourceTensor,
 ) -> Result<ImportAssociation<'s>, Error> {
@@ -264,7 +266,7 @@ impl Census {
         u64::try_from(calls.checked_mul(per_call).ok_or(Error::Bounds)?).map_err(|_| Error::Bounds)
     }
 }
-impl<'s> RecipeBody<'s> {
+impl<'s, C: CustodyOwner> RecipeBody<'s, C> {
     fn imports(&self) -> &'s Builder {
         self.imports
     }
@@ -278,21 +280,21 @@ impl<'s> RecipeBody<'s> {
 
 /// Inspection-only entry. Stable spans/lenses borrow original owners; no Op or
 /// native Arc is copied per read. Payload drops before every covering charge.
-pub(in crate::replicated_decoder::program) struct OwnedSchedule<'s> {
-    body: RecipeBody<'s>,
-    loan: InspectionLoan<'s>,
+pub(in crate::replicated_decoder::program) struct OwnedSchedule<'s, C: CustodyOwner = LegacyRoot> {
+    body: RecipeBody<'s, C>,
+    loan: InspectionLoan<'s, C>,
     _gathers: ExternalCharge<'s>,
     _sources: ExternalCharge<'s>,
     _controls: ExternalCharge<'s>,
 }
 
-impl<'s> OwnedSchedule<'s> {
+impl<'s, C: CustodyOwner> OwnedSchedule<'s, C> {
     pub(in crate::replicated_decoder::program) fn new(
-        loan: InspectionLoan<'s>,
+        loan: InspectionLoan<'s, C>,
     ) -> Result<Self, Error> {
         Self::prepare(loan, false)
     }
-    fn prepare(loan: InspectionLoan<'s>, history_segment: bool) -> Result<Self, Error> {
+    fn prepare(loan: InspectionLoan<'s, C>, history_segment: bool) -> Result<Self, Error> {
         // Recheck the checked inspection entry; commit immediately. Structural
         // recipe traversal does not burn/complete the original history. Shared
         // charge admission retains ITS existing owner failure policy unchanged.
@@ -381,7 +383,7 @@ impl<'s> OwnedSchedule<'s> {
             });
         }
         let work = schedule_work(&loan.imports().nodes)?.checked_add(epoch.work)?;
-        let mut body = RecipeBody {
+        let mut body = RecipeBody::<C> {
             imports: loan.imports(),
             epoch,
             sources: SourceLenses::Inspection(sources),
@@ -435,7 +437,7 @@ impl<'s> OwnedSchedule<'s> {
         self.body.work
     }
 }
-impl BorrowedOrderedNodes for OwnedSchedule<'_> {
+impl<C: CustodyOwner> BorrowedOrderedNodes for OwnedSchedule<'_, C> {
     fn node_count(&self) -> usize {
         self.body.node_count()
     }
@@ -447,9 +449,9 @@ impl BorrowedOrderedNodes for OwnedSchedule<'_> {
 /// One source-owned two-epoch traversal. It only dispatches ordinal ranges to
 /// the SAME pure RecipeBody and actual acceptance records; no new node engine.
 /// Still OPEN inspection, never an executable or a runtime completion entry.
-pub(in crate::replicated_decoder::program) struct HistorySchedule<'s> {
-    epochs: Vec<OwnedSchedule<'s>>,
-    custody: &'s HistoryCustody,
+pub(in crate::replicated_decoder::program) struct HistorySchedule<'s, C: CustodyOwner = LegacyRoot> {
+    epochs: Vec<OwnedSchedule<'s, C>>,
+    custody: &'s C,
     _controls: ExternalCharge<'s>,
 }
 
@@ -461,14 +463,14 @@ struct RetainedLens {
     bias_bounds: Option<Interval>,
     iota: bool,
 }
-pub(in crate::replicated_decoder::program) struct RetainedEpoch {
-    root: Arc<FinalizedRoot>,
+pub(in crate::replicated_decoder::program) struct RetainedEpochFor<C: CustodyOwner> {
+    root: Arc<FinalizedRootFor<C>>,
     index: usize,
     sources: Vec<RetainedLens>,
 }
-impl RetainedEpoch {
+impl<C: CustodyOwner> RetainedEpochFor<C> {
     pub(in crate::replicated_decoder::program) fn epoch(&self) -> &OwnedEpoch {
-        &self.root.custody().produced().produced.epochs()[self.index]
+        &self.root.custody().epochs()[self.index]
     }
     fn association<'a>(
         &'a self,
@@ -541,8 +543,8 @@ impl RetainedEpoch {
             bias_bounds: metadata.bias_bounds,
         })
     }
-    fn body(&self) -> Result<RecipeBody<'_>, Error> {
-        Ok(RecipeBody {
+    fn body(&self) -> Result<RecipeBody<'_, C>, Error> {
+        Ok(RecipeBody::<C> {
             imports: self.root.imports()?,
             epoch: self.epoch(),
             sources: SourceLenses::Retained(self),
@@ -551,13 +553,13 @@ impl RetainedEpoch {
         })
     }
 }
-struct RetainedGather {
-    epoch: Arc<RetainedEpoch>,
+struct RetainedGatherFor<C: CustodyOwner> {
+    epoch: Arc<RetainedEpochFor<C>>,
     ordinal: usize,
     lanes: usize,
     bounds: Interval,
 }
-impl BorrowedLaneRefs for RetainedGather {
+impl<C: CustodyOwner> BorrowedLaneRefs for RetainedGatherFor<C> {
     fn len(&self) -> usize {
         self.lanes
     }
@@ -574,24 +576,23 @@ impl BorrowedLaneRefs for RetainedGather {
         }
     }
 }
-/// Send+Sync, no context/Rc/lifetime inside. Reads use the same describe() and
+/// Borrow-free retained metadata. Auto traits follow the concrete whole owner C;
+/// this contract grants no Send/Sync authority. Reads use the same describe() and
 /// coordinate helpers; stable Gather backing is allocated once during sealing.
-pub(in crate::replicated_decoder::program) struct RetainedRecipes {
-    gathers: Vec<RetainedGather>,
-    epochs: Vec<Arc<RetainedEpoch>>,
-    root: Arc<FinalizedRoot>,
+pub(in crate::replicated_decoder::program) struct RetainedRecipesFor<C: CustodyOwner> {
+    gathers: Vec<RetainedGatherFor<C>>,
+    epochs: Vec<Arc<RetainedEpochFor<C>>>,
+    root: Arc<FinalizedRootFor<C>>,
 }
-impl BorrowedOrderedNodes for RetainedRecipes {
+impl<C: CustodyOwner> BorrowedOrderedNodes for RetainedRecipesFor<C> {
     fn node_count(&self) -> usize {
-        self.root.custody().produced().produced.logical_len()
+        self.root.custody().logical_len()
     }
     fn node(&self, ordinal: usize) -> Result<BorrowedNode<'_>, Error> {
         if ordinal >= self.epochs[1].epoch().next {
             return self
                 .root
                 .custody()
-                .produced()
-                .produced
                 .acceptance_node(ordinal);
         }
         let index = usize::from(ordinal >= self.epochs[0].epoch().next);
@@ -616,15 +617,18 @@ impl BorrowedOrderedNodes for RetainedRecipes {
         }
     }
 }
-impl<'s> HistorySchedule<'s> {
+impl<'s, C: CustodyOwner> HistorySchedule<'s, C> {
     pub(in crate::replicated_decoder::program) fn retained_bytes(&self) -> Result<usize, Error> {
+        // These concrete C-bearing descriptors retain aliases to the one
+        // FinalizedRootFor<C>. Root payload/Arc backing is covered by the seal,
+        // never billed again for each retained Arc clone.
         let mut bytes = add_bytes(
-            2 * size_of::<Result<RetainedRecipes, Error>>(),
-            array_bytes::<Arc<RetainedEpoch>>(self.epochs.len())?,
+            2 * size_of::<Result<RetainedRecipesFor<C>, Error>>(),
+            array_bytes::<Arc<RetainedEpochFor<C>>>(self.epochs.len())?,
         )?;
         for epoch in &self.epochs {
             let (layout, _) = std::alloc::Layout::new::<[std::sync::atomic::AtomicUsize; 2]>()
-                .extend(std::alloc::Layout::new::<RetainedEpoch>())
+                .extend(std::alloc::Layout::new::<RetainedEpochFor<C>>())
                 .map_err(|_| Error::Bounds)?;
             bytes = add_bytes(bytes, layout.pad_to_align().size())?;
             bytes = add_bytes(
@@ -633,15 +637,15 @@ impl<'s> HistorySchedule<'s> {
             )?;
             bytes = add_bytes(
                 bytes,
-                array_bytes::<RetainedGather>(epoch.body.gathers.len())?,
+                array_bytes::<RetainedGatherFor<C>>(epoch.body.gathers.len())?,
             )?;
         }
         Ok(bytes)
     }
     pub(in crate::replicated_decoder::program) fn into_retained(
         self,
-        root: Arc<FinalizedRoot>,
-    ) -> Result<RetainedRecipes, Error> {
+        root: Arc<FinalizedRootFor<C>>,
+    ) -> Result<RetainedRecipesFor<C>, Error> {
         if !std::ptr::eq(self.custody, root.custody()) {
             return Err(Error::Binding);
         }
@@ -664,7 +668,7 @@ impl<'s> HistorySchedule<'s> {
                     iota: lens.iota.is_some(),
                 });
             }
-            let epoch = Arc::new(RetainedEpoch {
+            let epoch = Arc::new(RetainedEpochFor::<C> {
                 root: Arc::clone(&root),
                 index,
                 sources,
@@ -696,7 +700,7 @@ impl<'s> HistorySchedule<'s> {
                 }
             }
             for gather in &original.body.gathers {
-                gathers.push(RetainedGather {
+                gathers.push(RetainedGatherFor::<C> {
                     epoch: Arc::clone(&epoch),
                     ordinal: gather.ordinal,
                     lanes: gather.lanes,
@@ -705,7 +709,7 @@ impl<'s> HistorySchedule<'s> {
             }
             epochs.push(epoch);
         }
-        Ok(RetainedRecipes {
+        Ok(RetainedRecipesFor::<C> {
             gathers,
             epochs,
             root,
@@ -736,15 +740,15 @@ impl<'s> HistorySchedule<'s> {
         Ok(())
     }
     pub(in crate::replicated_decoder::program) fn new(
-        custody: &'s HistoryCustody,
+        custody: &'s C,
     ) -> Result<Self, Error> {
         let first = custody.inspect_history_epoch(0)?;
         let mut attempt = first.attempt()?;
-        if custody.produced().produced.epochs().len() != 2 {
+        if custody.epochs().len() != 2 {
             return Err(Error::Binding);
         }
         let bytes = add_bytes(
-            array_bytes::<OwnedSchedule<'s>>(2)?,
+            array_bytes::<OwnedSchedule<'s, C>>(2)?,
             2 * size_of::<Result<Self, Error>>(),
         )?;
         let controls = first.charge(bytes, 16)?;
@@ -752,19 +756,19 @@ impl<'s> HistorySchedule<'s> {
         if epochs.capacity() != 2 {
             return Err(Error::Bounds);
         }
-        epochs.push(OwnedSchedule::prepare(first, true)?);
+        epochs.push(OwnedSchedule::<C>::prepare(first, true)?);
         let second = custody.inspect_history_epoch(1)?;
         if second.epoch().read_start(second.imports())?.0 != epochs[0].body.epoch.next {
             return Err(Error::Binding);
         }
-        epochs.push(OwnedSchedule::prepare(second, true)?);
+        epochs.push(OwnedSchedule::<C>::prepare(second, true)?);
         let result = Self {
             epochs,
             custody,
             _controls: controls,
         };
-        if schedule_finalization::quote(&result, &custody.produced().produced.outputs(), 0)?.work
-            != custody.produced().work()
+        if schedule_finalization::quote(&result, &custody.outputs(), 0)?.work
+            != custody.work()
         {
             return Err(Error::Binding);
         }
@@ -772,9 +776,9 @@ impl<'s> HistorySchedule<'s> {
         Ok(result)
     }
 }
-impl BorrowedOrderedNodes for HistorySchedule<'_> {
+impl<C: CustodyOwner> BorrowedOrderedNodes for HistorySchedule<'_, C> {
     fn node_count(&self) -> usize {
-        self.custody.produced().produced.logical_len()
+        self.custody.logical_len()
     }
     fn node(&self, ordinal: usize) -> Result<BorrowedNode<'_>, Error> {
         if ordinal < self.epochs[0].body.epoch.next {
@@ -782,11 +786,11 @@ impl BorrowedOrderedNodes for HistorySchedule<'_> {
         } else if ordinal < self.epochs[1].body.epoch.next {
             self.epochs[1].node(ordinal)
         } else {
-            self.custody.produced().produced.acceptance_node(ordinal)
+            self.custody.acceptance_node(ordinal)
         }
     }
 }
-impl BorrowedOrderedNodes for RecipeBody<'_> {
+impl<C: CustodyOwner> BorrowedOrderedNodes for RecipeBody<'_, C> {
     fn node_count(&self) -> usize {
         self.epoch.next
     }
@@ -864,7 +868,7 @@ fn public_bounds(source: &SourceTensor) -> Result<Interval, Error> {
     Interval::new(source.lower, source.upper)
 }
 
-fn describe<'s>(loan: &RecipeBody<'s>, ordinal: usize) -> Result<Description<'s>, Error> {
+fn describe<'s, C: CustodyOwner>(loan: &RecipeBody<'s, C>, ordinal: usize) -> Result<Description<'s>, Error> {
     let epoch = loan.epoch();
     if let Some(node) = loan.imports().nodes.get(ordinal) {
         return Ok(Description::Node(BorrowedNode::from(node)));
@@ -1331,7 +1335,7 @@ fn describe<'s>(loan: &RecipeBody<'s>, ordinal: usize) -> Result<Description<'s>
     }))
 }
 
-fn validate(loan: &RecipeBody<'_>) -> Result<(), Error> {
+fn validate<C: CustodyOwner>(loan: &RecipeBody<'_, C>) -> Result<(), Error> {
     let epoch = loan.epoch();
     let imports = loan.imports();
     let (mut next, mut sticky) = epoch.read_start(imports)?;
@@ -1588,8 +1592,8 @@ fn validate(loan: &RecipeBody<'_>) -> Result<(), Error> {
     }
     Ok(())
 }
-fn source_import(
-    body: &RecipeBody<'_>,
+fn source_import<C: CustodyOwner>(
+    body: &RecipeBody<'_, C>,
     slot: usize,
     owner: usize,
     source: &SourceTensor,

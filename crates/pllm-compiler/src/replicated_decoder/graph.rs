@@ -418,6 +418,7 @@ impl Builder {
             request_origin::source_bias::preflight(self, graph, op)?;
             request_origin::rotary_creation::preflight(self, graph, op, &shape)?;
             let output = match op.operator {
+                Op::GeluErf | Op::Tanh | Op::AttentionMask => return Err(Error::Binding),
                 Op::TokenLookup => {
                     driver::token_lookup(self, op, &shape, tokens, sources, vocabulary)?
                 }

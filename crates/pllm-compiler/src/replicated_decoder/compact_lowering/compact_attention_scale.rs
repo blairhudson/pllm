@@ -3,6 +3,8 @@
 use super::*;
 use crate::replicated_decoder::program::EmissionContext;
 use graph::attention_driver::{self, ScaleDeclaration, ScaleSink};
+use pllm_garble::shared_allocation::OwnedExternalCharge;
+use crate::replicated_decoder::program::request_origin::compact_storage::ControllerAccounting;
 use std::mem::{size_of, size_of_val};
 
 pub(super) struct NativeChunk {
@@ -105,13 +107,13 @@ fn chunks(input: &PublishedView, width: usize) -> Chunks<'_> {
     }
 }
 
-struct Preparation<'s, 'g, 'a> {
-    graph: &'s CompactGraph<'g, 'a>,
+struct Preparation<'s, 'g, 'a, G: ControllerAccounting = OwnedExternalCharge> {
+    graph: &'s CompactGraph<'g, 'a, G>,
     workspace: &'s mut tensor::WorkPreflightWorkspace,
     buffer: Option<Vec<Pending>>,
 }
-struct Emission<'s, 'g, 'a> {
-    graph: &'s CompactGraph<'g, 'a>,
+struct Emission<'s, 'g, 'a, G: ControllerAccounting = OwnedExternalCharge> {
+    graph: &'s CompactGraph<'g, 'a, G>,
     pending: Vec<Pending>,
     buffer: Option<Vec<NativeChunk>>,
     index: usize,
@@ -120,7 +122,7 @@ struct Emission<'s, 'g, 'a> {
 
 // Supplement the existing native ConstructionQuote with concrete lexical
 // owners/move positions. No generic callback heap, ABI/call-stack or RSS bound.
-fn controls(attempt: usize) -> Result<usize, Error> {
+fn controls<G: ControllerAccounting>(attempt: usize) -> Result<usize, Error> {
     let r = tensor::WorkPreflightWorkspace::resources();
     let mut total = attempt.checked_mul(5).ok_or(Error::Bounds)?;
     macro_rules! pair {
@@ -138,8 +140,8 @@ fn controls(attempt: usize) -> Result<usize, Error> {
     pair!(r.ticket_result_bytes);
     pair!(r.build_result_bytes);
     pair!(size_of_val(&r));
-    pair!(size_of::<Preparation<'_, '_, '_>>());
-    pair!(size_of::<Emission<'_, '_, '_>>());
+    pair!(size_of::<Preparation<'_, '_, '_, G>>());
+    pair!(size_of::<Emission<'_, '_, '_, G>>());
     pair!(size_of::<Chunk>());
     pair!(size_of::<Option<Chunk>>());
     pair!(size_of::<Chunks<'_>>());
@@ -188,7 +190,11 @@ fn controls(attempt: usize) -> Result<usize, Error> {
     // including one-word/single-chunk inputs. No expanded Node/Words allocation.
     Ok(total)
 }
+#[cfg(test)]
 fn storage(lanes: usize, attempt: usize) -> Result<usize, Error> {
+    storage_for::<OwnedExternalCharge>(lanes, attempt)
+}
+fn storage_for<G: ControllerAccounting>(lanes: usize, attempt: usize) -> Result<usize, Error> {
     if lanes == 0 || lanes > MAX_VALUES {
         return Err(Error::Bounds);
     }
@@ -223,11 +229,11 @@ fn storage(lanes: usize, attempt: usize) -> Result<usize, Error> {
             array_bytes::<Pending>(count)?,
             array_bytes::<NativeChunk>(count)?,
         )?,
-        add_bytes(add_bytes(templates, construction)?, controls(attempt)?)?,
+        add_bytes(add_bytes(templates, construction)?, controls::<G>(attempt)?)?,
     )
 }
 
-impl CompactGraph<'_, '_> {
+impl<G: ControllerAccounting> CompactGraph<'_, '_, G> {
     // Exact existing imported-node bounds, in original word order. A GLOBAL
     // PublishedView interval cannot stand in for per-chunk owner bounds.
     // Published-score/residual ancestry requires E's mapping-side resolver;
@@ -246,7 +252,7 @@ impl CompactGraph<'_, '_> {
         let mut attempt = context.attempt();
         context.check_open()?;
         let baseline = add_bytes(self.outside_owner_bytes, self.baseline()?)?;
-        let peak = add_bytes(baseline, storage(input.lanes, size_of_val(&attempt))?)?;
+        let peak = add_bytes(baseline, storage_for::<G>(input.lanes, size_of_val(&attempt))?)?;
         self.admit_total(peak)?;
         context.admit_phase(peak, 0)?;
         let declaration = attention_driver::scale_declaration(op)?;
@@ -301,8 +307,8 @@ fn begin(input: &PublishedView, shape: &[usize]) -> Result<(), Error> {
     }
     Ok(())
 }
-fn query(
-    context: &EmissionContext<'_>,
+fn query<G: ControllerAccounting>(
+    context: &EmissionContext<'_, G>,
     start: usize,
     lanes: usize,
     incoming: Interval,
@@ -355,7 +361,7 @@ fn build(p: &mut Pending) -> Result<NativeChunk, Error> {
         program: Arc::new(program),
     })
 }
-impl ScaleSink for Preparation<'_, '_, '_> {
+impl<G: ControllerAccounting> ScaleSink for Preparation<'_, '_, '_, G> {
     type View = PublishedView;
     type Chunk = Chunk;
     type Owner = Item<Pending>;
@@ -410,7 +416,7 @@ impl ScaleSink for Preparation<'_, '_, '_> {
         Ok(output)
     }
 }
-impl ScaleSink for Emission<'_, '_, '_> {
+impl<G: ControllerAccounting> ScaleSink for Emission<'_, '_, '_, G> {
     type View = PublishedView;
     type Chunk = Chunk;
     type Owner = Item<NativeChunk>;

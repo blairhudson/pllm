@@ -2,6 +2,10 @@
 use super::*;
 use crate::replicated_decoder::sdk::{SourceRequestProgram, SourceStorage};
 
+#[path = "source_geometry.rs"]
+#[cfg_attr(not(test), allow(dead_code))]
+pub(in crate::replicated_decoder) mod source_geometry;
+
 #[path = "../verified_source/raw_owner.rs"]
 mod raw_owner;
 // Lifecycle fixture stays mounted beneath ORIGINAL ingress custody. This alias
@@ -17,6 +21,9 @@ thread_local! { static HEADER_FACTORIES:std::cell::Cell<usize>=const {std::cell:
 
 /// Private common move capsule. Only this module and original worker ingress
 /// construct it; no constructor accepts a caller Budget or source/registry seal.
+/// Pending preparation keeps this capsule intact until its last fallible call.
+/// Declaration order retires directory/original/raw before controller/root on
+/// refusal/unwind; this is not an escaped-Arc or allocator-cleanup funding proof.
 pub(super) struct OwnedSourceIngress {
     pub(super) directory: Option<Arc<snapshot_directory::OwnedSnapshotDirectory>>,
     pub(super) original: OriginalSourcePlan,
@@ -120,6 +127,16 @@ pub(in crate::replicated_decoder) struct SourceRecords<'a> {
 fn plus(a: usize, b: usize) -> Result<usize, Error> {
     a.checked_add(b).ok_or(Error::Bounds)
 }
+
+// Compatibility floor belongs to ingress, including its three header envelopes.
+// Geometry adds its own typed move/control slots; it does not borrow this floor
+// as free capacity or change the program/allocation caps.
+fn geometry_controller_floor() -> Result<usize, Error> {
+    plus(
+        pending_controller_bytes(),
+        plus(server_controller_bytes(), 3 * size_of::<SourceHeaderEntry>())?,
+    )
+}
 pub(in crate::replicated_decoder::program) fn resize(
     original: &OriginalSourcePlan,
     guard: &mut OwnedExternalCharge,
@@ -155,6 +172,18 @@ pub(in crate::replicated_decoder::program) fn resize(
 }
 
 impl SourceHeaderEntry {
+    /// Compact client pending descriptor, without raw-host authority or factories.
+    #[allow(clippy::too_many_arguments)]
+    pub(in crate::replicated_decoder) fn prepare_compact(
+        experiment: &[u8], config: &[u8], rows: usize, outputs: usize,
+        session: [u8; 32], source: [u8; 32], composition: [u8; 32],
+    ) -> Result<Self, Error> {
+        let mut header = Self::begin_mode(experiment, config, rows, outputs, session, source, composition, true)?;
+        header.directory = Some(snapshot_directory::OwnedSnapshotDirectory::prepare(
+            &header.original, &header.controller, &header.root,
+        )?);
+        Ok(header)
+    }
     /// Caller is the admitted CLIENT Experiment path, not a worker request body.
     /// Resource policy is independently rechecked against actual admitted C9
     /// owners; checkpoint/source-pin authentication remains R's original scanner.
@@ -173,7 +202,7 @@ impl SourceHeaderEntry {
     #[allow(clippy::too_many_arguments)]
     fn begin_mode(
         experiment: &[u8], config: &[u8], rows: usize, outputs: usize,
-        session: [u8; 32], source: [u8; 32], composition: [u8; 32], raw: bool,
+        session: [u8; 32], source: [u8; 32], composition: [u8; 32], defer_directory: bool,
     ) -> Result<Self, Error> {
         if experiment.is_empty()
             || experiment.len() > 32 << 10
@@ -187,46 +216,9 @@ impl SourceHeaderEntry {
         }
         #[cfg(test)]
         HEADER_FACTORIES.with(|n| n.set(n.get() + 1));
-        let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).map_err(|_| Error::Bounds)?;
-        let controller = root
-            .charge_external(plus(
-                pending_controller_bytes(),
-                plus(server_controller_bytes(), 3 * size_of::<Self>())?,
-            )?)
-            .map_err(|_| Error::Bounds)?;
-        let experiment = import_json(&root, experiment)?;
-        let config = import_json(&root, config)?;
-        let workload = DecoderWorkload {
-            batch: 1,
-            max_input_tokens: u64::try_from(rows).map_err(|_| Error::Bounds)?,
-            max_new_tokens: u64::try_from(outputs).map_err(|_| Error::Bounds)?,
-        };
-        let (limits, storage) =
-            source_policy::admitted_choice(&experiment, &config, None, workload)?;
-        if storage != SourceStorage::Compact {
-            return Err(Error::Binding);
-        }
-        let bootstrap =
-            original_source::bootstrap_bytes(&config, limits).map_err(|_| Error::Bounds)?;
-        let quote = original_source::quote(
-            config,
-            root.charge_external(bootstrap).map_err(|_| Error::Bounds)?,
-            workload,
-            limits,
-        )
-        .map_err(|_| Error::Binding)?;
-        let phase = plus(
-            root.budget()
-                .used_bytes()
-                .checked_sub(bootstrap)
-                .ok_or(Error::Bounds)?,
-            quote.resources().working_charge_bytes,
-        )?;
-        if phase > MAX_PROGRAM_BYTES {
-            return Err(Error::Bounds);
-        }
-        root.budget().admit_peak(phase).map_err(|_| Error::Bounds)?;
-        let original = quote.construct().map_err(|_| Error::Binding)?;
+        let (original, experiment, limits, controller, root) =
+            source_geometry::GeometryOwner::prepare(experiment, config, rows, outputs)?
+                .into_ingress();
         let schema = "pllm.replicated-decoder.manifest.v1";
         let metadata = plus(
             size_of::<Manifest>(),
@@ -273,7 +265,7 @@ impl SourceHeaderEntry {
         let collection_charge = root.charge_external(0).map_err(|_| Error::Bounds)?;
         // Raw admission must end BEFORE mkdir/anchor creation. Legacy Q18 keeps
         // its existing eager directory contract.
-        let directory = if raw { None } else {
+        let directory = if defer_directory { None } else {
             Some(snapshot_directory::OwnedSnapshotDirectory::create(&original, &controller, &root)?)
         };
         Ok(Self {

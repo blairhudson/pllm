@@ -1,6 +1,7 @@
 //! Consume construction aliases before moving original native invocation owners.
 //! Data-only unpublished records: execution still requires complete request custody.
 use super::*;
+use crate::replicated_decoder::program::request_origin::compact_storage::ControllerAccounting;
 
 /// Private index into the genuine producing publication, not an Arc/digest key.
 pub(in crate::replicated_decoder::program::compact_lowering) struct RowIndex {
@@ -11,15 +12,15 @@ pub(in crate::replicated_decoder::program::compact_lowering) struct RowIndex {
     reversed: bool,
 }
 
-struct Entry<'s> {
+struct Entry<'s, G: ControllerAccounting = OwnedExternalCharge> {
     producer: usize,
     row: usize,
-    owner: Rc<OwnedRow<'s>>,
+    owner: Rc<OwnedRow<'s, G>>,
 }
 
-pub(in crate::replicated_decoder::program::compact_lowering) struct Conversion<'c, 's> {
-    context: &'c EmissionContext<'s>,
-    entries: Vec<Entry<'s>>,
+pub(in crate::replicated_decoder::program::compact_lowering) struct Conversion<'c, 's, G: ControllerAccounting = OwnedExternalCharge> {
+    context: &'c EmissionContext<'s, G>,
+    entries: Vec<Entry<'s, G>>,
 }
 
 // No context reference or Rc survives this record. Exact original Certified Arc
@@ -131,20 +132,13 @@ impl RowIndex {
     }
 }
 
-impl<'c, 's> Conversion<'c, 's> {
+impl<'c, 's, G: ControllerAccounting> Conversion<'c, 's, G> {
     pub(in crate::replicated_decoder::program::compact_lowering) fn new(
-        context: &'c EmissionContext<'s>,
-        ops: &[PublishedOp<'s>],
+        context: &'c EmissionContext<'s, G>,
+        ops: &[PublishedOp<'s, G>],
     ) -> Result<Self, Error> {
         context.check_open()?;
-        context
-            .plan()
-            .prepay_compiler_metadata(
-                &context.reservation(),
-                u64::try_from(ops.len().checked_mul(8).ok_or(Error::Bounds)?)
-                    .map_err(|_| Error::Bounds)?,
-            )
-            .map_err(|_| Error::Bounds)?;
+        context.prepay_metadata(u64::try_from(ops.len().checked_mul(8).ok_or(Error::Bounds)?).map_err(|_| Error::Bounds)?)?;
         let count = ops.iter().try_fold(0usize, |n, op| {
             add_bytes(
                 n,
@@ -159,8 +153,8 @@ impl<'c, 's> Conversion<'c, 's> {
             retained,
             add_bytes(
                 add_bytes(
-                    array_bytes::<Entry<'s>>(count)?,
-                    array_bytes::<(usize, Rows<'s>)>(count)?,
+                    array_bytes::<Entry<'s, G>>(count)?,
+                    array_bytes::<(usize, Rows<'s, G>)>(count)?,
                 )?,
                 size_of::<Self>()
                     .checked_mul(2)
@@ -204,17 +198,10 @@ impl<'c, 's> Conversion<'c, 's> {
 
     pub(in crate::replicated_decoder::program::compact_lowering) fn index(
         &self,
-        view: RowView<'s>,
+        view: RowView<'s, G>,
     ) -> Result<RowIndex, Error> {
         self.context.check_open()?;
-        self.context
-            .plan()
-            .prepay_compiler_metadata(
-                &self.context.reservation(),
-                u64::try_from(self.entries.len().checked_mul(4).ok_or(Error::Bounds)?)
-                    .map_err(|_| Error::Bounds)?,
-            )
-            .map_err(|_| Error::Bounds)?;
+        self.context.prepay_metadata(u64::try_from(self.entries.len().checked_mul(4).ok_or(Error::Bounds)?).map_err(|_| Error::Bounds)?)?;
         let actual = self
             .entries
             .iter()
@@ -244,7 +231,7 @@ impl<'c, 's> Conversion<'c, 's> {
     /// aliases fail closed; they are never copied/reconstructed to force success.
     pub(in crate::replicated_decoder::program::compact_lowering) fn finish(
         self,
-        groups: Vec<(usize, Rows<'s>)>,
+        groups: Vec<(usize, Rows<'s, G>)>,
     ) -> Result<Invocations, Error> {
         let Self { context, entries } = self;
         let count = entries.len();

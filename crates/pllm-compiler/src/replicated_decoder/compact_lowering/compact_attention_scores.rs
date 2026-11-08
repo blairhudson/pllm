@@ -4,6 +4,8 @@ use super::super::graph::attention_driver::{self as attention, AttentionSink};
 use super::super::private_matrix_driver::{self as matrix, Sink as MatrixSink};
 use super::*;
 use puma::multiply::norm::RowEnergyProof;
+use pllm_garble::shared_allocation::OwnedExternalCharge;
+use crate::replicated_decoder::program::request_origin::compact_storage::ControllerAccounting;
 use std::mem::{size_of, size_of_val};
 
 pub(super) struct ScoreRow {
@@ -353,8 +355,8 @@ struct View {
     shape: [usize; 4],
     rank: usize,
 }
-struct Sink<'a, 'g, 's> {
-    graph: &'a CompactGraph<'g, 's>,
+struct Sink<'a, 'g, 's, G: ControllerAccounting = OwnedExternalCharge> {
+    graph: &'a CompactGraph<'g, 's, G>,
     result: Scores,
     pending: Option<RightGather>,
     query_start: usize,
@@ -363,8 +365,8 @@ struct Sink<'a, 'g, 's> {
     row: usize,
     sequence: usize,
 }
-fn score_energy(
-    graph: &CompactGraph<'_, '_>,
+fn score_energy<G: ControllerAccounting>(
+    graph: &CompactGraph<'_, '_, G>,
     view: &PublishedView,
     start: usize,
     width: usize,
@@ -382,7 +384,7 @@ fn score_energy(
     }
     compact_validity::row_energy(graph, view, start / width)
 }
-impl MatrixSink for Sink<'_, '_, '_> {
+impl<G: ControllerAccounting> MatrixSink for Sink<'_, '_, '_, G> {
     type Owner = usize;
     type Mass = u64;
     type Output = usize;
@@ -547,7 +549,7 @@ impl MatrixSink for Sink<'_, '_, '_> {
         *output += lanes;
     }
 }
-impl AttentionSink for Sink<'_, '_, '_> {
+impl<G: ControllerAccounting> AttentionSink for Sink<'_, '_, '_, G> {
     type View = View;
     type Words = Span;
     type Word = ();
@@ -742,7 +744,7 @@ fn same_input(a: &PublishedView, b: &PublishedView) -> bool {
         && a.logical == b.logical
         && a.bounds == b.bounds
 }
-impl CompactGraph<'_, '_> {
+impl<G: ControllerAccounting> CompactGraph<'_, '_, G> {
     fn score_peak(&self, rows: usize, tiles: usize, attempt: usize) -> Result<usize, Error> {
         let backing = add_bytes(
             array_bytes::<ScoreRow>(rows)?,
@@ -757,7 +759,7 @@ impl CompactGraph<'_, '_> {
                 peak = add_bytes(peak, $bytes)?;
             };
         }
-        slot!(size_of::<Sink<'_, '_, '_>>());
+        slot!(size_of::<Sink<'_, '_, '_, G>>());
         slot!(2 * size_of::<Scores>());
         slot!(2 * size_of::<Result<Scores, Error>>());
         slot!(2 * size_of::<Vec<ScoreRow>>());
@@ -833,13 +835,7 @@ impl CompactGraph<'_, '_> {
             .and_then(|n| n.checked_mul(depth))
             .and_then(|n| n.checked_mul(32))
             .ok_or(Error::Bounds)?;
-        context
-            .plan()
-            .prepay_compiler_metadata(
-                &context.reservation(),
-                u64::try_from(visits).map_err(|_| Error::Bounds)?,
-            )
-            .map_err(|_| Error::Bounds)?;
+        context.prepay_metadata(u64::try_from(visits).map_err(|_| Error::Bounds)?)?;
         let mut row_records = Vec::new();
         row_records
             .try_reserve_exact(rows)
@@ -880,7 +876,7 @@ impl CompactGraph<'_, '_> {
             row: 0,
             sequence,
         };
-        let q = Sink::view(
+        let q = Sink::<G>::view(
             Span {
                 kind: 0,
                 start: 0,
@@ -889,7 +885,7 @@ impl CompactGraph<'_, '_> {
             },
             &query.logical.dimensions[..4],
         );
-        let k = Sink::view(
+        let k = Sink::<G>::view(
             Span {
                 kind: 1,
                 start: 0,

@@ -125,7 +125,7 @@ pub struct Program {
     slots: [u8; MAX_NODES],
     register_count: usize,
     bit_widths: [u8; MAX_NODES],
-    public_affines: [Vec<Affine>; 2],
+    public_affines: [Box<[Affine]>; 2],
     public_affine_count: usize,
     work: WorkBudget,
 }
@@ -138,7 +138,7 @@ pub struct Builder(Program);
 /// Wrapper/pending/overlap quotation and factory integration remain open.
 pub(crate) struct ResidentBuilder {
     builder: Option<Builder>,
-    pending_affine: Vec<Affine>,
+    pending_affine: ExactStorage<Affine>,
     state: ResidentState,
 }
 
@@ -149,6 +149,78 @@ enum ResidentState {
     Failed,
     Complete,
     Transferred,
+}
+
+/// Exact logical backing, installed before initialization. This container has
+/// no admission authority. Building owns its initialized prefix on every exit;
+/// Ready transfers without allocation/copy. Extent is distinct from live count.
+pub enum ExactStorage<T> {
+    Empty,
+    Building {
+        buffer: crate::exact_buffer::ExactBuffer<T>,
+        extent: usize,
+        initialized: usize,
+    },
+    Ready(Box<[T]>),
+}
+
+impl<T> ExactStorage<T> {
+    pub fn empty() -> Self { Self::Empty }
+    pub fn extent(&self) -> usize {
+        match self { Self::Empty => 0, Self::Building { extent, .. } => *extent, Self::Ready(v) => v.len() }
+    }
+    pub fn len(&self) -> usize {
+        match self { Self::Empty => 0, Self::Building { initialized, .. } => *initialized, Self::Ready(v) => v.len() }
+    }
+    pub fn is_empty(&self) -> bool { self.len() == 0 }
+    pub fn acquire(&mut self, extent: usize) -> Result<(), Error> {
+        if !matches!(self, Self::Empty) { return Err(Error::Phase); }
+        crate::exact_buffer::layout_bytes::<T>(extent).map_err(|_| Error::Bounds)?;
+        let buffer = crate::exact_buffer::ExactBuffer::new(extent).map_err(|_| Error::Allocation)?;
+        *self = Self::Building { buffer, extent, initialized: 0 };
+        Ok(())
+    }
+    pub fn push(&mut self, value: T) -> Result<(), Error> {
+        let Self::Building { buffer, initialized, .. } = self else { return Err(Error::Phase); };
+        buffer.push(value).map_err(|_| Error::Bounds)?;
+        *initialized += 1;
+        Ok(())
+    }
+    pub fn seal(&mut self) -> Result<(), Error> {
+        // NEVER call consuming ExactBuffer::finish on an incomplete owner.
+        if !matches!(self, Self::Building { extent, initialized, .. } if extent == initialized) {
+            return Err(Error::Phase);
+        }
+        let Self::Building { buffer, .. } = std::mem::replace(self, Self::Empty) else { unreachable!() };
+        *self = Self::Ready(buffer.finish().map_err(|_| Error::Phase)?);
+        Ok(())
+    }
+    pub fn ready(&self) -> Result<&[T], Error> {
+        match self { Self::Ready(v) => Ok(v), _ => Err(Error::Phase) }
+    }
+    pub fn ready_mut(&mut self) -> Result<&mut [T], Error> {
+        match self { Self::Ready(v) => Ok(v), _ => Err(Error::Phase) }
+    }
+    pub fn transfer(&mut self, out: &mut Box<[T]>) -> Result<(), Error> {
+        // Validate destination AND readiness before taking the original owner.
+        if !out.is_empty() || !matches!(self, Self::Ready(_)) { return Err(Error::Phase); }
+        let Self::Ready(v) = std::mem::replace(self, Self::Empty) else { unreachable!() };
+        *out = v;
+        Ok(())
+    }
+    pub fn as_ptr(&self) -> *const T {
+        // Building's backing is opaque in shared ExactBuffer. No forged pointer
+        // or layout introspection. Observers must also inspect phase/extent.
+        match self { Self::Ready(v) => v.as_ptr(), _ => std::ptr::null() }
+    }
+}
+
+impl<T> ExactStorage<Option<T>> {
+    pub fn acquire_slots(&mut self, extent: usize) -> Result<(), Error> {
+        self.acquire(extent)?;
+        for _ in 0..extent { self.push(None)?; }
+        self.seal()
+    }
 }
 
 #[path = "tensor_resident_builder.rs"]
@@ -192,7 +264,7 @@ impl Builder {
             slots: [0; MAX_NODES],
             register_count: 0,
             bit_widths: [0; MAX_NODES],
-            public_affines: [Vec::new(), Vec::new()],
+            public_affines: [Box::default(), Box::default()],
             public_affine_count: 0,
             work: WorkBudget::default(),
         };
@@ -266,17 +338,17 @@ impl Builder {
     }
 
     pub fn affine_lanes(&mut self, input: Value, coefficients: &[Affine]) -> Result<Value, Error> {
-        let mut table = Vec::new();
+        let mut table = ExactStorage::empty();
         self.affine_lanes_with_pending(input, coefficients, &mut table)
     }
 
-    // Shared native order and commit. Legacy callers keep a local Vec and its
-    // original destruction-on-error behavior; resident callers retain that Vec.
+    // Shared exact acquisition for legacy and resident native recipes. Legacy
+    // callers keep their original destruction-on-error behavior.
     fn affine_lanes_with_pending(
         &mut self,
         input: Value,
         coefficients: &[Affine],
-        table: &mut Vec<Affine>,
+        table: &mut ExactStorage<Affine>,
     ) -> Result<Value, Error> {
         if coefficients.len() != self.node(input, false)?.lanes
             || self.0.public_affine_count == 2
@@ -291,24 +363,22 @@ impl Builder {
         // an existing table or reuse failed pending backing as a fresh attempt.
         let destination = self.0.public_affines.get(slot).ok_or(Error::Phase)?;
         if !destination.is_empty()
-            || destination.capacity() != 0
-            || !table.is_empty()
-            || table.capacity() != 0
+            || !matches!(table, ExactStorage::Empty)
         {
             return Err(Error::Phase);
         }
-        table
-            .try_reserve_exact(coefficients.len())
-            .map_err(|_| Error::Allocation)?;
-        #[cfg(test)]
-        resident_builder::after_affine_reserve(table);
-        if table.capacity() != coefficients.len() {
-            return Err(Error::Allocation);
+        table.acquire(coefficients.len())?;
+        for coefficient in coefficients {
+            table.push(*coefficient)?;
+            #[cfg(test)]
+            resident_builder::after_affine_initialize(table)?;
         }
-        table.extend_from_slice(coefficients);
+        table.seal()?;
+        #[cfg(test)]
+        resident_builder::after_affine_reserve(table)?;
         // Failure cannot leave an instruction referring to an absent table.
         let output = self.push(Instruction::LaneAffine(input, slot as u8), bounds, false)?;
-        self.0.public_affines[slot] = std::mem::take(table);
+        table.transfer(&mut self.0.public_affines[slot])?;
         self.0.public_affine_count += 1;
         Ok(output)
     }
@@ -628,25 +698,47 @@ impl Program {
             .try_fold(0usize, |peak, n| Ok(peak.max(n?)))
     }
 
+    fn public_table_bytes(&self) -> Result<usize, Error> {
+        // Exactly two owner headers. No instruction, coefficient or liveness walk.
+        self.public_affines.iter().try_fold(0usize, |n, v| {
+            n.checked_add(crate::exact_buffer::layout_bytes::<Affine>(v.len())
+                .map_err(|_| Error::Bounds)?).ok_or(Error::Bounds)
+        })
+    }
+
+    /// Constant-work immutable owner size, including the original Arc controls.
+    /// Not a replacement for construction/execution resource validation.
+    pub fn immutable_template_bytes(&self) -> Result<usize, Error> {
+        Self::immutable_bytes_for_tables(self.public_table_bytes()?)
+    }
+
+    fn immutable_bytes_for_tables(tables: usize) -> Result<usize, Error> {
+        std::mem::size_of::<Program>().checked_add(2 * std::mem::size_of::<usize>())
+            .and_then(|n| n.checked_add(tables)).ok_or(Error::Bounds)
+    }
+
+    /// Independent proposed validation visits for ONE complete resources() call.
+    /// The candidate convention counts explicit source reads/checks, whole-value
+    /// writes and iterator transitions, not CPU instructions. Fixed 3 blocks pay
+    /// two table layouts, result fields and checked scalar totals. Per outer node:
+    /// <= 12 reads/tests + 12 operand/branch operations + 12 checked totals/results
+    /// + 12 iterator/peak transitions. Per liveness candidate: <= 6 predicate
+    /// reads/tests + 8 lane/arithmetic/result operations + 8 fold transitions.
+    /// Each block is <=64; no scalar destructor loop or native AES credit.
+    pub fn full_resource_validation_visits() -> Result<u64, Error> {
+        let n = u64::try_from(MAX_NODES).map_err(|_| Error::Bounds)?;
+        let triangular = n.checked_mul(n.checked_add(1).ok_or(Error::Bounds)?)
+            .ok_or(Error::Bounds)? / 2;
+        3u64.checked_add(n).and_then(|v| v.checked_add(triangular))
+            .and_then(|v| v.checked_mul(64)).ok_or(Error::Bounds)
+    }
+
     /// Owner-defined sizes, not a complete enclosing graph's memory admission.
     /// Shared execution grants no credit for caller-retained template ownership.
     pub fn resources(&self) -> Result<Resources, Error> {
         let add = |a: usize, b: usize| a.checked_add(b).ok_or(Error::Bounds);
-        let public_table_bytes = self.public_affines.iter().try_fold(0usize, |n, v| {
-            add(
-                n,
-                v.capacity()
-                    .checked_mul(std::mem::size_of::<Affine>())
-                    .ok_or(Error::Bounds)?,
-            )
-        })?;
-        let immutable_template_bytes = add(
-            add(
-                std::mem::size_of::<Program>(),
-                2 * std::mem::size_of::<usize>(),
-            )?,
-            public_table_bytes,
-        )?;
+        let public_table_bytes = self.public_table_bytes()?;
+        let immutable_template_bytes = Self::immutable_bytes_for_tables(public_table_bytes)?;
         let register_container_bytes = self
             .register_count
             .checked_mul(std::mem::size_of::<Option<Register>>())
@@ -774,13 +866,13 @@ pub enum ConstructionQuoteError {
 /// adds supplied slice elements once, NOT caller Vec capacities/headers or their
 /// generation scratch. A caller must retain its full independently priced owner
 /// baseline; these fields never authorize a capacity credit or a subtraction.
-/// Program moves transfer affine Vec backing: source/destination inline slots
+/// Program moves transfer exact boxed affine backing: source/destination inline slots
 /// overlap, but coefficient payload is not deep-copied by those moves.
 /// Scalar arithmetic locals, ABI spill slots, libm/SHA implementation stack and
 /// allocator overhead are not request-owned buffers and are NOT stack-quoted.
 /// This quotes one construction plus publication into Arc, not concurrent calls,
 /// a compiler frontier, caller coefficient generation, or a whole D26 request.
-/// Table bytes rely on affine_lanes' existing exact-capacity acceptance check;
+/// Table bytes use the exact boxed extent, including failed initialized prefixes;
 /// allocator-internal slack and failed reservations are not RSS-quoted here.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ConstructionQuote {
@@ -984,7 +1076,7 @@ impl Construction {
         // Publish moves that Program into Arc; backing is transferred, not copied.
         let inline = std::mem::size_of::<Program>();
         let builder = std::mem::size_of::<Builder>();
-        let return_slot = match self {
+        let mut return_slot = match self {
             Self::RmsNormCertified { .. } | Self::RmsNormWithInputNorm { .. } => {
                 std::mem::size_of::<Result<(Program, u128), Error>>()
                     .max(std::mem::size_of::<Result<(Builder, Value, u128), Error>>())
@@ -994,14 +1086,22 @@ impl Construction {
             _ => std::mem::size_of::<Result<Program, Error>>(),
         }
         .max(std::mem::size_of::<Result<Builder, Error>>());
+        if matches!(self, Self::CheckedRange { .. } | Self::AllValid { .. }
+            | Self::RmsNormCertified { .. } | Self::RmsNormWithInputNorm { .. } | Self::RotaryHalf { .. }) {
+            return_slot = return_slot.max(std::mem::size_of::<Result<work_preflight::FactoryOutput, Error>>())
+                .max(std::mem::size_of::<Option<work_preflight::FactoryOutput>>());
+        }
         let finish = sum(&[
             std::mem::size_of::<Sha256>(),
             std::mem::size_of::<[usize; MAX_NODES]>(),
         ])?;
         let immutable = sum(&[inline, 2 * std::mem::size_of::<usize>(), tables])?;
-        let build = sum(&[builder, return_slot, tables, buffers, proofs])?;
-        let finish_phase = sum(&[builder, return_slot, tables, buffers, proofs, finish])?;
-        let publish = sum(&[return_slot, immutable, buffers, proofs])?;
+        let pending = std::mem::size_of::<ExactStorage<Affine>>();
+        let build = sum(&[inline, builder, pending, return_slot, tables, buffers, proofs])?;
+        // Recipe scratch is dead before finish/publication. Coefficient payload
+        // remains one allocation while its inline source/destination slots overlap.
+        let finish_phase = sum(&[builder, pending, return_slot, tables, finish])?;
+        let publish = sum(&[return_slot, immutable])?;
         let peak = build.max(finish_phase).max(publish);
         Ok(ConstructionQuote {
             return_slot_bytes: return_slot,
@@ -1017,6 +1117,30 @@ impl Construction {
             new_peak_bytes: peak,
             peak_with_borrowed_public_bytes: sum(&[peak, borrowed])?,
         })
+    }
+}
+
+impl Construction {
+    /// Extra owners when the resident schedule's embedded slots are already
+    /// inventoried. Count table payload once; Arc includes its original controls.
+    /// Derives one fresh numeric quote internally; neither result grants authority
+    /// or funds quote preparation, admission, or construction.
+    pub fn quote_for_installed_resident(
+        self,
+    ) -> Result<(ConstructionQuote, usize), ConstructionQuoteError> {
+        let quote = self.quote()?;
+        // Fallback build_core still has its local Builder/pending/return owners.
+        if !matches!(self, Self::RmsNormCertified { .. }
+            | Self::RmsNormWithInputNorm { .. } | Self::RotaryHalf { .. }) {
+            return Ok((quote, quote.new_peak_bytes));
+        }
+        let sum = |parts: &[usize]| parts.iter().try_fold(0usize,
+            |n, x| n.checked_add(*x).ok_or(ConstructionQuoteError::Geometry(Error::Bounds)));
+        let build = sum(&[std::mem::size_of::<Program>(), quote.return_slot_bytes,
+            quote.public_table_bytes, quote.constructor_buffer_bytes, quote.proof_buffer_bytes])?;
+        let finish = sum(&[quote.return_slot_bytes, quote.public_table_bytes, quote.finish_buffer_bytes])?;
+        let publish = sum(&[quote.return_slot_bytes, quote.immutable_template_bytes])?;
+        Ok((quote, build.max(finish).max(publish)))
     }
 }
 
@@ -2002,6 +2126,7 @@ pub use rms_output_energy::{
     RmsEnergyParameters, RmsEnergyResources, RmsEnergyWorkspace,
 };
 pub use work_preflight::{
+    LogicalEvents,
     AdmittedFactory, AdmittedWorkSchedule, CallerWorkLedger, ClosedFactory, FactoryOutput,
     FactoryParameters, FactoryWorkSummary, ProducedCertificate, ResidentFactorySource,
     ResidentNativeSchedule, WorkPreflight, WorkPreflightError, WorkPreflightResources,

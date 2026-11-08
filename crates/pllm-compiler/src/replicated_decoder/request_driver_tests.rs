@@ -505,6 +505,64 @@ fn later_original_prefill_errors_preserve_site_ledger_and_stop_before_feedback_o
 }
 
 #[test]
+fn checked_range_program_metadata_refusal_preserves_bounds_and_partial_graph() {
+    // Tiny public envelopes, not a reconstruction of any historical request.
+    // Use the existing retained-byte pressure pattern; allocate no large graph.
+    let incoming = Interval::new(-12, 12).unwrap();
+    let accepted = Interval::new(-9, 9).unwrap();
+    let mut builder = Builder {
+        checked_bound: Some(9),
+        ..Builder::default()
+    };
+    let input = builder
+        .push(Code::Input("range.input".into()), 3, incoming)
+        .unwrap();
+    let words: Words = (0..3).map(|lane| (input, lane)).collect();
+
+    // A successful real constructor distinguishes metadata admission from a
+    // numeric-constructor failure. Measure the preceding ordinary gather too.
+    let program = tensor::Program::checked_range(3, incoming, accepted, 0).unwrap();
+    let metadata_bytes = program.admitted_bytes().checked_add(1024).unwrap();
+    let mut probe = Builder::default();
+    probe
+        .push(Code::Input("range.input".into()), 3, incoming)
+        .unwrap();
+    let before_gather = probe.allocated;
+    probe.gather(&words).unwrap();
+    let gather_bytes = probe.allocated - before_gather;
+    assert_eq!(MAX_PROGRAM_BYTES, 64 * 1024 * 1024);
+    // One tile's view allowance and gather fit; metadata exceeds the unchanged
+    // cap by one byte. Only the accounting is pressured, not actual allocation.
+    builder.allocated = MAX_PROGRAM_BYTES
+        .checked_sub(Words::span_pool_bytes(1).unwrap() * 2 + gather_bytes + metadata_bytes)
+        .unwrap()
+        + 1;
+
+    assert!(matches!(builder.checked_view(&words), Err(Error::Bounds)));
+    assert_eq!(builder.admission_stage, "checked_range_program_metadata");
+    assert_eq!(builder.admission_limit, Some("program_bytes"));
+    let requested = builder.requested_bytes.unwrap();
+    assert_eq!(requested, MAX_PROGRAM_BYTES + 1);
+    assert!(requested > MAX_PROGRAM_BYTES);
+    assert_eq!(builder.allocated + metadata_bytes, requested);
+    let ledger = builder.admission_ledger();
+    assert!(ledger.contains("stage: checked_range_program_metadata"));
+    assert!(ledger.contains("limit: Some(\"program_bytes\")"));
+    assert!(ledger.contains(&format!("requested_bytes: Some({requested})")));
+
+    // Refusal leaves the original input and emitted gather inspectable, without
+    // interning the rejected program or publishing checked outputs/validity.
+    assert_eq!(builder.nodes.len(), 2);
+    assert!(matches!(&builder.nodes[input].code, Code::Input(key) if key == "range.input"));
+    assert_eq!(builder.nodes[input].bounds, incoming);
+    assert_eq!(builder.bounds(&words).unwrap(), incoming);
+    assert!(matches!(&builder.nodes[1].code, Code::Gather(gathered) if gathered == &words));
+    assert_eq!(builder.nodes[1].bounds, incoming);
+    assert!(builder.tensors.is_empty());
+    assert_eq!(builder.validity, None);
+}
+
+#[test]
 fn checked_final_acceptance_budget_failure_retains_sticky_site_and_never_publishes() {
     use std::cell::Cell;
 

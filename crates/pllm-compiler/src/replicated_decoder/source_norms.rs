@@ -513,6 +513,7 @@ pub(super) fn requests(
         for _ in 0..graph.operations.len() {
             let op = producers.get(source).ok_or(Error::Binding)?;
             match op.operator {
+                Op::GeluErf | Op::Tanh | Op::AttentionMask => return Err(Error::Binding),
                 Op::Linear => {
                     projection = Some(*op);
                     break;

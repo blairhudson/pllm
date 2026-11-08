@@ -286,7 +286,8 @@ fn rms_work_native_metadata_outer_composition_gamma_columns_and_certificates_mat
                             assert_eq!(a.public_affine_count, 1);
                             let table = &a.public_affines[0];
                             assert_eq!(table.len(), rows * width);
-                            assert_eq!(table.capacity(), table.len());
+                            assert_eq!(crate::exact_buffer::layout_bytes::<Affine>(table.len()).unwrap(),
+                                rows * width * std::mem::size_of::<Affine>());
                             for (i, c) in table.iter().enumerate() {
                                 assert_eq!((c.left, c.right, c.constant), (gamma[i % width], 0, 0));
                             }

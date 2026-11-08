@@ -668,8 +668,23 @@ fn whole_fixture_with_backing_count(
     };
     let replacements = f.replacements();
     let g = geometry();
-    let mut keys = vec![0; g.key_layout().storage_words().unwrap()];
-    let mut values = vec![0; g.value_layout().storage_words().unwrap()];
+    let key_words = g.key_layout().storage_words().unwrap();
+    let value_words = g.value_layout().storage_words().unwrap();
+    let slot_bytes = key_words
+        .checked_add(value_words)
+        .and_then(|words| words.checked_mul(size_of::<i64>()))
+        .unwrap();
+    let actual = factory_bytes(&f.original, &p, &replacements)
+        .unwrap()
+        .checked_add(original_bytes)
+        .and_then(|bytes| bytes.checked_add(slot_bytes))
+        .unwrap();
+    assert!(
+        actual <= 128 << 10,
+        "upstream region includes ORIGINAL capacities/controls, no unpriced manifest acquisition"
+    );
+    let mut keys = vec![0; key_words];
+    let mut values = vec![0; value_words];
     let mut cache = RetainedCache::new(g, &mut keys, &mut values).unwrap();
     control.core_work().debit(active * 8 * 8, 0).unwrap();
     for token in 0..active {
@@ -678,17 +693,6 @@ fn whole_fixture_with_backing_count(
             .unwrap();
     }
     assert_eq!(cache.append_descriptor().unwrap(), append_at(active));
-    let actual = sum([
-        factory_bytes(&f.original, &p, &replacements).unwrap(),
-        original_bytes,
-        (g.key_layout().storage_words().unwrap() + g.value_layout().storage_words().unwrap())
-            * size_of::<i64>(),
-    ])
-    .unwrap();
-    assert!(
-        actual <= 128 << 10,
-        "upstream region includes ORIGINAL capacities/controls, no unpriced manifest acquisition"
-    );
     run(
         &f,
         &quote,

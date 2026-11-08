@@ -1084,7 +1084,7 @@ fn prefill_rejects_rms_norm_output_outside_signed_i16() {
         .collect();
     weights.norm_i16 = vec![i16::MAX; 8];
     let block = compile(&plan, DecoderMode::Prefill, &weights).unwrap();
-    let input = wrap_i16(&[30_000_i16, 0, 0, 0, 0, 0, 0, 0, 30_000, 0, 0, 0, 0, 0, 0, 0]);
+    let input = wrap_i16(&[0_i16, 30_000, 0, 0, 0, 0, 0, 0, 0, 30_000, 0, 0, 0, 0, 0, 0]);
     let result = execute_dense_qwen_attention_prefill(
         &plan,
         &block,

@@ -5,7 +5,9 @@
 //! internals/physical memory and enclosing constructor completion are UNKNOWN.
 use super::super::graph::attention_driver::{self as driver, AttentionSink};
 use super::*;
+use crate::replicated_decoder::program::request_origin::compact_storage::ControllerAccounting;
 use crate::replicated_decoder::program::EmissionContext;
+use pllm_garble::shared_allocation::OwnedExternalCharge;
 use std::mem::size_of;
 use std::rc::Rc;
 #[path = "compact_attention_owned_rows.rs"]
@@ -20,7 +22,7 @@ pub(super) struct Certified {
 }
 
 /// One original INVOCATION, not one interned native Program. Fields stay private.
-pub(super) struct OwnedRow<'s> {
+pub(super) struct OwnedRow<'s, G = OwnedExternalCharge> {
     predecessor: PublishedView,
     predecessor_native: SoftmaxPredecessor,
     prefix: usize,
@@ -31,19 +33,28 @@ pub(super) struct OwnedRow<'s> {
     keys: usize,
     zero: (usize, usize),
     native: Arc<Certified>,
-    context: &'s EmissionContext<'s>,
+    context: &'s EmissionContext<'s, G>,
 }
 
 /// Closed local mapping; E must resolve its published aliases to these actual
 /// records, never attach a record by shape/digest. No public constructor.
-#[derive(Clone)]
-pub(super) struct RowView<'s> {
-    owner: Rc<OwnedRow<'s>>,
+pub(super) struct RowView<'s, G = OwnedExternalCharge> {
+    owner: Rc<OwnedRow<'s, G>>,
     start: usize,
     lanes: usize,
     reversed: bool,
 }
-impl RowView<'_> {
+impl<G> Clone for RowView<'_, G> {
+    fn clone(&self) -> Self {
+        Self {
+            owner: Rc::clone(&self.owner),
+            start: self.start,
+            lanes: self.lanes,
+            reversed: self.reversed,
+        }
+    }
+}
+impl<G: ControllerAccounting> RowView<'_, G> {
     pub(super) fn predecessor_programs(&self) -> impl Iterator<Item = &Arc<tensor::Program>> {
         self.owner.predecessor_programs()
     }
@@ -70,7 +81,7 @@ impl RowView<'_> {
         })
     }
 }
-impl OwnedRow<'_> {
+impl<G: ControllerAccounting> OwnedRow<'_, G> {
     pub(super) fn predecessor(&self) -> &PublishedView {
         &self.predecessor
     }
@@ -119,14 +130,14 @@ impl OwnedRow<'_> {
     }
 }
 
-pub(super) struct Rows<'s> {
-    native: Vec<Rc<OwnedRow<'s>>>,
+pub(super) struct Rows<'s, G = OwnedExternalCharge> {
+    native: Vec<Rc<OwnedRow<'s, G>>>,
     first: usize,
     cursor: usize,
     work: WorkBudget,
     retained: usize,
 }
-impl<'s> Rows<'s> {
+impl<'s, G: ControllerAccounting> Rows<'s, G> {
     pub(super) fn programs(&self) -> impl Iterator<Item = &Arc<tensor::Program>> {
         self.native.iter().map(|row| row.program())
     }
@@ -160,13 +171,13 @@ impl<'s> Rows<'s> {
                 size_of::<Self>(),
                 self.native
                     .capacity()
-                    .checked_mul(size_of::<Rc<OwnedRow<'_>>>())
+                    .checked_mul(size_of::<Rc<OwnedRow<'_, G>>>())
                     .ok_or(Error::Bounds)?,
             )?,
             self.native
                 .len()
                 .checked_mul(add_bytes(
-                    shared_bytes::<OwnedRow<'_>, [std::cell::Cell<usize>; 2]>()?,
+                    shared_bytes::<OwnedRow<'_, G>, [std::cell::Cell<usize>; 2]>()?,
                     shared_bytes::<Certified, [std::sync::atomic::AtomicUsize; 2]>()?,
                 )?)
                 .ok_or(Error::Bounds)?,
@@ -186,12 +197,12 @@ impl<'s> Rows<'s> {
         }
         bounds.ok_or(Error::Binding)
     }
-    pub(super) fn row(&self, index: usize) -> Result<&OwnedRow<'s>, Error> {
+    pub(super) fn row(&self, index: usize) -> Result<&OwnedRow<'s, G>, Error> {
         let row = self.native.get(index).ok_or(Error::Shape)?;
         row.context.check_open()?;
         Ok(row)
     }
-    pub(super) fn prefix(&self, index: usize) -> Result<RowView<'s>, Error> {
+    pub(super) fn prefix(&self, index: usize) -> Result<RowView<'s, G>, Error> {
         let row = self.row(index)?;
         Ok(RowView {
             owner: Rc::clone(&self.native[index]),
@@ -200,7 +211,7 @@ impl<'s> Rows<'s> {
             reversed: false,
         })
     }
-    pub(super) fn padded(&self, index: usize) -> Result<RowView<'s>, Error> {
+    pub(super) fn padded(&self, index: usize) -> Result<RowView<'s, G>, Error> {
         let mut view = self.prefix(index)?;
         view.lanes = view.owner.keys;
         Ok(view)
@@ -209,9 +220,9 @@ impl<'s> Rows<'s> {
     /// trimmed. Equal Program Arcs do not identify different invocations.
     pub(super) fn lookup<'r>(
         &'r self,
-        view: &RowView<'s>,
+        view: &RowView<'s, G>,
         inner: usize,
-    ) -> Result<Option<&'r OwnedRow<'s>>, Error> {
+    ) -> Result<Option<&'r OwnedRow<'s, G>>, Error> {
         view.owner.context.check_open()?;
         let Some(row) = self.native.iter().find(|r| Rc::ptr_eq(r, &view.owner)) else {
             return Err(Error::Binding);
@@ -233,7 +244,7 @@ impl<'s> Rows<'s> {
         Ok(Some(row))
     }
     /// Separate publication geometry check, NOT a native row certificate.
-    pub(super) fn check_padding(&self, index: usize, view: &RowView<'s>) -> Result<(), Error> {
+    pub(super) fn check_padding(&self, index: usize, view: &RowView<'s, G>) -> Result<(), Error> {
         let row = self.row(index)?;
         if !Rc::ptr_eq(&self.native[index], &view.owner)
             || view.start != 0
@@ -262,7 +273,7 @@ impl<'s> Rows<'s> {
         &self,
         view: &PublishedView,
         inner: usize,
-    ) -> Result<Option<&OwnedRow<'s>>, Error> {
+    ) -> Result<Option<&OwnedRow<'s, G>>, Error> {
         let first = self.native.first().ok_or(Error::Binding)?;
         first.context.check_open()?;
         if !Arc::ptr_eq(&first.predecessor.origin, &view.origin) {
@@ -322,8 +333,8 @@ fn geometry(
 // Native bounds come from actual prepared owner(s), NEVER a widened whole-view
 // estimate. Ordinary original imports have one actual Input node interval. The
 // existing full/tail map is supported; unknown Scale/alias kinds fail closed.
-fn prefix_bounds(
-    graph: &CompactGraph<'_, '_>,
+fn prefix_bounds<G: ControllerAccounting>(
+    graph: &CompactGraph<'_, '_, G>,
     input: &PublishedView,
     start: usize,
     width: usize,
@@ -378,8 +389,8 @@ fn prefix_bounds(
     }
 }
 
-pub(super) fn quote(
-    graph: &CompactGraph<'_, '_>,
+pub(super) fn quote<G: ControllerAccounting>(
+    graph: &CompactGraph<'_, '_, G>,
     input: &PublishedView,
     sequence: usize,
     position: usize,
@@ -395,7 +406,7 @@ pub(super) fn quote(
     }
     let r = tensor::WorkPreflightWorkspace::resources();
     let records = count
-        .checked_mul(size_of::<Rc<OwnedRow<'_>>>())
+        .checked_mul(size_of::<Rc<OwnedRow<'_, G>>>())
         .ok_or(Error::Bounds)?;
     let tickets = count
         .checked_mul(size_of::<tensor::AdmittedFactory<'static>>())
@@ -404,25 +415,25 @@ pub(super) fn quote(
         .checked_mul(size_of::<Interval>())
         .ok_or(Error::Bounds)?;
     let common = [
-        size_of::<Rows<'_>>(),
-        size_of::<Result<Rows<'_>, Error>>(),
-        size_of::<Sink<'_>>(),
+        size_of::<Rows<'_, G>>(),
+        size_of::<Result<Rows<'_, G>, Error>>(),
+        size_of::<Sink<'_, G>>(),
         size_of::<Resources>(),
         size_of::<WalkView>(),
         4 * size_of::<WalkWords>(),
-        4 * size_of::<RowView<'_>>(),
+        4 * size_of::<RowView<'_, G>>(),
         2 * size_of::<PublishedView>(),
         size_of::<std::vec::IntoIter<tensor::AdmittedFactory<'static>>>(),
-        4 * size_of::<PublishedOp<'_>>(),
+        4 * size_of::<PublishedOp<'_, G>>(),
         size_of::<Result<tensor::FactoryOutput, Error>>(),
         size_of::<(tensor::Program, tensor::ProducedCertificate)>(),
         size_of::<Result<(tensor::Program, tensor::ProducedCertificate), Error>>(),
-        4 * size_of::<request_origin::compact_storage::EmissionAttempt<'_, '_>>(),
-        size_of::<Result<Option<&OwnedRow<'_>>, Error>>(),
+        4 * size_of::<request_origin::compact_storage::EmissionAttempt<'_, '_, G>>(),
+        size_of::<Result<Option<&OwnedRow<'_, G>>, Error>>(),
         size_of::<Option<Interval>>(),
-        2 * size_of::<OwnedRow<'_>>(),
+        2 * size_of::<OwnedRow<'_, G>>(),
         2 * size_of::<Certified>(),
-        size_of::<Result<Rc<OwnedRow<'_>>, Error>>(),
+        size_of::<Result<Rc<OwnedRow<'_, G>>, Error>>(),
     ]
     .into_iter()
     .try_fold(0, add_bytes)?;
@@ -456,20 +467,20 @@ pub(super) fn quote(
         size_of::<Result<Vec<Interval>, Error>>(),
         size_of::<Vec<tensor::AdmittedFactory<'static>>>(),
         size_of::<Result<Vec<tensor::AdmittedFactory<'static>>, Error>>(),
-        size_of::<Vec<Rc<OwnedRow<'_>>>>(),
-        size_of::<Result<Vec<Rc<OwnedRow<'_>>>, Error>>(),
+        size_of::<Vec<Rc<OwnedRow<'_, G>>>>(),
+        size_of::<Result<Vec<Rc<OwnedRow<'_, G>>>, Error>>(),
     ]
     .into_iter()
     .try_fold(0, add_bytes)?;
     let build_controls = add_bytes(common, size_of::<Arc<Certified>>())?;
-    let mut retained = add_bytes(size_of::<Rows<'_>>(), records)?;
+    let mut retained = add_bytes(size_of::<Rows<'_, G>>(), records)?;
     let mut native_peak = retained;
     for row in 0..count {
         let width = add_bytes(position, row % sequence + 1)?;
         let q = tensor::Construction::SoftmaxCertified { rows: 1, width }
             .quote()
             .map_err(|_| Error::Bounds)?;
-        let publishing = add_bytes(arc_bytes::<Certified>()?, arc_bytes::<OwnedRow<'_>>()?)?;
+        let publishing = add_bytes(arc_bytes::<Certified>()?, arc_bytes::<OwnedRow<'_, G>>()?)?;
         native_peak = native_peak.max(add_bytes(
             add_bytes(retained, q.new_peak_bytes)?,
             publishing,
@@ -478,7 +489,7 @@ pub(super) fn quote(
             retained,
             q.immutable_template_bytes,
             arc_bytes::<Certified>()?,
-            arc_bytes::<OwnedRow<'_>>()?,
+            arc_bytes::<OwnedRow<'_, G>>()?,
         ]
         .into_iter()
         .try_fold(0, add_bytes)?;
@@ -521,11 +532,11 @@ struct WalkView {
     words: WalkWords,
     shape: ViewShape,
 }
-struct Sink<'s> {
-    context: &'s EmissionContext<'s>,
+struct Sink<'s, G = OwnedExternalCharge> {
+    context: &'s EmissionContext<'s, G>,
     input: PublishedView,
     tickets: std::vec::IntoIter<tensor::AdmittedFactory<'static>>,
-    rows: Vec<Rc<OwnedRow<'s>>>,
+    rows: Vec<Rc<OwnedRow<'s, G>>>,
     first: usize,
     keys: usize,
     sequence: usize,
@@ -535,7 +546,7 @@ struct Sink<'s> {
     predecessor: SoftmaxPredecessor,
     inputs: Vec<Interval>,
 }
-impl AttentionSink for Sink<'_> {
+impl<G: ControllerAccounting> AttentionSink for Sink<'_, G> {
     type View = WalkView;
     type Words = WalkWords;
     type Word = (usize, usize);
@@ -683,12 +694,12 @@ fn reserve<T>(count: usize) -> Result<Vec<T>, Error> {
     Ok(v)
 }
 
-pub(super) fn prepare<'s>(
-    graph: &CompactGraph<'_, 's>,
+pub(super) fn prepare<'s, G: ControllerAccounting>(
+    graph: &CompactGraph<'_, 's, G>,
     input: &PublishedView,
     sequence: usize,
     position: usize,
-) -> Result<Rows<'s>, Error> {
+) -> Result<Rows<'s, G>, Error> {
     let context = graph.request_admission.ok_or(Error::Binding)?;
     let mut attempt = context.attempt();
     context.check_open()?;

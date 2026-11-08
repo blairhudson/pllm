@@ -2,6 +2,7 @@
 //! Parent count observer/routing hooks are an UNAPPLIED E proposal. No alternate
 //! selection arithmetic, per-lane table, native source issuer or phase retirement.
 use super::*;
+use crate::replicated_decoder::program::request_origin::compact_storage::ControllerAccounting;
 use std::mem::{size_of, size_of_val};
 
 struct Requirement {
@@ -101,8 +102,8 @@ fn controls(attempt: usize) -> Result<usize, Error> {
     bytes = add_bytes(bytes, attempt.checked_mul(4).ok_or(Error::Bounds)?)?;
     Ok(bytes)
 }
-fn peak(
-    graph: &CompactGraph<'_, '_>,
+fn peak<G: ControllerAccounting>(
+    graph: &CompactGraph<'_, '_, G>,
     lanes: usize,
     attempt: usize,
 ) -> Result<(ArgmaxGeometry, usize), Error> {
@@ -144,8 +145,8 @@ fn same_input(a: &PublishedView, b: &PublishedView) -> bool {
         && a.logical == b.logical
         && a.bounds == b.bounds
 }
-fn prior<'a>(
-    graph: &'a CompactGraph<'_, '_>,
+fn prior<'a, G: ControllerAccounting>(
+    graph: &'a CompactGraph<'_, '_, G>,
     lanes: usize,
     bounds: Interval,
 ) -> Option<&'a NegativeProgram> {
@@ -177,8 +178,8 @@ fn validate(
 }
 /// Actual request-selected semantic input only. Expanded/PerToken source policy
 /// stays with original graph; no accepted-token/feedback authority is issued.
-pub(super) fn prepare_request_argmax(
-    graph: &CompactGraph<'_, '_>,
+pub(super) fn prepare_request_argmax<G: ControllerAccounting>(
+    graph: &CompactGraph<'_, '_, G>,
     input: &PublishedView,
     first: usize,
 ) -> Result<CompactArgmax, Error> {
@@ -218,13 +219,7 @@ pub(super) fn prepare_request_argmax(
         )?)
         .and_then(|n| n.checked_mul(32))
         .ok_or(Error::Bounds)?;
-    context
-        .plan()
-        .prepay_compiler_metadata(
-            &context.reservation(),
-            u64::try_from(visits).map_err(|_| Error::Bounds)?,
-        )
-        .map_err(|_| Error::Bounds)?;
+    context.prepay_metadata(u64::try_from(visits).map_err(|_| Error::Bounds)?)?;
     let mut requirements = Vec::new();
     requirements
         .try_reserve_exact(geometry.kernels)

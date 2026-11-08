@@ -1,4 +1,55 @@
 use super::*;
+
+#[test]
+fn exact_storage_incomplete_seal_keeps_extent_prefix_and_only_drops_initialized_owners() {
+    struct Owner(usize, std::rc::Rc<std::cell::RefCell<Vec<usize>>>);
+    impl Drop for Owner { fn drop(&mut self) { self.1.borrow_mut().push(self.0); } }
+    for prefix in [0, 1, 3] {
+        for unwind in [false, true] {
+            let dropped = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+            let mut storage = ExactStorage::empty();
+            storage.acquire(4).unwrap();
+            let result = catch_unwind(AssertUnwindSafe(|| {
+                for index in 0..prefix { storage.push(Owner(index, dropped.clone())).unwrap(); }
+                if unwind { panic!("test ordinary owner initialized prefix retained across unwind"); }
+            }));
+            assert_eq!(result.is_err(), unwind);
+            assert_eq!(storage.seal(), Err(Error::Phase));
+            assert_eq!(storage.acquire(8), Err(Error::Phase));
+            let mut vacant = Box::default();
+            assert_eq!(storage.transfer(&mut vacant), Err(Error::Phase));
+            assert!(vacant.is_empty());
+            assert_eq!((storage.extent(), storage.len()), (4, prefix));
+            assert!(matches!(storage, ExactStorage::Building { .. }));
+            assert!(dropped.borrow().is_empty());
+            drop(storage);
+            // Real nontrivial owners, each dispatched once. No scalar-drop billing.
+            let mut actual = dropped.borrow().clone();
+            actual.sort_unstable();
+            assert_eq!(actual, (0..prefix).collect::<Vec<_>>());
+        }
+    }
+}
+
+#[test]
+fn exact_storage_occupied_transfer_refuses_before_taking_original_backing() {
+    let mut storage = ExactStorage::empty();
+    storage.acquire(2).unwrap();
+    for c in coefficients() { storage.push(c).unwrap(); }
+    storage.seal().unwrap();
+    let pointer = storage.as_ptr();
+    let mut destination = vec![coefficients()[0]].into_boxed_slice();
+    let occupied = destination.as_ptr();
+    assert_eq!(storage.transfer(&mut destination), Err(Error::Phase));
+    assert_eq!(storage.as_ptr(), pointer);
+    assert_eq!(destination.as_ptr(), occupied);
+    drop(destination);
+    let mut vacant = Box::default();
+    storage.transfer(&mut vacant).unwrap();
+    assert_eq!(vacant.as_ptr(), pointer);
+    assert_eq!(vacant.len(), 2);
+    assert!(matches!(storage, ExactStorage::Empty));
+}
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
 fn coefficients() -> [Affine; 2] {
@@ -36,7 +87,7 @@ fn assert_program_eq(actual: &Program, expected: &Program) {
 
 fn check_affine_error(original: Builder, input: Value, coefficients: &[Affine], error: Error) {
     let before = original.0.clone();
-    let pointers = original.0.public_affines.each_ref().map(|v| (v.as_ptr(), v.capacity()));
+    let pointers = original.0.public_affines.each_ref().map(|v| (v.as_ptr(), v.len()));
     let mut legacy = Builder(original.0.clone());
     let mut owner = ResidentBuilder::from_builder(original);
     assert_eq!(legacy.affine_lanes(input, coefficients), Err(error));
@@ -45,11 +96,11 @@ fn check_affine_error(original: Builder, input: Value, coefficients: &[Affine], 
     assert_program_eq(program(&owner), &before);
     assert_program_eq(&legacy.0, &before);
     assert_eq!(
-        program(&owner).public_affines.each_ref().map(|v| (v.as_ptr(), v.capacity())),
+        program(&owner).public_affines.each_ref().map(|v| (v.as_ptr(), v.len())),
         pointers
     );
     assert_eq!(owner.pending_affine.len(), 0);
-    assert_eq!(owner.pending_affine.capacity(), 0);
+    assert_eq!(owner.pending_affine.extent(), 0);
     assert_eq!(owner.affine_lanes(input, coefficients), Err(Error::Phase));
     assert_eq!(owner.finish(input), Err(Error::Phase));
     assert_eq!(owner.finish_checked(input, input), Err(Error::Phase));
@@ -87,13 +138,13 @@ fn entering_rejects_all_mutations_without_changing_resident_owners() {
     assert_eq!(program(&owner).public_affine_count, 1);
     let before = program(&owner).clone();
     let tables = program(&owner).public_affines.each_ref()
-        .map(|v| (v.as_ptr(), v.len(), v.capacity()));
+        .map(|v| (v.as_ptr(), v.len()));
     let pending = (
         owner.pending_affine.as_ptr(),
         owner.pending_affine.len(),
-        owner.pending_affine.capacity(),
+        owner.pending_affine.extent(),
     );
-    let pending_content = owner.pending_affine.clone();
+    assert!(matches!(owner.pending_affine, ExactStorage::Empty));
     let builder_present = owner.builder.is_some();
     let assert_unchanged = |owner: &ResidentBuilder| {
         assert_eq!(owner.state, ResidentState::Entering);
@@ -102,14 +153,14 @@ fn entering_rejects_all_mutations_without_changing_resident_owners() {
         assert_eq!(program(owner).work, before.work);
         assert_eq!(
             program(owner).public_affines.each_ref()
-                .map(|v| (v.as_ptr(), v.len(), v.capacity())),
+                .map(|v| (v.as_ptr(), v.len())),
             tables
         );
         assert_eq!(
-            (owner.pending_affine.as_ptr(), owner.pending_affine.len(), owner.pending_affine.capacity()),
+            (owner.pending_affine.as_ptr(), owner.pending_affine.len(), owner.pending_affine.extent()),
             pending
         );
-        assert_eq!(owner.pending_affine, pending_content);
+        assert!(matches!(owner.pending_affine, ExactStorage::Empty));
     };
     assert_eq!(owner.affine_lanes(Value(0), &coefficients()), Err(Error::Phase));
     assert_unchanged(&owner);
@@ -158,8 +209,8 @@ fn small_affine_fixture_has_explicit_numeric_work_and_schedule() {
         Affine { left: 2, right: 0, constant: 1 },
         Affine { left: -1, right: 0, constant: 3 },
     ];
-    assert_eq!(actual.public_affines[0], expected_table);
-    assert_eq!(actual.public_affines[1], expected_table);
+    assert_eq!(&*actual.public_affines[0], &expected_table);
+    assert_eq!(&*actual.public_affines[1], &expected_table);
     assert_eq!(actual.output_bounds(), Interval::new(-3, 5).unwrap());
     assert_eq!(actual.output_lanes(), 2);
     assert_eq!(actual.last_use[..3], [2, 0, 3]);
@@ -185,14 +236,14 @@ fn from_builder_moves_original_tables_without_rewriting_program() {
     let (b, _) = scheduled_fixture();
     let before = b.0.clone();
     let pointer = b.0.public_affines[0].as_ptr();
-    let capacity = b.0.public_affines[0].capacity();
+    let capacity = b.0.public_affines[0].len();
     let owner = ResidentBuilder::from_builder(b);
     assert_eq!(owner.state, ResidentState::Ready);
     assert_program_eq(program(&owner), &before);
     assert_eq!(program(&owner).public_affines[0].as_ptr(), pointer);
-    assert_eq!(program(&owner).public_affines[0].capacity(), capacity);
+    assert_eq!(program(&owner).public_affines[0].len(), capacity);
     assert_eq!(owner.pending_affine.len(), 0);
-    assert_eq!(owner.pending_affine.capacity(), 0);
+    assert_eq!(owner.pending_affine.extent(), 0);
 }
 
 #[test]
@@ -206,20 +257,20 @@ fn resident_affine_matches_legacy_instructions_bounds_and_clears_pending_on_succ
         assert_eq!(actual, expected);
         assert_eq!(owner.state, ResidentState::Ready);
         assert_eq!(owner.pending_affine.len(), 0);
-        assert_eq!(owner.pending_affine.capacity(), 0);
+        assert_eq!(owner.pending_affine.extent(), 0);
         assert_eq!(program(&owner).public_affines[index].len(), 2);
-        assert_eq!(program(&owner).public_affines[index].capacity(), 2);
+        assert_eq!(program(&owner).public_affines[index].len(), 2);
         assert_program_eq(program(&owner), &legacy.0);
         input = actual;
     }
-    let pointers = program(&owner).public_affines.each_ref().map(|v| (v.as_ptr(), v.capacity()));
+    let pointers = program(&owner).public_affines.each_ref().map(|v| (v.as_ptr(), v.len()));
     owner.finish(input).unwrap();
     let expected = legacy.finish(input).unwrap();
     let mut out = None;
     owner.transfer_complete(&mut out).unwrap();
     let actual = out.as_ref().unwrap();
     assert_program_eq(actual, &expected);
-    assert_eq!(actual.public_affines.each_ref().map(|v| (v.as_ptr(), v.capacity())), pointers);
+    assert_eq!(actual.public_affines.each_ref().map(|v| (v.as_ptr(), v.len())), pointers);
 }
 
 #[test]
@@ -266,7 +317,7 @@ fn after_reserve_unwind_retains_exact_pending_allocation_and_latches_terminal_fa
     let mut b = builder();
     b.affine_lanes(Value(0), &coefficients()).unwrap();
     let before = b.0.clone();
-    let original = (b.0.public_affines[0].as_ptr(), b.0.public_affines[0].capacity());
+    let original = (b.0.public_affines[0].as_ptr(), b.0.public_affines[0].len());
     // Both the actual resident owner and caller coefficients outlive the frame.
     let mut owner = ResidentBuilder::from_builder(b);
     let coefficients = coefficients();
@@ -278,17 +329,17 @@ fn after_reserve_unwind_retains_exact_pending_allocation_and_latches_terminal_fa
     assert_eq!(owner.state, ResidentState::Failed);
     assert_program_eq(program(&owner), &before);
     assert_eq!(
-        (program(&owner).public_affines[0].as_ptr(), program(&owner).public_affines[0].capacity()),
+        (program(&owner).public_affines[0].as_ptr(), program(&owner).public_affines[0].len()),
         original
     );
     let observed = RESERVED_AFFINE.with(|observed| observed.get());
     assert!(!observed.0.is_null());
-    assert!(observed.1 >= coefficients.len());
-    assert_eq!(owner.pending_affine.len(), 0);
-    assert_eq!((owner.pending_affine.as_ptr(), owner.pending_affine.capacity()), observed);
+    assert_eq!(observed.1, coefficients.len());
+    assert_eq!(owner.pending_affine.len(), coefficients.len());
+    assert_eq!((owner.pending_affine.as_ptr(), owner.pending_affine.extent()), observed);
     assert_eq!(owner.affine_lanes(Value(0), &coefficients), Err(Error::Phase));
     assert_eq!(owner.finish(Value(1)), Err(Error::Phase));
-    assert_eq!((owner.pending_affine.as_ptr(), owner.pending_affine.capacity()), observed);
+    assert_eq!((owner.pending_affine.as_ptr(), owner.pending_affine.extent()), observed);
     PANIC_AFTER_AFFINE_RESERVE.with(|flag| assert!(!flag.get()));
 }
 
@@ -297,7 +348,7 @@ fn ordinary_finish_success_and_exact_once_transfer_preserve_original_table_backi
     let (b, output) = scheduled_fixture();
     let expected = Builder(b.0.clone()).finish(output).unwrap();
     let pointer = b.0.public_affines[0].as_ptr();
-    let capacity = b.0.public_affines[0].capacity();
+    let capacity = b.0.public_affines[0].len();
     let mut owner = ResidentBuilder::from_builder(b);
     let mut out = None;
     assert_eq!(owner.transfer_complete(&mut out), Err(Error::Phase));
@@ -310,7 +361,7 @@ fn ordinary_finish_success_and_exact_once_transfer_preserve_original_table_backi
     assert!(owner.builder.is_none());
     let actual = out.as_ref().unwrap();
     assert_program_eq(actual, &expected);
-    assert_eq!((actual.public_affines[0].as_ptr(), actual.public_affines[0].capacity()), (pointer, capacity));
+    assert_eq!((actual.public_affines[0].as_ptr(), actual.public_affines[0].len()), (pointer, capacity));
     assert_eq!(owner.transfer_complete(&mut out), Err(Error::Phase));
     let mut empty = None;
     assert_eq!(owner.transfer_complete(&mut empty), Err(Error::Phase));
@@ -342,7 +393,7 @@ fn partial_schedule_unwind_retains_digest_last_use_slots_registers_and_table() {
     let (b, output) = scheduled_fixture();
     let expected = Builder(b.0.clone()).finish(output).unwrap();
     let pointer = b.0.public_affines[0].as_ptr();
-    let capacity = b.0.public_affines[0].capacity();
+    let capacity = b.0.public_affines[0].len();
     let mut owner = ResidentBuilder::from_builder(b);
     let mut out = None;
     PANIC_AFTER_PARTIAL_SCHEDULE.with(|flag| flag.set(true));
@@ -362,7 +413,7 @@ fn partial_schedule_unwind_retains_digest_last_use_slots_registers_and_table() {
     assert_eq!(retained.register_count, 2);
     assert_eq!(retained.work, WorkBudget::default());
     assert_ne!(expected.work, retained.work);
-    assert_eq!((retained.public_affines[0].as_ptr(), retained.public_affines[0].capacity()), (pointer, capacity));
+    assert_eq!((retained.public_affines[0].as_ptr(), retained.public_affines[0].len()), (pointer, capacity));
     assert_eq!(owner.transfer_complete(&mut out), Err(Error::Phase));
     assert!(out.is_none());
     assert_eq!(owner.finish(output), Err(Error::Phase));
@@ -448,9 +499,11 @@ fn transfer_refusals_keep_destination_builder_pending_and_state_unchanged() {
         let destination = Builder(b.0.clone()).finish(output).unwrap();
         let mut owner = ResidentBuilder::from_builder(b);
         owner.state = state; // Private lifecycle oracle, not a public transition.
-        owner.pending_affine = coefficients().to_vec();
+        owner.pending_affine.acquire(2).unwrap();
+        for c in coefficients() { owner.pending_affine.push(c).unwrap(); }
+        owner.pending_affine.seal().unwrap();
         let before = program(&owner).clone();
-        let pending = (owner.pending_affine.as_ptr(), owner.pending_affine.capacity());
+        let pending = (owner.pending_affine.as_ptr(), owner.pending_affine.extent());
         let mut out = Some(destination.clone());
         let destination_pointer = out.as_ref().unwrap().public_affines[0].as_ptr();
         assert_eq!(owner.transfer_complete(&mut out), Err(Error::Phase));
@@ -458,8 +511,8 @@ fn transfer_refusals_keep_destination_builder_pending_and_state_unchanged() {
         assert_program_eq(program(&owner), &before);
         assert_program_eq(out.as_ref().unwrap(), &destination);
         assert_eq!(out.as_ref().unwrap().public_affines[0].as_ptr(), destination_pointer);
-        assert_eq!((owner.pending_affine.as_ptr(), owner.pending_affine.capacity()), pending);
-        assert_eq!(owner.pending_affine, coefficients());
+        assert_eq!((owner.pending_affine.as_ptr(), owner.pending_affine.extent()), pending);
+        assert_eq!(owner.pending_affine.ready().unwrap(), &coefficients());
         if state != ResidentState::Complete {
             let mut empty = None;
             assert_eq!(owner.transfer_complete(&mut empty), Err(Error::Phase));
@@ -511,6 +564,49 @@ fn consuming_legacy_affine_remains_reusable_after_error() {
     let output = b.affine_lanes(Value(0), &coefficients()).unwrap();
     let finished = b.finish(output).unwrap();
     assert_eq!(finished.public_affine_count, 1);
-    assert_eq!(finished.public_affines[0], coefficients());
+    assert_eq!(&*finished.public_affines[0], &coefficients());
     assert_ne!(finished.digest(), [0; 32]);
+}
+
+#[test]
+fn pending_affine_refuses_both_finishes_before_entry_without_changing_owners() {
+    for (prefix, sealed) in [(0, false), (1, false), (2, false), (2, true)] {
+        let (b, output, valid) = checked_fixture(false);
+        // Both finishes otherwise succeed. Pending state is a private guard
+        // oracle, not a claim that public calls leave a Ready owner pending.
+        Builder(b.0.clone()).finish(output).unwrap();
+        Builder(b.0.clone()).finish_checked(output, valid).unwrap();
+        let mut owner = ResidentBuilder::from_builder(b);
+        owner.pending_affine.acquire(2).unwrap();
+        for c in coefficients().into_iter().take(prefix) {
+            owner.pending_affine.push(c).unwrap();
+        }
+        if sealed { owner.pending_affine.seal().unwrap(); }
+        let before = program(&owner).clone();
+        let tables = program(&owner).public_affines.each_ref()
+            .map(|table| (table.as_ptr(), table.len()));
+        let pending = owner.pending_affine.as_ptr();
+        for checked in [false, true] {
+            let result = if checked {
+                owner.finish_checked(output, valid)
+            } else {
+                owner.finish(output)
+            };
+            assert_eq!(result, Err(Error::Phase));
+            assert_eq!(owner.state, ResidentState::Ready);
+            assert_program_eq(program(&owner), &before);
+            assert_eq!(program(&owner).public_affines.each_ref()
+                .map(|table| (table.as_ptr(), table.len())), tables);
+            assert_eq!((owner.pending_affine.extent(), owner.pending_affine.len()), (2, prefix));
+            if sealed {
+                assert!(matches!(owner.pending_affine, ExactStorage::Ready(_)));
+                assert_eq!(owner.pending_affine.as_ptr(), pending);
+                assert_eq!(owner.pending_affine.ready().unwrap(), &coefficients());
+            } else {
+                // Building allocation remains opaque; no pointer identity claim.
+                assert!(matches!(owner.pending_affine, ExactStorage::Building { .. }));
+                assert_eq!(owner.pending_affine.ready(), Err(Error::Phase));
+            }
+        }
+    }
 }

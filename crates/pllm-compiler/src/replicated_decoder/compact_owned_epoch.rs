@@ -2,8 +2,9 @@
 //! authority; original context/history and charged sources must accompany it.
 use super::super::compact_attention_softmax::owning::{Conversion, Invocations};
 use super::*;
+use crate::replicated_decoder::program::request_origin::compact_storage::ControllerAccounting;
 use crate::replicated_decoder::program::source_entry::compact_pending::handles::{
-    NormHandle, SourceScope, TensorHandle,
+    NormHandle, SourceAccess, SourceScope, TensorHandle,
 };
 
 #[path = "compact_owned_epoch/compact_owned_recipe.rs"]
@@ -104,13 +105,36 @@ type HistoryCustody =
             request_origin::compact_storage::compact_history::CompletionLoan,
         >,
     >;
-#[derive(Clone, Copy)]
-enum InspectionRoot<'r> {
-    Epoch(&'r EpochCustody),
-    History(&'r HistoryCustody),
+type ResidentHistoryCustody =
+    crate::replicated_decoder::program::source_entry::compact_pending::sealed::ResidentRoot;
+// The implementation seal admits only the two authentic whole history
+// custodies. A future owner requires an explicit reviewed change here, never a
+// caller-paired emission/controller constructor or downstream implementation.
+mod history_owner_seal {
+    pub trait Sealed {}
+    impl Sealed for super::HistoryCustody {}
+    impl Sealed for super::ResidentHistoryCustody {}
 }
-pub(in crate::replicated_decoder::program) struct InspectionLoan<'r> {
-    custody: InspectionRoot<'r>,
+pub(in crate::replicated_decoder::program) trait HistoryInspection:
+    SourceAccess + history_owner_seal::Sealed + Sized
+{
+    fn inspect_history_epoch(&self, index: usize) -> Result<InspectionLoan<'_, Self>, Error>;
+    fn checked_import_binding(&self, owner: usize) -> Result<(&str, &[usize]), Error>;
+    fn prepay_import_metadata(&self, visits: usize) -> Result<(), Error>;
+    fn inspection_attempt(&self) -> Result<request_origin::compact_storage::owning::InspectionAttempt<'_>, Error>;
+    fn charge_inspection(&self, bytes: usize, visits: u64) -> Result<pllm_garble::shared_allocation::ExternalCharge<'_>, Error>;
+}
+enum InspectionRoot<'r, C = HistoryCustody> {
+    Epoch(&'r EpochCustody),
+    History(&'r C),
+}
+// Manual impls avoid derive imposing C: Copy/Clone on a borrowed owner.
+impl<C> Copy for InspectionRoot<'_, C> {}
+impl<C> Clone for InspectionRoot<'_, C> {
+    fn clone(&self) -> Self { *self }
+}
+pub(in crate::replicated_decoder::program) struct InspectionLoan<'r, C = HistoryCustody> {
+    custody: InspectionRoot<'r, C>,
     imports: &'r Builder,
     epoch: &'r OwnedEpoch,
 }
@@ -136,7 +160,7 @@ impl FeedbackLoan<'_> {
         self.bounds
     }
 }
-impl<'r> InspectionLoan<'r> {
+impl<'r, C: HistoryInspection> InspectionLoan<'r, C> {
     /// Authenticated ORIGINAL key -> import owner -> same owned source tensor.
     /// Digest/statistics are consistency checks, never the binding authority.
     pub(in crate::replicated_decoder::program) fn checked_import_source(
@@ -150,7 +174,7 @@ impl<'r> InspectionLoan<'r> {
                 (key, shape, c.resolve_file_import(key)?)
             }
             InspectionRoot::History(c) => {
-                let (key, shape) = c.produced().checked_import_binding(owner)?;
+                let (key, shape) = c.checked_import_binding(owner)?;
                 (key, shape, c.resolve_file_import(key)?)
             }
         };
@@ -173,7 +197,7 @@ impl<'r> InspectionLoan<'r> {
             .ok_or(Error::Bounds)?;
         match self.custody {
             InspectionRoot::Epoch(c) => c.produced().prepay_import_metadata(visits)?,
-            InspectionRoot::History(c) => c.produced().prepay_import_metadata(visits)?,
+            InspectionRoot::History(c) => c.prepay_import_metadata(visits)?,
         };
         let lanes = shape
             .iter()
@@ -212,7 +236,7 @@ impl<'r> InspectionLoan<'r> {
     ) -> Result<request_origin::compact_storage::owning::InspectionAttempt<'r>, Error> {
         match self.custody {
             InspectionRoot::Epoch(c) => c.produced().inspection_attempt(),
-            InspectionRoot::History(c) => c.produced().inspection_attempt(),
+            InspectionRoot::History(c) => c.inspection_attempt(),
         }
     }
     pub(in crate::replicated_decoder::program) fn charge(
@@ -222,7 +246,7 @@ impl<'r> InspectionLoan<'r> {
     ) -> Result<pllm_garble::shared_allocation::ExternalCharge<'r>, Error> {
         match self.custody {
             InspectionRoot::Epoch(c) => c.produced().charge_inspection(bytes, visits),
-            InspectionRoot::History(c) => c.produced().charge_inspection(bytes, visits),
+            InspectionRoot::History(c) => c.charge_inspection(bytes, visits),
         }
     }
 }
@@ -310,12 +334,56 @@ impl HistoryCustody {
     }
 }
 
+impl HistoryInspection for HistoryCustody {
+    fn inspect_history_epoch(&self, index: usize) -> Result<InspectionLoan<'_, Self>, Error> {
+        HistoryCustody::inspect_history_epoch(self, index)
+    }
+    fn checked_import_binding(&self, owner: usize) -> Result<(&str, &[usize]), Error> {
+        self.produced().checked_import_binding(owner)
+    }
+    fn prepay_import_metadata(&self, visits: usize) -> Result<(), Error> {
+        self.produced().prepay_import_metadata(visits)
+    }
+    fn inspection_attempt(&self) -> Result<request_origin::compact_storage::owning::InspectionAttempt<'_>, Error> {
+        self.produced().inspection_attempt()
+    }
+    fn charge_inspection(&self, bytes: usize, visits: u64) -> Result<pllm_garble::shared_allocation::ExternalCharge<'_>, Error> {
+        self.produced().charge_inspection(bytes, visits)
+    }
+}
+
+impl HistoryInspection for ResidentHistoryCustody {
+    fn inspect_history_epoch(&self, index: usize) -> Result<InspectionLoan<'_, Self>, Error> {
+        // Native ingress first, then the paired detached emission and actual
+        // epoch association. The loan retains this concrete whole custody C.
+        self.check_resident_emission()?;
+        let epoch = self.epochs().get(index).ok_or(Error::Binding)?;
+        self.check_source_epoch(epoch.instance, self.source_plan())?;
+        let imports = self.checked_epoch_imports(&epoch.association, index)?;
+        Ok(InspectionLoan {
+            custody: InspectionRoot::History(self),
+            imports,
+            epoch,
+        })
+    }
+    fn checked_import_binding(&self, owner: usize) -> Result<(&str, &[usize]), Error> {
+        ResidentHistoryCustody::checked_import_binding(self, owner)
+    }
+    fn prepay_import_metadata(&self, visits: usize) -> Result<(), Error> {
+        ResidentHistoryCustody::prepay_import_metadata(self, visits)
+    }
+    fn inspection_attempt(&self) -> Result<request_origin::compact_storage::owning::InspectionAttempt<'_>, Error> {
+        ResidentHistoryCustody::inspection_attempt(self)
+    }
+    fn charge_inspection(&self, bytes: usize, visits: u64) -> Result<pllm_garble::shared_allocation::ExternalCharge<'_>, Error> {
+        ResidentHistoryCustody::charge_inspection(self, bytes, visits)
+    }
+}
+
 // Shared pure source resolution. Callers enter through the exact combined
 // custody loan above; no independent Manifest/epoch constructor is exposed.
-fn resolve_recipe_sources<'r, R>(
-    custody: &'r crate::replicated_decoder::program::source_entry::compact_pending::SourceCustody<
-        R,
-    >,
+fn resolve_recipe_sources<'r, C: SourceAccess>(
+    custody: &'r C,
     epoch: &'r OwnedEpoch,
     index: usize,
 ) -> Result<RecipeSources<'r>, Error> {
@@ -410,7 +478,16 @@ impl OwnedEpoch {
         epoch: usize,
         instance: source_registry::Instance,
     ) -> Result<(), Error> {
-        emission.checked_epoch_imports(&self.association, epoch)?;
+        emission.check_epoch_owner(self, epoch, instance)
+    }
+    pub(in crate::replicated_decoder::program) fn check_detached_emission<R>(
+        &self,
+        emission: &request_origin::compact_storage::owning::DetachedEmission<R>,
+        controller: &OwnedExternalCharge,
+        epoch: usize,
+        instance: source_registry::Instance,
+    ) -> Result<(), Error> {
+        emission.checked_epoch_imports_with(controller, &self.association, epoch)?;
         if self.instance != instance {
             return Err(Error::Binding);
         }
@@ -422,9 +499,9 @@ impl OwnedEpoch {
             .and_then(|n| n.checked_add(std::mem::size_of::<Result<FeedbackLoan, Error>>()))
             .ok_or(Error::Bounds)
     }
-    pub(in crate::replicated_decoder::program) fn completed_feedback(
+    pub(in crate::replicated_decoder::program) fn completed_feedback<G: ControllerAccounting>(
         &self,
-        context: &request_origin::compact_storage::EmissionContext<'_>,
+        context: &request_origin::compact_storage::EmissionContext<'_, G>,
     ) -> Result<FeedbackLoan<'_>, Error> {
         self.association.check_context(context)?;
         if self.instance != context.registry().instance()
@@ -485,7 +562,7 @@ impl OwnedEpoch {
     }
 }
 
-impl CompactGraph<'_, '_> {
+impl<G: ControllerAccounting> CompactGraph<'_, '_, G> {
     /// Consumes the actual recipe prefix. Not a publication of partial Storage:
     /// this data has no Worker/Program constructor or completion capability.
     pub(in crate::replicated_decoder::program) fn freeze_owned(
@@ -499,7 +576,7 @@ impl CompactGraph<'_, '_> {
         let q = self.freeze_quote(&exports)?;
         let new = add_bytes(
             q.new_backing_bytes,
-            2 * size_of::<Result<FrozenRegion<'_>, Error>>(),
+            2 * size_of::<Result<FrozenRegion<'_, G>, Error>>(),
         )?;
         context.admit_phase(new, 0)?;
         context.retain(new)?;
@@ -510,10 +587,10 @@ impl CompactGraph<'_, '_> {
     }
 }
 
-impl<'a> FrozenRegion<'a> {
+impl<'a, G: ControllerAccounting> FrozenRegion<'a, G> {
     fn into_owned(
         self,
-        context: &request_origin::compact_storage::EmissionContext<'a>,
+        context: &request_origin::compact_storage::EmissionContext<'a, G>,
         scope: &SourceScope<'_>,
     ) -> Result<OwnedEpoch, Error> {
         if !self
@@ -536,7 +613,7 @@ impl<'a> FrozenRegion<'a> {
         )?;
         let conversion_live = add_bytes(
             retained,
-            array_bytes::<(usize, super::super::compact_attention_softmax::Rows<'a>)>(
+            array_bytes::<(usize, super::super::compact_attention_softmax::Rows<'a, G>)>(
                 self.ops.len(),
             )?,
         )?;
@@ -717,8 +794,8 @@ pub(in crate::replicated_decoder::program) mod conversion_probe {
             (p.allocations, p.target, p.entered)
         })
     }
-    pub(in crate::replicated_decoder::program) fn outer(
-        context: &request_origin::compact_storage::EmissionContext<'_>,
+    pub(in crate::replicated_decoder::program) fn outer<G: ControllerAccounting>(
+        context: &request_origin::compact_storage::EmissionContext<'_, G>,
         live: usize,
     ) -> Result<(), Error> {
         STATE.with(|s| {
@@ -736,8 +813,8 @@ pub(in crate::replicated_decoder::program) mod conversion_probe {
             Ok(())
         })
     }
-    pub(in crate::replicated_decoder::program) fn pressure<'c>(
-        context: &'c request_origin::compact_storage::EmissionContext<'_>,
+    pub(in crate::replicated_decoder::program) fn pressure<'c, G: ControllerAccounting>(
+        context: &'c request_origin::compact_storage::EmissionContext<'_, G>,
         live: usize,
     ) -> Result<Option<pllm_garble::shared_allocation::ExternalCharge<'c>>, Error> {
         let selected = STATE.with(|s| {
@@ -749,12 +826,12 @@ pub(in crate::replicated_decoder::program) mod conversion_probe {
                 return Ok(None);
             }
             p.entered = true;
-            let payload = add_bytes(p.expected, live)?.max(context.reservation().payload_bytes());
+            let payload = add_bytes(p.expected, live)?.max(context.controller_payload_bytes());
             let outside = context
                 .plan()
                 .budget()
                 .used_bytes()
-                .checked_sub(context.reservation().payload_bytes())
+                .checked_sub(context.controller_payload_bytes())
                 .ok_or(Error::Bounds)?;
             p.target = add_bytes(outside, payload)?;
             Ok(Some((p.short, p.target)))

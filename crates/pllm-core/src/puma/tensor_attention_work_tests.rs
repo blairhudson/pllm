@@ -186,7 +186,7 @@ fn same_program(a: &Program, e: &Program) {
     assert_eq!(a.register_count, e.register_count);
     assert_eq!(a.work_budget(), e.work_budget());
     assert_eq!(a.public_affine_count, e.public_affine_count);
-    assert!(a.public_affines.iter().all(|table| table.capacity() == 0));
+    assert!(a.public_affines.iter().all(|table| table.is_empty()));
 }
 
 #[test]

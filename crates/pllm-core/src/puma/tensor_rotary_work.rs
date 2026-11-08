@@ -128,6 +128,28 @@ impl RotarySink for Builder {
     }
 }
 
+impl RotarySink for rms_resident::ResidentRecipeSink<'_> {
+    fn coefficients(
+        &mut self,
+        input: Value,
+        width: usize,
+        values: &[i64],
+        signed: bool,
+    ) -> Result<Value, Error> {
+        let lanes = self.node(input, false)?.lanes;
+        let mut coefficients = [affine(0, 0, 0); MAX_TILE_LANES];
+        for (slot, coefficient) in coefficients[..lanes]
+            .iter_mut()
+            .zip(Coefficients::new(values, lanes, width, signed))
+        {
+            *slot = coefficient;
+        }
+        // Both tables are acquired through the installed ResidentBuilder. A
+        // later-table failure cannot drop the first table or pending backing.
+        self.0.affine_lanes(input, &coefficients[..lanes])
+    }
+}
+
 struct Counter<'a> {
     metadata: &'a mut SoftmaxWorkWorkspace,
     tables: usize,

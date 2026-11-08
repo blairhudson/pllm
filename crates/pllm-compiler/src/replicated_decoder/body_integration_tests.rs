@@ -1360,6 +1360,605 @@ fn assert_boundary_parity(actual: &[Worker; 3], expected: &[Worker; 3]) {
     }
 }
 
+// P1 source/regression tranche only: actual range guard + guarded SiLU, not
+// projection/product/residual/next-RMS closure or source-provenance qualification.
+struct NativeActivationFixture {
+    program: Arc<Program>,
+    checked: usize,
+    sticky: usize,
+    activation_start: usize,
+    activation: usize,
+}
+
+fn native_activation_fixture(cap: i64) -> NativeActivationFixture {
+    let mut b = Builder {
+        public_weights: true,
+        ..Builder::default()
+    };
+    // Both imports must precede every consumer. Broad public metadata forces
+    // real numeric guards, even when the realized activation lanes both pass.
+    let prefix = b
+        .push(Code::Input("p".into()), 1, Interval::new(0, 1).unwrap())
+        .unwrap();
+    let x = b
+        .push(
+            Code::Input("x".into()),
+            2,
+            Interval::new(-10 * ONE, 10 * ONE).unwrap(),
+        )
+        .unwrap();
+    b.checked_bound = Some(0);
+    b.checked_view(&[(prefix, 0)].into_iter().collect()).unwrap();
+    b.checked_bound = Some(cap);
+    let range_start = b.nodes.len();
+    let safe = b
+        .checked_view(&[(x, 0), (x, 1)].into_iter().collect())
+        .unwrap();
+    let checked = range_start + 1; // Input gather, then two-output checked owner.
+    assert!(matches!(&b.nodes[checked].code, Code::CheckedRange { .. }));
+    assert!(matches!(&b.nodes[checked + 1].code, Code::Gather(_)));
+    assert_eq!(b.nodes[checked].lanes, 4);
+    let sticky = b.validity.unwrap();
+    let activation_start = b.nodes.len();
+    let input = b.gather(&safe).unwrap();
+    let bounds = b.nodes[input].bounds;
+    let activation = b
+        .tensor_loop(LoopInput::Slice(input), 2, |n| {
+            tensor::Program::activation_guarded(tensor::Activation::Silu, n, bounds)
+        })
+        .expect("all eager polynomial intermediates must be admitted");
+    // Only the ordinary final product may apply request-wide sticky masking.
+    let flags = b
+        .gather(&[(sticky, 0), (sticky, 0)].into_iter().collect())
+        .unwrap();
+    let masked = b.product(activation, flags, None, false).unwrap();
+    NativeActivationFixture {
+        program: finish_fixture(b, 2, vec![(masked, 0), (masked, 1), (sticky, 0)]),
+        checked,
+        sticky,
+        activation_start,
+        activation,
+    }
+}
+
+fn assert_native_snapshot_adjacency(state: &[BoundarySnapshot; 3]) {
+    for party in 0..3 {
+        let next = (party + 1) % 3;
+        assert_eq!(state[party].step, state[next].step);
+        assert_eq!(state[party].shares.len(), state[next].shares.len());
+        for (owner, (local, peer)) in state[party]
+            .shares
+            .iter()
+            .zip(&state[next].shares)
+            .enumerate()
+        {
+            match (local, peer) {
+                (Some((first, second)), Some((peer_first, _))) => {
+                    assert_eq!(first.len(), second.len(), "owner {owner}");
+                    assert_eq!(second, peer_first, "owner {owner}, party {party}");
+                }
+                (None, None) => {}
+                _ => panic!("replicated owner presence differs: {owner}"),
+            }
+        }
+    }
+}
+
+fn native_snapshot_owner(state: &[BoundarySnapshot; 3], owner: usize) -> Vec<u64> {
+    // Validate every retained replicated component before reconstructing any.
+    assert_native_snapshot_adjacency(state);
+    let components = state
+        .each_ref()
+        .map(|party| &party.shares[owner].as_ref().unwrap().0);
+    (0..components[0].len())
+        .map(|lane| {
+            components[0][lane]
+                .wrapping_add(components[1][lane])
+                .wrapping_add(components[2][lane])
+        })
+        .collect()
+}
+
+fn observe_native_activation(
+    fixture: NativeActivationFixture,
+    p: i64,
+    checked: [u64; 4],
+    sticky: u64,
+    activation: [u64; 2],
+    final_output: [u64; 3],
+) -> Vec<u64> {
+    let clear = BTreeMap::from([
+        ("p".into(), vec![p]),
+        ("x".into(), vec![-9 * ONE, 5 * ONE]),
+    ]);
+    let mut roles = deterministic_workers(fixture.program.clone(), &clear);
+    reach_boundary(&mut roles, fixture.checked + 1, None);
+    let state = roles.each_ref().map(boundary_snapshot);
+    // CheckedRange stores [safe lanes, lane-local validity], before either
+    // output gather runs. These are not the sticky request-wide predicates.
+    assert_eq!(native_snapshot_owner(&state, fixture.checked), checked);
+    reach_boundary(&mut roles, fixture.activation_start, None);
+    let state = roles.each_ref().map(boundary_snapshot);
+    assert_eq!(native_snapshot_owner(&state, fixture.sticky), vec![sticky]);
+    reach_boundary(&mut roles, fixture.activation + 1, None);
+    let state = roles.each_ref().map(boundary_snapshot);
+    let realized = native_snapshot_owner(&state, fixture.activation);
+    assert_eq!(realized, activation);
+    // The ordinary finish driver drains transport, then captures zeroizing
+    // replicated owners before finish discloses only first components.
+    let (_, shares, state) = trace_ordinary_finish(roles);
+    assert_native_snapshot_adjacency(&state);
+    for (slot, &(owner, lane)) in fixture.program.outputs.iter().enumerate() {
+        for party in 0..3 {
+            assert_eq!(
+                shares[party][slot],
+                state[party].shares[owner].as_ref().unwrap().0[lane]
+            );
+        }
+        assert_eq!(native_snapshot_owner(&state, owner)[lane], final_output[slot]);
+    }
+    realized
+}
+
+#[test]
+fn native_valid_activation_lanes_survive_prior_sticky_false() {
+    std::thread::Builder::new()
+        .stack_size(16 << 20)
+        .spawn(|| {
+            assert_eq!(ONE, 262144);
+            for p in [0, 1] {
+                let sticky = (1 - p) as u64;
+                // -9Q is below the -8Q zero-tail pivot; 5Q is above the
+                // 4Q identity pivot. Neither exact result depends on a tape.
+                observe_native_activation(
+                    native_activation_fixture(9 * ONE),
+                    p,
+                    [(-9 * ONE) as u64, (5 * ONE) as u64, 1, 1],
+                    sticky,
+                    [0, (5 * ONE) as u64],
+                    [0, (5 * ONE) as u64 * sticky, sticky],
+                );
+            }
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}
+
+#[test]
+fn native_single_lane_fallback_silu_energy_covers_realized_chain() {
+    std::thread::Builder::new()
+        .stack_size(16 << 20)
+        .spawn(|| {
+            assert_eq!(ONE, 262144);
+            // Independent fixture-only Q36 envelopes, not RowEnergyWorkspace:
+            // unchanged -9Q selects zero; 5Q selects identity. At fallback zero,
+            // all monomial products vanish, leaving high-polynomial constant
+            // 2229 exactly, with no stochastic carry at any zero product.
+            let e_success = (5 * ONE as u128).pow(2);
+            let e_fallback = e_success + 2229u128.pow(2);
+            let all_path_b = e_fallback;
+            assert!(e_fallback > e_success);
+            for p in [0, 1] {
+                let unchanged = observe_native_activation(
+                    native_activation_fixture(9 * ONE),
+                    p,
+                    [(-9 * ONE) as u64, (5 * ONE) as u64, 1, 1],
+                    (1 - p) as u64,
+                    [0, (5 * ONE) as u64],
+                    [0, (5 * ONE) as u64 * (1 - p) as u64, (1 - p) as u64],
+                );
+                let fallback = observe_native_activation(
+                    native_activation_fixture(5 * ONE),
+                    p,
+                    [0, (5 * ONE) as u64, 0, 1],
+                    0,
+                    [2229, (5 * ONE) as u64],
+                    [0, 0, 0],
+                );
+                let energy = |row: &[u64]| {
+                    row.iter()
+                        .map(|&x| (x as i64 as i128).pow(2) as u128)
+                        .sum::<u128>()
+                };
+                assert_eq!(energy(&unchanged), e_success);
+                assert_eq!(energy(&fallback), e_fallback);
+                assert!(energy(&unchanged) <= all_path_b);
+                assert!(energy(&fallback) <= all_path_b);
+            }
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}
+
+// Synthetic native components only. No import/compiler provenance, trained-fit
+// claim, RMS output, or production energy certificate follows from this fixture.
+struct NativeComponentChain {
+    program: Arc<Program>,
+    imports: [usize; 6],
+    prefix_sticky: usize,
+    gate: usize,
+    up: usize,
+    checked_gate: usize,
+    gate_sticky: usize,
+    activation_start: usize,
+    activation: usize,
+    mixed: usize,
+    down: usize,
+    biased: usize,
+    residual: usize,
+    checked_rms: usize,
+    rms_input: usize,
+    sticky: usize,
+}
+
+fn native_component_chain(cap: i64, bias: bool) -> NativeComponentChain {
+    let mut b = Builder {
+        public_weights: true,
+        ..Builder::default()
+    };
+    let declarations = [
+        ("p", 1, 0, 1),
+        ("x", 2, 0, ONE),
+        ("wg", 4, -9 * ONE, 5 * ONE),
+        ("wu", 4, -ONE, ONE),
+        ("wd", 4, -ONE, ONE / 2),
+        ("bias", 2, -11, 7),
+    ];
+    let imports = declarations.map(|(key, lanes, lo, hi)| {
+        b.push(Code::Input(key.into()), lanes, Interval::new(lo, hi).unwrap())
+            .unwrap()
+    });
+    let [p, x, wg, wu, wd, bias_owner] = imports;
+    // Keep even the unused bias import live through the import snapshot. This
+    // ordinary gather does not insert an affine bias in the bias-absent case.
+    let bias_owner = b
+        .gather(&(0..2).map(|i| (bias_owner, i)).collect())
+        .unwrap();
+    b.checked_bound = Some(0);
+    b.checked_view(&[(p, 0)].into_iter().collect()).unwrap();
+    let prefix_sticky = b.validity.unwrap();
+    let gate = b
+        .product(x, wg, Some(MatrixShape::new(1, 2, 2).unwrap()), true)
+        .unwrap();
+    let up = b
+        .product(x, wu, Some(MatrixShape::new(1, 2, 2).unwrap()), true)
+        .unwrap();
+    b.checked_bound = Some(cap);
+    let safe = b
+        .checked_view(&(0..2).map(|i| (gate, i)).collect())
+        .unwrap();
+    // Follow returned view -> safe gather -> CheckedRange owner, never assume
+    // an offset in the lowering's emitted node sequence.
+    let safe_owner = safe.iter().next().unwrap().0;
+    let checked_gate = match &b.nodes[safe_owner].code {
+        Code::Gather(words) => words.iter().next().unwrap().0,
+        _ => panic!("gate guard did not return its safe gather"),
+    };
+    assert!(matches!(&b.nodes[checked_gate].code, Code::CheckedRange { .. }));
+    let gate_sticky = b.validity.unwrap();
+    let activation_start = b.nodes.len();
+    let input = b.gather(&safe).unwrap();
+    let bounds = b.nodes[input].bounds;
+    let activation = b
+        .tensor_loop(LoopInput::Slice(input), 2, |n| {
+            tensor::Program::activation_guarded(tensor::Activation::Silu, n, bounds)
+        })
+        .expect("eager guarded SiLU intermediates must be admitted");
+    let mixed_words = b
+        .binary(
+            &(0..2).map(|i| (activation, i)).collect(),
+            &(0..2).map(|i| (up, i)).collect(),
+            true,
+        )
+        .unwrap();
+    let mixed = mixed_words.iter().next().unwrap().0;
+    let down_input = b.gather(&mixed_words).unwrap();
+    let down = b
+        .product(down_input, wd, Some(MatrixShape::new(1, 2, 2).unwrap()), true)
+        .unwrap();
+    let biased = if bias {
+        b.affine(down, Some(bias_owner), affine(1, 1, 0)).unwrap()
+    } else {
+        down
+    };
+    let residual_words = b
+        .residual(
+            &View {
+                words: (0..2).map(|i| (x, i)).collect(),
+                shape: vec![1, 2],
+            },
+            &View {
+                words: (0..2).map(|i| (biased, i)).collect(),
+                shape: vec![1, 2],
+            },
+        )
+        .unwrap();
+    let residual = residual_words.iter().next().unwrap().0;
+    b.checked_bound = Some(5 * ONE);
+    // Same checked_rows -> row gather entry as graph_driver::rms_norm. Stop
+    // before normalization; no gamma, reciprocal square root, or RMS output.
+    let rms_words = b.checked_rows(&residual_words, 2).unwrap();
+    let safe_owner = rms_words.iter().next().unwrap().0;
+    let checked_rms = match &b.nodes[safe_owner].code {
+        Code::Gather(words) => words.iter().next().unwrap().0,
+        _ => panic!("RMS input guard did not return its safe gather"),
+    };
+    assert!(matches!(&b.nodes[checked_rms].code, Code::CheckedRange { .. }));
+    let sticky = b.validity.unwrap();
+    let rms_input = b.gather(&rms_words).unwrap();
+    let flags = b
+        .gather(&[(sticky, 0), (sticky, 0)].into_iter().collect())
+        .unwrap();
+    let masked = b.product(rms_input, flags, None, false).unwrap();
+    NativeComponentChain {
+        program: finish_fixture(b, 6, vec![(masked, 0), (masked, 1), (sticky, 0)]),
+        imports,
+        prefix_sticky,
+        gate,
+        up,
+        checked_gate,
+        gate_sticky,
+        activation_start,
+        activation,
+        mixed,
+        down,
+        biased,
+        residual,
+        checked_rms,
+        rms_input,
+        sticky,
+    }
+}
+
+// Complete stage tuple: gate, up, checked gate, A, M, D, B, R, RMS input.
+type NativeChainRows = [[i128; 2]; 9];
+
+fn native_chain_energy(row: [i128; 2]) -> u128 {
+    row.into_iter().map(|x| x.pow(2) as u128).sum()
+}
+
+fn native_chain_round(z: i128) -> Vec<i128> {
+    let q = ONE as i128;
+    let f = z.div_euclid(q);
+    if z.rem_euclid(q) == 0 {
+        vec![f]
+    } else {
+        vec![f, f + 1]
+    }
+}
+
+fn native_chain_dot(left: [i128; 2], right: [i128; 4]) -> Vec<[i128; 2]> {
+    // Accumulate full signed raw dots before enumerating their legal carries.
+    let first = native_chain_round(left[0] * right[0] + left[1] * right[2]);
+    let second = native_chain_round(left[0] * right[1] + left[1] * right[3]);
+    first
+        .into_iter()
+        .flat_map(|a| second.iter().map(move |&b| [a, b]))
+        .collect()
+}
+
+fn native_chain_oracle(fallback: bool, bias: bool) -> Vec<NativeChainRows> {
+    let q = ONE as i128;
+    let b = i128::from(bias);
+    let a = if fallback { 2229 } else { 0 };
+    let mut tuples = Vec::new();
+    for gate in native_chain_dot([q, q], [-9 * q, 5 * q, 0, 0]) {
+        for up in native_chain_dot([q, q], [-q, q, 0, 0]) {
+            let checked = [if fallback { 0 } else { gate[0] }, gate[1]];
+            // Independent exact branch equations, not a mirrored polynomial:
+            // -9Q -> zero tail, 5Q -> identity, fallback 0 -> constant 2229.
+            let activation = [a, 5 * q];
+            for m0 in native_chain_round(activation[0] * up[0]) {
+                for m1 in native_chain_round(activation[1] * up[1]) {
+                    let mixed = [m0, m1];
+                    for down in native_chain_dot(mixed, [q / 2, 0, 0, -q]) {
+                        let t = -down[0];
+                        assert!(if fallback {
+                            t == 1114 || t == 1115
+                        } else {
+                            t == 0
+                        });
+                        let biased = [down[0] + 7 * b, down[1] - 11 * b];
+                        let residual = [q + biased[0], q + biased[1]];
+                        assert!(residual.iter().all(|x| x.abs() <= 5 * q));
+                        let rows = [
+                            gate, up, checked, activation, mixed, down,
+                            biased, residual, residual,
+                        ];
+                        let expected_energy = [
+                            106 * q * q,
+                            2 * q * q,
+                            if fallback { 25 * q * q } else { 106 * q * q },
+                            25 * q * q + a * a,
+                            25 * q * q + a * a,
+                            25 * q * q + t * t,
+                            (t - 7 * b).pow(2) + (5 * q + 11 * b).pow(2),
+                            (q - t + 7 * b).pow(2) + (4 * q + 11 * b).pow(2),
+                            (q - t + 7 * b).pow(2) + (4 * q + 11 * b).pow(2),
+                        ];
+                        assert_eq!(gate, [-9 * q, 5 * q]);
+                        assert_eq!(up, [-q, q]);
+                        assert_eq!(mixed, [-a, 5 * q]);
+                        assert_eq!(down, [-t, -5 * q]);
+                        assert_eq!(biased, [-t + 7 * b, -5 * q - 11 * b]);
+                        assert_eq!(residual, [q - t + 7 * b, -4 * q - 11 * b]);
+                        for (row, energy) in rows.into_iter().zip(expected_energy) {
+                            assert_eq!(native_chain_energy(row), energy as u128);
+                        }
+                        tuples.push(rows);
+                    }
+                }
+            }
+        }
+    }
+    assert_eq!(tuples.len(), if fallback { 2 } else { 1 });
+    tuples
+}
+
+fn native_chain_observe(roles: &mut [Worker; 3], target: usize, owner: usize) -> Vec<i128> {
+    reach_boundary(roles, target, None);
+    let state = roles.each_ref().map(boundary_snapshot);
+    native_snapshot_owner(&state, owner)
+        .into_iter()
+        .map(|x| x as i64 as i128)
+        .collect()
+}
+
+#[test]
+fn native_full_component_chain_preserves_fallback_through_rms_input() {
+    std::thread::Builder::new()
+        .stack_size(16 << 20)
+        .spawn(|| {
+            assert_eq!(ONE, 262144);
+            for p in [0, 1] {
+                for fallback in [false, true] {
+                    for bias in [false, true] {
+                        // Build both independent oracle sets before runtime.
+                        // Common envelopes cover accepted and fallback paths in
+                        // either prefix-sticky context, never observed values.
+                        let accepted_rows = native_chain_oracle(false, bias);
+                        let fallback_rows = native_chain_oracle(true, bias);
+                        let envelopes: [u128; 9] = std::array::from_fn(|stage| {
+                            accepted_rows
+                                .iter()
+                                .chain(&fallback_rows)
+                                .map(|rows| native_chain_energy(rows[stage]))
+                                .max()
+                                .unwrap()
+                        });
+                        let expected = if fallback {
+                            &fallback_rows
+                        } else {
+                            &accepted_rows
+                        };
+                        let q = ONE as i128;
+                        let sticky = if fallback { 0 } else { 1 - p };
+                        // Pair every complete variant-specific stage tuple with
+                        // its final disclosure before creating any workers.
+                        let expected_outcomes: Vec<_> = expected
+                            .iter()
+                            .map(|rows| {
+                                let final_output = if sticky == 1 {
+                                    [rows[8][0], rows[8][1], 1]
+                                } else {
+                                    [0, 0, 0]
+                                };
+                                (*rows, final_output)
+                            })
+                            .collect();
+                        let chain = native_component_chain(
+                            if fallback { 5 * ONE } else { 9 * ONE }, bias,
+                        );
+                        let clear = BTreeMap::from([
+                            ("p".into(), vec![p as i64]),
+                            ("x".into(), vec![ONE, ONE]),
+                            ("wg".into(), vec![-9 * ONE, 5 * ONE, 0, 0]),
+                            ("wu".into(), vec![-ONE, ONE, 0, 0]),
+                            ("wd".into(), vec![ONE / 2, 0, 0, -ONE]),
+                            ("bias".into(), vec![7, -11]),
+                        ]);
+                        let mut roles = deterministic_workers(chain.program.clone(), &clear);
+                        reach_boundary(&mut roles, 6, None);
+                        let state = roles.each_ref().map(boundary_snapshot);
+                        for (owner, key) in chain.imports.into_iter()
+                            .zip(["p", "x", "wg", "wu", "wd", "bias"])
+                        {
+                            let imported: Vec<_> = native_snapshot_owner(&state, owner)
+                                .into_iter()
+                                .map(|x| x as i64)
+                                .collect();
+                            assert_eq!(imported, clear[key]);
+                        }
+                        assert_eq!(
+                            native_chain_observe(&mut roles, chain.gate, chain.prefix_sticky),
+                            vec![1 - p]
+                        );
+                        let gate = native_chain_observe(
+                            &mut roles, chain.gate + 1, chain.gate,
+                        );
+                        let up = native_chain_observe(&mut roles, chain.up + 1, chain.up);
+                        let checked = native_chain_observe(
+                            &mut roles, chain.checked_gate + 1, chain.checked_gate,
+                        );
+                        assert_eq!(checked, vec![
+                            if fallback { 0 } else { -9 * q },
+                            5 * q, i128::from(!fallback), 1,
+                        ]);
+                        assert_eq!(
+                            native_chain_observe(
+                                &mut roles, chain.activation_start, chain.gate_sticky,
+                            ),
+                            vec![sticky]
+                        );
+                        let activation = native_chain_observe(
+                            &mut roles, chain.activation + 1, chain.activation,
+                        );
+                        let mixed = native_chain_observe(
+                            &mut roles, chain.mixed + 1, chain.mixed,
+                        );
+                        let down = native_chain_observe(
+                            &mut roles, chain.down + 1, chain.down,
+                        );
+                        let biased = native_chain_observe(
+                            &mut roles, chain.biased + 1, chain.biased,
+                        );
+                        let residual = native_chain_observe(
+                            &mut roles, chain.residual + 1, chain.residual,
+                        );
+                        let rms_checked = native_chain_observe(
+                            &mut roles, chain.checked_rms + 1, chain.checked_rms,
+                        );
+                        assert_eq!(&rms_checked[..2], residual.as_slice());
+                        assert_eq!(&rms_checked[2..], &[1, 1]);
+                        let rms_input = native_chain_observe(
+                            &mut roles, chain.rms_input + 1, chain.rms_input,
+                        );
+                        assert_eq!(
+                            native_chain_observe(
+                                &mut roles, chain.rms_input + 1, chain.sticky,
+                            ),
+                            vec![sticky]
+                        );
+                        let realized: NativeChainRows = [
+                            gate, up, checked[..2].to_vec(), activation, mixed,
+                            down, biased, residual, rms_input,
+                        ].map(|row| row.try_into().unwrap());
+                        assert!(
+                            expected.contains(&realized),
+                            "complete rounding-correlated tuple"
+                        );
+                        for (stage, row) in realized.into_iter().enumerate() {
+                            assert!(native_chain_energy(row) <= envelopes[stage]);
+                        }
+                        // Same consuming workers continue through the final mask.
+                        let (_, shares, state) = trace_ordinary_finish(roles);
+                        assert_native_snapshot_adjacency(&state);
+                        assert_eq!(chain.program.outputs.len(), 3);
+                        let final_output: [i128; 3] = std::array::from_fn(|slot| {
+                            let (owner, lane) = chain.program.outputs[slot];
+                            for party in 0..3 {
+                                assert_eq!(
+                                    shares[party][slot],
+                                    state[party].shares[owner].as_ref().unwrap().0[lane]
+                                );
+                            }
+                            native_snapshot_owner(&state, owner)[lane] as i64 as i128
+                        });
+                        assert!(
+                            expected_outcomes.contains(&(realized, final_output)),
+                            "complete rounding-correlated tuple and final disclosure"
+                        );
+                    }
+                }
+            }
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}
+
 // Ordinary baseline uses ONLY default advance, including across every proposed
 // seam. Candidate suffix uses this same driver. Record all bytes in delivery
 // order, preserving complete outer tensor frames and every direction/phase.

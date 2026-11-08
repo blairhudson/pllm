@@ -663,6 +663,7 @@ fn transform_decode(
                 selected.insert(layer, (positions_id, selected_tokens));
                 operation.inputs[1] = key_gather;
                 operation.output_shape[3] = selected_tokens;
+                operation.attributes["group_size"] = json!(1);
                 transformed.operations.push(operation);
             }
             ModelOperator::AttentionScale | ModelOperator::Softmax => {
@@ -696,6 +697,7 @@ fn transform_decode(
                 if let Some(input) = operation.inputs.get_mut(1) {
                     *input = format!("{METHOD_PREFIX}layer.{layer}.dynamic_value_gather");
                 }
+                operation.attributes["group_size"] = json!(1);
                 transformed.operations.push(operation);
             }
             _ => transformed.operations.push(operation),
@@ -945,6 +947,17 @@ fn op(
 
 fn incomplete(message: impl Into<String>) -> ModelError {
     ModelError::Incomplete(message.into())
+}
+
+fn source_head_ratio(heads: u64, source_heads: u64) -> Result<u64, ModelError> {
+    if heads == 0 || source_heads == 0 || heads.checked_rem(source_heads) != Some(0) {
+        return Err(incomplete(
+            "MPCache query and source cache heads must have a positive exact ratio",
+        ));
+    }
+    heads
+        .checked_div(source_heads)
+        .ok_or_else(|| incomplete("MPCache source head ratio division failed"))
 }
 
 fn method_operation<'a>(
@@ -1331,6 +1344,10 @@ fn validate_decode_selection(plan: &DecoderPlan, policy: &MpcachePolicy) -> Resu
             ("dynamic_value_gather", value_view, StateKind::Value),
         ] {
             let gather = method_operation(graph, &format!("{prefix}.{suffix}"))?;
+            let group_size = source_head_ratio(
+                scores.output_shape.get(1).copied().unwrap_or(0),
+                view.output_shape.get(1).copied().unwrap_or(0),
+            )?;
             if gather.operator != ModelOperator::SecureGather
                 || gather.state_kind != Some(kind)
                 || gather.inputs.as_slice() != [view.id.as_str(), positions_id.as_str()]
@@ -1353,7 +1370,7 @@ fn validate_decode_selection(plan: &DecoderPlan, policy: &MpcachePolicy) -> Resu
                     .get("output_semantics")
                     .and_then(Value::as_str)
                     != Some("per_query_head_cache_window")
-                || gather.attributes.get("group_size") != scores.attributes.get("group_size")
+                || gather.attributes.get("group_size").and_then(Value::as_u64) != Some(group_size)
             {
                 return Err(incomplete(format!(
                     "MPCache layer {layer} has invalid {suffix}"
@@ -1394,6 +1411,7 @@ fn validate_hierarchy(
     let kv_heads = key_view.output_shape.get(1).copied().unwrap_or(0);
     let head_dim = key_view.output_shape.get(3).copied().unwrap_or(0);
     let heads = scores.output_shape.get(1).copied().unwrap_or(0);
+    let source_group_size = source_head_ratio(heads, kv_heads)?;
     let query_sequence = scores.output_shape.get(2).copied().unwrap_or(0);
     let query = scores.inputs.first().cloned().ok_or_else(|| {
         incomplete(format!(
@@ -1410,11 +1428,7 @@ fn validate_hierarchy(
         let (expected_bounds_shape, expected_group_size) = if level == 0 {
             (
                 vec![graph.batch, kv_heads, spec.clusters, head_dim, 2],
-                scores
-                    .attributes
-                    .get("group_size")
-                    .cloned()
-                    .unwrap_or(Value::Null),
+                json!(source_group_size),
             )
         } else {
             (
@@ -1634,6 +1648,16 @@ mod tests {
     #[test]
     fn transforms_fixed_shape_qwen2_prefill_state_and_decode_attention() {
         let base = qwen_plan(4);
+        for operator in [ModelOperator::AttentionScores, ModelOperator::AttentionValues] {
+            for attention in base
+                .decode
+                .operations
+                .iter()
+                .filter(|op| op.operator == operator)
+            {
+                assert_eq!(attention.attributes["group_size"], json!(2));
+            }
+        }
         let original_prefill_kv = kv_states(&base.prefill.state_outputs);
         let original_decode_kv: Vec<(String, Vec<u64>, u64)> = kv_states(&base.decode.state_inputs)
             .into_iter()
@@ -1641,6 +1665,32 @@ mod tests {
             .collect();
         let plan = optimize(&base, MpcachePolicy::r23_reference_policy()).unwrap();
         plan.validate().unwrap();
+        for attention in plan.decode.operations.iter().filter(|op| {
+            matches!(
+                op.operator,
+                ModelOperator::AttentionScores | ModelOperator::AttentionValues
+            )
+        }) {
+            assert_eq!(attention.attributes["group_size"], json!(1));
+        }
+        for gather in plan.decode.operations.iter().filter(|op| {
+            op.id.ends_with(".dynamic_key_gather") || op.id.ends_with(".dynamic_value_gather")
+        }) {
+            assert_eq!(gather.attributes["group_size"], json!(2));
+        }
+        for similarity in plan
+            .decode
+            .operations
+            .iter()
+            .filter(|op| op.operator == ModelOperator::ClusterSimilarity)
+        {
+            let expected = if similarity.attributes["level"] == json!(0) {
+                2
+            } else {
+                1
+            };
+            assert_eq!(similarity.attributes["group_size"], json!(expected));
+        }
         assert_eq!(
             plan.decode.maximum_key_sequence,
             base.decode.maximum_key_sequence
@@ -1711,6 +1761,43 @@ mod tests {
             .output_shape,
             vec![1, 4, 1, 2],
         );
+    }
+
+    #[test]
+    fn source_head_ratio_requires_positive_exact_heads() {
+        assert_eq!(source_head_ratio(4, 2).unwrap(), 2);
+        assert_eq!(source_head_ratio(4, 4).unwrap(), 1);
+        for (heads, source_heads) in [(0, 0), (0, 2), (4, 0), (3, 2), (2, 4)] {
+            assert!(source_head_ratio(heads, source_heads).is_err());
+        }
+    }
+
+    #[test]
+    fn tampered_attention_and_source_group_sizes_fail_validation() {
+        let plan = optimize(&qwen_plan(4), MpcachePolicy::r23_reference_policy()).unwrap();
+        for (id, group_size) in [
+            ("layer.0.attention_scores", 2),
+            ("layer.0.attention_values", 2),
+            ("method.kv_cache_eviction.layer.0.dynamic_key_gather", 1),
+            ("method.kv_cache_eviction.layer.0.dynamic_value_gather", 1),
+            (
+                "method.kv_cache_eviction.layer.0.hierarchy.0.cluster_similarity",
+                1,
+            ),
+        ] {
+            let mut tampered = plan.clone();
+            let operation = tampered
+                .decode
+                .operations
+                .iter_mut()
+                .find(|op| op.id == id)
+                .unwrap();
+            operation.attributes["group_size"] = json!(group_size);
+            assert!(
+                tampered.validate().is_err(),
+                "accepted tampered group_size for {id}"
+            );
+        }
     }
 
     #[test]

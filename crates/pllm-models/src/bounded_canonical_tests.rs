@@ -43,6 +43,9 @@ const OPERATORS: &[ModelOperator] = &[
     ModelOperator::GatedDeltaStateUpdate,
     ModelOperator::RmsNormGated,
     ModelOperator::LayerNorm,
+    ModelOperator::GeluErf,
+    ModelOperator::Tanh,
+    ModelOperator::AttentionMask,
 ];
 const KINDS: &[StateKind] = &[
     StateKind::Key,
@@ -257,6 +260,21 @@ fn actual_lowered_decoder_matches_legacy() {
     )
     .unwrap();
     plan_parity(&plan);
+}
+
+#[test]
+fn actual_absolute_position_plan_and_all_operation_attrs_match_legacy_canonical() {
+    let source = json!({"model_type":"gpt2", "n_embd":4, "n_head":2, "n_layer":1,
+        "n_positions":7, "vocab_size":11, "n_inner":9});
+    let plan = crate::source_mappings::lower_json(&serde_json::to_vec(&source).unwrap(),
+        crate::DecoderWorkload { batch:1, max_input_tokens:2, max_new_tokens:2 }, None).unwrap();
+    plan_parity(&plan);
+    for graph in [&plan.prefill, &plan.decode] {
+        for op in &graph.operations { operation_parity(op); }
+        let positions = graph.operations.iter().find(|op| op.id == "position_lookup").unwrap();
+        assert_eq!(positions.attributes, json!({"weight":"transformer.wpe.weight", "weight_shape":[7,4],
+            "index_domain":"absolute_positions", "position_policy":"sequential_absolute", "out_of_bounds":"reject", "compute_dtype":"float32"}));
+    }
 }
 
 #[test]

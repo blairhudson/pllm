@@ -1,8 +1,25 @@
 //! Model configuration validation and model-aware semantic lowering.
 
 pub mod bounded_canonical;
+pub mod checkpoint_requirements;
 pub mod cache;
 pub mod source_work;
+pub mod forward_plan;
+pub mod forward_resources;
+pub use forward_resources::{ForwardLimits, ForwardResourceQuote, ForwardNumericalSummary,
+    ForwardPreflight, preflight_forward_value, default_forward_limits, forward_limits_for_memory,
+    lower_forward_model_with_limits, lower_forward_model_value_with_limits, parse_forward_source_json};
+pub use forward_plan::parse_bounded_source_json;
+mod encoder_blocks;
+pub use forward_plan::{
+    lower_forward_model, lower_forward_model_value, forward_checkpoint_requirements,
+    forward_checkpoint_requirements_with_limits,
+    ForwardPlan, ForwardDimension, ForwardDType, ForwardTensorSpec, ForwardOperation,
+    ForwardOutput, ForwardRequirement, FORWARD_PLAN_SCHEMA_VERSION,
+};
+
+#[cfg(test)]
+mod checkpoint_requirements_tests;
 
 use pllm_types::{canonical_digest, Digest};
 use serde::{de, Deserialize, Deserializer, Serialize};
@@ -97,6 +114,14 @@ config_schema! {
 }
 
 mod absolute_position_decoder;
+mod transformer_blocks;
+// Shared descriptive contracts only: no graph/source/placement authority.
+pub use transformer_blocks::{
+    embedding as describe_embedding, centered_affine_layer_norm as is_centered_affine_layer_norm,
+    parse_positive_f32, Embedding, EmbeddingDomain, EmbeddingError,
+    key_padding_attention_mask as is_key_padding_attention_mask,
+    exact_fp32_gelu as is_exact_fp32_gelu, fp32_tanh as is_fp32_tanh,
+};
 mod dense_gated_source;
 mod fused_dense_decoder;
 mod hybrid_text_decoder;
@@ -326,6 +351,9 @@ pub enum ModelOperator {
     GatedDeltaStateUpdate,
     RmsNormGated,
     LayerNorm,
+    GeluErf,
+    Tanh,
+    AttentionMask,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -2481,6 +2509,9 @@ fn validate_operation(
         )));
     }
     let expected_arity = match operation.operator {
+        ModelOperator::GeluErf | ModelOperator::Tanh | ModelOperator::AttentionMask => {
+            return Err(ModelError::Unsupported("encoder-only operator in decoder graph".into()));
+        }
         ModelOperator::TokenLookup => Some(1),
         ModelOperator::Reshape
         | ModelOperator::LayerNorm
@@ -2611,7 +2642,21 @@ fn validate_operation(
     }
     match operation.operator {
         ModelOperator::LayerNorm => {
-            absolute_position_decoder::validate_layer_norm(operation, shapes)?
+            transformer_blocks::validate_layer_norm(operation, shapes)?
+        }
+        ModelOperator::TokenLookup => {
+            transformer_blocks::embedding(operation).map_err(|_| {
+                ModelError::Incomplete("invalid or ambiguous embedding domain contract".into())
+            })?;
+        }
+        ModelOperator::Linear | ModelOperator::OutputHead => {
+            let input = operation.inputs.first().and_then(|id| shapes.get(id))
+                .and_then(|shape| shape.last()).copied().unwrap_or(0);
+            let output = operation.output_shape.last().copied().unwrap_or(0);
+            if input == 0 || output == 0 ||
+                transformer_blocks::projection_dimensions(operation, input, output).is_none() {
+                return Err(ModelError::Incomplete("invalid projection checkpoint layout contract".into()));
+            }
         }
         ModelOperator::Reshape => validate_reshape(operation, shapes)?,
         ModelOperator::Permute => validate_permute(operation, shapes)?,

@@ -6,8 +6,8 @@
 //! Wavefront preadmission covers backing and retained Lookup chunk metadata;
 //! actual-span work remains later. The additive tariff can refuse former fits.
 //! Logical accounting only, not physical-memory or full-capacity authority.
-use super::{cache, wavefront, Capacity, Error, Limits, Resources};
-use pllm_garble::fusefss_backend::composition;
+use super::{AdmissionContext, AdmissionFailure, AdmissionGate, AdmissionStage, Capacity, Error, Limits, Resources};
+use pllm_garble::fusefss_backend::composition::{self, cache, wavefront};
 use pllm_models::DecoderPlan;
 
 fn add(a: usize, b: usize) -> Result<usize, Error> {
@@ -329,6 +329,32 @@ impl<'a> Quote<'a> {
     // Runtime hashes table counters and advances accounted_tables BEFORE this
     // phase, and hashes selection/node/Plan only AFTER this phase succeeds.
     pub(super) fn finish(self, tables: cache::Stats) -> Result<(), Error> {
+        self.finish_context(tables).map_err(|failure| failure.error)
+    }
+
+    pub(super) fn finish_context(self, tables: cache::Stats) -> Result<(), AdmissionFailure<Error>> {
+        self.finish_body(tables, None, None).map_err(|failure| failure.with_context_if_absent(
+            AdmissionContext::new(AdmissionStage::ResourceQuote, AdmissionGate::ResourceAccounting)))
+    }
+
+    // Observation is not admission: cumulative private material and opt-in peer-
+    // frame demand may be exceeded; all other same-kernel gates remain hard.
+    pub(super) fn finish_observing(
+        self, tables: cache::Stats, first_material: &mut Option<AdmissionContext>,
+    ) -> Result<(), AdmissionFailure<Error>> {
+        self.finish_observing_options(tables, first_material, None)
+    }
+
+    pub(super) fn finish_observing_options(
+        self, tables: cache::Stats, first_material: &mut Option<AdmissionContext>,
+        first_frame: Option<&mut Option<AdmissionContext>>,
+    ) -> Result<(), AdmissionFailure<Error>> {
+        self.finish_body(tables, Some(first_material), first_frame).map_err(|failure| failure.with_context_if_absent(
+            AdmissionContext::new(AdmissionStage::ResourceQuote, AdmissionGate::ResourceAccounting)))
+    }
+
+    fn finish_body(self, tables: cache::Stats, mut observed: Option<&mut Option<AdmissionContext>>,
+        mut observed_frames: Option<&mut Option<AdmissionContext>>) -> Result<(), AdmissionFailure<Error>> {
         let r = self.native;
         let resources = self.resources;
         resources.source_table_cache_bytes_per_role =
@@ -361,15 +387,52 @@ impl<'a> Quote<'a> {
             Capacity::Capsule => 32768,
             Capacity::Decoder => 1 << 22,
         };
-        if resources.kernels > kernel_limit
-            || resources.work > l.max_work
-            || resources.material_bytes > l.max_material_bytes
-            || resources.frame_bytes > l.max_frame_bytes
-            || resources.public_copy_bytes > l.max_public_copy_bytes
-            || resources.combined_reservation_bytes
-                > pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES
-        {
-            return Err(Error::Resource);
+        // Same short-circuit comparison order, after the same counter mutations.
+        let rejected = if resources.kernels > kernel_limit {
+            Some((AdmissionGate::Kernels, resources.kernels, kernel_limit))
+        } else if resources.work > l.max_work {
+            Some((AdmissionGate::Work, resources.work, l.max_work))
+        } else if resources.material_bytes > l.max_material_bytes && observed.is_none() {
+            Some((AdmissionGate::MaterialBytes, resources.material_bytes, l.max_material_bytes))
+        } else {
+            if resources.material_bytes > l.max_material_bytes {
+                if let Some(first) = observed.as_mut() {
+                    if first.is_none() {
+                        let mut context = AdmissionContext::new(AdmissionStage::ResourceQuote, AdmissionGate::MaterialBytes);
+                        context.required = Some(resources.material_bytes);
+                        context.limit = Some(l.max_material_bytes);
+                        **first = Some(context);
+                    }
+                }
+            }
+            if resources.frame_bytes > l.max_frame_bytes && observed_frames.is_none() {
+                Some((AdmissionGate::FrameBytes, resources.frame_bytes, l.max_frame_bytes))
+            } else {
+                if resources.frame_bytes > l.max_frame_bytes {
+                    if let Some(first) = observed_frames.as_mut() {
+                        if first.is_none() {
+                            let mut context = AdmissionContext::new(AdmissionStage::ResourceQuote, AdmissionGate::FrameBytes);
+                            context.required = Some(resources.frame_bytes);
+                            context.limit = Some(l.max_frame_bytes);
+                            **first = Some(context);
+                        }
+                    }
+                }
+                if resources.public_copy_bytes > l.max_public_copy_bytes {
+                    Some((AdmissionGate::PublicCopyBytes, resources.public_copy_bytes, l.max_public_copy_bytes))
+                } else if resources.combined_reservation_bytes > pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES {
+                    Some((AdmissionGate::NativeBytes, resources.combined_reservation_bytes,
+                        pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES))
+                } else {
+                    None
+                }
+            }
+        };
+        if let Some((gate, required, limit)) = rejected {
+            let mut context = AdmissionContext::new(AdmissionStage::ResourceQuote, gate);
+            context.required = Some(required);
+            context.limit = Some(limit);
+            return Err(AdmissionFailure::from(Error::Resource).with_context_if_absent(context));
         }
         Ok(())
     }

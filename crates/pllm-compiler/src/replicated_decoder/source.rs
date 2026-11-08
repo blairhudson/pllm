@@ -112,6 +112,40 @@ pub struct Publisher {
 }
 
 impl Publisher {
+    /// Resource-free compact owner for adoption before fallible acquisition.
+    #[doc(hidden)]
+    pub fn prepare_compact_source_request(
+        experiment: &[u8], config: &[u8], rows: usize, outputs: usize,
+        source: [u8; 32], composition: [u8; 32],
+    ) -> Result<Self, String> {
+        let compact = compact_publisher::CompactPublisher::prepare(
+            experiment, config, rows, outputs, source, composition,
+        )?;
+        Ok(Self::empty(Some(Box::new(compact)), None))
+    }
+    #[doc(hidden)]
+    pub fn has_retained_compact(&self) -> bool {
+        self.compact.as_ref().is_some_and(|c| c.retained())
+    }
+    #[doc(hidden)]
+    pub fn compact_start(&mut self) -> Result<(), String> {
+        self.compact.as_mut().ok_or("no compact owner")?.start()
+    }
+    #[doc(hidden)]
+    pub fn compact_retire(&mut self) -> Result<(), String> {
+        self.compact.as_mut().ok_or("no compact owner")?.retire()
+    }
+    #[doc(hidden)]
+    pub fn compact_finish_numeric_outcome(&mut self, frames: [&[u8]; 3]) -> Result<Option<Vec<u32>>, String> {
+        let compact = self.compact.as_mut().ok_or("no compact owner")?;
+        let outcome = compact.finish_outcome(frames);
+        compact.cancel(); // one final reveal, but retain custody through close
+        match outcome? {
+            FinalOutcome::Accepted(tokens) => Ok(Some(tokens)),
+            FinalOutcome::NumericRejected => Ok(None),
+            FinalOutcome::MalformedAcceptance => Err("replicated final acceptance word or masked output malformed".into()),
+        }
+    }
     /// Private SDK opt-in: actual CLIENT Experiment is rechecked by original
     /// precollection ingress. Not a worker Manifest policy selector.
     #[doc(hidden)]
@@ -443,9 +477,11 @@ impl Publisher {
         if self.raw_host.is_some() {
             return;
         }
-        if let Some(mut c) = self.compact.take() {
+        if let Some(c) = &mut self.compact {
             c.cancel();
+            if c.retained() { return; }
         }
+        self.compact = None;
         self.retired = true;
         self.values.clear();
         self.program = None;
@@ -705,7 +741,7 @@ impl Publisher {
     }
 
     fn finish_outcome(mut self, frames: [&[u8]; 3]) -> Result<FinalOutcome, String> {
-        if let Some(c) = self.compact.take() {
+        if let Some(mut c) = self.compact.take() {
             return c.finish_outcome(frames);
         }
         if self.retired || self.program.is_none() || self.issued != self.values.len() {

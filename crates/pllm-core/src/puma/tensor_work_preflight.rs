@@ -267,6 +267,143 @@ pub struct WorkSummary {
     pub tail: Option<FactoryWorkSummary>,
 }
 
+/// Proposed, UNADOPTED source-level event vector. Not CPU time, RSS, authority or
+/// an alternate ledger. Bounds are prepaid; cleanup/refusal never refunds them.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct LogicalEvents {
+    pub writes: u64,
+    pub validation: u64,
+    pub transitions: u64,
+    pub allocation_attempts: u64,
+    pub cleanup_dispatches: u64,
+}
+impl LogicalEvents {
+    /// Category-preserving arithmetic only: no budget, permission or refund.
+    pub fn checked_add(self, other: Self) -> Result<Self, Error> {
+        Ok(Self {
+            writes: self.writes.checked_add(other.writes).ok_or(Error::Bounds)?,
+            validation: self.validation.checked_add(other.validation).ok_or(Error::Bounds)?,
+            transitions: self.transitions.checked_add(other.transitions).ok_or(Error::Bounds)?,
+            allocation_attempts: self.allocation_attempts.checked_add(other.allocation_attempts).ok_or(Error::Bounds)?,
+            cleanup_dispatches: self.cleanup_dispatches.checked_add(other.cleanup_dispatches).ok_or(Error::Bounds)?,
+        })
+    }
+    pub fn checked_mul(self, count: u64) -> Result<Self, Error> {
+        Ok(Self {
+            writes: self.writes.checked_mul(count).ok_or(Error::Bounds)?,
+            validation: self.validation.checked_mul(count).ok_or(Error::Bounds)?,
+            transitions: self.transitions.checked_mul(count).ok_or(Error::Bounds)?,
+            allocation_attempts: self.allocation_attempts.checked_mul(count).ok_or(Error::Bounds)?,
+            cleanup_dispatches: self.cleanup_dispatches.checked_mul(count).ok_or(Error::Bounds)?,
+        })
+    }
+    /// Hypothetical unit-weight evaluation, not approved pricing or source funds.
+    pub fn total(self) -> Result<u64, Error> {
+        [self.writes, self.validation, self.transitions, self.allocation_attempts, self.cleanup_dispatches]
+            .into_iter().try_fold(0u64, |n, x| n.checked_add(x).ok_or(Error::Bounds))
+    }
+}
+impl Construction {
+    /// One native invocation, including the exclusive failure/cleanup path.
+    /// Existing query/lookup/AES debits are not subtracted from these bounds.
+    pub fn logical_events(self) -> Result<LogicalEvents, Error> {
+        self.quote().map_err(|_| Error::Bounds)?;
+        let (lanes, tables) = match self {
+            Self::Builder { lanes } | Self::Negative { lanes } | Self::EqualZero { lanes }
+            | Self::AllValid { lanes } | Self::CheckedRange { lanes } | Self::GuardedSilu { lanes } => (lanes, 0),
+            Self::RmsNormCertified { rows, width, .. } | Self::RmsNormWithInputNorm { rows, width, .. } =>
+                (rows.checked_mul(width).ok_or(Error::Bounds)?, 1),
+            Self::RotaryHalf { rows, width, .. } => (rows.checked_mul(width).ok_or(Error::Bounds)?, 2),
+            Self::SoftmaxCertified { rows, width } => (rows.checked_mul(width).ok_or(Error::Bounds)?, 0),
+            Self::RotaryCoefficients { .. } => return Err(Error::Binding),
+        };
+        let lanes = u64::try_from(lanes).map_err(|_| Error::Bounds)?;
+        let nodes = MAX_NODES as u64;
+        let scratch = match self {
+            Self::RmsNormCertified { .. } | Self::RmsNormWithInputNorm { .. } => 2 * MAX_ROW_LANES,
+            Self::RotaryHalf { .. } => 2 * MAX_TILE_LANES,
+            _ => 0,
+        } as u64;
+        // This inventory covers the live RMS/rotary/validity constructors only.
+        // Other recipes retain their original numeric/work contracts, but have
+        // no adoptable logical-event quote here until separately inventoried.
+        if matches!(self, Self::GuardedSilu { .. } | Self::SoftmaxCertified { .. }) {
+            return Err(Error::Binding);
+        }
+        let entries = lanes.checked_mul(tables).ok_or(Error::Bounds)?;
+        // Program::new: four full arrays. finish_in_place: available_at is a
+        // FIFTH full array; last_use <=2 writes/node, slots/register/available
+        // <=3, work accumulator <=1. push: node/width/len <=3 writes/node.
+        // Sequential rows add (5+2+3+1+3), not max. No scalar-drop loop.
+        let base = LogicalEvents {
+            writes: nodes.checked_mul(5 + 2 + 3 + 1 + 3).ok_or(Error::Bounds)?,
+            // finish's available_at.position is an independent N*N search.
+            // Each candidate: load, predicate, iterator transition <=3. Node
+            // emission, digest matching, instruction_work and operand visiting
+            // have independent 64-event blocks (no AES-work overlap credit).
+            validation: nodes.checked_mul(nodes).and_then(|n| n.checked_mul(3))
+                .and_then(|n| n.checked_add(nodes * (64 + 64 + 64 + 64))).ok_or(Error::Bounds)?,
+            ..LogicalEvents::default()
+        };
+        // Full/tail scratch array tails are written even for short outputs.
+        // Each Affine has three field initializations and one array destination.
+        let scratch_events = LogicalEvents { writes: scratch.checked_mul(4).ok_or(Error::Bounds)?, ..LogicalEvents::default() };
+        // affine_lanes_with_pending: destination AND prefix counter; iterator
+        // cursor and coefficient fields/scratch are separate. output_bounds,
+        // finish digest's two coefficient fields, and geometry/status checks
+        // receive distinct per-entry blocks. Prefix is also an owner transition.
+        let coefficient_events = LogicalEvents {
+            writes: entries.checked_mul(2 + 1 + 3).ok_or(Error::Bounds)?,
+            validation: entries.checked_mul(32 + 4 + 4).ok_or(Error::Bounds)?,
+            transitions: entries,
+            ..LogicalEvents::default()
+        };
+        // Empty->Building->Ready->transferred (three changes/table). RmsSlot
+        // enter/complete/refuse <=3, ResidentBuilder mutation/finish <=4.
+        // Allocation attempts are native TABLES only; caller prices Arc new.
+        // Cleanup: resident/Builder/Program dispatch <=3, plus each table's
+        // rich Box-or-ExactBuffer dispatch AND backing release. Ready/Building
+        // are exclusive alternatives, never two releases for the same payload.
+        let controls = LogicalEvents {
+            writes: 8 + 4 + 2 + 3 + 4 + 3 * tables,
+            validation: 8 + 4 + 2 + 3 + 4,
+            transitions: 3 + 4 + 3 * tables,
+            allocation_attempts: tables,
+            cleanup_dispatches: 3 + 2 * tables,
+        };
+        let mut events = base.checked_add(scratch_events)?.checked_add(coefficient_events)?.checked_add(controls)?;
+        if matches!(self, Self::RmsNormCertified { .. } | Self::RmsNormWithInputNorm { .. }) {
+            // Ranged product is the exclusive maximum: two initialized arrays,
+            // two cell overwrites, four corners, three source/range locals, two
+            // extrema accumulators and three result/return destinations =16.
+            // Input/tableau repair loops add four non-emitting domain sweeps.
+            let cells = nodes.checked_add(4).and_then(|n| n.checked_mul(36)).ok_or(Error::Bounds)?;
+            events = events.checked_add(LogicalEvents {
+                writes: cells.checked_mul(2 + 2 + 4 + 3 + 2 + 3).ok_or(Error::Bounds)?,
+                validation: cells.checked_mul(64).ok_or(Error::Bounds)?,
+                ..LogicalEvents::default()
+            })?;
+            // Partitioned rsqrt_polynomial_bounds: <=36 domains, U in
+            // [ONE/4,ONE/2], inclusive step_by(256): <=257 public cells.
+            // Nine interval primitives/cell (3 products, 5 affines, 1 rescale)
+            // plus scalar/three-term-loop control. Per primitive blocks:
+            // writes 4 corners+4 conversions+8 results+4 fields+8 operands+4 args;
+            // validation 8 each: reads,mul/conversion,endpoints,extrema,adds,
+            // Result handling,rescale bounds,iteration; transitions 4 each:
+            // branch entry,result,fold return,borrow retirement. This is
+            // SEQUENTIAL to Ranged/hull work and the preserved proof debit.
+            let polynomial = LogicalEvents {
+                writes: 9 * (4 + 4 + 8 + 4 + 8 + 4) + 32,
+                validation: 9 * (8 + 8 + 8 + 8 + 8 + 8 + 8 + 8) + 16,
+                transitions: 9 * (4 + 4 + 4 + 4) + 16,
+                ..LogicalEvents::default()
+            }.checked_mul(36 * 257)?;
+            events = events.checked_add(polynomial)?;
+        }
+        Ok(events)
+    }
+}
+
 #[derive(Debug)]
 struct Part<'a> {
     factory: ClosedFactory<'a>,

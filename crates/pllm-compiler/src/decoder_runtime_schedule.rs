@@ -163,6 +163,7 @@ struct GroupRow {
     len: usize,
     leader: bool,
     repeated_remote_id: bool,
+    class: GroupingClass,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -294,6 +295,7 @@ pub(crate) enum RemoteGroupingError<'a> {
     Layers,
     Weight(&'a str),
     LookupHead,
+    LookupSource,
     Duplicate(&'a str),
     Overflow,
     Capacity,
@@ -354,6 +356,7 @@ impl fmt::Display for RemoteGroupingError<'_> {
             Self::LookupHead => {
                 f.write_str("decoder runtime requires token lookup and one output head")
             }
+            Self::LookupSource => f.write_str("decoder lookup requires one token or position source"),
             Self::Duplicate(id) => write!(f, "operation {id} belongs to multiple runtime stages"),
             Self::Overflow => f.write_str("decoder grouping resource arithmetic overflow"),
             Self::Capacity => f.write_str("decoder grouping workspace capacity limit exceeded"),
@@ -362,11 +365,52 @@ impl fmt::Display for RemoteGroupingError<'_> {
     }
 }
 
-fn remote_operator(operator: ModelOperator) -> bool {
-    matches!(
-        operator,
-        ModelOperator::TokenLookup | ModelOperator::Linear | ModelOperator::OutputHead
-    )
+/// Structural grouping only, never semantic admission or source authentication.
+/// Position candidates still need the shared model contract and baseline context.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+enum GroupingClass {
+    #[default]
+    Local,
+    Remote,
+    TokenBoundary,
+    PositionCandidate,
+    UnsupportedLookup,
+}
+
+impl GroupingClass {
+    fn remote(self) -> bool {
+        matches!(self, Self::Remote | Self::TokenBoundary)
+    }
+    fn aliases_remote_id(self) -> bool {
+        !matches!(self, Self::PositionCandidate | Self::UnsupportedLookup)
+    }
+}
+
+fn grouping_class(
+    operation: &ModelOperation,
+    mut equal: impl FnMut(&str, &str) -> bool,
+) -> GroupingClass {
+    match operation.operator {
+        ModelOperator::Linear | ModelOperator::OutputHead => GroupingClass::Remote,
+        ModelOperator::TokenLookup => match operation.inputs.as_slice() {
+            [source] if equal(source, "input.tokens") => GroupingClass::TokenBoundary,
+            [source] if equal(source, "input.positions") => GroupingClass::PositionCandidate,
+            _ => GroupingClass::UnsupportedLookup,
+        },
+        _ => GroupingClass::Local,
+    }
+}
+
+/// Both possible byte comparisons, even when the first succeeds. Checked quote
+/// arithmetic; construction charges each actual span before comparing it.
+fn grouping_class_work(operation: &ModelOperation) -> Result<u128, RemoteGroupingError<'static>> {
+    match (operation.operator, operation.inputs.as_slice()) {
+        (ModelOperator::TokenLookup, [source]) => grouping_add(
+            source.len().min("input.tokens".len()) as u128 + 1,
+            source.len().min("input.positions".len()) as u128 + 1,
+        ),
+        _ => Ok(0),
+    }
 }
 
 fn bounded_convolution_operator(operation: &ModelOperation) -> bool {
@@ -872,6 +916,7 @@ fn local_operator(operation: &ModelOperation) -> bool {
                 == Some("bfloat16")
     };
     match operation.operator {
+        ModelOperator::GeluErf | ModelOperator::Tanh | ModelOperator::AttentionMask => false,
         ModelOperator::StateInitialize => bounded_state_initializer(operation),
         ModelOperator::Sigmoid => {
             operation.attributes == serde_json::json!({})
@@ -1525,15 +1570,20 @@ fn grouping_sort_comparisons(n: usize) -> Result<u128, RemoteGroupingError<'stat
 
 impl<'a> RemoteGroupingQuote<'a> {
     /// Allocation-free O(operations + input references) metadata prepass. No key
-    /// contents compared, opaque owner nodes priced, or legacy graph caps added.
+    /// grouping comparisons, attribute parsing, opaque owner-node pricing, or
+    /// legacy graph caps. The source discriminator compares only two fixed input
+    /// literals. This metadata quote is unbudgeted: its numerical ceilings grant
+    /// no original Budget authority and describe construction driver work only.
     pub(crate) fn checked(graph: &'a DecoderGraph) -> Result<Self, RemoteGroupingError<'static>> {
         let n = graph.operations.len();
         let mut remote_count = 0;
         let mut max_id = 0u128;
         let mut key_units = 0u128;
+        let mut classification_work = 0u128;
         for op in &graph.operations {
             max_id = max_id.max(op.id.len() as u128);
-            if remote_operator(op.operator) {
+            classification_work = grouping_add(classification_work, grouping_class_work(op)?)?;
+            if grouping_class(op, |a, b| a == b).remote() {
                 remote_count += 1;
                 let mut units = 4u128; // operator, layer, input length, singleton
                 for id in &op.inputs {
@@ -1554,6 +1604,7 @@ impl<'a> RemoteGroupingQuote<'a> {
         // Heap comparisons include their call unit; each sift swap is bounded
         // by a comparison, plus exactly len-1 extraction swaps per sort.
         for bound in [
+            classification_work,
             grouping_add(grouping_mul(c, 3)?, n.saturating_sub(1) as u128)?,
             grouping_add(
                 grouping_mul(c, grouping_add(max_id, 4)?)?,
@@ -1649,6 +1700,9 @@ impl<'a> RemoteGroupingQuote<'a> {
             state.usage.step();
             GroupRow {
                 last_id_position: index,
+                class: grouping_class(&graph.operations[index], |a, b| {
+                    grouping_bytes_cmp(a, b, &mut state.usage).is_eq()
+                }),
                 ..GroupRow::default()
             }
         })?;
@@ -1678,9 +1732,13 @@ impl<'a> RemoteGroupingQuote<'a> {
         if state.layers == 0 {
             return Err(RemoteGroupingError::Layers);
         }
-        for op in &graph.operations {
+        for (index, op) in graph.operations.iter().enumerate() {
             state.usage.step();
-            if remote_operator(op.operator) {
+            let class = rows[index].class;
+            if class == GroupingClass::UnsupportedLookup {
+                return Err(RemoteGroupingError::LookupSource);
+            }
+            if class.remote() {
                 state.usage.step();
                 if op
                     .attributes
@@ -1691,7 +1749,7 @@ impl<'a> RemoteGroupingQuote<'a> {
                     return Err(RemoteGroupingError::Weight(&op.id));
                 }
             }
-            state.token_lookups += usize::from(op.operator == ModelOperator::TokenLookup);
+            state.token_lookups += usize::from(class == GroupingClass::TokenBoundary);
             state.output_heads += usize::from(op.operator == ModelOperator::OutputHead);
         }
         if state.token_lookups == 0 || state.output_heads != 1 {
@@ -1721,7 +1779,7 @@ impl<'a> RemoteGroupingQuote<'a> {
             state.first_remote = None;
             for &index in &by_id[state.start..state.end] {
                 state.usage.step();
-                if remote_operator(graph.operations[index].operator) {
+                if rows[index].class.remote() {
                     let earlier = state.first_remote.is_none_or(|first| {
                         let order = remote_key_cmp(
                             &graph.operations[index],
@@ -1743,14 +1801,16 @@ impl<'a> RemoteGroupingQuote<'a> {
             for &index in &by_id[state.start..state.end] {
                 state.usage.step();
                 rows[index].last_id_position = by_id[state.end - 1];
-                rows[index].remote_id_position = state.first_remote;
-                rows[index].repeated_remote_id = remote_operator(graph.operations[index].operator)
+                rows[index].remote_id_position = if rows[index].class.aliases_remote_id() {
+                    state.first_remote
+                } else { None };
+                rows[index].repeated_remote_id = rows[index].class.remote()
                     && state.first_remote != Some(index);
             }
             state.start = state.end;
         }
         let mut members = grouping_box(self.remote_count, |_| {
-            while !remote_operator(graph.operations[state.cursor].operator) {
+            while !rows[state.cursor].class.remote() {
                 state.usage.step();
                 state.cursor += 1;
             }
@@ -1935,6 +1995,140 @@ fn linear_role(graph: &DecoderGraph, group: &RemoteGroup<'_, '_>) -> Option<&'st
     None
 }
 
+/// Denied by default for all existing internal/delegated callers. Only the
+/// admitted baseline composition entry below may grant the additional locals.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum LocalAdmission {
+    Existing,
+    Baseline,
+}
+
+fn baseline_local_admission(
+    kind: super::DecoderCompositionKind,
+    composition: &super::ExperimentPipeline,
+) -> LocalAdmission {
+    if matches!(kind, super::DecoderCompositionKind::MaskedLinear
+        | super::DecoderCompositionKind::ClientOnlyLinear)
+        && !crate::decoder_boundary::selected(composition)
+        && !composition.components.contains_key("nonlinear")
+    { LocalAdmission::Baseline } else { LocalAdmission::Existing }
+}
+
+fn baseline_position_lookup(operation: &ModelOperation) -> bool {
+    use pllm_models::EmbeddingDomain;
+    let a = &operation.attributes;
+    operation.operator == ModelOperator::TokenLookup
+        && pllm_models::describe_embedding(operation).is_ok_and(|embedding| {
+            embedding.domain == EmbeddingDomain::AbsolutePositions
+                && embedding.cardinality.is_some()
+        })
+        && a.get("compute_dtype").and_then(serde_json::Value::as_str) == Some("float32")
+        && a.get("output_dtype").is_none_or(|dtype| dtype.as_str() == Some("float32"))
+        && a.get("position_policy").and_then(serde_json::Value::as_str) == Some("sequential_absolute")
+        && a.get("out_of_bounds").and_then(serde_json::Value::as_str) == Some("reject")
+        && a.get("weight").and_then(serde_json::Value::as_str).is_some_and(|name| !name.is_empty())
+}
+
+fn baseline_f32_gelu(operation: &ModelOperation) -> bool {
+    let a = &operation.attributes;
+    operation.operator == ModelOperator::GeluTanh
+        && operation.inputs.len() == 1
+        && a.as_object().is_some_and(|attrs| attrs.len() == 2)
+        && a.get("compute_dtype").and_then(serde_json::Value::as_str) == Some("float32")
+        && a.get("formula").and_then(serde_json::Value::as_str)
+            == Some("0.5*x*(1+tanh(sqrt(2/pi)*(x+0.044715*x^3)))")
+}
+
+/// Exact imported inference add, not a dropout executor or training alias.
+/// Full-plan validation has already checked the two source shapes against the
+/// output before this private baseline entry is called.
+fn baseline_inference_add(operation: &ModelOperation) -> bool {
+    operation.operator == ModelOperator::ResidualAdd
+        && operation.inputs.len() == 2
+        && operation.state_kind.is_none()
+        && matches!(operation.output_shape.as_slice(), [batch, tokens, width]
+            if *batch > 0 && *tokens > 0 && *width > 0)
+        && operation.attributes.as_object().is_some_and(|attrs| attrs.len() == 1)
+        && operation.attributes.get("dropout").and_then(serde_json::Value::as_str)
+            == Some("disabled_inference")
+}
+
+/// Exact visible-prefix causal mask emitted by the existing source importer.
+/// This grants neither a generic padded encoder mask nor a new numeric profile.
+fn baseline_visible_prefix_mask(operation: &ModelOperation) -> bool {
+    let a = &operation.attributes;
+    operation.operator == ModelOperator::CausalMask
+        && operation.inputs.len() == 4
+        && operation.inputs[1..] == ["input.positions", "input.attention_mask", "input.sequence_lengths"]
+        && operation.state_kind.is_none()
+        && matches!(operation.output_shape.as_slice(), [batch, heads, queries, keys]
+            if *batch > 0 && *heads > 0 && *queries > 0 && *keys > 0)
+        && a.as_object().is_some_and(|attrs| attrs.len() == 4)
+        && a.get("padding_mask_input").and_then(serde_json::Value::as_str) == Some("input.attention_mask")
+        && a.get("valid_lengths_input").and_then(serde_json::Value::as_str) == Some("input.sequence_lengths")
+        && a.get("cache_validity").and_then(serde_json::Value::as_str) == Some("visible_valid_prefix")
+        && a.get("masked_value").and_then(serde_json::Value::as_str) == Some("negative_infinity")
+}
+
+fn admitted_local_operator(operation: &ModelOperation, admission: LocalAdmission) -> bool {
+    if matches!(operation.operator, ModelOperator::GeluErf | ModelOperator::Tanh | ModelOperator::AttentionMask) {
+        return false;
+    }
+    if admission == LocalAdmission::Baseline {
+        match operation.operator {
+            ModelOperator::TokenLookup => return baseline_position_lookup(operation),
+            ModelOperator::LayerNorm => return pllm_models::is_centered_affine_layer_norm(operation),
+            ModelOperator::GeluTanh if baseline_f32_gelu(operation) => return true,
+            // Do not reinterpret a malformed source form as another profile
+            // through the legacy permissive BF16/general fallback.
+            ModelOperator::ResidualAdd if operation.attributes.get("dropout").is_some() => {
+                return baseline_inference_add(operation);
+            }
+            ModelOperator::CausalMask if operation.attributes.get("masked_value").is_some()
+                || operation.attributes.get("cache_validity").and_then(serde_json::Value::as_str)
+                    == Some("visible_valid_prefix") => {
+                return baseline_visible_prefix_mask(operation);
+            }
+            _ => {},
+        }
+    }
+    // The original BF16 GeluTanh branch and all other existing locals remain
+    // unchanged; descriptive helpers do not grant delegated execution rights.
+    local_operator(operation)
+}
+
+#[cfg(test)]
+#[test]
+fn source_fp32_forward_enums_never_fall_through_decoder_activation_admission() {
+    for operator in [ModelOperator::GeluErf, ModelOperator::Tanh, ModelOperator::AttentionMask] {
+        let operation: ModelOperation = serde_json::from_value(serde_json::json!({
+            "id":"forward.only", "operator":operator,"layer":null,"inputs":["x"],
+            "output_shape":[1,2,4],"attributes":{"compute_dtype":"float32"},"state_kind":null
+        })).unwrap();
+        assert!(!local_operator(&operation));
+        assert!(!admitted_local_operator(&operation, LocalAdmission::Baseline));
+        assert!(!admitted_local_operator(&operation, LocalAdmission::Existing));
+    }
+}
+
+fn validate_lookup_admission(graph: &DecoderGraph, admission: LocalAdmission) -> Result<(), String> {
+    // Ordinary, unbudgeted semantic metadata validation, NOT charged grouping
+    // driver work and NOT original Budget authority. No result is published or
+    // effect performed until all lookup candidates have passed this check.
+    for operation in &graph.operations {
+        if operation.operator != ModelOperator::TokenLookup { continue; }
+        let embedding = pllm_models::describe_embedding(operation)
+            .map_err(|_| format!("lookup {} has an invalid embedding contract", operation.id))?;
+        match embedding.domain {
+            pllm_models::EmbeddingDomain::Tokens => {},
+            pllm_models::EmbeddingDomain::AbsolutePositions
+                if admission == LocalAdmission::Baseline && baseline_position_lookup(operation) => {},
+            _ => return Err(format!("lookup {} has no admitted decoder domain/executor", operation.id)),
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn lower_phase(
     graph: &DecoderGraph,
     linear_executor: DecoderRuntimeExecutor,
@@ -1942,6 +2136,19 @@ pub(crate) fn lower_phase(
     client_linear_roles: &BTreeSet<&str>,
     client_linear_layer_roles: &BTreeSet<(u64, &str)>,
 ) -> Result<DecoderRuntimePhaseSchedule, String> {
+    lower_phase_with_admission(graph, linear_executor, client_prefix_layers,
+        client_linear_roles, client_linear_layer_roles, LocalAdmission::Existing)
+}
+
+fn lower_phase_with_admission(
+    graph: &DecoderGraph,
+    linear_executor: DecoderRuntimeExecutor,
+    client_prefix_layers: u64,
+    client_linear_roles: &BTreeSet<&str>,
+    client_linear_layer_roles: &BTreeSet<(u64, &str)>,
+    admission: LocalAdmission,
+) -> Result<DecoderRuntimePhaseSchedule, String> {
+    validate_lookup_admission(graph, admission)?;
     let leaders = classify_remote_groups(graph)?;
     let mut selected_roles = BTreeSet::new();
     let mut selected_layer_roles = BTreeSet::new();
@@ -2019,7 +2226,7 @@ pub(crate) fn lower_phase(
             });
             continue;
         }
-        if !local_operator(operation) {
+        if !admitted_local_operator(operation, admission) {
             return Err(format!(
                 "operation {} ({:?}) has no decoder runtime executor",
                 operation.id, operation.operator
@@ -2165,7 +2372,8 @@ pub fn lower_decoder_runtime_schedule(
 ) -> Result<DecoderRuntimeSchedule, String> {
     let composition: super::ExperimentPipeline = serde_json::from_slice(canonical_composition)
         .map_err(|error| format!("invalid pipeline composition: {error}"))?;
-    let linear_executor = match super::classify_decoder_composition(canonical_composition)? {
+    let composition_kind = super::classify_decoder_composition(canonical_composition)?;
+    let linear_executor = match composition_kind {
         super::DecoderCompositionKind::MaskedLinear => DecoderRuntimeExecutor::RemoteStage,
         super::DecoderCompositionKind::TwoOnlineOffsetLinear => DecoderRuntimeExecutor::RemoteStage,
         super::DecoderCompositionKind::ClientOnlyLinear => DecoderRuntimeExecutor::ClientLinear,
@@ -2180,6 +2388,9 @@ pub fn lower_decoder_runtime_schedule(
             );
         }
     };
+    // Grant only the existing admitted baseline, never a private boundary,
+    // masked nonlinear region, verifier, or other internal/delegated caller.
+    let local_admission = baseline_local_admission(composition_kind, &composition);
     let client_prefix_layers = composition
         .components
         .get("placement")
@@ -2277,19 +2488,21 @@ pub fn lower_decoder_runtime_schedule(
     validate_gated_delta_contract(&plan.prefill)?;
     validate_gated_delta_contract(&plan.decode)?;
     validate_causal_convolution_handoff(plan)?;
-    let mut prefill = lower_phase(
+    let mut prefill = lower_phase_with_admission(
         &plan.prefill,
         linear_executor,
         client_prefix_layers,
         &client_linear_roles,
         &client_linear_layer_roles,
+        local_admission,
     )?;
-    let mut decode = lower_phase(
+    let mut decode = lower_phase_with_admission(
         &plan.decode,
         linear_executor,
         client_prefix_layers,
         &client_linear_roles,
         &client_linear_layer_roles,
+        local_admission,
     )?;
     let nonlinear = composition
         .components
@@ -2449,6 +2662,160 @@ mod numeric_contract_tests {
     }
     use pllm_models::{lower_model_json, DecoderWorkload};
     use pllm_types::canonical_bytes;
+
+    fn tiny_absolute_plan() -> DecoderPlan {
+        lower_model_json(&canonical_bytes(&json!({
+            "model_type": "gpt2", "architectures": ["GPT2LMHeadModel"],
+            "n_embd": 4, "n_head": 2, "n_layer": 2, "n_inner": 7,
+            "n_positions": 8, "vocab_size": 11, "layer_norm_epsilon": 1e-5,
+            "activation_function": "gelu_new", "tie_word_embeddings": false,
+            "attn_pdrop": 0.0, "embd_pdrop": 0.0, "resid_pdrop": 0.0
+        })), DecoderWorkload {
+            batch: 1, max_input_tokens: 6, max_new_tokens: 3,
+        }).unwrap()
+    }
+
+    fn absolute_composition(client_only: bool) -> Value {
+        let components = if client_only {
+            json!({
+                "linear": {"component": "pllm/cleartext-linear", "params": {}},
+                "topology": {"component": "pllm/client-only/v1", "params": {}},
+                "kernels": {"component": "pllm/cpu", "params": {"threads": 1}}
+            })
+        } else {
+            json!({
+                "inference": {"component": "pllm/inference", "params": {}},
+                "kernels": {"component": "pllm/cpu", "params": {"threads": 1}},
+                "linear": {"component": "pllm/masked-linear", "params": {}},
+                "preparation": {"component": "pllm/model-aware-corrections", "params": {}}
+            })
+        };
+        json!({"components": components, "model": {"source": "model.fixture"}})
+    }
+
+    #[test]
+    fn client_only_absolute_position_schedule() {
+        let plan = tiny_absolute_plan();
+        let composition = canonical_bytes(&absolute_composition(true));
+        let schedule = lower_decoder_runtime_schedule(&plan, &composition).unwrap();
+        assert!(schedule.complete);
+        assert!(!schedule.protected_execution);
+        assert!(schedule.private_boundary.is_none() && schedule.nonlinear.is_none());
+        assert!(crate::decoder_coverage(&plan, Some(&composition)).unwrap().complete);
+        for (graph, phase) in [(&plan.prefill, &schedule.prefill), (&plan.decode, &schedule.decode)] {
+            let mut covered = BTreeSet::new();
+            for step in &phase.steps {
+                for id in &step.operation_ids {
+                    assert!(covered.insert(id.as_str()), "{id}");
+                    let op = graph.operations.iter().find(|op| &op.id == id).unwrap();
+                    if op.id == "position_lookup" || matches!(op.operator,
+                        ModelOperator::LayerNorm | ModelOperator::GeluTanh
+                        | ModelOperator::ResidualAdd | ModelOperator::CausalMask)
+                    {
+                        assert_eq!(step.executor, DecoderRuntimeExecutor::ClientLocal);
+                        assert_eq!(step.operation_ids.len(), 1);
+                        assert!(step.weight_ids.is_empty());
+                    }
+                    if matches!(op.operator, ModelOperator::Linear | ModelOperator::OutputHead) {
+                        assert_eq!(step.executor, DecoderRuntimeExecutor::ClientLinear);
+                    }
+                }
+            }
+            assert_eq!(covered, graph.operations.iter().map(|op| op.id.as_str()).collect());
+            let token = phase.steps.iter().find(|step| step.operation_ids == ["token_lookup"]).unwrap();
+            let position = phase.steps.iter().find(|step| step.operation_ids == ["position_lookup"]).unwrap();
+            assert_eq!(token.executor, DecoderRuntimeExecutor::ClientLinear);
+            assert_eq!(token.weight_ids.len(), 1);
+            assert_eq!(position.executor, DecoderRuntimeExecutor::ClientLocal);
+            assert_ne!(token.order, position.order);
+            let groups = classify_remote_groups(graph).unwrap();
+            assert!(groups.get("token_lookup").is_some());
+            assert!(groups.get("position_lookup").is_none());
+        }
+    }
+
+    #[test]
+    fn baseline_local_admission_composition_matrix() {
+        use crate::DecoderCompositionKind as Kind;
+        let plan = tiny_absolute_plan();
+        for (client_only, kind) in [(false, Kind::MaskedLinear), (true, Kind::ClientOnlyLinear)] {
+            let value = absolute_composition(client_only);
+            let bytes = canonical_bytes(&value);
+            assert_eq!(crate::classify_decoder_composition(&bytes).unwrap(), kind);
+            let pipeline: crate::ExperimentPipeline = serde_json::from_value(value.clone()).unwrap();
+            assert_eq!(baseline_local_admission(kind, &pipeline), LocalAdmission::Baseline);
+            let schedule = lower_decoder_runtime_schedule(&plan, &bytes).unwrap();
+            assert!(schedule.complete && !schedule.protected_execution);
+            assert!(schedule.private_boundary.is_none() && schedule.nonlinear.is_none());
+            for denied in [Kind::Other, Kind::VerifiedMaskedLinear, Kind::TwoOnlineOffsetLinear] {
+                assert_eq!(baseline_local_admission(denied, &pipeline), LocalAdmission::Existing);
+            }
+            for (slot, component) in [("boundary", "pllm/private-lookup-full-head/v1"),
+                ("nonlinear", "pllm/masked-wire")]
+            {
+                let mut denied = value.clone();
+                denied["components"][slot] = json!({"component": component, "params": {}});
+                let pipeline: crate::ExperimentPipeline = serde_json::from_value(denied.clone()).unwrap();
+                assert_eq!(baseline_local_admission(kind, &pipeline), LocalAdmission::Existing);
+                assert!(lower_decoder_runtime_schedule(&plan, &canonical_bytes(&denied)).is_err());
+            }
+        }
+        for graph in [&plan.prefill, &plan.decode] {
+            for executor in [DecoderRuntimeExecutor::RemoteStage, DecoderRuntimeExecutor::ClientLinear,
+                DecoderRuntimeExecutor::VerifiedRemoteStage]
+            {
+                assert!(lower_phase(graph, executor, 0, &BTreeSet::new(), &BTreeSet::new()).is_err());
+            }
+            for op in graph.operations.iter().filter(|op| op.id == "position_lookup"
+                || matches!(op.operator, ModelOperator::LayerNorm | ModelOperator::GeluTanh))
+            {
+                assert!(admitted_local_operator(op, LocalAdmission::Baseline));
+                assert!(!admitted_local_operator(op, LocalAdmission::Existing));
+            }
+        }
+    }
+
+    #[test]
+    fn baseline_position_lookup_rejects_invalid_contracts() {
+        let plan = tiny_absolute_plan();
+        for client_only in [false, true] {
+            let bytes = canonical_bytes(&absolute_composition(client_only));
+            for decode in [false, true] {
+                for (operator, key, value) in [
+                    (ModelOperator::TokenLookup, "index_domain", json!("tokens")),
+                    (ModelOperator::TokenLookup, "index_domain", json!("unknown")),
+                    (ModelOperator::TokenLookup, "position_policy", json!("wrapped")),
+                    (ModelOperator::TokenLookup, "out_of_bounds", json!("clip")),
+                    (ModelOperator::TokenLookup, "weight_shape", Value::Null),
+                    (ModelOperator::TokenLookup, "weight_shape", json!([0, 4])),
+                    (ModelOperator::TokenLookup, "weight_shape", json!([8, 5])),
+                    (ModelOperator::TokenLookup, "compute_dtype", json!("bfloat16")),
+                    (ModelOperator::TokenLookup, "output_dtype", json!("float64")),
+                    (ModelOperator::LayerNorm, "epsilon", json!("NaN")),
+                    (ModelOperator::LayerNorm, "compute_dtype", json!("float64")),
+                    (ModelOperator::LayerNorm, "bias", Value::Null),
+                    (ModelOperator::LayerNorm, "weight_shape", json!([5])),
+                ] {
+                    let mut invalid = plan.clone();
+                    let graph = if decode { &mut invalid.decode } else { &mut invalid.prefill };
+                    let op = graph.operations.iter_mut().find(|op| {
+                        if operator == ModelOperator::TokenLookup { op.id == "position_lookup" }
+                        else { op.operator == operator }
+                    }).unwrap();
+                    op.attributes[key] = value;
+                    assert!(!admitted_local_operator(op, LocalAdmission::Baseline), "{key}");
+                    assert!(lower_decoder_runtime_schedule(&invalid, &bytes).is_err(), "{key}");
+                }
+                let mut invalid = plan.clone();
+                let graph = if decode { &mut invalid.decode } else { &mut invalid.prefill };
+                let position = graph.operations.iter_mut().find(|op| op.id == "position_lookup").unwrap();
+                position.inputs = vec!["input.segments".into()];
+                position.attributes["index_domain"] = json!("segments");
+                assert!(!baseline_position_lookup(position));
+                assert!(lower_decoder_runtime_schedule(&invalid, &bytes).is_err());
+            }
+        }
+    }
 
     #[test]
     fn bounded_text_only_hybrid_decoder_builds_a_semantic_schedule() {
@@ -2750,7 +3117,7 @@ mod numeric_contract_tests {
         assert!(!local_operator(&forged));
     }
 
-    fn grouping_regression_plan(family: &str, tied: bool) -> DecoderPlan {
+    pub(super) fn grouping_regression_plan(family: &str, tied: bool) -> DecoderPlan {
         let mut config = json!({
             "model_type": family, "hidden_size": 8, "intermediate_size": 16,
             "num_hidden_layers": 2, "num_attention_heads": 2, "num_key_value_heads": 1,
@@ -2785,14 +3152,18 @@ mod numeric_contract_tests {
 
     // Frozen reference for the old owned-key B-tree grouping. This is test-only;
     // ordinary runtime and inventory still share exactly one implementation.
-    fn legacy_groups(graph: &DecoderGraph) -> Result<BTreeMap<&str, Vec<&ModelOperation>>, String> {
+    pub(super) fn legacy_groups(graph: &DecoderGraph) -> Result<BTreeMap<&str, Vec<&ModelOperation>>, String> {
         let layers: BTreeSet<_> = graph.operations.iter().filter_map(|op| op.layer).collect();
         if layers.is_empty() || layers.iter().copied().ne(0..layers.len() as u64) {
             return Err("decoder runtime layers must be contiguous from zero".into());
         }
         let mut grouped = BTreeMap::new();
         for op in &graph.operations {
-            if remote_operator(op.operator) {
+            let class = grouping_class(op, |a, b| a == b);
+            if class == GroupingClass::UnsupportedLookup {
+                return Err(RemoteGroupingError::LookupSource.to_string());
+            }
+            if class.remote() {
                 if op
                     .attributes
                     .get("weight")
@@ -2818,7 +3189,7 @@ mod numeric_contract_tests {
         if !graph
             .operations
             .iter()
-            .any(|op| op.operator == ModelOperator::TokenLookup)
+            .any(|op| grouping_class(op, |a, b| a == b) == GroupingClass::TokenBoundary)
             || graph
                 .operations
                 .iter()
@@ -2854,7 +3225,7 @@ mod numeric_contract_tests {
 
     // Original lower_phase's ID-membership dispatch and duplicate-error order,
     // independent of the indexed rows. Fixtures otherwise use valid operators.
-    fn legacy_dispatch_ids(graph: &DecoderGraph) -> Result<Vec<Vec<&str>>, String> {
+    pub(super) fn legacy_dispatch_ids(graph: &DecoderGraph) -> Result<Vec<Vec<&str>>, String> {
         let leaders = legacy_groups(graph)?;
         let remote_members: BTreeSet<_> = leaders
             .values()
@@ -2863,7 +3234,8 @@ mod numeric_contract_tests {
         let mut scheduled = BTreeSet::new();
         let mut steps = Vec::new();
         for op in &graph.operations {
-            let ids = if remote_members.contains(op.id.as_str()) {
+            let ids = if grouping_class(op, |a, b| a == b).aliases_remote_id()
+                && remote_members.contains(op.id.as_str()) {
                 let Some(group) = leaders.get(op.id.as_str()) else {
                     continue;
                 };
@@ -3103,3 +3475,7 @@ mod numeric_contract_tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "decoder_runtime_schedule_gate1_tests.rs"]
+mod gate1_tests;

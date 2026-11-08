@@ -772,6 +772,9 @@ fn operator_name(operator: ModelOperator) -> &'static str {
         ModelOperator::GatedDeltaStateUpdate => "gated_delta_state_update",
         ModelOperator::RmsNormGated => "rms_norm_gated",
         ModelOperator::LayerNorm => "layer_norm",
+        ModelOperator::GeluErf => "gelu_erf",
+        ModelOperator::Tanh => "tanh",
+        ModelOperator::AttentionMask => "attention_mask",
     }
 }
 

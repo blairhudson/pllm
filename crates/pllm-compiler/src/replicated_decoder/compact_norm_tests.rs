@@ -2,6 +2,145 @@
 //! not runtime/full-request admission or production promotion.
 use super::*;
 
+thread_local! {
+    static LOWER_NEXT_FAULT: std::cell::Cell<Option<(bool, bool)>> = const { std::cell::Cell::new(None) };
+    static WALK_HEADER: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static WALK_DESCRIPTOR: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+pub(super) fn pending_walk_header() { WALK_HEADER.with(|n| n.set(n.get() + 1)); }
+pub(super) fn pending_walk_descriptor() { WALK_DESCRIPTOR.with(|n| n.set(n.get() + 1)); }
+
+#[test]
+fn pending_walk_prices_full_extents_unowned_children_and_repeated_censuses() {
+    // Cardinality arithmetic only; these values confer no funding or source
+    // identity. T remains nine even when live GuardRuns coalesce to one.
+    let counts = PendingWalkCounts { ops: 7, tickets: 9, specs: 4, rms: 1,
+        rotary: 3, scale: 2, softmax: 4, runs: 1, argmax: 6 };
+    assert_eq!(counts.positions().unwrap(), 6 * 9 + 3 + 3 * 4);
+    assert_eq!(counts.children().unwrap(), 5 * 7 + 3 + 2 + 4 + 3 + 6);
+    let search = 64 * (1 + 8 * 7 + counts.children().unwrap());
+    let local = 64 * (1 + 9 + 2 * 4 + 2 * 7 + counts.positions().unwrap());
+    assert_eq!(counts.body_visits().unwrap() as usize, local + counts.positions().unwrap() * search);
+    let repeated = (0..12).try_fold(0u64, |sum, _| sum.checked_add(counts.header_visits().unwrap())
+        .and_then(|n| n.checked_add(counts.body_visits().unwrap()))).unwrap();
+    assert_eq!(repeated, 12 * (counts.header_visits().unwrap() + counts.body_visits().unwrap()));
+    assert!(PendingWalkCounts { ops: usize::MAX, ..PendingWalkCounts::default() }.header_visits().is_err());
+    assert!(PendingWalkCounts { tickets: usize::MAX, ..PendingWalkCounts::default() }.body_visits().is_err());
+    // Larger allocated extent increases price even when no additional program
+    // owns flag becomes true. Unowned argument candidates still affect K.
+    let larger = PendingWalkCounts { tickets: 10, argmax: 8, ..counts };
+    assert!(larger.body_visits().unwrap() > counts.body_visits().unwrap());
+}
+
+#[test]
+fn native_owner_search_counts_eight_descriptor_passes_on_miss_and_bounded_hit() {
+    // Existing non-request fixture: iterator mechanics, NOT authentic pending
+    // custody/funding proof. Genuine-request downstream definitions stay ignored.
+    let fixture = Fixture::new(4, 1, false, false);
+    let mut graph = fixture.graph(0);
+    graph.lower_next().unwrap();
+    let target = Arc::as_ptr(graph.owned_native_programs().last().unwrap());
+    let descriptors = graph.ops.len();
+    WALK_DESCRIPTOR.with(|n| n.set(0));
+    assert!(!graph.owned_native_programs().any(|p| std::ptr::eq(p.as_ref(), std::ptr::null())));
+    WALK_DESCRIPTOR.with(|n| assert_eq!(n.get(), 8 * descriptors));
+    WALK_DESCRIPTOR.with(|n| n.set(0));
+    assert!(graph.owned_native_programs().any(|p| std::ptr::eq(p.as_ref(), target)));
+    WALK_DESCRIPTOR.with(|n| assert!(n.get() > 0 && n.get() <= 8 * descriptors));
+    for _ in 0..12 {
+        WALK_DESCRIPTOR.with(|n| n.set(0));
+        assert!(!graph.owned_native_programs().any(|p| std::ptr::eq(p.as_ref(), std::ptr::null())));
+        WALK_DESCRIPTOR.with(|n| assert_eq!(n.get(), 8 * descriptors));
+    }
+}
+
+#[test]
+fn compiler_owner_vectors_count_attempts_cleanup_and_no_native_arc_double_charge() {
+    let rms = compact_validity::request_rms::compiler_events(9, 36).unwrap();
+    assert_eq!(rms.allocation_attempts, 2 * 9 + 4);
+    assert!(rms.cleanup_dispatches > 0);
+    let rotary = compact_rotary::compiler_events(4, 36).unwrap();
+    assert_eq!(rotary.allocation_attempts, 4 * 3 + 3);
+    assert!(compact_rotary::compiler_events(5, 36).unwrap().total().unwrap() > rotary.total().unwrap());
+    assert!(compact_rotary::compiler_events(usize::MAX, usize::MAX).is_err());
+    assert!(compact_validity::request_rms::compiler_events(usize::MAX, usize::MAX).is_err());
+}
+
+// Ordinary fault-injection tests at the live outer boundary. No synthetic source
+// token/ledger/funding witness; non-request fixtures assert graph lifecycle only.
+pub(super) fn lower_next_checkpoint(retirement: bool) -> Result<(), Error> {
+    LOWER_NEXT_FAULT.with(|fault| {
+        if let Some((wanted, unwind)) = fault.get() {
+            if wanted == retirement {
+                fault.set(None);
+                if unwind { panic!("test outer compact lowering unwind"); }
+                return Err(Error::Bounds);
+            }
+        }
+        Ok(())
+    })
+}
+
+#[test]
+fn compact_norm_outer_error_and_unwind_prohibit_graph_reuse_including_retirement() {
+    use std::panic::{catch_unwind, AssertUnwindSafe};
+    for repeat in [false, true] {
+        for retirement in [false, true] {
+            for unwind in [false, true] {
+                let fixture = Fixture::new(4, 1, false, repeat);
+                let mut graph = fixture.graph(0);
+                LOWER_NEXT_FAULT.with(|fault| assert!(fault.replace(Some((retirement, unwind))).is_none()));
+                let result = catch_unwind(AssertUnwindSafe(|| graph.lower_next()));
+                if unwind {
+                    assert!(result.is_err());
+                    assert!(graph.failure_site().is_none());
+                } else {
+                    assert!(matches!(result.unwrap(), Err(Error::Bounds)));
+                    let site = graph.failure_site().unwrap();
+                    assert_eq!(site.step, 0);
+                    assert_eq!(site.operation, "final_norm");
+                    assert_eq!(site.operator, fixture.region.operations[0].operator);
+                    assert_eq!(site.next_virtual_owner, graph.next);
+                }
+                assert!(graph.failed);
+                assert_eq!(graph.ops.len(), usize::from(retirement));
+                assert_eq!(graph.cursor, usize::from(retirement));
+                let cursor = graph.cursor;
+                let work = graph.work_budget();
+                let programs = graph.ops.len();
+                let failure = graph.failure_site().map(|site| (
+                    site.step, site.operation, site.operator, site.input_owners,
+                    site.source_owner, site.next_virtual_owner,
+                ));
+                assert!(matches!(graph.lower_next(), Err(Error::Retired)));
+                assert_eq!(graph.cursor, cursor);
+                assert_eq!(graph.ops.len(), programs);
+                assert_eq!(graph.work_budget(), work);
+                assert!(graph.failed);
+                assert_eq!(graph.failure_site().map(|site| (
+                    site.step, site.operation, site.operator, site.input_owners,
+                    site.source_owner, site.next_virtual_owner,
+                )), failure);
+                LOWER_NEXT_FAULT.with(|fault| assert!(fault.get().is_none()));
+            }
+        }
+    }
+}
+
+#[test]
+fn compact_norm_exhausted_sequence_has_no_failure_site() {
+    let fixture = Fixture::new(4, 1, false, false);
+    let mut graph = fixture.graph(0);
+    graph.lower_next().unwrap();
+    assert_eq!(graph.cursor, 1);
+    assert!(graph.lower_next().is_err());
+    assert!(graph.failed);
+    assert!(graph.failure_site().is_none());
+    assert!(matches!(graph.lower_next(), Err(Error::Retired)));
+    assert!(graph.failure_site().is_none());
+}
+
 struct Fixture {
     full: DecoderGraph,
     region: DecoderGraph,
@@ -339,6 +478,69 @@ fn compact_norm_existing_native_row_energy_is_the_only_refinement_for_later_norm
         graph.work_budget(),
         schedule_work(&expanded.nodes[first..]).unwrap()
     );
+}
+
+#[test]
+fn compact_norm_alias_order_rejects_transpose_and_accepts_inverse() {
+    let mut fixture = Fixture::new(4, 3, false, false);
+    let mut transpose = fixture.region.operations[0].clone();
+    transpose.id = "final_norm.heads".into();
+    transpose.operator = Op::Reshape;
+    transpose.layer = None;
+    transpose.state_kind = None;
+    transpose.inputs = vec![fixture.region.operations[0].id.clone()];
+    transpose.output_shape = vec![1, 2, 3, 2];
+    transpose.attributes = serde_json::json!({"layout": "batch_heads_sequence_feature"});
+    let mut inverse = transpose.clone();
+    inverse.id = "final_norm.inverse".into();
+    inverse.inputs = vec![transpose.id.clone()];
+    inverse.output_shape = vec![1, 3, 4];
+    inverse.attributes = serde_json::json!({"layout": "batch_sequence_hidden"});
+    fixture.region.output = inverse.id.clone();
+    fixture.region.operations.extend([transpose, inverse]);
+
+    let mut graph = fixture.graph(0);
+    let rms = graph.lower_next().unwrap();
+    let PublishedKind::RmsNorm { output_energy, .. } = &graph.ops[0].kind else {
+        panic!("native RMSNorm")
+    };
+    let energy = *output_energy;
+    assert_eq!(rms.lanes(), 12);
+    assert_eq!(graph.row_norm(&rms).unwrap(), Some(energy));
+    // Native RMS energy is retained, not a source ProjectionRow certificate.
+    assert!(graph.complete_row(&rms, 0).unwrap().is_none());
+    let next = graph.next;
+    let work = graph.work_budget();
+
+    let transpose = graph.lower_next().unwrap();
+    assert_eq!(transpose.lanes(), 12);
+    // Independent [sequence, head, feature] -> [head, sequence, feature]
+    // permutation: hidden width four is two heads of two features each.
+    let expected = [0, 1, 4, 5, 8, 9, 2, 3, 6, 7, 10, 11];
+    for (index, original) in expected.into_iter().enumerate() {
+        assert_eq!(transpose.word(index).unwrap(), rms.word(original).unwrap());
+    }
+    assert_eq!(transpose.word(2).unwrap(), rms.word(4).unwrap());
+    assert_ne!(transpose.word(2).unwrap(), rms.word(2).unwrap());
+    assert!(graph.alias_range(&transpose, 0, 12).unwrap().is_none());
+    assert_eq!(graph.row_norm(&transpose).unwrap(), None);
+
+    let inverse = graph.lower_next().unwrap();
+    assert_eq!(inverse.lanes(), 12);
+    for index in 0..12 {
+        assert_eq!(inverse.word(index).unwrap(), rms.word(index).unwrap());
+    }
+    let (original, offset) = graph.alias_range(&inverse, 0, 12).unwrap().unwrap();
+    assert_eq!(original.slot, rms.slot);
+    assert_eq!(original.slot, Some(0));
+    assert_eq!(offset, 0);
+    assert_eq!(graph.row_norm(&inverse).unwrap(), Some(energy));
+    // Unchanged interval metadata alone does not establish ordered row custody.
+    // These are symbolic owner/lane identities, not evaluated numeric values.
+    assert_eq!(transpose.bounds, rms.bounds);
+    assert_eq!(inverse.bounds, rms.bounds);
+    assert_eq!(graph.next, next);
+    assert_eq!(graph.work_budget(), work);
 }
 
 #[test]

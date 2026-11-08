@@ -13,8 +13,12 @@ use pllm_garble::{
 use sha2::{Digest, Sha256};
 use zeroize::{Zeroize, Zeroizing};
 
-#[path = "resource_quote.rs"]
-mod resource_quote;
+use super::resource_quote;
+
+fn quote_failure(error: Error) -> AdmissionFailure<Error> {
+    AdmissionFailure::from(error).with_context_if_absent(
+        AdmissionContext::new(AdmissionStage::ResourceQuote, AdmissionGate::ResourceAccounting))
+}
 
 /// External, role-local native executor. Implementations must return exactly one
 /// party's Plan output, drive consuming Runtime through externally supplied fresh
@@ -252,6 +256,80 @@ impl<'p> Worker<'p> {
 }
 
 pub(super) fn preflight(program: &mut Program) -> Result<(), Error> {
+    preflight_context(program).map_err(|failure| failure.error)
+}
+
+pub(super) fn preflight_context(program: &mut Program) -> Result<(), AdmissionFailure<Error>> {
+    preflight_body(program).map_err(|failure| failure.with_context_if_absent(
+        AdmissionContext::new(AdmissionStage::RuntimePreflight, AdmissionGate::ProgramConstruction)))
+}
+
+/// Descriptive totals only: no Program, obligations digest, or executable owner.
+/// Frame bytes are peer frames, NOT material packets. Material-wire geometry is
+/// unsupported here: obtaining it would require additional per-step visits.
+#[derive(Debug)]
+pub(super) struct Diagnostic {
+    /// Raw checked counters, not a coherent completed-kernel prefix on Partial:
+    /// a mid-update overflow can leave fields at different points in one kernel.
+    pub resources: Resources,
+    pub first_material: Option<AdmissionContext>,
+    pub first_material_selection: Option<usize>,
+    pub first_frame_refusal: Option<AdmissionContext>,
+    pub first_frame_selection: Option<usize>,
+    pub extent: DiagnosticExtent,
+    pub selection: usize,
+    pub node: usize,
+    pub material_wire_bytes: Option<usize>,
+}
+
+#[derive(Debug)]
+pub(super) enum DiagnosticExtent {
+    // The descriptive walk finished despite observed material/opt-in frame refusals.
+    // This is not admitted execution, trained fit, or funding authority.
+    Complete,
+    // Raw attempted accounting: committed mutations remain without rollback.
+    // Fields may reflect different progress within the failed kernel, including
+    // a material increment committed before a later frame-addition overflow.
+    Partial(AdmissionFailure<Error>),
+}
+
+pub(super) fn diagnose(program: &Program, observe_peer_frames: bool) -> Diagnostic {
+    let mut diagnostic = Diagnostic {
+        resources: program.resources, first_material: None, first_material_selection: None,
+        first_frame_refusal: None, first_frame_selection: None,
+        extent: DiagnosticExtent::Complete, selection: 0, node: 0,
+        material_wire_bytes: None,
+    };
+    let result = (|| -> Result<(), AdmissionFailure<Error>> {
+        let context = Context { plan: program.digest, session: [1; 32],
+            operation: [2; 32], first_tensor_index: 0 };
+        let budget = request_budget(program)?;
+        let tables = request_tables(program, &budget)?;
+        let mut state = Schedule::new(program, context, 0, None, &tables)?;
+        // No Driver or visitor is accepted by this API. This flag cannot be set
+        // by execution entrypoints, and no Program is mutated or returned.
+        state.observed_material = Some(None);
+        if observe_peer_frames { state.observed_frames = Some(None); }
+        let input = Zeroizing::new(zeros(program.initial)?);
+        let result = state.execute_context(&input);
+        diagnostic.resources = state.resources;
+        diagnostic.first_material = state.observed_material.flatten();
+        diagnostic.first_material_selection = state.observed_material_selection;
+        diagnostic.first_frame_refusal = state.observed_frames.flatten();
+        diagnostic.first_frame_selection = state.observed_frame_selection;
+        diagnostic.selection = state.selection;
+        diagnostic.node = state.node;
+        drop(result?);
+        Ok(())
+    })();
+    if let Err(failure) = result {
+        diagnostic.extent = DiagnosticExtent::Partial(failure.with_context_if_absent(
+            AdmissionContext::new(AdmissionStage::RuntimePreflight, AdmissionGate::ProgramConstruction)));
+    }
+    diagnostic
+}
+
+fn preflight_body(program: &mut Program) -> Result<(), AdmissionFailure<Error>> {
     let context = Context {
         plan: program.digest,
         session: [1; 32],
@@ -264,7 +342,7 @@ pub(super) fn preflight(program: &mut Program) -> Result<(), Error> {
     let input = Zeroizing::new(zeros(program.initial)?);
     // This walk has only zero placeholders, no Driver, and no material visitor.
     // Diagnostics belong here, never on the live private execution path.
-    let admitted = state.execute(&input);
+    let admitted = state.execute_context(&input);
     if let Err(error) = &admitted {
         if std::env::var_os("PLLM_FSS_ADMISSION_DEBUG").is_some() {
             eprintln!(
@@ -428,6 +506,11 @@ struct Schedule<'a, 'd, 'c, 'b> {
     selection: usize,
     node: usize,
     validity: Zeroizing<u64>,
+    observed_material: Option<Option<AdmissionContext>>,
+    observed_material_selection: Option<usize>,
+    // Fixed stack scalars only; no new retained allocation or transport owner.
+    observed_frames: Option<Option<AdmissionContext>>,
+    observed_frame_selection: Option<usize>,
 }
 impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
     fn new(
@@ -461,6 +544,10 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             selection: 0,
             node: 0,
             validity: Zeroizing::new(u64::from(role == 0)),
+            observed_material: None,
+            observed_material_selection: None,
+            observed_frames: None,
+            observed_frame_selection: None,
         })
     }
     fn cancel(&mut self) {
@@ -494,6 +581,8 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         }
         Ok(())
     }
+    // Compatibility surface for existing accounting controls. Same body once.
+    #[cfg(test)]
     fn run(
         &mut self,
         plan: &Plan<'_>,
@@ -501,25 +590,36 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         outputs: usize,
         cached_tables: bool,
     ) -> Result<Zeroizing<Vec<u64>>, Error> {
+        self.run_context(plan, input, outputs, cached_tables).map_err(|failure| failure.error)
+    }
+
+    fn run_context(
+        &mut self,
+        plan: &Plan<'_>,
+        input: &[u64],
+        outputs: usize,
+        cached_tables: bool,
+    ) -> Result<Zeroizing<Vec<u64>>, AdmissionFailure<Error>> {
         if input.len() != plan.input_bits().len() || input.iter().any(|&v| v > MASK) {
-            return Err(Error::Domain);
+            return Err(Error::Domain.into());
         }
         for i in 0..outputs {
             if plan.output_is_xor(i)? || plan.output_bits(i)? != 50 {
-                return Err(Error::Domain);
+                return Err(Error::Domain.into());
             }
         }
         if plan.output_bits(outputs).is_ok() {
-            return Err(Error::Domain);
+            return Err(Error::Domain.into());
         }
         let r = plan.resources();
         let wave = if self.program.online.uses_wavefront() && !plan.is_atomic_vector() {
             let backing_work = resource_quote::Quote::wave_backing(
                 &mut self.resources, self.program.limits, plan,
-            )?;
+            ).map_err(quote_failure)?;
             #[cfg(test)]
             wave_constructor_probe::enter()?;
-            let schedule = wavefront::Schedule::new(plan)?;
+            let schedule = wavefront::Schedule::new(plan)
+                .map_err(|error| self.construction_failure(error))?;
             self.hash.update(schedule.digest());
             Some((schedule.resources(), backing_work))
         } else {
@@ -528,7 +628,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         let mut quote = resource_quote::Quote::begin(
             &mut self.resources, self.program.limits, self.program.capacity(),
             r, wave, input.len(), cached_tables,
-        )?;
+        ).map_err(quote_failure)?;
         let tables = self.tables.stats();
         let delta = |now: usize, before: usize| now.checked_sub(before).ok_or(Error::Context);
         let references = delta(tables.references, self.accounted_tables.references)?;
@@ -545,12 +645,12 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         .checked_mul(3)
         .ok_or(Error::Resource)?;
         if !cached_tables && references != 0 {
-            return Err(Error::Context);
+            return Err(Error::Context.into());
         }
         if cached_tables && (references == 0 || r.public_table_reservation_bytes == 0) {
-            return Err(Error::Context);
+            return Err(Error::Context.into());
         }
-        quote.tables(tables, references, misses, retained, copied, lowered_metadata)?;
+        quote.tables(tables, references, misses, retained, copied, lowered_metadata).map_err(quote_failure)?;
         for count in [
             tables.references,
             tables.hits,
@@ -570,7 +670,27 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             self.hash.update((count as u64).to_le_bytes());
         }
         self.accounted_tables = tables;
-        quote.finish(tables)?;
+        let finished = match self.observed_material.as_mut() {
+            Some(first) => quote.finish_observing_options(tables, first, self.observed_frames.as_mut()),
+            None => quote.finish_context(tables),
+        };
+        if let Some(Some(context)) = self.observed_material.as_mut() {
+            context.node.get_or_insert(self.node);
+            context.kernel.get_or_insert(self.resources.kernels);
+            self.observed_material_selection.get_or_insert(self.selection);
+        }
+        if let Some(Some(context)) = self.observed_frames.as_mut() {
+            context.node.get_or_insert(self.node);
+            context.kernel.get_or_insert(self.resources.kernels);
+            self.observed_frame_selection.get_or_insert(self.selection);
+        }
+        finished.map_err(|mut failure| {
+            if let Some(context) = &mut failure.context {
+                context.node.get_or_insert(self.node);
+                context.kernel.get_or_insert(self.resources.kernels);
+            }
+            failure
+        })?;
         self.hash.update((self.selection as u64).to_le_bytes());
         self.hash.update((self.node as u64).to_le_bytes());
         self.hash.update(plan.digest());
@@ -597,12 +717,13 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             Zeroizing::new(zeros(outputs)?)
         };
         if out.len() != outputs || out.capacity() != out.len() || out.iter().any(|&v| v > MASK) {
-            return Err(Error::Domain);
+            return Err(Error::Domain.into());
         }
         Ok(out)
     }
     // Every short-lived Plan borrows the external request Budget. The immutable
     // cache survives across kernels; only table owners, never material, persist.
+    #[cfg(test)]
     fn kernel<F>(
         &mut self,
         input: &[u64],
@@ -612,36 +733,56 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
     where
         F: for<'kernel> FnOnce(&'kernel Budget) -> Result<Plan<'kernel>, Error>,
     {
-        let plan = build(self.tables.budget())?;
+        self.kernel_context(input, outputs, build).map_err(|failure| failure.error)
+    }
+
+    fn construction_failure(&self, error: Error) -> AdmissionFailure<Error> {
+        let mut context = AdmissionContext::new(AdmissionStage::RuntimePreflight, AdmissionGate::KernelConstruction);
+        context.node = Some(self.node);
+        // Constructor has not admitted another invocation. Do not invent its
+        // index, gate, quantities, or a post-unwind Budget usage snapshot.
+        AdmissionFailure::from(error).with_context_if_absent(context)
+    }
+
+    fn kernel_context<F>(
+        &mut self,
+        input: &[u64],
+        outputs: usize,
+        build: F,
+    ) -> Result<Zeroizing<Vec<u64>>, AdmissionFailure<Error>>
+    where
+        F: for<'kernel> FnOnce(&'kernel Budget) -> Result<Plan<'kernel>, Error>,
+    {
+        let plan = build(self.tables.budget()).map_err(|error| self.construction_failure(error))?;
         let plan = if self.program.online == OnlineSchedule::TensorV1
             && !plan.is_atomic_vector()
             && !plan.is_tensor()
         {
-            plan.repeat_tensor(1)?
+            plan.repeat_tensor(1).map_err(|error| self.construction_failure(error))?
         } else {
             plan
         };
-        self.run(&plan, input, outputs, false)
+        self.run_context(&plan, input, outputs, false)
     }
     fn cached_kernel<F>(
         &mut self,
         input: &[u64],
         outputs: usize,
         build: F,
-    ) -> Result<Zeroizing<Vec<u64>>, Error>
+    ) -> Result<Zeroizing<Vec<u64>>, AdmissionFailure<Error>>
     where
         F: FnOnce(&SourceTableCache<'b>) -> Result<Plan<'b>, Error>,
     {
-        let plan = build(self.tables)?;
+        let plan = build(self.tables).map_err(|error| self.construction_failure(error))?;
         let plan = if self.program.online == OnlineSchedule::TensorV1
             && !plan.is_atomic_vector()
             && !plan.is_tensor()
         {
-            plan.repeat_tensor(1)?
+            plan.repeat_tensor(1).map_err(|error| self.construction_failure(error))?
         } else {
             plan
         };
-        self.run(&plan, input, outputs, true)
+        self.run_context(&plan, input, outputs, true)
     }
 
     fn lanes<F, I, O>(
@@ -651,7 +792,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         mut build: F,
         mut gather: I,
         mut store: O,
-    ) -> Result<(), Error>
+    ) -> Result<(), AdmissionFailure<Error>>
     where
         F: FnMut(&SourceTableCache<'b>) -> Result<Plan<'b>, Error>,
         I: FnMut(usize, &mut Vec<u64>) -> Result<(), Error>,
@@ -659,24 +800,25 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
     {
         let mut start = 0;
         while start < count {
-            let template = build(self.tables)?;
+            let template = build(self.tables).map_err(|error| self.construction_failure(error))?;
             let inputs = template.input_bits().len();
             let outputs = template.output_count();
             let lanes = (count - start)
                 .min(self.program.online.lane_bound(&template))
                 .min(MAX_VALUES / outputs);
             if lanes == 0 {
-                return Err(Error::Resource);
+                return Err(Error::Resource.into());
             }
-            let plan = self.program.online.repeat(template, lanes)?;
+            let plan = self.program.online.repeat(template, lanes)
+                .map_err(|error| self.construction_failure(error))?;
             let mut values = Zeroizing::new(vector(inputs * lanes)?);
             for lane in 0..lanes {
                 gather(start + lane, &mut values)?;
                 if values.len() != (lane + 1) * inputs {
-                    return Err(Error::Context);
+                    return Err(Error::Context.into());
                 }
             }
-            let result = self.run(&plan, &values, outputs * lanes, cached)?;
+            let result = self.run_context(&plan, &values, outputs * lanes, cached)?;
             for lane in 0..lanes {
                 store(start + lane, &result[lane * outputs..(lane + 1) * outputs])?;
             }
@@ -685,7 +827,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         Ok(())
     }
 
-    fn floor_values(&mut self, values: &mut [u64], range: Range) -> Result<(), Error> {
+    fn floor_values(&mut self, values: &mut [u64], range: Range) -> Result<(), AdmissionFailure<Error>> {
         let binding = self.binding();
         let online = self.program.online;
         let chunk_size = if online == OnlineSchedule::TensorV1 {
@@ -697,7 +839,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             let mut inputs = Zeroizing::new(vector(chunk.len())?);
             inputs.extend(chunk.iter().map(|&v| v & MASK));
             let n = chunk.len();
-            let output = self.kernel(&inputs, n, |b| {
+            let output = self.kernel_context(&inputs, n, |b| {
                 online.repeat(kernels::floor(binding, range.gate(), 12, b)?.0, n)
             })?;
             chunk.copy_from_slice(&output);
@@ -713,7 +855,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         b: Range,
         gather: I,
         store: O,
-    ) -> Result<(), Error>
+    ) -> Result<(), AdmissionFailure<Error>>
     where
         I: FnMut(usize, &mut Vec<u64>) -> Result<(), Error>,
         O: FnMut(usize, &[u64]) -> Result<(), Error>,
@@ -723,7 +865,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         let binding = self.binding();
         let proof = self.program.dot_proof(self.node)?;
         if proof.is_some_and(|p| p.inner != inner) {
-            return Err(Error::Context);
+            return Err(Error::Context.into());
         }
         self.lanes(
             count,
@@ -750,7 +892,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         )
     }
 
-    fn tree_argmax(&mut self, values: &[u64], range: Range) -> Result<u64, Error> {
+    fn tree_argmax(&mut self, values: &[u64], range: Range) -> Result<u64, AdmissionFailure<Error>> {
         if values.len() == 1 {
             return Ok(0);
         }
@@ -795,11 +937,13 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             let nodes = frontier.len() / 2;
             let mut pair = 0;
             while pair < nodes / 2 {
-                let template = select(binding, [range.gate(); 2], ids, self.tables.budget())?.0;
+                let template = select(binding, [range.gate(); 2], ids, self.tables.budget())
+                    .map_err(|error| self.construction_failure(error))?.0;
                 let count = (nodes / 2 - pair).min(self.program.online.lane_bound(&template));
-                let plan = self.program.online.repeat(template, count)?;
+                let plan = self.program.online.repeat(template, count)
+                    .map_err(|error| self.construction_failure(error))?;
                 let input = Zeroizing::new(copied(&frontier[4 * pair..4 * (pair + count)])?);
-                let output = self.run(&plan, &input, 2 * count, false)?;
+                let output = self.run_context(&plan, &input, 2 * count, false)?;
                 frontier[2 * pair..2 * (pair + count)].copy_from_slice(&output);
                 pair += count;
             }
@@ -818,7 +962,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         range: Range,
         weights: &[i64],
         bias: i64,
-    ) -> Result<u64, Error> {
+    ) -> Result<u64, AdmissionFailure<Error>> {
         // Each role gathers one public coefficient row while the immutable
         // checkpoint owner remains live. Account cumulative copies as well as
         // the already-reserved bounded gather workspace.
@@ -827,7 +971,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         let lo = *weights.iter().min().ok_or(Error::Domain)?;
         let hi = *weights.iter().max().ok_or(Error::Domain)?;
         let binding = self.binding();
-        let out = self.kernel(x, 1, |b| {
+        let out = self.kernel_context(x, 1, |b| {
             Ok(kernels::public_dot(
                 binding,
                 &rs,
@@ -846,7 +990,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         right: &[u64],
         a: Range,
         b: Range,
-    ) -> Result<u64, Error> {
+    ) -> Result<u64, AdmissionFailure<Error>> {
         let lr = ranges(left.len(), a)?;
         let rr = ranges(right.len(), b)?;
         let mut input = Zeroizing::new(vector(left.len() + right.len())?);
@@ -855,9 +999,9 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         let binding = self.binding();
         let proof = self.program.dot_proof(self.node)?;
         if proof.is_some_and(|proof| proof.inner != left.len() || left.len() != right.len()) {
-            return Err(Error::Context);
+            return Err(Error::Context.into());
         }
-        Ok(self.kernel(&input, 1, |budget| {
+        Ok(self.kernel_context(&input, 1, |budget| {
             if let Some(proof) = proof {
                 let (plan, metadata) = kernels::private_dot_with_row_energy(
                     binding,
@@ -876,11 +1020,15 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         })?[0])
     }
     fn execute(&mut self, input: &[u64]) -> Result<Zeroizing<Vec<u64>>, Error> {
+        self.execute_context(input).map_err(|failure| failure.error)
+    }
+
+    fn execute_context(&mut self, input: &[u64]) -> Result<Zeroizing<Vec<u64>>, AdmissionFailure<Error>> {
         let p = self.program;
         let geometry = pllm_models::DecoderPlan::validated_phase_geometry(p.initial, p.selections)
             .ok_or(Error::Domain)?;
         if geometry.padded_rows() != p.sequence {
-            return Err(Error::Domain);
+            return Err(Error::Domain.into());
         }
         let mut tokens = Zeroizing::new(zeros(p.sequence)?);
         tokens[..p.initial].copy_from_slice(input);
@@ -892,9 +1040,13 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             arrays.resize_with(p.nodes.len(), || None);
             for (index, node) in p.nodes.iter().enumerate() {
                 self.node = index;
-                let values = self.node(node, &arrays, &tokens, prefix)?;
+                let values = self.node_context(node, &arrays, &tokens, prefix).map_err(|failure| {
+                    let mut context = AdmissionContext::new(AdmissionStage::RuntimePreflight, AdmissionGate::ProgramConstruction);
+                    context.node = Some(index);
+                    failure.with_context_if_absent(context)
+                })?;
                 if values.len() != graph_elements(p.capacity(), &node.shape)? {
-                    return Err(Error::Domain);
+                    return Err(Error::Domain.into());
                 }
                 #[cfg(test)]
                 if let Some(driver) = self.driver.as_mut() {
@@ -927,13 +1079,14 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             input.push(*self.validity);
             let rs = ranges(finals.len(), Range::new(0, p.vocabulary as i128 - 1)?)?;
             let binding = self.binding();
-            let masked = self.kernel(&input, finals.len(), |budget| {
+            let masked = self.kernel_context(&input, finals.len(), |budget| {
                 Ok(kernels::mask_by_validity(binding, &rs, budget)?.0)
             })?;
             finals.copy_from_slice(&masked);
         }
         Ok(finals)
     }
+    #[cfg(test)]
     fn node(
         &mut self,
         node: &Node,
@@ -941,6 +1094,16 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         tokens: &[u64],
         prefix: usize,
     ) -> Result<Zeroizing<Vec<u64>>, Error> {
+        self.node_context(node, arrays, tokens, prefix).map_err(|failure| failure.error)
+    }
+
+    fn node_context(
+        &mut self,
+        node: &Node,
+        arrays: &[Option<Zeroizing<Vec<u64>>>],
+        tokens: &[u64],
+        prefix: usize,
+    ) -> Result<Zeroizing<Vec<u64>>, AdmissionFailure<Error>> {
         let p = self.program;
         let t = p.sequence;
         let get = |i: usize| -> Result<&[u64], Error> {
@@ -1010,7 +1173,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                                 // single-row schedule; no key/material reuse.
                                 let token = start + i;
                                 let hot =
-                                    self.kernel(&tokens[token..token + 1], rows, |budget| {
+                                    self.kernel_context(&tokens[token..token + 1], rows, |budget| {
                                         Ok(kernels::compact_token_one_hot(
                                             binding, id_range, rows, budget,
                                         )?
@@ -1039,7 +1202,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                         self.local(t.checked_mul(rows).ok_or(Error::Resource)?)?;
                     } else {
                         for i in 0..t {
-                            let hot = self.kernel(&tokens[i..i + 1], rows, |budget| {
+                            let hot = self.kernel_context(&tokens[i..i + 1], rows, |budget| {
                                 Ok(if p.capacity() == Capacity::Decoder {
                                     kernels::compact_token_one_hot(binding, id_range, rows, budget)?
                                         .0
@@ -1078,7 +1241,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                     let mut raw_range: Option<Range> = None;
                     if let Some(file) = w.fixed_file() {
                         if input_output {
-                            return Err(Error::Unsupported);
+                            return Err(Error::Unsupported.into());
                         }
                         self.public_copy(checked_add(
                             w.len().checked_mul(16).ok_or(Error::Resource)?,
@@ -1152,7 +1315,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                     if input_output {
                         // Stored row certificates must never be treated as
                         // certificates for the transposed contraction columns.
-                        return Err(Error::Unsupported);
+                        return Err(Error::Unsupported.into());
                     }
                     // One coefficient scan per holder serves ALL input rows.
                     // One immutable certificate per output column serves all
@@ -1192,7 +1355,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                         for row in 0..x.len() / inner {
                             let index = row * columns + col;
                             let raw = [out[index] & MASK];
-                            let value = self.kernel(&raw, 1, |budget| {
+                            let value = self.kernel_context(&raw, 1, |budget| {
                                 Ok(kernels::floor(binding, raw_range.gate(), 12, budget)?.0)
                             })?[0];
                             out[index] =
@@ -1285,7 +1448,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                         let binding = self.binding();
                         let rs = ranges(width, original_range)?;
                         let values =
-                            self.kernel(&x[row * width..(row + 1) * width], width + 1, |budget| {
+                            self.kernel_context(&x[row * width..(row + 1) * width], width + 1, |budget| {
                                 let check = if p.online.uses_wavefront() {
                                     kernels::checked_range_balanced
                                 } else {
@@ -1301,7 +1464,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                                 .0)
                             })?;
                         let pair = Zeroizing::new([*self.validity, values[width]]);
-                        let combined = self.kernel(&pair[..], 1, |budget| {
+                        let combined = self.kernel_context(&pair[..], 1, |budget| {
                             Ok(kernels::validity_and(binding, budget)?.0)
                         })?;
                         *self.validity = combined[0];
@@ -1407,7 +1570,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                             Ok(gates::silu_cached(range, tables)?.0)
                         })?
                     } else {
-                        self.kernel(&x[i..i + 1], 1, |budget| {
+                        self.kernel_context(&x[i..i + 1], 1, |budget| {
                             Ok(kernels::gelu(binding, range, budget)?.0)
                         })?
                     }[0];
@@ -1498,7 +1661,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                             let pair = Zeroizing::new([x[i], x[j]]);
                             let cosine = r.cos[s * d + c];
                             let sine = r.sin[s * d + c];
-                            let y = self.kernel(&pair[..], 2, |budget| {
+                            let y = self.kernel_context(&pair[..], 2, |budget| {
                                 Ok(kernels::rope(
                                     binding,
                                     [original.gate(); 2],
@@ -1707,7 +1870,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                             value,
                             if self.role == 0 { index as u64 } else { 0 },
                         ]);
-                        let selected = self.kernel(input.as_slice(), 2, |budget| {
+                        let selected = self.kernel_context(input.as_slice(), 2, |budget| {
                             Ok(kernels::stable_max(binding, [range; 2], ids, budget)?.0)
                         })?;
                         winner.copy_from_slice(&selected);
@@ -1716,7 +1879,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                 } else {
                     let rs = ranges(x.len(), p.nodes[input].range)?;
                     out[0] = self
-                        .kernel(x, 1, |budget| Ok(kernels::argmax(binding, &rs, budget)?.0))?[0];
+                        .kernel_context(x, 1, |budget| Ok(kernels::argmax(binding, &rs, budget)?.0))?[0];
                 }
             }
         }
@@ -1735,3 +1898,7 @@ mod table_cache_tests;
 #[cfg(test)]
 #[path = "runtime_accounting_tests.rs"]
 mod runtime_accounting_tests;
+
+#[cfg(test)]
+#[path = "runtime_admission_context_tests.rs"]
+mod admission_context_tests;

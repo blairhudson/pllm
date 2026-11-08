@@ -17,6 +17,14 @@
 //! cross-prefix checked/sticky exports remain closed.
 //! No compact runtime or complete-request admission is constructed here.
 use super::*;
+pub(super) use crate::replicated_decoder::program::request_origin::compact_storage::ControllerAccounting;
+use pllm_garble::shared_allocation::OwnedExternalCharge;
+
+// Inactive arithmetic-only admission ingredient; traversal/publication inventory
+// is deliberately not inferred from this fixed helper frame.
+#[allow(dead_code)]
+#[path = "compact_row_energy_admission.rs"]
+mod row_energy_admission;
 
 #[path = "compact_norm.rs"]
 mod compact_norm;
@@ -793,10 +801,10 @@ impl ProjectionBias<'_> {
     }
 }
 
-enum PublishedKind<'a> {
-    AttentionValues(compact_attention_values::Values<'a>),
+enum PublishedKind<'a, G: ControllerAccounting = OwnedExternalCharge> {
+    AttentionValues(compact_attention_values::Values<'a, G>),
     CausalMask,
-    AttentionSoftmax(compact_attention_softmax::Rows<'a>),
+    AttentionSoftmax(compact_attention_softmax::Rows<'a, G>),
     AttentionScale(Arc<attention_scale::Rows>),
     AttentionScores(compact_attention_scores::Scores),
     CacheSuffix,
@@ -873,11 +881,11 @@ impl SoftmaxPredecessor {
     }
 }
 
-struct PublishedOp<'a> {
+struct PublishedOp<'a, G: ControllerAccounting = OwnedExternalCharge> {
     first: usize,
     input: PublishedView,
     output: PublishedView,
-    kind: PublishedKind<'a>,
+    kind: PublishedKind<'a, G>,
     prepared: Option<MapOwner>,
 }
 
@@ -941,9 +949,9 @@ pub(in crate::replicated_decoder) enum PhysicalLaneOrder {
     },
 }
 
-impl<'a> CompactGraph<'a, 'a> {
+impl<'a, G: ControllerAccounting> CompactGraph<'a, 'a, G> {
     pub(in crate::replicated_decoder::program) fn from_pending_history(
-        history: &'a request_origin::compact_storage::compact_history::PendingCompactHistory<'a>,
+        history: &'a request_origin::compact_storage::compact_history::PendingCompactHistory<'a, G>,
     ) -> Result<Self, Error> {
         let (imports, context, previous) = history.checked_graph_parts()?;
         let mut graph = Self::from_source_request(imports, context, context.program_cap())?;
@@ -968,7 +976,7 @@ impl<'a> CompactGraph<'a, 'a> {
         &self,
     ) -> Result<impl Sized + 'a, Error> {
         let context = self.request_admission.ok_or(Error::Binding)?;
-        let bytes = std::mem::size_of::<compact_attention_softmax::RowView<'_>>();
+        let bytes = std::mem::size_of::<compact_attention_softmax::RowView<'_, G>>();
         context.admit_phase(bytes, 0)?;
         context.retain(bytes)?;
         self.ops
@@ -984,7 +992,7 @@ impl<'a> CompactGraph<'a, 'a> {
     /// supplies the initial import, exact source registry and native admission.
     pub(in crate::replicated_decoder::program) fn from_source_request(
         imports: &'a Builder,
-        context: &'a request_origin::compact_storage::EmissionContext<'a>,
+        context: &'a request_origin::compact_storage::EmissionContext<'a, G>,
         cap: usize,
     ) -> Result<Self, Error> {
         let mut attempt = context.attempt();
@@ -1149,7 +1157,7 @@ pub(in crate::replicated_decoder) struct DescriptorCensus {
     pub output: PhysicalView,
 }
 
-impl PublishedOp<'_> {
+impl<G: ControllerAccounting> PublishedOp<'_, G> {
     // Shared immutable recipe view: freezing changes ownership, not publication.
     fn descriptor_census(&self, virtual_end: usize) -> DescriptorCensus {
         DescriptorCensus {
@@ -1363,14 +1371,14 @@ pub(super) struct ProjectionRow<'a> {
 /// a conservative actual imports-Builder baseline. Borrowed semantic graph and
 /// manifest backing, authenticated files, runtime values/slots/frames/exports and
 /// execution scratch remain EXCLUDED. This is not D26 whole-owner admission.
-pub(in crate::replicated_decoder) struct CompactGraph<'g, 'a> {
+pub(in crate::replicated_decoder) struct CompactGraph<'g, 'a, G: ControllerAccounting = OwnedExternalCharge> {
     imports: &'a Builder,
     sources: &'a BTreeMap<String, SourceTensor>,
     norms: &'a SourceNorms,
     binding: [u8; 32],
     frontier: graph::OrderedGraph<'g, PublishedView>,
     frontier_bytes: usize,
-    ops: Vec<PublishedOp<'a>>,
+    ops: Vec<PublishedOp<'a, G>>,
     bound_imports: Vec<BoundImport<'g>>,
     origin: Arc<()>,
     next: usize,
@@ -1378,12 +1386,16 @@ pub(in crate::replicated_decoder) struct CompactGraph<'g, 'a> {
     work: WorkBudget,
     limit: usize,
     outside_owner_bytes: usize,
-    request_admission: Option<&'a request_origin::compact_storage::EmissionContext<'a>>,
+    request_admission: Option<&'a request_origin::compact_storage::EmissionContext<'a, G>>,
     request_prelude: Option<request_origin::compact_storage::Prelude>,
     previous_epoch: Option<&'a frozen_region::owning::OwnedEpoch>,
     prebound_inputs: Option<input_owner::InputOwner<'a>>,
     validity: compact_validity::RequestValidity<'a>,
     contraction_control_bytes: std::cell::Cell<usize>,
+    // Installed before ticket/run/native backing. Errors and unwind retain it;
+    // only successful outer retirement may destroy the pending owners.
+    rms_pending: std::cell::RefCell<Option<compact_validity::request_rms::Tickets<'a>>>,
+    rotary_pending: std::cell::RefCell<Option<compact_rotary::Pending<'a>>>,
     construction_peak: std::cell::Cell<usize>,
     // Same historical arms, excluding only explicitly charged original source
     // subowners (RMSNorm's borrowed gamma). Imports/outside/frontier/recipes and
@@ -1480,6 +1492,7 @@ fn pending_contraction_work(
     let mut work = WorkBudget::default();
     for op in semantic.operations.get(start..).ok_or(Error::Binding)? {
         let pending = match op.operator {
+            Op::GeluErf | Op::Tanh | Op::AttentionMask => return Err(Error::Binding),
             Op::TokenLookup
                 if imports.public_weights && imports.lookup == LookupPolicy::PerToken =>
             {
@@ -1709,8 +1722,8 @@ impl CompactTokenLookup {
             })
     }
 
-    fn lower(
-        graph: &CompactGraph<'_, '_>,
+    fn lower<G: ControllerAccounting>(
+        graph: &CompactGraph<'_, '_, G>,
         input: &PublishedView,
         vocabulary: usize,
         width: usize,
@@ -1939,8 +1952,8 @@ impl CompactTokenLookup {
     }
 }
 
-type ContractionResult<'a> = (
-    PublishedKind<'a>,
+type ContractionResult<'a, G = OwnedExternalCharge> = (
+    PublishedKind<'a, G>,
     Option<MapOwner>,
     Mapping,
     Interval,
@@ -1983,8 +1996,8 @@ struct ContractionWords {
     rows: usize,
 }
 
-struct ContractionPublication<'a> {
-    kind: PublishedKind<'a>,
+struct ContractionPublication<'a, G: ControllerAccounting = OwnedExternalCharge> {
+    kind: PublishedKind<'a, G>,
     prepared: Option<MapOwner>,
     nodes: usize,
     work: WorkBudget,
@@ -2035,10 +2048,14 @@ pub(in crate::replicated_decoder) fn publish_rotary_creation(
 }
 
 pub(in crate::replicated_decoder) fn creation_publication_bytes() -> Result<usize, Error> {
+    creation_publication_bytes_for::<OwnedExternalCharge>()
+}
+
+fn creation_publication_bytes_for<G: ControllerAccounting>() -> Result<usize, Error> {
     [
         std::mem::size_of::<CreationPublication>(),
-        std::mem::size_of::<ContractionPublication<'_>>(),
-        std::mem::size_of::<PublishedOp<'_>>(),
+        std::mem::size_of::<ContractionPublication<'_, G>>(),
+        std::mem::size_of::<PublishedOp<'_, G>>(),
         2 * std::mem::size_of::<PublishedView>(),
         2 * std::mem::size_of::<usize>(), // Local mapping Arc control, not authority.
         projection_bias_control_bytes()?,
@@ -2072,7 +2089,7 @@ pub(in crate::replicated_decoder) fn publish_creation(
     if summary.bounds != Some(d.output_bounds) || summary.work != WorkBudget::default() {
         return Err(Error::Binding);
     }
-    let publication = ContractionPublication {
+    let publication: ContractionPublication<'_> = ContractionPublication {
         kind: PublishedKind::Projection {
             weight: d.weight,
             source: weight,
@@ -2219,16 +2236,16 @@ fn projection_bias_control_bytes() -> Result<usize, Error> {
 #[cfg(test)]
 thread_local! { static BIAS_RECIPE_ATTEMPTS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
 
-struct CompactContractionSink<'s, 'g, 'a> {
-    graph: &'s CompactGraph<'g, 'a>,
+struct CompactContractionSink<'s, 'g, 'a, G: ControllerAccounting = OwnedExternalCharge> {
+    graph: &'s CompactGraph<'g, 'a, G>,
     input: &'s PublishedView,
     declared: ViewShape,
     lookup_source: std::cell::Cell<Option<&'a SourceTensor>>,
     lookup: Option<CompactTokenLookup>,
-    projection: Option<ContractionPublication<'a>>,
+    projection: Option<ContractionPublication<'a, G>>,
 }
 
-impl<'a> CompactContractionSink<'_, '_, 'a> {
+impl<'a, G: ControllerAccounting> CompactContractionSink<'_, '_, 'a, G> {
     fn source(
         &self,
         source: &SourceTensor,
@@ -2269,7 +2286,7 @@ impl<'a> CompactContractionSink<'_, '_, 'a> {
     }
 }
 
-impl graph::driver::ContractionSink for CompactContractionSink<'_, '_, '_> {
+impl<G: ControllerAccounting> graph::driver::ContractionSink for CompactContractionSink<'_, '_, '_, G> {
     type View = ContractionView;
     type Source = SourceTensor;
     type Words = ContractionWords;
@@ -2676,9 +2693,9 @@ impl graph::driver::ContractionSink for CompactContractionSink<'_, '_, '_> {
 }
 
 struct ContractionControls<'a>(&'a std::cell::Cell<usize>);
-fn publication_controls_bytes<T>() -> Result<usize, Error> {
+fn publication_controls_bytes<T, G: ControllerAccounting>() -> Result<usize, Error> {
     [
-        std::mem::size_of::<PublishedOp<'_>>(),
+        std::mem::size_of::<PublishedOp<'_, G>>(),
         3 * std::mem::size_of::<PublishedView>(),
         2 * std::mem::size_of::<Result<T, Error>>(),
         std::mem::size_of::<ViewShape>(),
@@ -2694,16 +2711,16 @@ impl Drop for ContractionControls<'_> {
     }
 }
 
-impl<'g, 'a> CompactGraph<'g, 'a> {
+impl<'g, 'a, G: ControllerAccounting> CompactGraph<'g, 'a, G> {
     fn lower_contraction(
         &self,
         op: &pllm_models::ModelOperation,
         input: &PublishedView,
         logical: ViewShape,
-    ) -> Result<ContractionResult<'a>, Error> {
+    ) -> Result<ContractionResult<'a, G>, Error> {
         let original = ContractionView::new(input.clone(), ContractionStage::Input);
         let control =
-            graph::driver::contraction_control::<CompactContractionSink<'_, '_, '_>>(&original)?;
+            graph::driver::contraction_control::<CompactContractionSink<'_, '_, '_, G>>(&original)?;
         let mut controls = add_bytes(
             if op.operator == Op::TokenLookup {
                 control.lookup_bytes
@@ -2711,8 +2728,8 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                 control.projection_bytes
             },
             add_bytes(
-                std::mem::size_of::<CompactContractionSink<'_, '_, '_>>(),
-                2 * std::mem::size_of::<Result<ContractionResult<'_>, Error>>(),
+                std::mem::size_of::<CompactContractionSink<'_, '_, '_, G>>(),
+                2 * std::mem::size_of::<Result<ContractionResult<'_, G>, Error>>(),
             )?,
         )?;
         if op.operator != Op::TokenLookup
@@ -2864,6 +2881,8 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
         }
     }
 
+}
+impl<'g, 'a> CompactGraph<'g, 'a> {
     pub(in crate::replicated_decoder) fn import_binding_storage_bound(
         semantic: &DecoderGraph,
     ) -> Result<usize, Error> {
@@ -2873,6 +2892,8 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
             .try_fold(0usize, |n, op| add_bytes(n, op.inputs.len()))?;
         array_bytes::<BoundImport<'g>>(count)
     }
+}
+impl<'g, 'a, G: ControllerAccounting> CompactGraph<'g, 'a, G> {
     pub(in crate::replicated_decoder) fn container_census(&self) -> Result<ContainerCensus, Error> {
         Ok(ContainerCensus {
             imported_descriptors: self.imports.nodes.len(),
@@ -2881,7 +2902,7 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
             imported_declared_bytes: self.imports.allocated,
             stored_operations: self.ops.len(),
             descriptor_capacity: self.ops.capacity(),
-            descriptor_bytes: array_bytes::<PublishedOp<'a>>(self.ops.capacity())?,
+            descriptor_bytes: array_bytes::<PublishedOp<'a, G>>(self.ops.capacity())?,
             inline_bytes: std::mem::size_of::<Self>(),
             origin_arc_bytes: 2 * std::mem::size_of::<usize>(),
             frontier_storage_bound: self.frontier_bytes,
@@ -2894,7 +2915,7 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
 
     pub(in crate::replicated_decoder) fn descriptor_census(
         &self,
-    ) -> impl Iterator<Item = DescriptorCensus> + '_ {
+    ) -> impl Iterator<Item = DescriptorCensus> + '_ + use<'_, 'a, G> {
         self.ops.iter().enumerate().map(|(slot, op)| {
             op.descriptor_census(self.ops.get(slot + 1).map_or(self.next, |next| next.first))
         })
@@ -2954,15 +2975,20 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
     /// allocation; native resources/capacities remain inspectable on each Arc.
     pub(in crate::replicated_decoder) fn owned_prepared_programs(
         &self,
-    ) -> impl Iterator<Item = &Arc<tensor::Program>> {
+    ) -> impl Iterator<Item = &Arc<tensor::Program>> + use<'_, 'a, G> {
         self.owned_native_programs()
+    }
+
+    fn native_owner_descriptors(&self) -> impl Iterator<Item = &PublishedOp<'a, G>> {
+        self.ops.iter().inspect(|_| {
+            #[cfg(test)] norm_tests::pending_walk_descriptor();
+        })
     }
 
     pub(in crate::replicated_decoder) fn owned_native_programs(
         &self,
-    ) -> impl Iterator<Item = &Arc<tensor::Program>> {
-        self.ops
-            .iter()
+    ) -> impl Iterator<Item = &Arc<tensor::Program>> + use<'_, 'a, G> {
+        self.native_owner_descriptors()
             .filter_map(|op| match &op.prepared {
                 Some(MapOwner {
                     storage: MapStorage::Owned(prepared),
@@ -2972,8 +2998,7 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
             })
             .flat_map(|prepared| prepared.programs())
             .chain(
-                self.ops
-                    .iter()
+                self.native_owner_descriptors()
                     .filter_map(|op| match &op.kind {
                         PublishedKind::Rotary(rows) => Some(rows),
                         _ => None,
@@ -2981,15 +3006,14 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                     .flat_map(|rows| rows.native.iter().map(|row| &row.program)),
             )
             .chain(
-                self.ops
-                    .iter()
+                self.native_owner_descriptors()
                     .filter_map(|op| match &op.kind {
                         PublishedKind::AttentionScale(rows) => Some(rows),
                         _ => None,
                     })
                     .flat_map(|rows| rows.native.iter().map(|chunk| &chunk.program)),
             )
-            .chain(self.ops.iter().filter_map(|op| match &op.kind {
+            .chain(self.native_owner_descriptors().filter_map(|op| match &op.kind {
                 PublishedKind::RmsNorm {
                     program,
                     owns_program: true,
@@ -2998,8 +3022,7 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                 _ => None,
             }))
             .chain(
-                self.ops
-                    .iter()
+                self.native_owner_descriptors()
                     .filter_map(|op| match &op.kind {
                         PublishedKind::AttentionSoftmax(rows) => Some(rows),
                         _ => None,
@@ -3007,8 +3030,7 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                     .flat_map(|rows| rows.programs()),
             )
             .chain(
-                self.ops
-                    .iter()
+                self.native_owner_descriptors()
                     .filter_map(|op| match &op.kind {
                         PublishedKind::RmsNorm {
                             checked: Some(rows),
@@ -3019,8 +3041,7 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                     .flat_map(|rows| rows.programs()),
             )
             .chain(
-                self.ops
-                    .iter()
+                self.native_owner_descriptors()
                     .filter_map(|op| match &op.kind {
                         PublishedKind::Argmax(plan) => Some(plan),
                         _ => None,
@@ -3032,7 +3053,7 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                             .map(|program| &program.program)
                     }),
             )
-            .chain(self.ops.iter().flat_map(|op| {
+            .chain(self.native_owner_descriptors().flat_map(|op| {
                 let plan = match &op.kind {
                     PublishedKind::TokenLookup { plan, .. } => Some(plan),
                     _ => None,
@@ -3126,6 +3147,8 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
         self.norms
     }
 
+}
+impl<'g, 'a> CompactGraph<'g, 'a> {
     pub(super) fn new(
         imports: &'a Builder,
         validated: ValidatedSourceDescriptors<'a>,
@@ -3154,6 +3177,8 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
         )
     }
 
+}
+impl<'g, 'a, G: ControllerAccounting> CompactGraph<'g, 'a, G> {
     pub(in crate::replicated_decoder) fn outside_owner_bytes(&self) -> usize {
         self.outside_owner_bytes
     }
@@ -3204,6 +3229,8 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
         self.admit_total(add_bytes(self.outside_owner_bytes, local)?)
     }
 
+}
+impl<'g, 'a> CompactGraph<'g, 'a> {
     pub(super) fn imports_bytes(imports: &Builder) -> Result<usize, Error> {
         let mut bytes = add_bytes(imports.allocated, std::mem::size_of::<Builder>())?;
         bytes = add_bytes(bytes, array_bytes::<Node>(imports.nodes.capacity())?)?;
@@ -3274,6 +3301,8 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
         )
     }
 
+}
+impl<'g, 'a, G: ControllerAccounting> CompactGraph<'g, 'a, G> {
     fn with_limit_and_admission(
         imports: &'a Builder,
         validated: ValidatedSourceDescriptors<'a>,
@@ -3281,7 +3310,7 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
         start: usize,
         limit: usize,
         outside_owner_bytes: usize,
-        admission: Option<&'a request_origin::compact_storage::EmissionContext<'a>>,
+        admission: Option<&'a request_origin::compact_storage::EmissionContext<'a, G>>,
     ) -> Result<Self, Error> {
         let execution = validated.execution;
         let (sources, norms) = validated.public_records()?;
@@ -3350,12 +3379,12 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
             .operations
             .iter()
             .try_fold(0usize, |n, op| add_bytes(n, op.inputs.len()))?;
-        let binding_bytes = Self::import_binding_storage_bound(semantic)?;
-        let base = add_bytes(Self::imports_bytes(imports)?, std::mem::size_of::<Self>())?;
+        let binding_bytes = CompactGraph::<OwnedExternalCharge>::import_binding_storage_bound(semantic)?;
+        let base = add_bytes(CompactGraph::<OwnedExternalCharge>::imports_bytes(imports)?, std::mem::size_of::<Self>())?;
         // Arc control block, complete descriptor destination and construction
         // result slots are admitted BEFORE Arc/frontier/Vec allocation.
         let storage = add_bytes(
-            add_bytes(frontier_bytes, array_bytes::<PublishedOp<'a>>(capacity)?)?,
+            add_bytes(frontier_bytes, array_bytes::<PublishedOp<'a, G>>(capacity)?)?,
             binding_bytes,
         )?;
         let slots = add_bytes(
@@ -3420,6 +3449,8 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
             prebound_inputs: None,
             validity,
             contraction_control_bytes: std::cell::Cell::new(0),
+            rms_pending: std::cell::RefCell::new(None),
+            rotary_pending: std::cell::RefCell::new(None),
             construction_peak: std::cell::Cell::new(initial_peak),
             construction_peak_without_source: std::cell::Cell::new(initial_peak),
             failed: false,
@@ -3427,14 +3458,75 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
         })
     }
 
+    /// Per-invocation H then B. Header/debit preparation remains unfunded until
+    /// the original-prefix premise is independently supplied; no cached credit.
+    fn prepay_pending_census(&self) -> Result<(), Error> {
+        let (t, r, i) = {
+            let rms = self.rms_pending.borrow();
+            let rotary = self.rotary_pending.borrow();
+            if rms.is_none() && rotary.is_none() { return Ok(()); }
+            (rms.as_ref().map_or(0, |p| p.ticket_extent()),
+             rotary.as_ref().map_or(0, |p| p.extent()), usize::from(rms.is_some()))
+        };
+        let context = self.request_admission.ok_or(Error::Binding)?;
+        let mut counts = PendingWalkCounts { ops: self.ops.len(), tickets: t, specs: r,
+            rms: i, ..PendingWalkCounts::default() };
+        context.prepay_metadata(counts.header_visits()?)?;
+        for op in &self.ops {
+            #[cfg(test)] norm_tests::pending_walk_header();
+            match &op.kind {
+                PublishedKind::Rotary(rows) => counts.rotary = add_bytes(counts.rotary, rows.native.len())?,
+                PublishedKind::AttentionScale(rows) => counts.scale = add_bytes(counts.scale, rows.native.len())?,
+                PublishedKind::AttentionSoftmax(rows) => counts.softmax = add_bytes(counts.softmax, rows.len())?,
+                PublishedKind::RmsNorm { checked: Some(rows), .. } => counts.runs = add_bytes(counts.runs, rows.runs.len())?,
+                PublishedKind::Argmax(plan) => counts.argmax = add_bytes(counts.argmax, plan.programs.len())?,
+                _ => {}
+            }
+        }
+        context.prepay_metadata(counts.body_visits()?)
+    }
+
     fn baseline(&self) -> Result<usize, Error> {
         let mut bytes = add_bytes(
-            Self::imports_bytes(self.imports)?,
+            CompactGraph::<OwnedExternalCharge>::imports_bytes(self.imports)?,
             std::mem::size_of::<Self>(),
         )?;
         bytes = add_bytes(bytes, self.frontier_bytes)?;
         bytes = add_bytes(bytes, self.contraction_control_bytes.get())?;
-        bytes = add_bytes(bytes, array_bytes::<PublishedOp<'a>>(self.ops.capacity())?)?;
+        self.prepay_pending_census()?;
+        if let Some(pending) = self.rms_pending.borrow().as_ref() {
+            let mut backing = pending.backing_bytes()?;
+            if let Some(rows) = pending.rows() {
+                let published = self.ops.iter().any(|op| match &op.kind {
+                    PublishedKind::RmsNorm { checked: Some(old), .. } => rows.runs.shares(&old.runs),
+                    _ => false,
+                });
+                if published { backing = backing.checked_sub(rows.metadata_bytes()?).ok_or(Error::Binding)?; }
+            }
+            bytes = add_bytes(bytes, backing)?;
+            for program in pending.programs() {
+                if !self.owned_native_programs().any(|old| std::ptr::eq(old.as_ref(), program)) {
+                    bytes = add_bytes(bytes, program.immutable_template_bytes()?)?;
+                }
+            }
+        }
+        if let Some(pending) = self.rotary_pending.borrow().as_ref() {
+            let mut backing = pending.backing_bytes()?;
+            if let Some(native) = pending.native() {
+                let published = self.ops.iter().any(|op| match &op.kind {
+                    PublishedKind::Rotary(rows) => native.shares(&rows.native),
+                    _ => false,
+                });
+                if published { backing = backing.checked_sub(native.container_bytes()?).ok_or(Error::Binding)?; }
+            }
+            bytes = add_bytes(bytes, backing)?;
+            for program in pending.programs() {
+                if !self.owned_native_programs().any(|old| std::ptr::eq(old.as_ref(), program)) {
+                    bytes = add_bytes(bytes, program.immutable_template_bytes()?)?;
+                }
+            }
+        }
+        bytes = add_bytes(bytes, array_bytes::<PublishedOp<'a, G>>(self.ops.capacity())?)?;
         bytes = add_bytes(
             bytes,
             array_bytes::<BoundImport<'g>>(self.bound_imports.capacity())?,
@@ -3459,15 +3551,12 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
             if let PublishedKind::Rotary(rows) = &op.kind {
                 bytes = add_bytes(
                     bytes,
-                    array_bytes::<compact_rotary::NativeRow>(rows.native.capacity())?,
+                    rows.native.container_bytes()?,
                 )?;
                 for row in &rows.native {
                     bytes = add_bytes(
                         bytes,
-                        add_bytes(
-                            row.program.resources()?.immutable_template_bytes,
-                            2 * std::mem::size_of::<usize>(),
-                        )?,
+                        row.program.immutable_template_bytes()?,
                     )?;
                 }
             }
@@ -3484,7 +3573,7 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                 ..
             } = &op.kind
             {
-                bytes = add_bytes(bytes, program.resources()?.immutable_template_bytes)?;
+                bytes = add_bytes(bytes, program.immutable_template_bytes()?)?;
             }
             if let PublishedKind::RmsNorm {
                 checked: Some(rows),
@@ -3502,7 +3591,7 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
         }
         // Live lowering candidates and their Result/return overlaps. No refund
         // for retired frontier views, shared template backing or borrowed imports.
-        add_bytes(bytes, 4 * std::mem::size_of::<PublishedOp<'a>>())
+        add_bytes(bytes, 4 * std::mem::size_of::<PublishedOp<'a, G>>())
     }
 
     /// Actual prebound input/plan metadata is not an opaque outside allowance.
@@ -3807,7 +3896,7 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                     && program.lanes() == width
                 {
                     let slots = add_bytes(
-                        compact_norm::driver_slots()?,
+                        compact_norm::driver_slots_for::<G>()?,
                         2 * std::mem::size_of::<Result<(Arc<tensor::Program>, u128, bool), Error>>(
                         ),
                     )?;
@@ -3835,22 +3924,43 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                 gamma_len: coefficients.len(),
             }
         };
-        let quote = native_construction_quote(construction)?;
+        let (quote, peak) = if self.request_admission.is_some() {
+            construction.quote_for_installed_resident().map_err(|error| match error {
+                tensor::ConstructionQuoteError::Geometry(error) => error,
+                tensor::ConstructionQuoteError::UncheckedRotaryCoefficientCapacity => Error::Bounds,
+            })?
+        } else {
+            let quote = native_construction_quote(construction)?;
+            (quote, quote.new_peak_bytes)
+        };
         // Native quote excludes borrowed public owners. Keep the ORIGINAL gamma
         // Vec/shape capacities plus declaration, not just its logical slice length.
         // This still excludes the enclosing manifest/map/files: no whole request
         // admission is inferred from this native-construction boundary.
-        let slots = compact_norm::factory_slots()?;
+        let slots = compact_norm::factory_slots_for::<G>()?;
         let baseline = add_bytes(add_bytes(self.baseline()?, gamma_bytes)?, slots)?;
         self.admit_total_with_source(
             add_bytes(
                 self.outside_owner_bytes,
-                add_bytes(baseline, quote.new_peak_bytes)?,
+                add_bytes(baseline, peak)?,
             )?,
             gamma_bytes,
         )?;
         #[cfg(test)]
         RMS_NATIVE_ATTEMPTS.with(|count| count.set(count.get() + 1));
+        if let Some(context) = self.request_admission {
+            if native_part.is_some() { return Err(Error::Binding); }
+            let (program, energy) = {
+                let mut pending = self.rms_pending.borrow_mut();
+                compact_validity::request_rms::build_rms(pending.as_mut().ok_or(Error::Binding)?, width, quote)?
+            };
+            // FactoryOutput was checked by borrow, then Program -> Arc -> graph
+            // pending without a fallible callback. Retain/publication use clones.
+            context.retain(program.immutable_template_bytes()?)?;
+            self.admit_total_with_source(add_bytes(self.outside_owner_bytes,
+                add_bytes(baseline, program.immutable_template_bytes()?)?)?, gamma_bytes)?;
+            return Ok((program, energy, true));
+        }
         let (program, energy) = if let Some(part) = native_part {
             let (program, certificate) = part.build()?.into_parts();
             let tensor::ProducedCertificate::GeneralOutputRowSquared(energy) = certificate else {
@@ -3884,21 +3994,21 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
         let owns = existing.is_none();
         let program = existing.unwrap_or_else(|| Arc::new(program));
         if let Some(context) = self.request_admission {
-            context.retain(add_bytes(
-                program.resources()?.immutable_template_bytes,
-                2 * std::mem::size_of::<usize>(),
-            )?)?;
+            context.retain(program.immutable_template_bytes()?)?;
         }
         self.admit_total_with_source(
             add_bytes(
                 self.outside_owner_bytes,
-                add_bytes(baseline, program.resources()?.immutable_template_bytes)?,
+                add_bytes(baseline, program.immutable_template_bytes()?)?,
             )?,
             gamma_bytes,
         )?;
         Ok((program, energy, owns))
     }
 
+    // Projection custody stays distinct. A lookup's retained embedding statistic
+    // can enter RMS only through compact_validity's private original-row proof;
+    // it is not a ProjectionRow or attention-energy authority.
     pub(super) fn complete_row(
         &self,
         view: &PublishedView,
@@ -4129,7 +4239,7 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
     fn softmax_rows_for(
         &self,
         bound: &PublishedView,
-    ) -> Result<Option<&compact_attention_softmax::Rows<'a>>, Error> {
+    ) -> Result<Option<&compact_attention_softmax::Rows<'a, G>>, Error> {
         self.validate_view(bound)?;
         let mut original = bound;
         while let Some(slot) = original.slot {
@@ -4333,20 +4443,49 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
         if self.failed {
             return Err(Error::Retired);
         }
+        // Burn graph reuse before entering any fallible/unwinding lowering.
+        // Clear only after publication AND outer retirement have succeeded.
+        // EmissionAttempt independently burns the authentic original origin.
+        self.failed = true;
+        // Conditional authoring contract only: the original reservation has no
+        // authenticated witness for this entry's prefix/quote/debit controls.
+        // Neither a positive remaining balance nor a later metadata debit can
+        // fund its own prefix. Refuse BEFORE inner/quote/acquisition; do not mint
+        // a boolean permission, replacement issuer, ledger or refund. The fixed
+        // refusal controls themselves remain unpriced root-entry UNKNOWN.
+        if self.request_admission.is_some() {
+            return Err(Error::Binding);
+        }
+        let attempted_cursor = self.cursor;
         let result = self.lower_next_inner();
         // lower_next_inner's contraction guard, factory parts, result wrappers
         // and publication validation have ALL retired before this boundary.
-        if result.is_ok() {
-            if let Some(controller) = self.request_admission {
-                controller.retire_phase()?;
-            }
-        }
+        let result = if result.is_ok() {
+            let retirement = if let Some(controller) = self.request_admission {
+                controller.validate_retirement()
+            } else {
+                Ok(())
+            };
+            #[cfg(test)]
+            let retirement = retirement.and_then(|_| norm_tests::lower_next_checkpoint(true));
+            retirement.and_then(|_| {
+                // Original outputs now have published Arc owners. Drop every dead
+                // schedule/result/pending slot BEFORE charge shrink. An unwind
+                // here leaves failed set and the original reservation unshrunk.
+                drop(self.rms_pending.get_mut().take());
+                drop(self.rotary_pending.get_mut().take());
+                if let Some(controller) = self.request_admission { controller.retire_phase()?; }
+                result
+            })
+        } else {
+            result
+        };
         if result.is_err() {
             self.failed = true;
-            self.failure = self.frontier.operations().nth(self.cursor).map(|(_, op)| {
+            self.failure = self.frontier.operations().nth(attempted_cursor).map(|(_, op)| {
                 let (a, b) = self.frontier.inputs(op);
                 FailureSite {
-                    step: self.cursor,
+                    step: attempted_cursor,
                     operation: &op.id,
                     operator: op.operator,
                     input_owners: [
@@ -4371,11 +4510,14 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
             if let Some(attempt) = attempt.as_mut() {
                 attempt.commit();
             }
+            self.failed = false;
         }
         result
     }
 
     fn lower_next_inner(&mut self) -> Result<PublishedView, Error> {
+        #[cfg(test)]
+        norm_tests::lower_next_checkpoint(false)?;
         let graph::DispatchStep::Operator {
             operation: op,
             left: a,
@@ -4451,11 +4593,12 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
             None
         };
         let (kind, prepared, mapping, bounds, nodes, work) = match op.operator {
+            Op::GeluErf | Op::Tanh | Op::AttentionMask => return Err(Error::Binding),
             Op::AttentionValues => {
                 let values = right.as_ref().ok_or(Error::Binding)?;
                 self.validate_view(values)?;
                 let controls =
-                    publication_controls_bytes::<compact_attention_values::Values<'_>>()?;
+                    publication_controls_bytes::<compact_attention_values::Values<'_, G>, G>()?;
                 self.admit_local(add_bytes(self.baseline()?, controls)?)?;
                 if self.contraction_control_bytes.get() != 0 {
                     return Err(Error::Binding);
@@ -4492,7 +4635,7 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                 WorkBudget::default(),
             ),
             Op::Softmax => {
-                let controls = publication_controls_bytes::<compact_attention_softmax::Rows<'_>>()?;
+                let controls = publication_controls_bytes::<compact_attention_softmax::Rows<'_, G>, G>()?;
                 self.admit_local(add_bytes(self.baseline()?, controls)?)?;
                 if self.contraction_control_bytes.get() != 0 {
                     return Err(Error::Binding);
@@ -4527,7 +4670,7 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
             }
             Op::AttentionScale => {
                 let controls = add_bytes(
-                    publication_controls_bytes::<attention_scale::Rows>()?,
+                    publication_controls_bytes::<attention_scale::Rows, G>()?,
                     add_bytes(
                         std::mem::size_of::<attention_scale::Rows>(),
                         2 * std::mem::size_of::<usize>(),
@@ -4560,7 +4703,7 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                 // Same caller publication frame as contraction lowering; child
                 // accounts its own controls on top exactly once.
                 let controls = [
-                    std::mem::size_of::<PublishedOp<'_>>(),
+                    std::mem::size_of::<PublishedOp<'_, G>>(),
                     3 * std::mem::size_of::<PublishedView>(),
                     2 * std::mem::size_of::<Result<compact_attention_scores::Scores, Error>>(),
                     std::mem::size_of::<ViewShape>(),
@@ -5174,6 +5317,74 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
     }
 }
 
+/// Header-only cardinalities, not authority or a retained prepaid allowance.
+#[derive(Clone, Copy, Default)]
+struct PendingWalkCounts {
+    ops: usize, rotary: usize, scale: usize, softmax: usize, runs: usize,
+    argmax: usize, tickets: usize, specs: usize, rms: usize,
+}
+impl PendingWalkCounts {
+    fn header_visits(self) -> Result<u64, Error> {
+        let h = add_bytes(self.ops, 1)?.checked_mul(64).ok_or(Error::Bounds)?;
+        u64::try_from(h).map_err(|_| Error::Bounds)
+    }
+    fn positions(self) -> Result<usize, Error> {
+        add_bytes(add_bytes(self.tickets.checked_mul(6).ok_or(Error::Bounds)?,
+            self.rms.checked_mul(3).ok_or(Error::Bounds)?)?, self.specs.checked_mul(3).ok_or(Error::Bounds)?)
+    }
+    fn children(self) -> Result<usize, Error> {
+        // Prepared full/tail 2, owning RMS 1, lookup full/tail 2 per descriptor.
+        // GuardRun: one run visit AND two owns/Option candidates, including miss.
+        [self.ops.checked_mul(5).ok_or(Error::Bounds)?, self.rotary, self.scale,
+            self.softmax, self.runs.checked_mul(3).ok_or(Error::Bounds)?, self.argmax]
+            .into_iter().try_fold(0, add_bytes)
+    }
+    fn body_visits(self) -> Result<u64, Error> {
+        let p = self.positions()?;
+        let search = add_bytes(add_bytes(1, self.ops.checked_mul(8).ok_or(Error::Bounds)?)?, self.children()?)?
+            .checked_mul(64).ok_or(Error::Bounds)?;
+        // TWO rotary Option sweeps: backing coefficient headers and programs().
+        // T is the full exact ticket extent; live/coalesced run count belongs
+        // only in children(). Absent slots and unowned candidates still pay.
+        let local = [1, self.tickets, self.specs.checked_mul(2).ok_or(Error::Bounds)?,
+            self.ops.checked_mul(2).ok_or(Error::Bounds)?, p]
+            .into_iter().try_fold(0, add_bytes)?.checked_mul(64).ok_or(Error::Bounds)?;
+        let b = add_bytes(local, p.checked_mul(search).ok_or(Error::Bounds)?)?;
+        u64::try_from(b).map_err(|_| Error::Bounds)
+    }
+}
+
+// Candidate blocks behind 64 (proposed logical events, not CPU instructions):
+// H descriptor: <=8 tag/header tests +8 reference/length reads +12 checked
+// updates/results +12 iterator/branch transitions +8 local writes =48.
+// Search fixed: eight borrowed iterator constructions/exhaustions/drop dispatch
+// blocks of <=6 plus <=16 chain/result/early-drop controls =64. Descriptor pass:
+// <=8 tags/owns +8 refs +12 Option/chain/exhaustion transitions +12 result/local
+// writes +8 comparison/return controls =48. Child candidate: <=8 header/owns/Option
+// reads +8 copied-reference writes +12 child/chain transitions +12 pointer/result
+// checks +8 early-exit/drop controls =48. None/exhaustion is paid even with no hit.
+// Local pending slot/miss: <=12 Option/header reads +12 iterator/borrow transitions
+// +16 checked layout/add/result operations +12 reference/local writes =52.
+// Each rotary sweep has its OWN R block. Container scans have independent 2*O
+// blocks. Borrowed iterator destruction releases no Program. Program's immutable
+// size reads exactly two headers; no working_bytes() walk is hidden in a miss.
+// Counters/debit preparation itself is NOT paid by H/B: original prefix UNKNOWN.
+fn pending_walk_control_bytes() -> Result<usize, Error> {
+    use std::mem::size_of;
+    [2 * size_of::<PendingWalkCounts>(), 8 * size_of::<Result<u64, Error>>(),
+        // Nested native inventory: base/scratch/coefficients/controls/events/
+        // polynomial/two sums(8); caller's inventory/result plus compiler
+        // schedule/tile/fixed/sums/return slots(10). These are logical typed
+        // control owners, not compiler ABI/stack or physical-root proof.
+        18 * size_of::<tensor::LogicalEvents>(),
+        8 * size_of::<Result<tensor::LogicalEvents, Error>>(),
+        4 * size_of::<Result<usize, Error>>(), 8 * size_of::<usize>(),
+        2 * size_of::<std::cell::Ref<'_, OwnedExternalCharge>>(),
+        2 * size_of::<std::cell::Ref<'_, Option<compact_validity::request_rms::Tickets<'_>>>>(),
+        2 * size_of::<std::cell::Ref<'_, Option<compact_rotary::Pending<'_>>>>()]
+        .into_iter().try_fold(0, add_bytes)
+}
+
 #[derive(Clone, Copy)]
 struct ArgmaxGeometry {
     lanes: usize,
@@ -5459,8 +5670,8 @@ impl CompactArgmax {
         Ok((geometry, peak))
     }
 
-    fn lower(
-        graph: &CompactGraph<'_, '_>,
+    fn lower<G: ControllerAccounting>(
+        graph: &CompactGraph<'_, '_, G>,
         input: &PublishedView,
         first: usize,
     ) -> Result<Self, Error> {

@@ -128,7 +128,7 @@ impl TrustedRawPremise {
         let controls = plus(mul(3, size_of::<TrustedRawPremise>())?, plus(size_of::<OwnedBudget>(), mul(3, size_of::<HostRawExpectations<'_>>())?)?)?;
         // Synthetic preparation can already own funded payload on this SAME
         // header. Retain that whole debit while provisioning/runtime overlap.
-        let initial = plus(header.collection_charge.payload_bytes(), plus(mul(2, source_policy::CONFIG_BYTES)?, plus(mul(2, metadata)?, plus(mul(2, shapes)?, plus(controls,
+        let initial = plus(plus(header.collection_charge.payload_bytes(), REGISTRATION_READER_IO_BOOTSTRAP_BYTES)?, plus(mul(2, source_policy::CONFIG_BYTES)?, plus(mul(2, metadata)?, plus(mul(2, shapes)?, plus(controls,
             canonical::resources::<std::io::Sink>(16).map_err(|_| Error::Bounds)?.hash_workspace_bytes)?)?)?)?)?;
         let comparisons = mul(mul(plus(plus(f, t)?, ops)?, plus(plus(f, t)?, ops)?)?, NAME)?;
         let visits = plus(mul(2, CANONICAL_WORK)?, plus(comparisons, plus(initial, mul(4, source_policy::CONFIG_BYTES)?)?)?)?;
@@ -454,12 +454,134 @@ pub(in crate::replicated_decoder) struct RawWindow<'t, 'r> {
 // One claim transition, original header/directory/owner checks, flag publication
 // and eventual Drop flag clear. Logical control work, not measured CPU fuel.
 const READER_CLAIM_WORK: u64 = 64;
-fn reader_control_bytes() -> Result<usize, Error> {
-    [mul(3,size_of::<RawReader>())?,
-        mul(2,size_of::<Result<RawReader,Error>>())?,
-        mul(2,size_of::<std::sync::MutexGuard<'_,RawHostState>>())?,
-        size_of::<OwnedExternalCharge>()]
-        .into_iter().try_fold(0,plus)
+// All layout arithmetic is evaluated by rustc, including usize -> u64.
+// A target-layout overflow is a compile error, never a runtime free fold.
+const fn layout_add(a: usize, b: usize) -> usize {
+    match a.checked_add(b) { Some(n)=>n, None=>panic!("raw control layout overflow") }
+}
+const fn layout_mul(a: usize, b: usize) -> usize {
+    match a.checked_mul(b) { Some(n)=>n, None=>panic!("raw control layout overflow") }
+}
+const fn layout_sum<const N: usize>(parts: [usize;N]) -> usize {
+    let mut n=0; let mut i=0;
+    while i<N { n=layout_add(n,parts[i]); i+=1; }
+    n
+}
+const fn layout_work(n: usize) -> u64 {
+    assert!((n as u128)<=u64::MAX as u128, "raw control work overflow");
+    n as u64
+}
+const READER_CONTROL_BYTES: usize = layout_sum([
+    layout_mul(3,size_of::<RawReader>()),
+    layout_mul(2,size_of::<Result<RawReader,Error>>()),
+    layout_mul(2,size_of::<std::sync::MutexGuard<'static,RawHostState>>()),
+    size_of::<OwnedExternalCharge>(),
+]);
+const TENSOR_CONTROL_BYTES: usize = layout_add(
+    layout_mul(3,size_of::<RawTensor<'static>>()),
+    layout_mul(2,size_of::<Result<RawTensor<'static>,Error>>()));
+const PRIMITIVE_CONTROL_BYTES: usize = layout_sum([
+    layout_mul(2,size_of::<std::sync::MutexGuard<'static,RawHostState>>()),
+    layout_mul(2,size_of::<OriginalOperationKey>()),layout_mul(3,size_of::<PrimitiveQuote>()),
+    layout_mul(2,size_of::<OwnedExternalCharge>()),layout_mul(4,size_of::<Arc<PublicFile>>()),
+    layout_mul(2,size_of::<Arc<RootedRawHost>>()),layout_mul(16,size_of::<u64>()),
+]);
+const PRIMITIVE_CONTROL_WORK: u64 = layout_work(PRIMITIVE_CONTROL_BYTES);
+fn reader_control_bytes() -> Result<usize,Error> { Ok(READER_CONTROL_BYTES) }
+
+// Shared typed-plus-legacy logical control inventory D_RAW_IO, retained from
+// INITIAL provision before registration I/O through original final release.
+// D_TIO includes typed 2B; the ADDITIONAL 2B here covers legacy PublicFile::read
+// call transfer and parameters. No assumed reuse between typed and legacy slots.
+// Six E: direct extract/drop transfer/drop formal plus legacy extract/formatter
+// argument/formal. Three I: formatter binding/drop transfer/formal. Eight String
+// slots and two legacy results conservatively include the existing wildcard
+// String->Binding map_err closures: those are a subset, not extra staged owners.
+// String HEAP and std formatter/destructor internals are EXCLUDED, not free or
+// fully admitted registration. Native zero-owned-heap error premise ONLY covers
+// audited Rust 1.85.1 unmodified Unix/Windows native constructors. Neither this
+// quote nor the typed core quote establishes whole-request/native-stack memory.
+const RAW_SHARED_IO_CONTROL_BYTES: usize = layout_sum([
+    public_file::READ_UNFORMATTED_CONTROL_BYTES,
+    layout_mul(2,layout_sum([size_of::<&PublicFile>(),size_of::<u64>(),size_of::<&mut [u8]>()])),
+    layout_mul(6,size_of::<public_file::PublicReadError>()),
+    layout_mul(3,size_of::<std::io::Error>()),size_of::<&std::io::Error>(),
+    layout_mul(8,size_of::<String>()),layout_mul(2,size_of::<Result<(),String>>()),
+]);
+
+// Fixed, independently named logical frame inventory, NOT a native-stack/RSS
+// bound. Every size_of includes this target's actual field padding. The original
+// collection_charge retains ALL slots, from initial provision through final
+// release (including failed claims and live reader descendants). No caller
+// budget, detached bootstrap charge, or unfunded header/result slot is borrowed.
+// Mutually exclusive entry paths share this fixed inventory under the host mutex;
+// array and its owning IntoIter are BOTH counted, including move overlap.
+const REGISTRATION_READER_IO_BOOTSTRAP_BYTES: usize = layout_sum([
+    // Shared registration/header/payload I/O lifetime: add ONCE to INITIAL, not
+    // phase/demand or a detached charge. Old two full window Err slots stay below.
+    RAW_SHARED_IO_CONTROL_BYTES,
+    // Entry/lock result, guard plus move, host/reader/tensor and header borrows.
+    size_of::<std::sync::LockResult<std::sync::MutexGuard<'static,RawHostState>>>(),
+    size_of::<Result<std::sync::MutexGuard<'static,RawHostState>,Error>>(),
+    layout_mul(2,size_of::<std::sync::MutexGuard<'static,RawHostState>>()),
+    size_of::<&'static RawHost>(),size_of::<&'static RawReader>(),
+    size_of::<&'static RawTensor<'static>>(),
+    layout_mul(2,size_of::<&'static RawRegistration>()),
+    size_of::<Result<&'static RawRegistration,Error>>(),
+    size_of::<&'static RawPending>(),size_of::<&'static SourceHeaderEntry>(),
+    size_of::<&'static OriginalSourcePlan>(),
+    size_of::<&'static OwnedExternalCharge>(),
+    // Quote arguments, plan/premise borrows, counts, returned and moved quotes.
+    size_of::<RawGraph>(),size_of::<OriginalOperationKey>(),
+    size_of::<&'static OriginalOperationKey>(),
+    size_of::<&'static pllm_models::DecoderPlan>(),
+    size_of::<&'static TrustedRawPremise>(),
+    size_of::<Result<&'static TrustedRawPremise,Error>>(),
+    layout_mul(3,size_of::<PrimitiveQuote>()),
+    layout_mul(2,size_of::<Result<PrimitiveQuote,Error>>()),
+    layout_mul(3,size_of::<usize>()),size_of::<[usize;4]>(),
+    size_of::<std::array::IntoIter<usize,4>>(),
+    // Sixteen checked-usize logical slots: 3 products, 4 fold steps,
+    // doubling, include's byte add, 2 admission peak adds, and 5 overlapping
+    // operand/result moves across quote/include/admit_reader. Each slot reserves
+    // scalar + checked Option + mapped Result (not merely Error's tag size).
+    layout_mul(16,size_of::<usize>()),layout_mul(16,size_of::<Option<usize>>()),
+    layout_mul(16,size_of::<Result<usize,Error>>()),
+    layout_mul(4,size_of::<u64>()),layout_mul(4,size_of::<Option<u64>>()),
+    layout_mul(4,size_of::<Result<u64,Error>>()),
+    size_of::<Result<u64,std::num::TryFromIntError>>(), // quote conversion before map_err
+    // Bootstrap and demand admission args/results, peak check and charge move.
+    layout_mul(2,size_of::<Result<(),Error>>()),
+    layout_mul(2,size_of::<OwnedExternalCharge>()),
+    layout_mul(2,size_of::<Result<OwnedExternalCharge,Error>>()),
+    // Early returns exist BEFORE per-call admission; do not fund them only with
+    // the eventual successful reader/tensor/window charge. Full result layouts.
+    size_of::<Result<RawReader,Error>>(),size_of::<Result<RawTensor<'static>,Error>>(),
+    // Helper and wrapper error results must BOTH remain funded after the
+    // per-call demand charge is gone. Retained on original collection_charge.
+    layout_mul(2,size_of::<Result<RawWindow<'static,'static>,Error>>()),
+]);
+
+// Approved logical events, NOT machine instructions. Positive admission attempt
+// is one event, including this fixed positive check; arbitrary zero calls fail.
+// Qp=23: 3 count reads, graph selection, premise check, 3 products, 4 stores,
+// 4 fold adds, doubling, conversion, controls add, 2 demand adds, capacity check,
+// result publication. Control-byte conversion above is compile-time only.
+// Qw=6: premise check, tensor count, product, add, conversion, publication.
+// Claim/read use const layouts: no runtime quotation traversal to invent.
+const PRIMITIVE_BOOTSTRAP_WORK: u64 = 24;
+const WEIGHT_BOOTSTRAP_WORK: u64 = 7;
+const CLAIM_BOOTSTRAP_WORK: u64 = 1;
+const READ_BOOTSTRAP_WORK: u64 = 1;
+fn prepay_reader_bootstrap(payload: &RawRegistration, work: u64) -> Result<(),Error> {
+    if work==0 { return Err(Error::Bounds); }
+    let header=&payload.header;
+    // Existing bounded original-counter transition is the trusted base. It
+    // uses the genuine retained controller directly, without host lock reentry,
+    // allocation, inventory traversal or callback. Successful debits stay spent.
+    // Ledger overflow/exhaustion burns siblings; counter/controller precondition
+    // errors precede that burn. Late reader-local errors do NOT abandon source.
+    header.original.prepay_primitive_work(&header.controller,work).map_err(|_|Error::Bounds)
 }
 
 // Post-registration work is NOT drawn from the exhausted registration quote.
@@ -498,6 +620,8 @@ struct OriginalOperationKey { graph: RawGraph, operation: usize, tensor: usize }
 
 fn primitive_admission_quote(payload: &RawRegistration, key: &OriginalOperationKey,
     demand: PrimitiveQuote) -> Result<PrimitiveQuote,Error> {
+    #[cfg(test)]
+    reader_probe(0);
     let plan=payload.header.original.plan();
     let operations=match key.graph { RawGraph::Prefill=>plan.prefill.operations.len(),
         RawGraph::Decode=>plan.decode.operations.len() };
@@ -508,12 +632,8 @@ fn primitive_admission_quote(payload: &RawRegistration, key: &OriginalOperationK
     let visits=[mul(operations,4*NAME+64)?,mul(premise.tensors.len(),NAME+1)?,
         mul(payload.files.len(),64)?,1024].into_iter().try_fold(0,plus)?;
     let work=u64::try_from(mul(2,visits)?).map_err(|_|Error::Bounds)?;
-    let controls=[mul(2,size_of::<std::sync::MutexGuard<'_,RawHostState>>())?,
-        mul(2,size_of::<OriginalOperationKey>())?,mul(3,size_of::<PrimitiveQuote>())?,
-        mul(2,size_of::<OwnedExternalCharge>())?,mul(4,size_of::<Arc<PublicFile>>())?,
-        mul(2,size_of::<Arc<RootedRawHost>>())?,mul(16,size_of::<u64>())?]
-        .into_iter().try_fold(0,plus)?;
-    let work=work.checked_add(u64::try_from(controls).map_err(|_|Error::Bounds)?).ok_or(Error::Bounds)?;
+    let controls=PRIMITIVE_CONTROL_BYTES;
+    let work=work.checked_add(PRIMITIVE_CONTROL_WORK).ok_or(Error::Bounds)?;
     demand.include(work,controls)
 }
 
@@ -522,9 +642,11 @@ fn primitive_admission_quote(payload: &RawRegistration, key: &OriginalOperationK
 fn admit_primitive(reader: &RawReader, key: &OriginalOperationKey,
     demand: PrimitiveQuote) -> Result<OwnedExternalCharge,Error> {
     let mut state=reader.root.state.lock().map_err(|_|Error::Binding)?;
-    let quote=primitive_admission_quote(reader_payload(&state)?,key,demand)?;
+    reader_payload(&state)?; // reject an existing failure BEFORE changing latch
     state.reader_failed=true;
     let payload=state.payload.as_ref().ok_or(Error::Retired)?;
+    prepay_reader_bootstrap(payload,PRIMITIVE_BOOTSTRAP_WORK)?;
+    let quote=primitive_admission_quote(payload,key,demand)?;
     // Work -> original peak/cap -> original charge, BEFORE semantic traversal.
     let charge=admit_reader(payload,quote.resident_bytes,quote.work)?;
     let name=original_weight(payload,key.graph,key.operation)?;
@@ -539,6 +661,8 @@ fn admit_primitive(reader: &RawReader, key: &OriginalOperationKey,
     }
     let expected=&premise.tensors[key.tensor];
     let file=payload.files.get(expected.file).and_then(|b|b.file.as_ref()).ok_or(Error::Binding)?;
+    // This actual 8-byte header read (one call + eight bytes) is included in
+    // the existing 1024 validation allowance; bootstrap never replaces it.
     let start=data_start(file)?;
     let begin=start.checked_add(expected.begin).ok_or(Error::Bounds)?;
     let end=start.checked_add(expected.end).ok_or(Error::Bounds)?;
@@ -548,6 +672,8 @@ fn admit_primitive(reader: &RawReader, key: &OriginalOperationKey,
 }
 
 fn original_weight(payload: &RawRegistration, graph: RawGraph, operation: usize) -> Result<&str,Error> {
+    #[cfg(test)]
+    reader_probe(2);
     check_header(&payload.header,&payload.directory,&payload.identity)?;
     let plan=payload.header.original.plan();
     let graph=match graph { RawGraph::Prefill=>&plan.prefill, RawGraph::Decode=>&plan.decode };
@@ -562,14 +688,16 @@ fn original_weight(payload: &RawRegistration, graph: RawGraph, operation: usize)
 impl RawReader {
     pub(in crate::replicated_decoder) fn weight(&self, graph: RawGraph, operation: usize) -> Result<RawTensor<'_>,Error> {
         let mut state=self.root.state.lock().map_err(|_|Error::Binding)?;
-        let payload=reader_payload(&state)?;
+        reader_payload(&state)?;
+        state.reader_failed=true;
+        let payload=state.payload.as_ref().ok_or(Error::Retired)?;
+        prepay_reader_bootstrap(payload,WEIGHT_BOOTSTRAP_WORK)?;
+        #[cfg(test)]
+        reader_probe(1);
         let count=payload.header.raw_premise.as_ref().ok_or(Error::Binding)?.tensors.len();
         // Scan at most the full sealed inventory, including long equal prefixes.
         let work=u64::try_from(plus(mul(count,NAME+1)?,128)?).map_err(|_|Error::Bounds)?;
-        state.reader_failed=true; // any admitted attempt consumes on late failure
-        let payload=state.payload.as_ref().ok_or(Error::Retired)?;
-        let charge=admit_reader(payload,plus(mul(3,size_of::<RawTensor<'_>>())?,
-            mul(2,size_of::<Result<RawTensor<'_>,Error>>())?)?,work)?;
+        let charge=admit_reader(payload,TENSOR_CONTROL_BYTES,work)?;
         let name=original_weight(payload,graph,operation)?;
         let tensors=&payload.header.raw_premise.as_ref().ok_or(Error::Binding)?.tensors;
         let tensor=tensors.iter().position(|t|t.name==name).ok_or(Error::Binding)?;
@@ -598,31 +726,72 @@ impl<'r> RawTensor<'r> {
         reader_payload(&state)?;
         state.reader_failed=true;
         let payload=state.payload.as_ref().ok_or(Error::Retired)?;
+        prepay_reader_bootstrap(payload,READ_BOOTSTRAP_WORK)?;
         // Full fixed window zero-fill, payload I/O, result/move overlap and full
         // Drop wipe are paid even on a late invalid extent or failed final read.
         let charge=admit_reader(payload,raw_window_bytes()?,RAW_WINDOW_WORK)?;
-        if len==0 || len>FRAME { return Err(Error::Bounds); }
-        let name=original_weight(payload,self.graph,self.operation)?;
-        let expected=payload.header.raw_premise.as_ref().ok_or(Error::Binding)?
-            .tensors.get(self.tensor).ok_or(Error::Binding)?;
-        if expected.name!=name || expected.rank!=2 || expected.shape!=self.shape { return Err(Error::Binding); }
-        let backing=payload.files.get(expected.file).ok_or(Error::Binding)?;
-        let original=backing.original.upgrade().ok_or(Error::Binding)?;
-        let file=backing.file.as_ref().ok_or(Error::Binding)?;
-        if !Arc::ptr_eq(&original,file) { return Err(Error::Binding); }
-        let relative_end=offset.checked_add(len as u64).ok_or(Error::Bounds)?;
-        let extent=expected.end.checked_sub(expected.begin).ok_or(Error::Bounds)?;
-        if relative_end>extent { return Err(Error::Bounds); }
-        let begin=data_start(file)?.checked_add(expected.begin)
-            .and_then(|n|n.checked_add(offset)).ok_or(Error::Bounds)?;
-        if begin.checked_add(len as u64).is_none_or(|end|end>file.size()) { return Err(Error::Bounds); }
-        let mut window=RawWindow {source:self,bytes:[0;FRAME],len,charge};
-        #[cfg(test)]
-        WINDOW_FACTORIES.with(|n|n.set(n.get()+1));
-        file.read(begin,&mut window.bytes[..len]).map_err(|_|Error::Binding)?;
-        state.reader_failed=false;
-        Ok(window)
+        let args=LockedReadArgs {payload,source:self,offset,len,charge};
+        match read_window_locked(args) {
+            Ok(window)=>{ state.reader_failed=false; Ok(window) }
+            Err(error)=>Err(error),
+        }
     }
+}
+
+
+// Internal precondition-bearing mechanism, NOT a capability or authority token.
+// These are logical custody/funding preconditions, NOT Rust memory-safety rules:
+// the actual original source-root lock is held; payload, source and charge share
+// that original custody; prior reader failure was rejected, the entry latch was
+// set, and bootstrap plus full demand admission were paid. The sole production
+// caller derives payload from source.reader.root while holding that lock and
+// admits the charge against the same original payload before constructing args.
+// Independent fields do NOT authenticate each other. Arbitrary future mismatched
+// args are NOT promised to refuse. Another caller requires a separately reviewed
+// original-lock/admission/matching/publication transaction. Nothing is exported
+// to sibling modules of raw_owner. No lock, debit, or latch publication here.
+struct LockedReadArgs<'p,'t,'r> {
+    payload: &'p RawRegistration,
+    source: &'t RawTensor<'r>,
+    offset: u64,
+    len: usize,
+    charge: OwnedExternalCharge,
+}
+fn read_window_locked<'p,'t,'r>(args: LockedReadArgs<'p,'t,'r>) -> Result<RawWindow<'t,'r>,Error> {
+    let LockedReadArgs {payload,source,offset,len,charge}=args;
+    if len==0 || len>FRAME { return Err(Error::Bounds); }
+    let name=original_weight(payload,source.graph,source.operation)?;
+    let expected=payload.header.raw_premise.as_ref().ok_or(Error::Binding)?
+        .tensors.get(source.tensor).ok_or(Error::Binding)?;
+    if expected.name!=name || expected.rank!=2 || expected.shape!=source.shape { return Err(Error::Binding); }
+    let backing=payload.files.get(expected.file).ok_or(Error::Binding)?;
+    let original=backing.original.upgrade().ok_or(Error::Binding)?;
+    let file=backing.file.as_ref().ok_or(Error::Binding)?;
+    if !Arc::ptr_eq(&original,file) { return Err(Error::Binding); }
+    let relative_end=offset.checked_add(len as u64).ok_or(Error::Bounds)?;
+    let extent=expected.end.checked_sub(expected.begin).ok_or(Error::Bounds)?;
+    if relative_end>extent { return Err(Error::Bounds); }
+    // Actual header read: one call + eight bytes within the existing
+    // NAME+256 validation allowance, separate from payload I/O/zero/wipe.
+    let begin=data_start(file)?.checked_add(expected.begin)
+        .and_then(|n|n.checked_add(offset)).ok_or(Error::Bounds)?;
+    if begin.checked_add(len as u64).is_none_or(|end|end>file.size()) { return Err(Error::Bounds); }
+    let mut window=RawWindow {source,bytes:[0;FRAME],len,charge};
+    #[cfg(test)]
+    WINDOW_FACTORIES.with(|n|n.set(n.get()+1));
+    #[cfg(test)]
+    {
+        reader_probe(4); // actual payload-read call path, not publication
+        if READER_IO_FAULT.with(|n|n.get())==Some(1) {
+            window.bytes[0]=0xa5; // simulate a partially filled failed read
+            return Err(Error::Binding);
+        }
+    }
+    match file.read_unformatted(begin,&mut window.bytes[..len]) {
+        Ok(())=>{},
+        Err(error)=>{ drop(error); return Err(Error::Binding); }
+    }
+    Ok(window)
 }
 
 impl Drop for RawTensor<'_> {
@@ -648,14 +817,21 @@ impl Drop for RawWindow<'_, '_> {
 
 // Fixed-capacity window, result and move slots are charged in full, not len.
 // Old returned windows retain their own charges throughout the next read.
-const RAW_WINDOW_WORK: u64 = (8*FRAME+NAME+256) as u64;
-fn raw_window_bytes() -> Result<usize,Error> {
-    [mul(3,size_of::<RawWindow<'_, '_>>())?,
-        mul(2,size_of::<Result<RawWindow<'_, '_>,Error>>())?,
-        size_of::<std::sync::MutexGuard<'_,RawHostState>>(),
-        size_of::<[u8;8]>(), mul(2,size_of::<Arc<PublicFile>>())?,
-        mul(4,size_of::<u64>())?].into_iter().try_fold(0,plus)
-}
+// Four added logical events: construct args, transfer args, invoke kernel,
+// forward result. Bootstrap remains one positive attempt, not this demand.
+const RAW_WINDOW_WORK: u64 = layout_work(layout_sum([layout_mul(8,FRAME),NAME,256,4]));
+const RAW_WINDOW_BYTES: usize = layout_sum([
+    layout_mul(3,size_of::<RawWindow<'static,'static>>()),
+    layout_mul(2,size_of::<Result<RawWindow<'static,'static>,Error>>()),
+    size_of::<std::sync::MutexGuard<'static,RawHostState>>(),
+    size_of::<[u8;8]>(),layout_mul(2,size_of::<Arc<PublicFile>>()),
+    layout_mul(4,size_of::<u64>()),
+    // Demand owns both concrete argument move slots and one additional full
+    // result slot. Original Cw above is unchanged; old windows stay charged.
+    layout_mul(2,size_of::<LockedReadArgs<'static,'static,'static>>()),
+    size_of::<Result<RawWindow<'static,'static>,Error>>(),
+]);
+fn raw_window_bytes() -> Result<usize,Error> { Ok(RAW_WINDOW_BYTES) }
 
 fn host_control_bytes() -> Result<usize, Error> {
     fn arc_bytes<T>() -> Result<usize, Error> {
@@ -842,6 +1018,7 @@ impl RawHost {
         }
         state.reader_claimed=true; // failure cannot reopen the consuming claim
         let payload=state.payload.as_mut().ok_or(Error::Retired)?;
+        prepay_reader_bootstrap(payload,CLAIM_BOOTSTRAP_WORK)?;
         let charge=admit_reader(payload,reader_control_bytes()?,READER_CLAIM_WORK)?;
         check_header(&payload.header,&payload.directory,&payload.identity)?;
         payload.reader_charge=Some(charge);
@@ -940,6 +1117,16 @@ thread_local! { static READER_FACTORIES:std::cell::Cell<usize>=const {std::cell:
 thread_local! { static WINDOW_FACTORIES:std::cell::Cell<usize>=const {std::cell::Cell::new(0)}; }
 #[cfg(test)]
 thread_local! { static WINDOW_DROP:std::cell::Cell<Option<(bool,usize)>>=const {std::cell::Cell::new(None)}; }
+#[cfg(test)]
+thread_local! {
+    static READER_PROBES: std::cell::Cell<[usize;7]>=const {std::cell::Cell::new([0;7])};
+    static READER_ALLOC_FAULT: std::cell::Cell<bool>=const {std::cell::Cell::new(false)};
+    static READER_IO_FAULT: std::cell::Cell<Option<usize>>=const {std::cell::Cell::new(None)};
+}
+#[cfg(test)]
+fn reader_probe(i: usize) {
+    READER_PROBES.with(|n| {let mut v=n.get(); v[i]+=1; n.set(v);});
+}
 fn public_arc_bytes() -> Result<usize, Error> {
     let (layout,_) = std::alloc::Layout::new::<[std::sync::atomic::AtomicUsize;2]>()
         .extend(std::alloc::Layout::new::<PublicFile>()).map_err(|_| Error::Bounds)?;
@@ -1000,6 +1187,8 @@ impl RawRegistration {
 }
 
 fn check_header(header: &RawPending, directory: &Arc<snapshot_directory::RawSnapshotDirectory>, identity: &std::sync::Weak<snapshot_directory::RawSnapshotDirectory>) -> Result<(), Error> {
+    #[cfg(test)]
+    reader_probe(6); // actual retained-header validation entry
     header.check()?;
     let original=identity.upgrade().ok_or(Error::Binding)?;
     if !Arc::ptr_eq(&original,directory) { return Err(Error::Binding); }
@@ -1026,6 +1215,11 @@ fn validate_backings(header: &SourceHeaderEntry, files: &[RawBacking]) -> Result
 }
 fn mul(a: usize, b: usize) -> Result<usize, Error> { a.checked_mul(b).ok_or(Error::Bounds) }
 fn exact_vec<T>(n: usize) -> Result<Vec<T>, Error> {
+    #[cfg(test)]
+    {
+        reader_probe(5); // actual allocation call path, before Vec::try_reserve
+        if READER_ALLOC_FAULT.with(|n|n.get()) { return Err(Error::Allocation); }
+    }
     let mut v = Vec::new(); v.try_reserve_exact(n).map_err(|_| Error::Allocation)?;
     if v.capacity()!=n { return Err(Error::Bounds); } Ok(v)
 }
@@ -1107,7 +1301,15 @@ fn data_start(file: &PublicFile) -> Result<u64, Error> {
     data_start_into(file,&mut [0;8])
 }
 fn data_start_into(file: &PublicFile, bytes: &mut [u8;8]) -> Result<u64, Error> {
-    file.read(0,bytes).map_err(|_| Error::Binding)?;
+    #[cfg(test)]
+    {
+        reader_probe(3); // actual eight-byte provider-read call path
+        if READER_IO_FAULT.with(|n|n.get())==Some(0) { return Err(Error::Binding); }
+    }
+    match file.read_unformatted(0,bytes) {
+        Ok(())=>{},
+        Err(error)=>{ drop(error); return Err(Error::Binding); }
+    }
     let n = u64::from_le_bytes(*bytes);
     if n==0 || n>JSON_BYTES as u64 { return Err(Error::Bounds); }
     n.checked_add(8).filter(|end| *end<file.size()).ok_or(Error::Bounds)

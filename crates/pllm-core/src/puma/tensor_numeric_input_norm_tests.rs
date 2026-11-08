@@ -52,9 +52,34 @@ fn floor_rms_oracle(row: &[i64; 2], gamma: &[i64; 2]) -> Vec<BigInt> {
     }).collect()
 }
 
+// Count actual lane-local stochastic sites, including exact divisions. Boolean
+// conversion schedules are deliberately irrelevant to this arithmetic count.
+fn graph_choice_count(program: &Program) -> usize {
+    program.nodes[..program.len].iter().map(|node| {
+        let node = node.unwrap();
+        match node.instruction {
+            Instruction::Product { rescale: true, .. } | Instruction::Rescale { .. } => node.lanes,
+            _ => 0,
+        }
+    }).sum()
+}
+
+fn graph_round(value: BigInt, shift: usize, choices: &[bool], used: &mut usize) -> BigInt {
+    let ceil = *choices.get(*used).expect("graph exhausted rounding tape");
+    *used += 1;
+    let inexact = &value % (BigInt::from(1) << shift) != BigInt::from(0);
+    floor_shift(value, shift) + i64::from(ceil && inexact)
+}
+
+fn floor_graph(program: &Program, row: &[i64; 2]) -> Vec<BigInt> {
+    choice_graph(program, row, &vec![false; graph_choice_count(program)])
+}
+
 // Mathematical interpretation of the emitted PUBLIC instruction graph, not a
 // native/secret runtime. Verify every eager arithmetic interval independently.
-fn floor_graph(program: &Program, row: &[i64; 2]) -> Vec<BigInt> {
+fn choice_graph(program: &Program, row: &[i64; 2], choices: &[bool]) -> Vec<BigInt> {
+    assert_eq!(choices.len(), graph_choice_count(program));
+    let mut used = 0;
     let mut values: Vec<Vec<BigInt>> = Vec::new();
     for node in program.nodes[..program.len].iter().map(|node| node.unwrap()) {
         let get = |value: Value| &values[value.0 as usize];
@@ -68,10 +93,10 @@ fn floor_graph(program: &Program, row: &[i64; 2]) -> Vec<BigInt> {
                     if let Some(bounds) = certified {
                         assert!(BigInt::from(bounds.lower()) <= raw && raw <= BigInt::from(bounds.upper()));
                     }
-                    if rescale { floor_shift(raw, 18) } else { raw }
+                    if rescale { graph_round(raw, 18, choices, &mut used) } else { raw }
                 }).collect(),
             Instruction::Rescale { input, shift } => get(input).iter()
-                .map(|x| floor_shift(x.clone(), shift as usize)).collect(),
+                .map(|x| graph_round(x.clone(), shift as usize, choices, &mut used)).collect(),
             Instruction::Bits(input) | Instruction::FromBit(input) => get(input).clone(),
             Instruction::LowBits(input, width) => get(input).iter()
                 .map(|x| x & ((BigInt::from(1) << width as usize) - 1)).collect(),
@@ -115,7 +140,129 @@ fn floor_graph(program: &Program, row: &[i64; 2]) -> Vec<BigInt> {
         }
         values.push(output);
     }
+    assert_eq!(used, choices.len(), "graph left unused rounding choices");
     values.pop().unwrap()
+}
+
+// Separate literal equation oracle: no graph, production constants, range/proof
+// helpers or measured-output certificates. This rounding implementation uses
+// BigInt arithmetic shift (floor), independently of graph_round/floor_shift.
+fn choice_rms_oracle(row: &[i64; 2], gamma: &[i64; 2], choices: &[bool]) -> Vec<BigInt> {
+    let mut used = 0;
+    let mut tr = |value: BigInt| {
+        let ceil = *choices.get(used).expect("equations exhausted rounding tape");
+        used += 1;
+        let lower = &value >> 18_usize;
+        let exact = (&lower << 18_usize) == value;
+        lower + i64::from(ceil && !exact)
+    };
+    let square0 = tr(BigInt::from(row[0]).pow(2));
+    let square1 = tr(BigInt::from(row[1]).pow(2));
+    let denominator = tr((square0 + square1) * 131_072_i64) + 1_i64;
+    let mut j = 0_usize;
+    assert!(denominator >= BigInt::from(1));
+    while (BigInt::from(1) << (j + 1)) <= denominator { j += 1; }
+    assert!(j < 35);
+    let u = tr(denominator * (BigInt::from(1) << (34 - j)));
+    let u2 = tr(&u * &u);
+    let u3 = tr(&u2 * &u);
+    let u4 = tr(&u3 * &u);
+    let polynomial = BigInt::from(1_086_023) + tr(
+        &u * -4_057_974_i64 + u2 * 10_085_068_i64 - u3 * 13_072_088_i64 + u4 * 6_823_457_i64);
+    let compensation = BigInt::from(if j % 2 == 1 { 724 } else { 512 })
+        * (BigInt::from(1) << (17 - (j + 1) / 2));
+    let inverse = tr(polynomial * compensation);
+    // Graph order: normalize BOTH lanes before gamma-rescaling either lane.
+    let normalized0 = tr(BigInt::from(row[0]) * &inverse);
+    let normalized1 = tr(BigInt::from(row[1]) * &inverse);
+    let output = vec![tr(normalized0 * gamma[0]), tr(normalized1 * gamma[1])];
+    assert_eq!(used, choices.len(), "equations left unused rounding choices");
+    output
+}
+
+// Obligations are selected BEFORE fixtures. Observed input energy only checks
+// membership; it never supplies a production certificate. 23 rows, two signed
+// gamma tables: 46 row/table cases, each with every graph-derived choice tape.
+fn stochastic_rescue_cases() -> [(u128, Vec<[i64; 2]>); 3] {
+    [
+        (0, vec![[0, 0]]),
+        (2, vec![[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 0], [0, 1],
+            [1, -1], [1, 0], [1, 1]]),
+        (262_144_u128.pow(2), vec![[0, 0], [262_144, 0], [-262_144, 0],
+            [0, 262_144], [0, -262_144], [262_143, 1], [-262_143, 1],
+            [1, 262_143], [1, -262_143], [1, -1], [-1, 1], [511, -512], [-511, 512]]),
+    ]
+}
+
+#[test]
+fn refined_rms_overflow_rescue_all_stochastic_tapes_bigint_oracle() {
+    let incoming = Interval::new(-(1 << 40), 1 << 40).unwrap();
+    for (obligation, rows) in stochastic_rescue_cases() {
+        for gamma in [[262_144, -262_144], [-524_288, 131_072]] {
+            let (native, energy) = Program::rms_norm_with_input_norm(
+                1, 2, incoming, &gamma, obligation).unwrap();
+            let (compact, compact_energy) = Program::rms_norm_with_input_norm_compact(
+                1, 2, incoming, &gamma, obligation).unwrap();
+            let count = graph_choice_count(&native);
+            assert_eq!(count, graph_choice_count(&compact));
+            // Do not silently truncate a changed graph to 8192 tapes.
+            assert_eq!(count, 13, "review exhaustive fixture if graph changes");
+            let tapes = 1_usize.checked_shl(u32::try_from(count).unwrap()).unwrap();
+            let radius = oracle_radius(obligation);
+            // E<=B implies each |xi|<=floor(sqrt(B)). Every ceil contributes at
+            // most Q-1 numerator units: sum(TR(xi²))<=floor((B+n(Q-1))/Q).
+            let sum_ceiling = (BigInt::from(obligation) + 2_i64 * 262_143_i64) / 262_144_i64;
+            for program in [&native, &compact] {
+                let input = program.nodes[0].unwrap();
+                assert_eq!(i128::from(input.bounds.lower()), -radius);
+                assert_eq!(i128::from(input.bounds.upper()), radius);
+                let sum = program.nodes[..program.len].iter().flatten().find(|node|
+                    matches!(node.instruction, Instruction::RowMap(_, 2, RowMap::Sum))).unwrap();
+                assert!(sum.bounds.lower() >= 0);
+                assert!(BigInt::from(sum.bounds.upper()) <= sum_ceiling);
+            }
+            for row in &rows {
+                let measured = row.iter().map(|&x| BigInt::from(x).pow(2))
+                    .fold(BigInt::from(0), |a, b| a + b);
+                assert!(measured <= BigInt::from(obligation));
+                for &x in row {
+                    assert!((-radius..=radius).contains(&i128::from(x)));
+                }
+                for tape in 0..tapes {
+                    let choices: Vec<bool> = (0..count).map(|i| tape & (1_usize << i) != 0).collect();
+                    let expected = choice_rms_oracle(row, &gamma, &choices);
+                    assert_eq!(choice_graph(&native, row, &choices), expected);
+                    assert_eq!(choice_graph(&compact, row, &choices), expected);
+                    let output_energy = expected.iter().map(|x| x.pow(2))
+                        .fold(BigInt::from(0), |a, b| a + b);
+                    assert!(output_energy <= BigInt::from(energy));
+                    assert!(output_energy <= BigInt::from(compact_energy));
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn refined_rms_stochastic_rescue_preflight_metadata_and_absent_refusals() {
+    let incoming = Interval::new(-(1 << 40), 1 << 40).unwrap();
+    for (obligation, _) in stochastic_rescue_cases() {
+        for gamma in [[262_144, -262_144], [-524_288, 131_072]] {
+            assert!(matches!(Program::rms_norm_certified(1, 2, incoming, &gamma), Err(Error::Bounds)));
+            assert!(matches!(Program::rms_norm_certified_compact(1, 2, incoming, &gamma), Err(Error::Bounds)));
+            let (native, _) = Program::rms_norm_with_input_norm(
+                1, 2, incoming, &gamma, obligation).unwrap();
+            let mut workspace = RmsWorkWorkspace::empty();
+            let factories = rms_work::attempts();
+            let work = Program::rms_norm_with_input_norm_work(
+                1, 2, incoming, &gamma, obligation, &mut workspace).unwrap();
+            assert_eq!(rms_work::attempts(), factories);
+            assert_eq!(work, native.work_budget());
+            workspace.assert_native_metadata(&native);
+            // Preflight describes native scheduling only. Compact conversion
+            // schedules need not equal native work or native metadata.
+        }
+    }
 }
 
 #[test]
@@ -246,8 +393,9 @@ fn preflight_emission_agree_on_pre_square_derivation() {
         workspace.assert_native_metadata(&program);
         let (compact, _) = Program::rms_norm_with_input_norm_compact(1, 2, input,
             &[ONE, -ONE], bound).unwrap();
-        assert_eq!(work, compact.work_budget());
-        workspace.assert_native_metadata(&compact);
+        // Shared arithmetic refinement, not equality of conversion schedules:
+        // this preflight/metadata workspace describes the native program only.
+        assert_eq!(program.nodes[0].unwrap().bounds, compact.nodes[0].unwrap().bounds);
     }
 }
 

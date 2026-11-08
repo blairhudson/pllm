@@ -2,10 +2,12 @@
 //! Original whole-input guard order and compiler-local sticky custody. Prefix
 //! exports still require a genuine incoming issuer, not declarations or digests.
 use super::*;
+use super::ControllerAccounting;
 use graph::driver::{self, RmsNormSink};
+use pllm_garble::shared_allocation::OwnedExternalCharge;
 
-pub(super) struct NormPublication<'a> {
-    pub(super) kind: PublishedKind<'a>,
+pub(super) struct NormPublication<'a, G: ControllerAccounting = OwnedExternalCharge> {
+    pub(super) kind: PublishedKind<'a, G>,
     pub(super) bounds: Interval,
     pub(super) nodes: usize,
     pub(super) work: WorkBudget,
@@ -29,8 +31,8 @@ struct Template<'a> {
     owns_program: bool,
 }
 
-struct NormSink<'s, 'g, 'a> {
-    graph: &'s CompactGraph<'g, 'a>,
+struct NormSink<'s, 'g, 'a, G: ControllerAccounting = OwnedExternalCharge> {
+    graph: &'s CompactGraph<'g, 'a, G>,
     input: &'s PublishedView,
     template: Option<Template<'a>>,
     rows: usize,
@@ -55,17 +57,19 @@ impl Drop for Pending<'_> {
     }
 }
 
-impl<'a> NormSink<'_, '_, 'a> {
+impl<'a, G: ControllerAccounting> NormSink<'_, '_, 'a, G> {
     fn prepare(&mut self, gamma: &'a SourceTensor, width: usize) -> Result<(), Error> {
         if self.prepared {
             return Ok(());
         }
         let (checked, bounds, energy, work, native_part) =
             compact_validity::prepare(self.graph, self.input, width, gamma)?;
-        self.graph.contraction_control_bytes.set(add_bytes(
-            self.graph.contraction_control_bytes.get(),
-            checked.as_ref().map_or(Ok(0), |rows| rows.baseline())?,
-        )?);
+        if self.graph.request_admission.is_none() {
+            self.graph.contraction_control_bytes.set(add_bytes(
+                self.graph.contraction_control_bytes.get(),
+                checked.as_ref().map_or(Ok(0), |rows| rows.baseline())?,
+            )?);
+        }
         self.checked = checked;
         self.bounds = Some(bounds);
         self.energy = energy;
@@ -78,13 +82,18 @@ impl<'a> NormSink<'_, '_, 'a> {
 
 /// Caller/driver return overlap, in addition to the existing native quote and
 /// retained graph baseline. No native inventory is reconstructed here.
+#[cfg(test)]
 pub(super) fn driver_slots() -> Result<usize, Error> {
-    let mut bytes = std::mem::size_of::<NormSink<'_, '_, '_>>();
+    driver_slots_for::<OwnedExternalCharge>()
+}
+
+pub(super) fn driver_slots_for<G: ControllerAccounting>() -> Result<usize, Error> {
+    let mut bytes = std::mem::size_of::<NormSink<'_, '_, '_, G>>();
     for slot in [
         std::mem::size_of::<RowWords<'_>>(),
         2 * std::mem::size_of::<Option<RowWords<'_>>>(),
         2 * std::mem::size_of::<Result<RowWords<'_>, Error>>(),
-        2 * std::mem::size_of::<Result<NormPublication<'_>, Error>>(),
+        2 * std::mem::size_of::<Result<NormPublication<'_, G>, Error>>(),
         2 * std::mem::size_of::<Result<usize, Error>>(),
         std::mem::size_of::<AdmissionSite>(),
     ] {
@@ -95,12 +104,14 @@ pub(super) fn driver_slots() -> Result<usize, Error> {
 
 /// Shared with the all-before-storage transition quote. Keep the actual original
 /// RMS helper's return/control overlap, not just its native construction quote.
-pub(super) fn factory_slots() -> Result<usize, Error> {
+pub(super) fn factory_slots_for<G: ControllerAccounting>() -> Result<usize, Error> {
     use std::mem::size_of;
-    let mut bytes = driver_slots()?;
+    let mut bytes = driver_slots_for::<G>()?;
     for slot in [
         2 * size_of::<Result<(Arc<tensor::Program>, u128, bool), Error>>(),
-        2 * size_of::<Result<(tensor::Program, Option<u128>), Error>>(),
+        2 * size_of::<Result<(tensor::Program, Option<u128>), Error>>()
+            .max(size_of::<Option<tensor::FactoryOutput>>()),
+        2 * size_of::<Result<(Arc<tensor::Program>, u128), Error>>(),
         size_of::<tensor::Construction>(),
         size_of::<tensor::ConstructionQuote>(),
         size_of::<Result<tensor::ConstructionQuote, tensor::ConstructionQuoteError>>(),
@@ -112,7 +123,7 @@ pub(super) fn factory_slots() -> Result<usize, Error> {
     Ok(bytes)
 }
 
-impl<'s> RmsNormSink for NormSink<'s, '_, '_> {
+impl<'s, G: ControllerAccounting> RmsNormSink for NormSink<'s, '_, '_, G> {
     type Words = RowWords<'s>;
     type Owner = ();
     type Output = usize;
@@ -235,13 +246,13 @@ impl<'s> RmsNormSink for NormSink<'s, '_, '_> {
     fn range_end(&self) {}
 }
 
-impl<'a> CompactGraph<'_, 'a> {
+impl<'a, G: ControllerAccounting> CompactGraph<'_, 'a, G> {
     pub(super) fn lower_rms_norm(
         &self,
         op: &pllm_models::ModelOperation,
         input: &PublishedView,
         shape: &[usize],
-    ) -> Result<NormPublication<'a>, Error> {
+    ) -> Result<NormPublication<'a, G>, Error> {
         self.validate_view(input)?;
         if op.operator != Op::RmsNorm
             || op.inputs.len() != 1

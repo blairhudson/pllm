@@ -123,7 +123,7 @@ fn strict_inventory_names_sizes_dtypes_shapes_offsets_and_scales() {
         let mut value = fixture(); value["tensors"][0][key] = bad;
         assert!(parse(&serde_json::to_vec(&value).unwrap()).is_err(), "{key}");
     }
-    for size in [0, 4_412_140_424] {
+    for size in [0_u64, 4_412_140_424] {
         let mut value = fixture(); value["files"][2]["size"] = json!(size);
         assert!(parse(&serde_json::to_vec(&value).unwrap()).is_err());
     }

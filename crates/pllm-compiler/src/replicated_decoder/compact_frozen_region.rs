@@ -1,6 +1,7 @@
 //! Consuming recipe retention only. No semantic graph lifetime, execution,
 //! request completion, certificate publication or finalization authority.
 use super::*;
+use crate::replicated_decoder::program::request_origin::compact_storage::ControllerAccounting;
 use std::mem::size_of;
 #[path = "compact_owned_epoch.rs"]
 pub(in crate::replicated_decoder::program) mod owning;
@@ -67,12 +68,12 @@ impl FreezeResources {
 /// Owns the SAME recipes, prepared/native Arcs, provenance domain and export Vec
 /// as its consumed graph. Imports/source/certificates remain borrowed for 'a.
 /// Names and live frontier mappings are bounded metadata, never expanded lanes.
-pub(in crate::replicated_decoder) struct FrozenRegion<'a> {
+pub(in crate::replicated_decoder) struct FrozenRegion<'a, G: ControllerAccounting = OwnedExternalCharge> {
     imports_owner: &'a Builder,
     sources: &'a BTreeMap<String, SourceTensor>,
     norms: &'a SourceNorms,
     binding: [u8; 32],
-    ops: Vec<PublishedOp<'a>>,
+    ops: Vec<PublishedOp<'a, G>>,
     imports: Vec<Import>,
     recipe_names: Vec<String>,
     frontier: Vec<Frontier>,
@@ -88,7 +89,7 @@ pub(in crate::replicated_decoder) struct FrozenRegion<'a> {
     _prebound_inputs: Option<input_owner::InputOwner<'a>>,
     // External genuine consumed request context, never a borrowed lens into
     // this owner. Keeps exact source/plan/import reservation custody live.
-    source_context: Option<&'a request_origin::compact_storage::EmissionContext<'a>>,
+    source_context: Option<&'a request_origin::compact_storage::EmissionContext<'a, G>>,
     validity: compact_validity::RequestValidity<'a>,
 }
 
@@ -145,7 +146,7 @@ fn copy_name(name: &str) -> Result<String, Error> {
     Ok(value)
 }
 
-impl<'a> CompactGraph<'_, 'a> {
+impl<'a, G: ControllerAccounting> CompactGraph<'_, 'a, G> {
     /// No allocation or new owner. Exports must be exact original publications;
     /// a foreign same-digest graph or substituted shape/coordinate is rejected.
     /// Freeze recomputes this quote, so mutation cannot reuse an earlier snapshot.
@@ -264,7 +265,7 @@ impl<'a> CompactGraph<'_, 'a> {
             if let PublishedKind::Rotary(rows) = &op.kind {
                 native = add_bytes(
                     native,
-                    array_bytes::<compact_rotary::NativeRow>(rows.native.capacity())?,
+                    rows.native.container_bytes()?,
                 )?;
             }
             if let PublishedKind::RmsNorm {
@@ -275,7 +276,7 @@ impl<'a> CompactGraph<'_, 'a> {
                 native = add_bytes(native, rows.metadata_bytes()?)?;
             }
         }
-        let recipe_bytes = array_bytes::<PublishedOp<'a>>(self.ops.capacity())?;
+        let recipe_bytes = array_bytes::<PublishedOp<'a, G>>(self.ops.capacity())?;
         let export_bytes = array_bytes::<PublishedView>(exports.capacity())?;
         let mut new_backing = names;
         for bytes in [
@@ -289,7 +290,7 @@ impl<'a> CompactGraph<'_, 'a> {
             super::super::super::source_registry::source_metadata_bytes(self.sources, self.norms)?;
         let borrowed = add_bytes(
             self.outside_owner_bytes,
-            add_bytes(Self::imports_bytes(self.imports)?, source_bytes)?,
+            add_bytes(CompactGraph::<OwnedExternalCharge>::imports_bytes(self.imports)?, source_bytes)?,
         )?;
         let semantic_bytes =
             super::super::super::source_registry::semantic_metadata_bytes(semantic)?;
@@ -304,7 +305,7 @@ impl<'a> CompactGraph<'_, 'a> {
             add_bytes(self.construction_peak_without_source.get(), source_bytes)?,
             semantic_bytes,
         )?;
-        let mut retained = add_bytes(borrowed, size_of::<FrozenRegion<'a>>())?;
+        let mut retained = add_bytes(borrowed, size_of::<FrozenRegion<'a, G>>())?;
         if self.prebound_inputs.is_some() {
             // Its plan remainder is already outside_owner_bytes; the exact graph
             // field remains borrowed too, unlike the legacy semantic-free path.
@@ -335,8 +336,8 @@ impl<'a> CompactGraph<'_, 'a> {
             native,
             export_bytes,
             new_backing,
-            size_of::<FrozenRegion<'a>>(),
-            2 * size_of::<Result<FrozenRegion<'a>, Error>>(),
+            size_of::<FrozenRegion<'a, G>>(),
+            2 * size_of::<Result<FrozenRegion<'a, G>, Error>>(),
             2 * size_of::<FreezeResources>(),
             size_of::<Result<FreezeResources, Error>>(),
             size_of::<ContainerCensus>(),
@@ -381,7 +382,7 @@ impl<'a> CompactGraph<'_, 'a> {
         self,
         exports: Vec<PublishedView>,
         cap: usize,
-    ) -> Result<FrozenRegion<'a>, Error> {
+    ) -> Result<FrozenRegion<'a, G>, Error> {
         let resources = self.freeze_quote(&exports)?;
         resources.admit(cap.min(self.limit))?;
         #[cfg(test)]
@@ -442,7 +443,7 @@ impl<'a> CompactGraph<'_, 'a> {
     }
 }
 
-impl<'a> FrozenRegion<'a> {
+impl<'a, G: ControllerAccounting> FrozenRegion<'a, G> {
     /// Retained compiler-local sticky coordinate, not acceptance/export authority.
     pub(in crate::replicated_decoder) fn local_validity_owner(&self) -> Option<usize> {
         self.validity.current()

@@ -733,7 +733,7 @@ fn projection_bias_exact_cap_and_one_short_gate_before_failing_factory_or_recipe
             assert!(refused);
         }
         Err(_) => panic!("wrong construction refusal"),
-    }
+    };
 }
 
 #[test]

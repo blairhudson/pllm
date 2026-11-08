@@ -47,6 +47,8 @@ impl BorrowedLaneRefs for Words {
 
 mod public_constants {
     use super::*;
+    use crate::replicated_decoder::program::compact_lowering::frozen_region::owning::recipe::RetainedEpochFor;
+    use crate::replicated_decoder::program::source_entry::compact_pending::sealed::CustodyOwner;
 
     // No user callback, arbitrary generator, digest or work supplier. Only
     // compiler-owned recipe owners can back these deterministic public values.
@@ -69,8 +71,8 @@ mod public_constants {
     }
 
     impl<'a> GeneratedPublicValues<'a> {
-        pub(in super::super) fn retained_argmax_indices(
-            loan: &'a compact_lowering::frozen_region::owning::recipe::RetainedEpoch,
+        pub(in super::super) fn retained_argmax_indices<C: CustodyOwner>(
+            loan: &'a RetainedEpochFor<C>,
             descriptor: usize,
         ) -> Result<Self, Error> {
             let owner = loan.epoch();
@@ -85,8 +87,10 @@ mod public_constants {
             )?;
             Ok(values)
         }
-        pub(in super::super) fn owned_argmax_indices(
-            loan: &compact_lowering::frozen_region::owning::InspectionLoan<'a>,
+        pub(in super::super) fn owned_argmax_indices<
+            C: compact_lowering::frozen_region::owning::HistoryInspection,
+        >(
+            loan: &compact_lowering::frozen_region::owning::InspectionLoan<'a, C>,
             descriptor: usize,
         ) -> Result<Self, Error> {
             let owner = loan.epoch();

@@ -659,6 +659,9 @@ fn coverage_for_operator(
         {
             found = true;
             let result = match operator {
+                ModelOperator::GeluErf | ModelOperator::Tanh | ModelOperator::AttentionMask => {
+                    Err("source-FP32 operators have no provenance-bound Q10 coverage".into())
+                }
                 ModelOperator::RotaryEmbedding => {
                     lower_rope_region(plan_digest, graph, mode, operation).map(|_| ())
                 }

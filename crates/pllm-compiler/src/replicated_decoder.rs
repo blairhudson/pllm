@@ -28,6 +28,10 @@ mod source_registry;
 #[allow(dead_code)]
 mod source_request_census;
 mod source_policy;
+// Geometry-only custody remains beneath ingress so its consuming handoff cannot
+// escape to query callers. No SDK route or source activation is added here.
+#[allow(unused_imports)]
+use program::source_entry::ingress::source_geometry;
 #[cfg(test)]
 mod tests;
 mod views;

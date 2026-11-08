@@ -34,6 +34,7 @@ pub(in crate::replicated_decoder) enum Kind {
 enum Storage<'s> {
     Expanded(&'s Program),
     Compact(&'s source_entry::compact_pending::sealed::SealedOwnedStorage),
+    ResidentCompact(&'s source_entry::compact_pending::sealed::ResidentSealedOwnedStorage),
     #[allow(dead_code)] // FrozenSchedule is currently a test-only metadata loan.
     Frozen(&'s dyn BorrowedOrderedNodes),
     // Installed only by consuming test custody from an internally created loan.
@@ -56,6 +57,11 @@ impl<'s> PrivateScheduleRef<'s> {
     ) -> Self {
         Self(Storage::Compact(owner))
     }
+    pub(super) fn resident_compact(
+        owner: &'s source_entry::compact_pending::sealed::ResidentSealedOwnedStorage,
+    ) -> Self {
+        Self(Storage::ResidentCompact(owner))
+    }
     #[cfg(test)]
     pub(in crate::replicated_decoder) fn frozen(schedule: &'s FrozenSchedule<'_, '_>) -> Self {
         Self(Storage::Frozen(schedule))
@@ -74,6 +80,9 @@ impl<'s> PrivateScheduleRef<'s> {
         if let Storage::Compact(owner) = self.0 {
             return owner.generated_len(ordinal);
         }
+        if let Storage::ResidentCompact(owner) = self.0 {
+            return owner.generated_len(ordinal);
+        }
         let Storage::OwnedFrozen(_, owner) = self.0 else {
             return Err(Error::Binding);
         };
@@ -89,6 +98,9 @@ impl<'s> PrivateScheduleRef<'s> {
         index: usize,
     ) -> Result<i64, Error> {
         if let Storage::Compact(owner) = self.0 {
+            return owner.generated_element(ordinal, index);
+        }
+        if let Storage::ResidentCompact(owner) = self.0 {
             return owner.generated_element(ordinal, index);
         }
         let Storage::OwnedFrozen(_, owner) = self.0 else {
@@ -129,6 +141,7 @@ impl<'s> PrivateScheduleRef<'s> {
         match self.0 {
             Storage::Expanded(p) => p.nodes.len(),
             Storage::Compact(p) => p.logical_len(),
+            Storage::ResidentCompact(p) => p.logical_len(),
             Storage::Frozen(s) | Storage::OwnedFrozen(s, _) => s.node_count(),
         }
     }
@@ -136,6 +149,7 @@ impl<'s> PrivateScheduleRef<'s> {
         let node = match self.0 {
             Storage::Expanded(p) => p.nodes.as_slice().node(ordinal)?,
             Storage::Compact(p) => p.read_recipe(ordinal)?,
+            Storage::ResidentCompact(p) => p.read_recipe(ordinal)?,
             Storage::Frozen(s) | Storage::OwnedFrozen(s, _) => s.node(ordinal)?,
         };
         Ok(ReadNode(node))
@@ -144,6 +158,7 @@ impl<'s> PrivateScheduleRef<'s> {
         match self.0 {
             Storage::Expanded(p) => Ok(p.inputs),
             Storage::Compact(p) => Ok(p.input_count()),
+            Storage::ResidentCompact(p) => Ok(p.input_count()),
             Storage::Frozen(_) | Storage::OwnedFrozen(_, _) => Err(Error::Binding),
         }
     }
@@ -166,6 +181,7 @@ impl<'s> PrivateScheduleRef<'s> {
         match self.0 {
             Storage::Expanded(p) => Ok(p.nodes.len()),
             Storage::Compact(p) => Ok(p.value_slot_count()),
+            Storage::ResidentCompact(p) => Ok(p.value_slot_count()),
             Storage::Frozen(_) | Storage::OwnedFrozen(_, _) => Err(Error::Binding),
         }
     }
@@ -175,6 +191,7 @@ impl<'s> PrivateScheduleRef<'s> {
             // checks. Never infer this map for virtual frozen recipe ordinals.
             Storage::Expanded(_) => Ok(logical),
             Storage::Compact(p) => p.value_slot(logical),
+            Storage::ResidentCompact(p) => p.value_slot(logical),
             Storage::Frozen(_) | Storage::OwnedFrozen(_, _) => Err(Error::Binding),
         }
     }
@@ -184,6 +201,7 @@ impl<'s> PrivateScheduleRef<'s> {
     ) -> Result<&'s [usize], Error> {
         match self.0 {
             Storage::Compact(p) => p.retirement(ordinal),
+            Storage::ResidentCompact(p) => p.retirement(ordinal),
             Storage::Expanded(p) => p
                 .retire
                 .get(ordinal)
@@ -196,6 +214,7 @@ impl<'s> PrivateScheduleRef<'s> {
         match self.0 {
             Storage::Expanded(p) => Ok(&p.outputs),
             Storage::Compact(p) => Ok(p.outputs()),
+            Storage::ResidentCompact(p) => Ok(p.outputs()),
             Storage::Frozen(_) | Storage::OwnedFrozen(_, _) => Err(Error::Binding),
         }
     }
@@ -203,6 +222,7 @@ impl<'s> PrivateScheduleRef<'s> {
         match self.0 {
             Storage::Expanded(p) => Ok(p.source_binding),
             Storage::Compact(p) => Ok(p.source_binding()),
+            Storage::ResidentCompact(p) => Ok(p.source_binding()),
             Storage::Frozen(_) | Storage::OwnedFrozen(_, _) => Err(Error::Binding),
         }
     }
@@ -215,6 +235,7 @@ impl<'s> PrivateScheduleRef<'s> {
     ) -> Result<&'s Arc<runtime::trie::Plan>, Error> {
         match self.0 {
             Storage::Compact(p) => p.trie_owner(ordinal),
+            Storage::ResidentCompact(p) => p.trie_owner(ordinal),
             Storage::Expanded(p) => match &p.nodes.get(ordinal).ok_or(Error::Binding)?.code {
                 Code::TrieLookup { plan, .. } => Ok(plan),
                 _ => Err(Error::Binding),
@@ -228,6 +249,7 @@ impl<'s> PrivateScheduleRef<'s> {
     ) -> Result<&'s Arc<runtime::selection::Plan>, Error> {
         match self.0 {
             Storage::Compact(p) => p.selection_owner(ordinal),
+            Storage::ResidentCompact(p) => p.selection_owner(ordinal),
             Storage::Expanded(p) => match &p.nodes.get(ordinal).ok_or(Error::Binding)?.code {
                 Code::Selection { plan, .. } => Ok(plan),
                 _ => Err(Error::Binding),
@@ -678,6 +700,8 @@ impl Iterator for FrozenExportRefs<'_, '_> {
 /// Fixed typed read/control inventory, above the caller's existing retained
 /// owners. Reader performs no allocation/factory. This quote is NOT whole-Worker
 /// admission; source-qualified publication must compose it before factories.
+/// PrivateScheduleRef's actual enum extent includes both concrete compact loans;
+/// each thin dispatch enters the same C-preserving storage read implementation.
 pub(in crate::replicated_decoder) const CONTROL_BYTES: usize = std::mem::size_of::<PrivateScheduleRef<'_>>()
         + std::mem::size_of::<Arc<Program>>()
         + 2 * std::mem::size_of::<ReadNode<'_>>()

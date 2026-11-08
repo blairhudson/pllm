@@ -10,6 +10,7 @@ use super::super::super::schedule_finalization::{
     BorrowedLaneRefs, BorrowedNode, BorrowedOrderedNodes, BorrowedRecipe, GeneratedPublicValues,
 };
 use super::*;
+use crate::replicated_decoder::program::request_origin::compact_storage::ControllerAccounting;
 
 impl BorrowedLaneRefs for PublishedView {
     fn len(&self) -> usize {
@@ -972,7 +973,7 @@ pub(super) fn replay_argmax_block(
     }
 }
 
-impl BorrowedLaneRefs for compact_attention_softmax::OwnedRow<'_> {
+impl<G: ControllerAccounting> BorrowedLaneRefs for compact_attention_softmax::OwnedRow<'_, G> {
     fn len(&self) -> usize {
         self.native_width()
     }

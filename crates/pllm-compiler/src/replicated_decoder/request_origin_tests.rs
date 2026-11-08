@@ -3,7 +3,7 @@ use super::super::request_driver::drive_owned as drive;
 use super::*;
 
 #[path = "request_schedule_tests.rs"]
-mod schedule_tests;
+pub(in crate::replicated_decoder::program) mod schedule_tests;
 use crate::plan_input::json;
 use pllm_garble::shared_allocation::{OwnedBudget, MAX_ALLOCATION_BYTES};
 
@@ -396,6 +396,98 @@ fn foreign_same_shape_same_source_hash_builder_is_not_original_input_owner() {
             assert_eq!(b.builder.nodes.len(), before);
             assert_eq!(origin.payload().state.load(Ordering::Acquire), BURNED);
         })
+    });
+}
+
+#[test]
+fn reordered_original_prompt_refuses_before_first_prefill_or_feedback() {
+    with_case(|mut case| {
+        let mut permit = case.permit.take().unwrap();
+        let origin = Arc::clone(&permit.history.origin);
+        let input = origin.payload().input.owner();
+        assert_eq!(origin.payload().state.load(Ordering::Acquire), OPEN);
+        assert!(permit.history.fragments.is_empty());
+        assert_eq!(permit.history.epochs.len(), 1);
+        assert!(Arc::ptr_eq(
+            &permit.history.epochs[0],
+            &origin.payload().source
+        ));
+        assert_eq!(permit.tokens.shape, [1, TOKENS.len()]);
+        assert_ne!(TOKENS[0], TOKENS[1]);
+        assert!(TOKENS.iter().all(|&token| token < 3));
+        let mut words: Vec<_> = permit.tokens.words.iter().collect();
+        assert_eq!(
+            words,
+            (0..TOKENS.len()).map(|lane| (input, lane)).collect::<Vec<_>>()
+        );
+        // Synthetic control of genuine prefix custody, not model/host admission.
+        // Only original coordinates 0/1 change order; owners and lanes stay valid.
+        words.swap(0, 1);
+        permit.tokens.words = words.into_iter().collect();
+        assert_eq!(permit.tokens.shape, [1, TOKENS.len()]);
+        assert_eq!(permit.tokens.words.at(0), (input, 1));
+        assert_eq!(permit.tokens.words.at(1), (input, 0));
+        for (owner, lane) in permit.tokens.words.iter() {
+            assert_eq!(owner, input);
+            assert!(lane < case.builder.nodes[owner].lanes);
+        }
+        let controller = case
+            .root
+            .charge_external(permit.lowering_control_bytes(limits()).unwrap())
+            .unwrap();
+        // This fixture contains only original input records. Snapshot every
+        // record field, not just node count or work (both can miss mutations).
+        let input_records = |builder: &Builder| {
+            builder
+                .nodes
+                .iter()
+                .map(|node| {
+                    let (key, source) = match &node.code {
+                        Code::Input(key) => (key.clone(), None),
+                        Code::PublicInput {
+                            key,
+                            digest,
+                            row_l1,
+                            row_squared_norm,
+                            row_l1_squared_sum,
+                        } => (
+                            key.clone(),
+                            Some((*digest, *row_l1, *row_squared_norm, *row_l1_squared_sum)),
+                        ),
+                        _ => panic!("unexpected native node before first prefill"),
+                    };
+                    (key, source, node.lanes, node.bounds)
+                })
+                .collect::<Vec<_>>()
+        };
+        let nodes = input_records(&case.builder);
+        let tensors = case.builder.tensors.clone();
+        let validity = case.builder.validity;
+        let work = schedule_work(&case.builder.nodes).unwrap();
+        assert!(case.builder.request_emission.is_none());
+        assert!(matches!(
+            drive(
+                permit,
+                &mut case.builder,
+                &case.inputs,
+                &case.fixture.manifest.tensors,
+                controller,
+                limits(),
+                &mut AdmissionSite::default()
+            ),
+            Err(Error::Binding)
+        ));
+        assert_eq!(input_records(&case.builder), nodes);
+        assert_eq!(case.builder.tensors.len(), tensors.len());
+        for (key, tensor) in &tensors {
+            assert!(Arc::ptr_eq(&case.builder.tensors[key], tensor));
+        }
+        assert_eq!(case.builder.validity, validity);
+        // prepay_epoch legitimately debits source metadata before check_tokens;
+        // schedule_work counts native nodes, which refusal must leave untouched.
+        assert_eq!(schedule_work(&case.builder.nodes).unwrap(), work);
+        assert!(case.builder.request_emission.is_none());
+        assert_eq!(origin.payload().state.load(Ordering::Acquire), BURNED);
     });
 }
 

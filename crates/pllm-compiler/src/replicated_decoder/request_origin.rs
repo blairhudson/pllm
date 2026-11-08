@@ -26,6 +26,8 @@ pub(in crate::replicated_decoder) mod rotary_creation;
 pub(super) mod schedule;
 #[path = "source_bias.rs"]
 pub(in crate::replicated_decoder) mod source_bias;
+#[path = "source_inspection_extent.rs"]
+mod source_inspection_extent;
 
 fn add(a: usize, b: usize) -> Result<usize, Error> {
     a.checked_add(b).ok_or(Error::Bounds)
@@ -35,11 +37,18 @@ fn bytes<T>(n: usize) -> Result<usize, Error> {
 }
 fn reserve<T>(n: usize) -> Result<Vec<T>, Error> {
     let mut values = Vec::new();
-    values.try_reserve_exact(n).map_err(|_| Error::Allocation)?;
+    reserve_into(&mut values, n)?;
+    Ok(values)
+}
+
+fn reserve_into<T>(values: &mut Vec<T>, n: usize) -> Result<(), Error> {
+    values
+        .try_reserve_exact(n.saturating_sub(values.len()))
+        .map_err(|_| Error::Allocation)?;
     if values.capacity() != n {
         return Err(Error::Allocation);
     }
-    Ok(values)
+    Ok(())
 }
 
 /// Opaque, single-use authorization for program's actual Input creation hook.
@@ -89,6 +98,45 @@ impl<'s> RequestSources<'s> {
             registry,
             public,
         })
+    }
+}
+
+// Identity of the immutable prepared owners, not a new public binding. Moving
+// the registry header does not change its instance or descriptor maps.
+pub(super) struct PreparedSourceBinding {
+    manifest: usize,
+    tensors: usize,
+    norms: usize,
+    registry: source_registry::Instance,
+    public: usize,
+}
+impl RequestSources<'_> {
+    pub(super) fn prepared_binding(&self) -> PreparedSourceBinding {
+        PreparedSourceBinding {
+            manifest: self.manifest as *const _ as usize,
+            tensors: std::ptr::from_ref(self.registry.source_records()) as usize,
+            norms: std::ptr::from_ref(self.registry.source_norms()) as usize,
+            registry: self.registry.instance(),
+            public: Arc::as_ptr(&self.public) as usize,
+        }
+    }
+    pub(super) fn matches_prepared(&self, binding: &PreparedSourceBinding) -> bool {
+        self.manifest as *const _ as usize == binding.manifest
+            && std::ptr::from_ref(self.registry.source_records()) as usize == binding.tensors
+            && std::ptr::from_ref(self.registry.source_norms()) as usize == binding.norms
+            && self.registry.instance() == binding.registry
+            && Arc::as_ptr(&self.public) as usize == binding.public
+    }
+    pub(super) fn check_prepared_maps(&self, builder: &Builder, inputs: &BTreeMap<String, SourceView>) -> Result<(), Error> {
+        if inputs.len() != self.registry.records().count() { return Err(Error::Binding); }
+        for (owner, key, record, norm) in self.registry.records() {
+            let view = inputs.get(key).ok_or(Error::Binding)?;
+            let node = builder.nodes.get(view.owner).ok_or(Error::Binding)?;
+            if view.owner != owner || view.shape != record.shape || builder.public_norms.get(&owner) != norm
+                || !matches!(&node.code, Code::PublicInput { key: k, digest, .. } if k == key && *digest == record.digest)
+            { return Err(Error::Binding); }
+        }
+        Ok(())
     }
 }
 
@@ -550,19 +598,383 @@ pub(super) fn graph_entry(
     Ok(())
 }
 
-pub(super) fn declare<'s>(
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum DeclarationState {
+    Empty,
+    Entering,
+    CleanupOnly,
+    Complete,
+    Drained,
+}
+
+struct DeclarationAttempt<'a>(&'a std::cell::Cell<DeclarationState>);
+impl Drop for DeclarationAttempt<'_> {
+    fn drop(&mut self) {
+        if self.0.get() == DeclarationState::Entering {
+            self.0.set(DeclarationState::CleanupOnly);
+        }
+    }
+}
+
+/// Borrow-free declaration custody. Payload fields precede covering charges.
+/// Inactive until receiver slots/moves/control work receive independent funding.
+pub(super) struct DeclarationReceiver {
+    epochs: Vec<Arc<OriginalSourcePlan>>,
+    fragments: Vec<Fragment>,
+    projections: Vec<Option<rotary_creation::CreatedOperator>>,
+    tokens: View,
+    scratch: Words,
+    pending_origin: Option<Origin>,
+    sealed_origin: Option<OwnedCharged<Origin>>,
+    origin: Option<HistoryOrigin>,
+    resources: Option<Resources>,
+    sticky: Option<usize>,
+    state: std::cell::Cell<DeclarationState>,
+    origin_admission: pllm_garble::shared_allocation::ResidentAdmission<Origin>,
+    // A split root must remain here if admission entry refuses.
+    root_charge: Option<OwnedExternalCharge>,
+    charge: Option<OwnedExternalCharge>,
+}
+
+impl DeclarationReceiver {
+    pub(super) fn refuse_drain(&mut self) {
+        if self.state.get() != DeclarationState::Drained {
+            self.state.set(DeclarationState::CleanupOnly);
+        }
+    }
+
+    pub(super) fn prepared_for(&self, plan: &Arc<OriginalSourcePlan>, public: &Arc<PublicSource>) -> bool {
+        self.origin.as_ref().is_some_and(|o| Arc::ptr_eq(&o.payload().source, plan) && Arc::ptr_eq(&o.payload().public, public))
+    }
+
+    fn check_drain(&self, builder: &Builder, sources: Option<&RequestSources<'_>>, destination_empty: bool) -> Result<(), Error> {
+        if self.state.get() != DeclarationState::Complete || !destination_empty {
+            return Err(Error::Binding);
+        }
+        // Complete follows successful seal_into and final token/epoch install.
+        // Terminal topology excludes a second covering reservation.
+        if self.pending_origin.is_some() || self.sealed_origin.is_some() || self.root_charge.is_some() {
+            return Err(Error::Binding);
+        }
+        let sources = sources.ok_or(Error::Binding)?;
+        let origin = self.origin.as_ref().ok_or(Error::Binding)?;
+        let resources = self.resources.as_ref().ok_or(Error::Binding)?;
+        let charge = self.charge.as_ref().ok_or(Error::Binding)?;
+        let payload = origin.payload();
+        if payload.state.load(Ordering::Acquire) != OPEN
+            || !charge.is_for(payload.source.budget())
+            || !std::ptr::eq(origin.budget(), payload.source.budget())
+            || !self.epochs.first().is_some_and(|plan| Arc::ptr_eq(plan, &payload.source))
+            || !Arc::ptr_eq(&sources.public, &payload.public)
+            || sources.registry.instance() != payload.registry_identity
+            || std::ptr::from_ref(sources.registry.source_records()) as usize != payload.source_records
+            || self.tokens.shape.as_slice() != [1, resources.rows]
+            || !builder.original_inputs.iter().any(|input| Arc::ptr_eq(input, &payload.input))
+        {
+            return Err(Error::Binding);
+        }
+        let input = builder.nodes.get(payload.input.owner()).ok_or(Error::Binding)?;
+        if !matches!(&input.code, Code::Input(key) if key == "input.tokens")
+            || input.lanes != resources.rows || input.bounds != payload.bounds
+        {
+            return Err(Error::Binding);
+        }
+        // The same immutable lens inherits RequestSources::new's mode/map
+        // validation and declare_into's authentic public binding validation.
+        Ok(())
+    }
+
+    pub(super) fn prevalidate_drain<'a, 's>(&'a mut self, builder: &'a Builder,
+        sources: &'a mut Option<RequestSources<'s>>, destination_empty: bool,
+    ) -> Result<CheckedDeclarationDrain<'a, 's>, Error> {
+        if let Err(error) = self.check_drain(builder, sources.as_ref(), destination_empty) {
+            self.refuse_drain();
+            return Err(error);
+        }
+        Ok(CheckedDeclarationDrain { receiver: self, sources, _builder: builder })
+    }
+
+    /// Refusal extracts nothing and cannot restore preparation rights.
+    pub(super) fn drain_complete<'s>(&mut self, builder: &Builder,
+        sources: &mut Option<RequestSources<'s>>, dst: &mut Option<RequestInputPermit<'s>>,
+    ) -> Result<(), Error> {
+        let checked = self.prevalidate_drain(builder, sources, dst.is_none())?;
+        *dst = Some(checked.commit());
+        Ok(())
+    }
+
+    pub(super) fn retire_payloads(&mut self) {
+        drop(std::mem::take(&mut self.tokens.words));
+        drop(std::mem::take(&mut self.tokens.shape));
+        drop(std::mem::take(&mut self.scratch));
+        drop(std::mem::take(&mut self.epochs));
+        drop(std::mem::take(&mut self.fragments));
+        drop(std::mem::take(&mut self.projections));
+        #[cfg(test)]
+        let before_origin = self.charge.as_ref().map(|charge| charge.budget().used_bytes());
+        #[cfg(test)]
+        let covers = self.test_covers();
+        drop(self.pending_origin.take());
+        drop(self.sealed_origin.take());
+        drop(self.origin.take());
+        #[cfg(test)]
+        DECLARATION_DROP.with(|record| {
+            // InputReceiver retires explicitly, then field Drop retires again.
+            // Preserve the FIRST boundary, including missing-cover evidence.
+            if record.get().is_none() {
+                record.set(Some(DeclarationDrop {
+                    backings_gone: self.test_backings().iter().all(|(_, capacity)| *capacity == 0),
+                    before_origin,
+                    after_origin: self.charge.as_ref().map(|charge| charge.budget().used_bytes()),
+                    covers,
+                }));
+            }
+        });
+    }
+
+    #[cfg(test)]
+    pub(super) fn test_backings(&self) -> [(usize, usize); 6] {
+        [
+            (self.epochs.as_ptr() as usize, self.epochs.capacity()),
+            (self.fragments.as_ptr() as usize, self.fragments.capacity()),
+            (self.projections.as_ptr() as usize, self.projections.capacity()),
+            self.tokens.words.test_span_backing(),
+            self.scratch.test_span_backing(),
+            (self.tokens.shape.as_ptr() as usize, self.tokens.shape.capacity()),
+        ]
+    }
+
+    #[cfg(test)]
+    pub(super) fn test_genuine_record(&self, builder: &Builder) -> bool {
+        let origin = self.pending_origin.as_ref()
+            .or_else(|| self.origin.as_ref().map(|o| o.payload()));
+        origin.is_some_and(|origin| builder.original_inputs.iter()
+            .any(|record| Arc::ptr_eq(record, &origin.input)))
+    }
+
+    #[cfg(test)]
+    pub(super) fn test_last_backings() -> Option<[(usize, usize); 6]> {
+        DECLARATION_BACKINGS.with(|record| record.get())
+    }
+
+    #[cfg(test)]
+    pub(super) fn test_drop_record() -> Option<DeclarationDrop> {
+        DECLARATION_DROP.with(|record| record.take())
+    }
+
+    #[cfg(test)]
+    pub(super) fn test_covers(&self) -> (Option<(usize, usize)>, Option<(usize, usize)>) {
+        (
+            self.charge.as_ref().map(|charge| (charge.charged_bytes(), charge.budget() as *const _ as usize)),
+            self.origin.as_ref().map(|origin| (origin.charged_bytes(), origin.budget() as *const _ as usize)),
+        )
+    }
+
+    #[cfg(test)]
+    pub(super) fn test_origin_layout() -> (usize, usize) {
+        (size_of::<Origin>(), size_of::<OwnedCharged<Origin>>())
+    }
+
+    #[cfg(test)]
+    pub(super) fn test_refuse_next_fragment_reserve() {
+        DECLARATION_REFUSE_RESERVE.with(|armed| armed.set(true));
+    }
+
+    #[cfg(test)]
+    pub(super) fn test_seed_fragment_backing(&mut self) -> Result<(), Error> {
+        // Empty backing only: no Fragment/history authority is fabricated.
+        reserve_into(&mut self.fragments, 1)
+    }
+
+    pub(super) fn empty() -> Self {
+        Self {
+            epochs: Vec::new(),
+            fragments: Vec::new(),
+            projections: Vec::new(),
+            tokens: View { words: Words::new(), shape: Vec::new() },
+            scratch: Words::new(),
+            pending_origin: None,
+            sealed_origin: None,
+            origin: None,
+            resources: None,
+            sticky: None,
+            state: std::cell::Cell::new(DeclarationState::Empty),
+            origin_admission: pllm_garble::shared_allocation::ResidentAdmission::empty(),
+            root_charge: None,
+            charge: None,
+        }
+    }
+}
+
+// Exclusive ticket freezes both slots and the builder's genuine Input until
+// commit. No unchecked public drain, allocation, mint, debit or callback.
+pub(super) struct CheckedDeclarationDrain<'a, 's> {
+    receiver: &'a mut DeclarationReceiver,
+    sources: &'a mut Option<RequestSources<'s>>,
+    _builder: &'a Builder,
+}
+
+// Source-logical inline components; not a complete frontier/admission quote.
+fn checked_declaration_drain_bytes() -> Result<usize, Error> {
+    bytes::<CheckedDeclarationDrain<'_, '_>>(1)
+}
+
+fn checked_declaration_drain_result_bytes() -> Result<usize, Error> {
+    bytes::<Result<CheckedDeclarationDrain<'_, '_>, Error>>(1)
+}
+
+impl<'s> CheckedDeclarationDrain<'_, 's> {
+    pub(super) fn commit(self) -> RequestInputPermit<'s> {
+        let Self { receiver: dst, sources, _builder: _ } = self;
+        let origin = dst.origin.take().expect("prechecked resident origin");
+        let resources = dst.resources.take().expect("prechecked resident resources");
+        let charge = dst.charge.take().expect("prechecked resident declaration charge");
+        let sources = sources.take().expect("prechecked authentic source lens");
+        let tokens = std::mem::replace(&mut dst.tokens, View { words: Words::new(), shape: Vec::new() });
+        let permit = RequestInputPermit {
+            tokens,
+            history: History {
+                epochs: std::mem::take(&mut dst.epochs),
+                fragments: std::mem::take(&mut dst.fragments),
+                projections: std::mem::take(&mut dst.projections),
+                scratch: std::mem::take(&mut dst.scratch),
+                origin, sources, resources, sticky: dst.sticky.take(), charge,
+            },
+        };
+        dst.state.set(DeclarationState::Drained);
+        permit
+    }
+}
+
+impl Drop for DeclarationReceiver {
+    fn drop(&mut self) {
+        self.retire_payloads();
+        // Admission/root/declaration charges follow actual payload destruction.
+    }
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy)]
+pub(super) struct DeclarationDrop {
+    pub(super) backings_gone: bool,
+    pub(super) before_origin: Option<usize>,
+    pub(super) after_origin: Option<usize>,
+    // Actual resident declaration/origin guards: (bytes, original counter).
+    pub(super) covers: (Option<(usize, usize)>, Option<(usize, usize)>),
+}
+
+#[cfg(test)]
+thread_local! {
+    static DECLARATION_BACKINGS: std::cell::Cell<Option<[(usize, usize); 6]>> = const { std::cell::Cell::new(None) };
+    static DECLARATION_DROP: std::cell::Cell<Option<DeclarationDrop>> = const { std::cell::Cell::new(None) };
+    static DECLARATION_REFUSE_RESERVE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Caller has already entered its sticky receiver attempt. Never returns a
+/// partially constructed payload across a fallible boundary.
+pub(super) fn declare_into(
     builder: &mut Builder,
-    source: OriginalSourcePlan,
-    sources: RequestSources<'s>,
-    mut charge: OwnedExternalCharge,
-) -> Result<RequestInputPermit<'s>, Error> {
+    source: &Arc<OriginalSourcePlan>,
+    sources: &RequestSources<'_>,
+    imports: &mut OwnedExternalCharge,
+    pending_code: &mut Option<Code>,
+    dst: &mut DeclarationReceiver,
+) -> Result<(), Error> {
+    if dst.charge.is_some() {
+        dst.state.set(DeclarationState::CleanupOnly);
+        return Err(Error::Binding);
+    }
+    if dst.state.get() != DeclarationState::Empty {
+        return Err(Error::Retired);
+    }
+    dst.state.set(DeclarationState::Entering);
+    let _attempt = DeclarationAttempt(&dst.state);
+    // Preserve the caller's quote/split before later declaration fallibility.
+    let resources = quote(builder, source, sources)?;
+    dst.charge = Some(imports.split_owned(resources.payload_bytes).map_err(|_| Error::Bounds)?);
+    dst.resources = Some(resources);
+    let charge = dst.charge.as_mut().ok_or(Error::Binding)?;
     if !charge.is_for(source.budget()) {
         return Err(Error::Binding);
     }
-    let resources = quote(builder, &source, &sources)?;
+    // Preserve the second declaration quote AFTER authentic counter validation.
+    let resources = quote(builder, source, sources)?;
     if charge.payload_bytes() < resources.payload_bytes {
         return Err(Error::Bounds);
     }
+    dst.resources = Some(resources);
+    let bounds = declaration_bounds(builder, source, sources)?;
+    source.prepay_compiler_metadata(charge, resources.metadata_work)
+        .map_err(|_| Error::Bounds)?;
+    sources.public.check_registry(sources.registry)?;
+    let root_bytes = add(size_of::<Origin>(), bytes::<usize>(2)?)?;
+    dst.root_charge = Some(charge.split_owned(root_bytes).map_err(|_| Error::Bounds)?);
+    pllm_garble::shared_allocation::ResidentAdmission::enter_into(
+        &mut dst.root_charge, root_bytes, &mut dst.origin_admission,
+    )
+    .map_err(|_| Error::Bounds)?;
+    reserve_into(&mut dst.epochs, resources.outputs)?;
+    #[cfg(test)]
+    if DECLARATION_REFUSE_RESERVE.with(|armed| armed.replace(false)) {
+        DECLARATION_BACKINGS.with(|record| record.set(Some(dst.test_backings())));
+        // Non-ZST Fragment: usize::MAX guarantees checked capacity overflow,
+        // not an OOM allocation. Exercise the actual resident destination.
+        dst.fragments.try_reserve_exact(usize::MAX).map_err(|_| Error::Allocation)?;
+        unreachable!("fragment capacity overflow must refuse");
+    }
+    reserve_into(&mut dst.fragments, resources.outputs)?;
+    #[cfg(test)]
+    {
+        DECLARATION_BACKINGS.with(|record| record.set(Some(dst.test_backings())));
+        source_entry::receiver_checkpoint(2)?;
+    }
+    reserve_into(&mut dst.projections, resources.projection_slots)?;
+    dst.tokens.words.reserve_spans_retained(add(resources.outputs, 1)?)?;
+    dst.scratch.reserve_spans_retained(add(resources.outputs, 1)?)?;
+    // Retained shape backing, before minting genuine token authority.
+    reserve_into(&mut dst.tokens.shape, 2)?;
+    dst.origin_admission.attempt().admit_inline().map_err(|_| Error::Bounds)?;
+    let record = builder.create_request_input_retained(
+        InputMint { rows: resources.rows, bounds }, pending_code,
+    )?;
+    dst.pending_origin = Some(Origin {
+        input: record,
+        source: Arc::clone(source),
+        public: Arc::clone(&sources.public),
+        registry_identity: sources.registry.instance(),
+        source_records: std::ptr::from_ref(sources.registry.source_records()) as usize,
+        bounds,
+        state: AtomicU8::new(OPEN),
+    });
+    #[cfg(test)]
+    {
+        DECLARATION_BACKINGS.with(|record| record.set(Some(dst.test_backings())));
+        source_entry::receiver_checkpoint(3)?;
+    }
+    dst.origin_admission.attempt()
+        .seal_into(&mut dst.pending_origin, &mut dst.sealed_origin)
+        .map_err(|_| Error::Bounds)?;
+    // Arc allocation is not claimed allocation-free. Allocator abort is outside
+    // the returned-error/unwind contract; no user callback occurs here.
+    dst.origin = Some(HistoryOrigin(Arc::new(
+        dst.sealed_origin.take().expect("sealed origin"),
+    )));
+    #[cfg(test)]
+    MINTS.with(|v| v.set(v.get() + 1));
+    let owner = dst.origin.as_ref().ok_or(Error::Binding)?.payload().input.owner();
+    dst.tokens.words.extend((0..resources.rows).map(|lane| (owner, lane)));
+    dst.tokens.shape.extend([1, resources.rows]);
+    dst.epochs.push(Arc::clone(source));
+    dst.sticky = builder.validity;
+    dst.state.set(DeclarationState::Complete);
+    Ok(())
+}
+
+fn declaration_bounds(
+    builder: &Builder,
+    source: &OriginalSourcePlan,
+    sources: &RequestSources<'_>,
+) -> Result<Interval, Error> {
     let manifest = sources.manifest;
     let workload = source.workload();
     if source.raw_configuration() != manifest.config.as_slice()
@@ -581,22 +993,32 @@ pub(super) fn declare<'s>(
     {
         return Err(Error::Binding);
     }
-    let vocabulary = source
-        .plan()
-        .prefill
-        .operations
-        .iter()
+    let vocabulary = source.plan().prefill.operations.iter()
         .find(|op| op.operator == Op::OutputHead)
         .and_then(|op| op.output_shape.last())
         .copied()
         .ok_or(Error::Binding)?;
-    let bounds = Interval::new(
+    Interval::new(
         0,
-        i64::try_from(vocabulary)
-            .map_err(|_| Error::Bounds)?
-            .checked_sub(1)
-            .ok_or(Error::Bounds)?,
-    )?;
+        i64::try_from(vocabulary).map_err(|_| Error::Bounds)?
+            .checked_sub(1).ok_or(Error::Bounds)?,
+    )
+}
+
+pub(super) fn declare<'s>(
+    builder: &mut Builder,
+    source: OriginalSourcePlan,
+    sources: RequestSources<'s>,
+    mut charge: OwnedExternalCharge,
+) -> Result<RequestInputPermit<'s>, Error> {
+    if !charge.is_for(source.budget()) {
+        return Err(Error::Binding);
+    }
+    let resources = quote(builder, &source, &sources)?;
+    if charge.payload_bytes() < resources.payload_bytes {
+        return Err(Error::Bounds);
+    }
+    let bounds = declaration_bounds(builder, &source, &sources)?;
     source
         .prepay_compiler_metadata(&charge, resources.metadata_work)
         .map_err(|_| Error::Bounds)?;
@@ -812,6 +1234,24 @@ impl History<'_> {
             .map_err(|_| Error::Bounds)
     }
 
+    fn check_tokens(&self, tokens: &View) -> Result<(), Error> {
+        DeclarationView {
+            epochs: &self.epochs,
+            fragments: &self.fragments,
+            origin: &self.origin,
+            resources: &self.resources,
+        }.check_tokens(tokens)
+    }
+}
+
+struct DeclarationView<'a> {
+    epochs: &'a [Arc<OriginalSourcePlan>],
+    fragments: &'a [Fragment],
+    origin: &'a HistoryOrigin,
+    resources: &'a Resources,
+}
+
+impl DeclarationView<'_> {
     fn check_tokens(&self, tokens: &View) -> Result<(), Error> {
         if self
             .epochs
@@ -1302,4 +1742,25 @@ thread_local! { static MINTS: std::cell::Cell<usize> = const { std::cell::Cell::
 thread_local! { static SELECTION_FAULT: std::cell::Cell<u8> = const { std::cell::Cell::new(0) }; }
 #[cfg(test)]
 #[path = "request_origin_tests.rs"]
-mod tests;
+pub(in crate::replicated_decoder::program) mod tests;
+
+#[cfg(test)]
+impl DeclarationReceiver {
+    pub(super) fn test_origin_probe(&self) -> (usize, impl Fn() -> (bool, bool) + use<>) {
+        let origin = Arc::clone(&self.origin.as_ref().expect("genuine prepared origin").0);
+        let identity = Arc::as_ptr(&origin) as usize;
+        (identity, move || { let state = origin.payload().state.load(Ordering::Acquire); (state == OPEN, state == BURNED) })
+    }
+    pub(super) fn test_mints() -> usize { MINTS.with(|n| n.get()) }
+}
+#[cfg(test)]
+impl RequestInputPermit<'_> {
+    fn test_resident_backings(&self) -> [(usize, usize); 6] {
+        let history = &self.history;
+        [(history.epochs.as_ptr() as usize, history.epochs.capacity()),
+            (history.fragments.as_ptr() as usize, history.fragments.capacity()),
+            (history.projections.as_ptr() as usize, history.projections.capacity()),
+            self.tokens.words.test_span_backing(), history.scratch.test_span_backing(),
+            (self.tokens.shape.as_ptr() as usize, self.tokens.shape.capacity())]
+    }
+}

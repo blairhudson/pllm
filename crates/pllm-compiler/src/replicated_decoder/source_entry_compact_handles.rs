@@ -2,6 +2,7 @@
 //! Positions retain no borrowed addresses. Only the parent authenticates ingress;
 //! Instance is an identity check, never a replacement for that authentication.
 use super::*;
+use super::sealed::{CustodyOwner, FinalizedRootFor};
 use std::{collections::btree_map, mem::size_of};
 
 pub(in crate::replicated_decoder::program) struct SourceKey {
@@ -36,9 +37,9 @@ pub(in crate::replicated_decoder::program) struct SourceScope<'a> {
 }
 
 impl<'a> SourceScope<'a> {
-    pub(in crate::replicated_decoder::program) fn check_context(
+    pub(in crate::replicated_decoder::program) fn check_context<G: request_origin::compact_storage::ControllerAccounting>(
         &self,
-        context: &request_origin::compact_storage::EmissionContext<'_>,
+        context: &request_origin::compact_storage::EmissionContext<'_, G>,
     ) -> Result<(), Error> {
         context.check_open()?;
         if !std::ptr::eq(context.manifest(), self.manifest)
@@ -101,7 +102,7 @@ pub(super) struct CatalogQuote {
 }
 
 #[allow(dead_code)]
-struct Controls<'a, R> {
+struct Controls<'a, R, K = ()> {
     quote: Result<CatalogQuote, Error>,
     catalog: Result<SourceCatalog, Error>,
     string: Result<String, Error>,
@@ -112,7 +113,7 @@ struct Controls<'a, R> {
     tensor_handle: Result<TensorHandle, Error>,
     norm_handle: Result<NormHandle, Error>,
     scope: Option<SourceScope<'a>>,
-    custody_move: std::marker::PhantomData<R>,
+    custody_move: std::marker::PhantomData<(R, K)>,
     counters: [usize; 12],
 }
 
@@ -192,6 +193,14 @@ impl SourceCatalog {
         original: &OriginalSourcePlan,
         controller: &OwnedExternalCharge,
     ) -> Result<CatalogQuote, Error> {
+        Self::quote_for::<R, ()>(registry, manifest, original, controller)
+    }
+    pub(super) fn quote_for<R, K: CustodyController>(
+        registry: &SourceRegistry<'_>,
+        manifest: &Manifest,
+        original: &OriginalSourcePlan,
+        controller: &OwnedExternalCharge,
+    ) -> Result<CatalogQuote, Error> {
         maps(registry, manifest)?;
         let count = registry.source_records().len();
         let norms = registry.source_norms().len();
@@ -219,10 +228,10 @@ impl SourceCatalog {
         let bytes = add(
             add(source_registry::array_bytes::<SourceKey>(count)?, strings)?,
             add(
-                size_of::<SourceCustody<R>>()
+                size_of::<SourceCustody<R, K>>()
                     .checked_mul(2)
                     .ok_or(Error::Bounds)?,
-                size_of::<Controls<'_, R>>()
+                size_of::<Controls<'_, R, K>>()
                     .checked_mul(2)
                     .ok_or(Error::Bounds)?,
             )?,
@@ -378,8 +387,27 @@ impl SourceCatalog {
     }
 }
 
-impl<R> SourceCustody<R> {
+mod source_owner_seal {
+    pub trait Sealed {}
+    impl<R, K: super::CustodyController> Sealed for super::SourceCustody<R, K> {}
+}
+pub(in crate::replicated_decoder::program) trait SourceAccess: source_owner_seal::Sealed {
+    fn resolve_file_import(&self, key: &str) -> Result<&SourceTensor, Error>;
+    fn resolve_tensor(&self, handle: &TensorHandle) -> Result<&SourceTensor, Error>;
+    fn resolve_norm(&self, handle: &NormHandle) -> Result<&crate::replicated_decoder::BlockNorms, Error>;
+    fn prepay_retained_resolution(&self, queries: usize) -> Result<(), Error>;
+    fn finalized_tensor<'a>(root: &'a FinalizedRootFor<Self>, handle: &TensorHandle) -> Result<&'a SourceTensor, Error>
+    where Self: CustodyOwner;
+    fn finalized_norm<'a>(root: &'a FinalizedRootFor<Self>, handle: &NormHandle) -> Result<&'a crate::replicated_decoder::BlockNorms, Error>
+    where Self: CustodyOwner;
+}
+impl<R, K: CustodyController> SourceCustody<R, K> {
     pub(super) fn prepay_retained_resolution(&self, queries: usize) -> Result<(), Error> {
+        <Self as SourceAccess>::prepay_retained_resolution(self, queries)
+    }
+}
+impl<R, K: CustodyController> SourceAccess for SourceCustody<R, K> {
+    fn prepay_retained_resolution(&self, queries: usize) -> Result<(), Error> {
         // Length inspection is prepaid before visiting entries; this is only a
         // compiler traversal allowance, never source or execution authority.
         pay(
@@ -401,7 +429,7 @@ impl<R> SourceCustody<R> {
     }
     /// Only a checked import loan supplies this retained original key. Resolution
     /// stays inside the whole custody and uses its ORIGINAL catalog Instance.
-    pub(in crate::replicated_decoder::program) fn resolve_file_import(
+    fn resolve_file_import(
         &self,
         key: &str,
     ) -> Result<&SourceTensor, Error> {
@@ -427,7 +455,7 @@ impl<R> SourceCustody<R> {
         }
         Ok(source)
     }
-    pub(in crate::replicated_decoder::program) fn resolve_tensor(
+    fn resolve_tensor(
         &self,
         handle: &TensorHandle,
     ) -> Result<&SourceTensor, Error> {
@@ -453,7 +481,7 @@ impl<R> SourceCustody<R> {
             .ok_or(Error::Binding)
     }
 
-    pub(in crate::replicated_decoder::program) fn resolve_norm(
+    fn resolve_norm(
         &self,
         handle: &NormHandle,
     ) -> Result<&crate::replicated_decoder::BlockNorms, Error> {
@@ -476,6 +504,55 @@ impl<R> SourceCustody<R> {
                 .ok_or(Error::Bounds)?,
         )?;
         self.manifest
+            .payload()
+            .norms
+            .get(&entry.key)
+            .ok_or(Error::Binding)
+    }
+    // These associated functions require the actual finalized-root gate. They
+    // never accept a bare custody and never prepay/reset compiler metadata.
+    fn finalized_tensor<'a>(
+        root: &'a FinalizedRootFor<Self>,
+        handle: &TensorHandle,
+    ) -> Result<&'a SourceTensor, Error>
+    where Self: CustodyOwner,
+    {
+        let custody = root.custody();
+        if handle.instance != custody.instance {
+            return Err(Error::Binding);
+        }
+        let entry = custody
+            .catalog
+            .entries
+            .get(handle.index)
+            .ok_or(Error::Binding)?;
+        custody
+            .manifest
+            .payload()
+            .tensors
+            .get(&entry.key)
+            .ok_or(Error::Binding)
+    }
+    fn finalized_norm<'a>(
+        root: &'a FinalizedRootFor<Self>,
+        handle: &NormHandle,
+    ) -> Result<&'a crate::replicated_decoder::BlockNorms, Error>
+    where Self: CustodyOwner,
+    {
+        let custody = root.custody();
+        if handle.instance != custody.instance {
+            return Err(Error::Binding);
+        }
+        let entry = custody
+            .catalog
+            .entries
+            .get(handle.tensor_index)
+            .ok_or(Error::Binding)?;
+        if !entry.has_norm {
+            return Err(Error::Binding);
+        }
+        custody
+            .manifest
             .payload()
             .norms
             .get(&entry.key)
@@ -483,52 +560,37 @@ impl<R> SourceCustody<R> {
     }
 }
 
-// Runtime lenses belong to the ACTUAL canonical-finalized root, never a generic
-// OPEN-or-COMPLETE custody. Compilation already admitted the catalog traversal;
-// immutable runtime resolution must not spend/reset compiler metadata quota.
-impl super::sealed::FinalizedRoot {
-    pub(in crate::replicated_decoder::program) fn tensor(
-        &self,
-        handle: &TensorHandle,
+// Preserve existing concrete call sites and their private visibility.
+impl<R, K: CustodyController> SourceCustody<R, K> {
+    pub(in crate::replicated_decoder::program) fn resolve_file_import(
+        &self, key: &str,
     ) -> Result<&SourceTensor, Error> {
-        let custody = self.custody();
-        if handle.instance != custody.instance {
-            return Err(Error::Binding);
-        }
-        let entry = custody
-            .catalog
-            .entries
-            .get(handle.index)
-            .ok_or(Error::Binding)?;
-        custody
-            .manifest
-            .payload()
-            .tensors
-            .get(&entry.key)
-            .ok_or(Error::Binding)
+        <Self as SourceAccess>::resolve_file_import(self, key)
+    }
+    pub(in crate::replicated_decoder::program) fn resolve_tensor(
+        &self, handle: &TensorHandle,
+    ) -> Result<&SourceTensor, Error> {
+        <Self as SourceAccess>::resolve_tensor(self, handle)
+    }
+    pub(in crate::replicated_decoder::program) fn resolve_norm(
+        &self, handle: &NormHandle,
+    ) -> Result<&crate::replicated_decoder::BlockNorms, Error> {
+        <Self as SourceAccess>::resolve_norm(self, handle)
+    }
+}
+
+// Runtime lenses belong to the ACTUAL canonical-finalized root, never a bare
+// OPEN-or-COMPLETE custody. Original checks remain inside the source owner.
+impl<C: CustodyOwner> FinalizedRootFor<C> {
+    pub(in crate::replicated_decoder::program) fn tensor(
+        &self, handle: &TensorHandle,
+    ) -> Result<&SourceTensor, Error> {
+        C::finalized_tensor(self, handle)
     }
     pub(in crate::replicated_decoder::program) fn norm(
-        &self,
-        handle: &NormHandle,
+        &self, handle: &NormHandle,
     ) -> Result<&crate::replicated_decoder::BlockNorms, Error> {
-        let custody = self.custody();
-        if handle.instance != custody.instance {
-            return Err(Error::Binding);
-        }
-        let entry = custody
-            .catalog
-            .entries
-            .get(handle.tensor_index)
-            .ok_or(Error::Binding)?;
-        if !entry.has_norm {
-            return Err(Error::Binding);
-        }
-        custody
-            .manifest
-            .payload()
-            .norms
-            .get(&entry.key)
-            .ok_or(Error::Binding)
+        C::finalized_norm(self, handle)
     }
 }
 

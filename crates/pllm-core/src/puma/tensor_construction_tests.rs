@@ -248,17 +248,18 @@ fn verify_phases(q: ConstructionQuote) {
         inline + 2 * size_of::<usize>() + q.public_table_bytes
     );
     assert!(q.return_slot_bytes >= size_of::<Result<Program, Error>>());
-    let owners = q.return_slot_bytes + size_of::<Builder>() + q.public_table_bytes;
+    let owners = q.return_slot_bytes + size_of::<Builder>() + q.public_table_bytes
+        + size_of::<ExactStorage<Affine>>();
     let scratch = q.constructor_buffer_bytes + q.proof_buffer_bytes;
     assert_eq!(
         q.finish_buffer_bytes,
         size_of::<Sha256>() + MAX_NODES * size_of::<usize>()
     );
-    assert_eq!(q.new_build_bytes, owners + scratch);
-    assert_eq!(q.new_finish_bytes, owners + scratch + q.finish_buffer_bytes);
+    assert_eq!(q.new_build_bytes, inline + owners + scratch);
+    assert_eq!(q.new_finish_bytes, owners + q.finish_buffer_bytes);
     assert_eq!(
         q.new_publish_bytes,
-        q.return_slot_bytes + q.immutable_template_bytes + scratch
+        q.return_slot_bytes + q.immutable_template_bytes
     );
     assert_eq!(
         q.new_peak_bytes,
@@ -329,6 +330,7 @@ fn native_construction_phase_inventories_are_explicit_not_execution_allowances()
     assert_eq!(
         rope.return_slot_bytes,
         size_of::<Result<Program, Error>>().max(size_of::<Result<Builder, Error>>())
+            .max(size_of::<Result<FactoryOutput, Error>>()).max(size_of::<Option<FactoryOutput>>())
     );
 
     let boxes = size_of::<[Option<Interval>; 36]>();
@@ -355,6 +357,8 @@ fn native_construction_phase_inventories_are_explicit_not_execution_allowances()
             size_of::<Result<(Program, u128), Error>>()
                 .max(size_of::<Result<(Builder, Value, u128), Error>>())
                 .max(size_of::<Result<Builder, Error>>())
+                .max(size_of::<Result<FactoryOutput, Error>>())
+                .max(size_of::<Option<FactoryOutput>>())
         );
         // Independent lexical inventory: twelve rsqrt bindings, two chained /
         // returned temporaries, four RMS bindings/temporaries, helper return.
@@ -561,7 +565,8 @@ fn native_predicate_quotes_cover_retained_resources_and_original_instruction_con
                 assert_eq!(program.public_affine_count, 0);
                 for table in &program.public_affines {
                     assert!(table.is_empty());
-                    assert_eq!(table.capacity(), 0); // no backing or deep copy
+                    // Empty non-ZST boxed slice has no backing allocation.
+                    assert_eq!(crate::exact_buffer::layout_bytes::<Affine>(table.len()).unwrap(), 0);
                 }
                 assert_eq!(program.lanes(), lanes);
                 assert_eq!(program.output_lanes(), lanes);
@@ -800,6 +805,117 @@ fn quoted_public_capacities_cover_native_results_without_changing_numerics_or_er
                 .map(|v| v.0)
         },
     );
+}
+
+#[test]
+fn construction_quote_supports_public_literal_update_and_exhaustive_destructure() {
+    let literal = ConstructionQuote {
+        return_slot_bytes: 11,
+        borrowed_public_bytes: 23,
+        public_table_bytes: 31,
+        constructor_buffer_bytes: 43,
+        proof_buffer_bytes: 59,
+        finish_buffer_bytes: 61,
+        immutable_template_bytes: 73,
+        new_build_bytes: 89,
+        new_finish_bytes: 97,
+        new_publish_bytes: 101,
+        new_peak_bytes: 109,
+        peak_with_borrowed_public_bytes: 127,
+    };
+    let updated = ConstructionQuote { new_peak_bytes: 137, ..literal };
+    let ConstructionQuote {
+        return_slot_bytes,
+        borrowed_public_bytes,
+        public_table_bytes,
+        constructor_buffer_bytes,
+        proof_buffer_bytes,
+        finish_buffer_bytes,
+        immutable_template_bytes,
+        new_build_bytes,
+        new_finish_bytes,
+        new_publish_bytes,
+        new_peak_bytes,
+        peak_with_borrowed_public_bytes,
+    } = updated;
+    assert_eq!(return_slot_bytes, 11);
+    assert_eq!(borrowed_public_bytes, 23);
+    assert_eq!(public_table_bytes, 31);
+    assert_eq!(constructor_buffer_bytes, 43);
+    assert_eq!(proof_buffer_bytes, 59);
+    assert_eq!(finish_buffer_bytes, 61);
+    assert_eq!(immutable_template_bytes, 73);
+    assert_eq!(new_build_bytes, 89);
+    assert_eq!(new_finish_bytes, 97);
+    assert_eq!(new_publish_bytes, 101);
+    assert_eq!(new_peak_bytes, 137);
+    assert_eq!(peak_with_borrowed_public_bytes, 127);
+    assert_eq!(literal.new_peak_bytes, 109);
+}
+
+#[test]
+fn installed_resident_quote_retains_inline_return_overlap_and_fallback_builder() {
+    // Arithmetic consistency only, not observed lifetimes or request funding.
+    for construction in [
+        Construction::RmsNormCertified { rows: 1, width: 3, gamma_len: 3 },
+        Construction::RmsNormWithInputNorm { rows: 1, width: 3, gamma_len: 3 },
+        Construction::RotaryHalf { rows: 1, width: 4, cosine_len: 2, sine_len: 2 },
+    ] {
+        let (q, peak) = construction.quote_for_installed_resident().unwrap();
+        assert_eq!(q, construction.quote().unwrap());
+        verify_phases(q);
+        let build = size_of::<Program>() + q.return_slot_bytes + q.public_table_bytes
+            + q.constructor_buffer_bytes + q.proof_buffer_bytes;
+        let finish = q.return_slot_bytes + q.public_table_bytes + q.finish_buffer_bytes;
+        let publish = q.return_slot_bytes + q.immutable_template_bytes;
+        assert_eq!(peak, build.max(finish).max(publish));
+        assert!(q.return_slot_bytes >= size_of::<Result<FactoryOutput, Error>>());
+        assert!(q.return_slot_bytes >= size_of::<Option<FactoryOutput>>());
+        assert!(q.new_build_bytes >= 2 * size_of::<Builder>() + q.return_slot_bytes
+            + q.public_table_bytes + q.constructor_buffer_bytes + q.proof_buffer_bytes);
+    }
+    for construction in [
+        Construction::Builder { lanes: 3 },
+        Construction::Negative { lanes: 3 },
+        Construction::EqualZero { lanes: 3 },
+        Construction::CheckedRange { lanes: 3 },
+        Construction::AllValid { lanes: 3 },
+        Construction::GuardedSilu { lanes: 3 },
+        Construction::SoftmaxCertified { rows: 1, width: 3 },
+    ] {
+        let (q, peak) = construction.quote_for_installed_resident().unwrap();
+        let ordinary = construction.quote().unwrap();
+        assert_eq!(q, ordinary);
+        assert_eq!(peak, ordinary.new_peak_bytes);
+        verify_phases(q);
+        assert!(q.new_build_bytes >= 2 * size_of::<Builder>() + q.return_slot_bytes);
+    }
+    let coefficients = Construction::RotaryCoefficients { theta: 10_000.0, position: 0, width: 4 };
+    assert_eq!(coefficients.quote(), Err(ConstructionQuoteError::UncheckedRotaryCoefficientCapacity));
+    assert_eq!(coefficients.quote_for_installed_resident(),
+        Err(ConstructionQuoteError::UncheckedRotaryCoefficientCapacity));
+}
+
+#[test]
+fn native_event_categories_separate_affine_attempts_from_caller_arc_and_polynomial() {
+    let rotary = Construction::RotaryHalf { rows: 1, width: 4, cosine_len: 2, sine_len: 2 }.logical_events().unwrap();
+    assert_eq!(rotary.allocation_attempts, 2); // no caller Arc new hidden here
+    assert_eq!(rotary.cleanup_dispatches, 3 + 2 * 2);
+    let rms = Construction::RmsNormCertified { rows: 1, width: 3, gamma_len: 3 }.logical_events().unwrap();
+    assert_eq!(rms.allocation_attempts, 1);
+    let polynomial_writes = 36 * 257 * (9 * (4 + 4 + 8 + 4 + 8 + 4) + 32);
+    assert!(rms.writes >= polynomial_writes);
+    assert!(rms.validation > rotary.validation);
+    assert_eq!(rms.total().unwrap(), rms.writes + rms.validation + rms.transitions
+        + rms.allocation_attempts + rms.cleanup_dispatches);
+    assert!(LogicalEvents { writes: u64::MAX, ..LogicalEvents::default() }
+        .checked_add(LogicalEvents { writes: 1, ..LogicalEvents::default() }).is_err());
+    assert!(rms.checked_mul(u64::MAX).is_err());
+    // These recipes have no adopted/new logical inventory in this cut. Numeric
+    // constructors and their original protocol-work contracts are unchanged.
+    assert!(Construction::SoftmaxCertified { rows: 1, width: 3 }.logical_events().is_err());
+    let n = MAX_NODES as u64;
+    assert_eq!(Program::full_resource_validation_visits().unwrap(), 64 * (3 + n + n * (n + 1) / 2));
 }
 
 #[test]

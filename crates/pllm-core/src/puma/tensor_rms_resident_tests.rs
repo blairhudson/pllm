@@ -220,7 +220,7 @@ fn every_safe_boundary_err_and_unwind_poison_whole_slot_and_keep_real_backing_un
                     assert_eq!(p.public_affine_count, 1);
                     assert_eq!(p.public_affines[0].len(), 2);
                     assert_eq!(GAMMA.with(|g| g.get()), (gamma.as_ptr(), 2));
-                    assert_backing(p.public_affines[0].as_ptr(), p.public_affines[0].capacity());
+                    assert_backing(p.public_affines[0].as_ptr(), p.public_affines[0].len());
                     assert_eq!(drops(), 0);
                 }
                 let digest = resident_program(&slot).digest;
@@ -255,9 +255,9 @@ fn real_pending_reserve_and_partial_finish_unwinds_retain_original_backing() {
             assert_eq!(resident.state, ResidentState::Failed);
             let (pointer, capacity) = if reserve {
                 let observed = resident_builder::reserved_affine();
-                assert_eq!((resident.pending_affine.as_ptr(), resident.pending_affine.capacity()), observed);
-                assert!(observed.1 >= 2);
-                assert!(resident.pending_affine.is_empty());
+                assert_eq!((resident.pending_affine.as_ptr(), resident.pending_affine.extent()), observed);
+                assert_eq!(observed.1, 2);
+                assert_eq!(resident.pending_affine.len(), 2);
                 assert_eq!(resident_program(&slot).public_affine_count, 0);
                 observed
             } else {
@@ -265,7 +265,7 @@ fn real_pending_reserve_and_partial_finish_unwinds_retain_original_backing() {
                 assert!(resident_program(&slot).register_count > 0);
                 assert_eq!(resident_program(&slot).public_affine_count, 1);
                 let table = &resident_program(&slot).public_affines[0];
-                (table.as_ptr(), table.capacity())
+                (table.as_ptr(), table.len())
             };
             assert_backing(pointer, capacity);
             assert!(out.is_none());
@@ -290,7 +290,7 @@ fn transferred_factory_output_owns_table_after_schedule_teardown_and_commit_refu
         assert_eq!(slot.state, State::Complete);
         assert_eq!(slot.builder.as_ref().unwrap().state, ResidentState::Transferred);
         let table = &out.as_ref().unwrap().program().public_affines[0];
-        assert_backing(table.as_ptr(), table.capacity());
+        assert_backing(table.as_ptr(), table.len());
         drop(slot);
         assert_eq!(drops(), 0);
         drop(out);
@@ -310,7 +310,7 @@ fn transferred_factory_output_owns_table_after_schedule_teardown_and_commit_refu
         let mut empty_out = None;
         assert_eq!(work_preflight::commit_rms_output(&mut None, c, &mut empty_out), Err(Error::Phase));
         assert!(empty_out.is_none());
-        watch(pointer, retained.as_ref().unwrap().public_affines[0].capacity());
+        watch(pointer, retained.as_ref().unwrap().public_affines[0].len());
         work_preflight::commit_rms_output(&mut retained, c, &mut empty_out).unwrap();
         assert!(retained.is_none());
         assert_eq!(empty_out.as_ref().unwrap().program().public_affines[0].as_ptr(), pointer);
@@ -360,7 +360,7 @@ fn admitted_full_then_tail_failure_never_refunds_or_revives_and_build_hook_prece
             assert!(full.is_some() && tail.is_none());
             let full_digest = full.as_ref().unwrap().program().digest;
             let table = &full.as_ref().unwrap().program().public_affines[0];
-            assert_backing(table.as_ptr(), table.capacity());
+            assert_backing(table.as_ptr(), table.len());
             let (tail_pointer, tail_capacity, tail_drops) = SECOND_BACKING.with(|b| b.get());
             assert!(!tail_pointer.is_null() && tail_pointer != table.as_ptr());
             assert_eq!(tail_capacity, 2);
@@ -521,7 +521,7 @@ fn proposal_inventory_names_inline_returns_but_never_grants_native_prepaid_autho
         assert_eq!(quote.row_result_bytes, std::mem::size_of::<Result<Builder, Error>>());
         assert_eq!(quote.resident_argument_bytes, std::mem::size_of::<Builder>());
         assert_eq!(quote.args_bytes, std::mem::size_of::<RmsArgs<'_>>());
-        assert_eq!(quote.sink_bytes, std::mem::size_of::<RmsResidentSink<'_>>());
+        assert_eq!(quote.sink_bytes, std::mem::size_of::<ResidentRecipeSink<'_>>());
         assert_eq!(quote.builder_option_bytes, std::mem::size_of::<Option<ResidentBuilder>>());
         assert_eq!(quote.recipe_option_bytes, std::mem::size_of::<Option<(Value, u128)>>());
         assert_eq!(quote.recipe_result_bytes, std::mem::size_of::<Result<(Value, u128), Error>>());

@@ -1,8 +1,9 @@
 //! Request-only rescale preparation. Projection/bias/source authority stays in
 //! the original ContractionSink; reuse shares backing but never invocation work.
 use super::*;
+use crate::replicated_decoder::program::request_origin::compact_storage::ControllerAccounting;
 
-impl CompactGraph<'_, '_> {
+impl<G: ControllerAccounting> CompactGraph<'_, '_, G> {
     pub(super) fn prepare_request_rescale(
         &self,
         lanes: usize,

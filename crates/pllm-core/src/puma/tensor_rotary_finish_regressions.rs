@@ -18,10 +18,11 @@ fn tables(p: &Program) -> Tables {
         backing: std::array::from_fn(|i| {
             let table = &p.public_affines[i];
             assert_eq!(table.len(), 4);
-            assert!(table.capacity() >= table.len());
-            (table.as_ptr(), table.len(), table.capacity())
+            let extent = crate::exact_buffer::layout_bytes::<Affine>(table.len()).unwrap();
+            assert_eq!(extent, 4 * std::mem::size_of::<Affine>());
+            (table.as_ptr(), table.len(), extent)
         }),
-        contents: std::array::from_fn(|i| p.public_affines[i].as_slice().try_into().unwrap()),
+        contents: std::array::from_fn(|i| (&*p.public_affines[i]).try_into().unwrap()),
     }
 }
 
@@ -122,7 +123,7 @@ fn native(p: &Program) -> NativeSnapshot {
 
 fn slot_snapshot(slot: &NativeFinishSlot) -> (Option<(ResidentState, Option<NativeSnapshot>, usize, usize, *const Affine)>, Option<NativeSnapshot>) {
     (slot.builder.as_ref().map(|b| (b.state, b.builder.as_ref().map(|b| native(&b.0)),
-        b.pending_affine.len(), b.pending_affine.capacity(), b.pending_affine.as_ptr())),
+        b.pending_affine.len(), b.pending_affine.extent(), b.pending_affine.as_ptr())),
         slot.program.as_ref().map(native))
 }
 

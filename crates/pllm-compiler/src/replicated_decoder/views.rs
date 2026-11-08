@@ -19,21 +19,59 @@ pub(super) struct Words {
     len: usize,
 }
 
+#[cfg(test)]
+thread_local! {
+    static SPAN_RESERVE_EXCESS: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static SPAN_RESERVED: std::cell::Cell<Option<(usize, usize)>> = const { std::cell::Cell::new(None) };
+}
+
 impl Words {
     /// Opt-in preallocated descriptor pool; legacy creation remains unchanged.
     pub(super) fn try_with_spans(capacity: usize) -> Result<Self, pllm_core::puma::Error> {
-        let mut spans = Vec::new();
-        spans
-            .try_reserve_exact(capacity)
+        let mut words = Self::new();
+        words.reserve_spans_retained(capacity)?;
+        Ok(words)
+    }
+
+    /// Reserve in the resident owner, including on exact-capacity refusal.
+    pub(super) fn reserve_spans_retained(
+        &mut self,
+        capacity: usize,
+    ) -> Result<(), pllm_core::puma::Error> {
+        #[cfg(test)]
+        let requested = if SPAN_RESERVE_EXCESS.with(|flag| flag.replace(false)) {
+            capacity.checked_add(1).ok_or(pllm_core::puma::Error::Allocation)?
+        } else { capacity };
+        #[cfg(not(test))]
+        let requested = capacity;
+        self.spans
+            .try_reserve_exact(requested.saturating_sub(self.spans.len()))
             .map_err(|_| pllm_core::puma::Error::Allocation)?;
-        if spans.capacity() != capacity {
+        #[cfg(test)]
+        SPAN_RESERVED.with(|record| record.set(Some(self.test_span_backing())));
+        if self.spans.capacity() != capacity {
             return Err(pllm_core::puma::Error::Allocation);
         }
-        Ok(Self { spans, len: 0 })
+        Ok(())
     }
 
     pub(super) fn span_pool_bytes(capacity: usize) -> Option<usize> {
         capacity.checked_mul(std::mem::size_of::<Span>())
+    }
+
+    #[cfg(test)]
+    pub(super) fn test_span_backing(&self) -> (usize, usize) {
+        (self.spans.as_ptr() as usize, self.spans.capacity())
+    }
+
+    #[cfg(test)]
+    pub(super) fn test_excess_next_reserve() {
+        SPAN_RESERVE_EXCESS.with(|flag| flag.set(true));
+    }
+
+    #[cfg(test)]
+    pub(super) fn test_last_reserve() -> Option<(usize, usize)> {
+        SPAN_RESERVED.with(|record| record.get())
     }
 
     pub(super) fn clear_preserving_capacity(&mut self) {

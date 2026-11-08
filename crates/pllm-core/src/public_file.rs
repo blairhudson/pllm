@@ -6,7 +6,7 @@
 //! instead commit the digest computed over their output. That does not authenticate
 //! the producer's source.
 use sha2::{Digest, Sha256};
-use std::{fs::File, io::Write, path::Path, sync::Arc};
+use std::{fs::File, io::{self, Write}, path::Path, sync::Arc};
 
 /// Retained location only, not coefficient/source/admission authority.
 pub trait SnapshotDirectory: Send + Sync {
@@ -82,7 +82,101 @@ pub struct PublicFile {
     max_i8: u32,
 }
 
+/// Unformatted bounded-read failure. Native errors are retained, not rendered.
+/// This type does not promise arbitrary io::Error payloads are heap-free. The
+/// zero-owned-heap native-error premise is limited to the audited Rust 1.85.1
+/// unmodified Unix/Windows native constructors, not every cfg(unix), stdlib,
+/// backend or error producer. No physical-stack/RSS bound follows.
+#[derive(Debug)]
+pub enum PublicReadError {
+    Bounds,
+    Io(io::Error),
+    Truncated,
+}
+
+// Checked compile-time logical slot inventory only; not native call-frame bytes.
+const fn read_layout_mul(n: usize, bytes: usize) -> usize {
+    match n.checked_mul(bytes) {
+        Some(bytes) => bytes,
+        None => panic!("public read control layout overflow"),
+    }
+}
+const fn read_layout_sum<const N: usize>(parts: [usize; N]) -> usize {
+    let mut bytes = 0usize;
+    let mut i = 0;
+    while i < N {
+        bytes = match bytes.checked_add(parts[i]) {
+            Some(bytes) => bytes,
+            None => panic!("public read control layout overflow"),
+        };
+        i += 1;
+    }
+    bytes
+}
+const READ_METHOD_ARGS_BYTES: usize = read_layout_sum([
+    std::mem::size_of::<&PublicFile>(), std::mem::size_of::<u64>(),
+    std::mem::size_of::<&mut [u8]>(),
+]);
+const READ_KERNEL_ARGS_BYTES: usize = read_layout_sum([
+    std::mem::size_of::<&File>(), std::mem::size_of::<&mut [u8]>(),
+    std::mem::size_of::<u64>(),
+]);
+#[cfg(unix)]
+const READ_PLATFORM_CONTROL_BYTES: usize = std::mem::size_of::<Result<(), io::Error>>();
+#[cfg(windows)]
+const READ_PLATFORM_CONTROL_BYTES: usize = read_layout_sum([
+    std::mem::size_of::<Result<usize, io::Error>>(),
+    read_layout_mul(5, std::mem::size_of::<usize>()),
+    std::mem::size_of::<std::ops::RangeFrom<usize>>(),
+    read_layout_mul(2, std::mem::size_of::<u64>()),
+    read_layout_mul(2, std::mem::size_of::<bool>()),
+]);
+/// Fixed logical control slots for the typed method and kernel (D_TIO).
+/// Actual target layouts; checked at compile time. Excludes error formatting,
+/// String heap, stdlib formatter/destructor internals, native stack and payload
+/// backing. This is not a full read-memory bound. Legacy paged tile/read-partition
+/// formulas remain payload-only: routing through this kernel adds no such claim.
+pub const READ_UNFORMATTED_CONTROL_BYTES: usize = read_layout_sum([
+    read_layout_mul(2, READ_METHOD_ARGS_BYTES),
+    read_layout_mul(3, READ_KERNEL_ARGS_BYTES),
+    std::mem::size_of::<usize>(), std::mem::size_of::<Option<u64>>(),
+    read_layout_mul(4, std::mem::size_of::<u64>()),
+    read_layout_mul(4, std::mem::size_of::<bool>()),
+    read_layout_mul(3, std::mem::size_of::<Result<(), PublicReadError>>()),
+    std::mem::size_of::<PublicReadError>(), std::mem::size_of::<io::Error>(),
+    READ_PLATFORM_CONTROL_BYTES,
+]);
+
+fn format_read_error(error: PublicReadError) -> String {
+    match error {
+        PublicReadError::Bounds => "public snapshot read exceeds bounds".into(),
+        PublicReadError::Truncated => "private public snapshot is truncated".into(),
+        PublicReadError::Io(error) => {
+            let message = error.to_string();
+            drop(error);
+            message
+        }
+    }
+}
+
 impl PublicFile {
+    /// Deliberately invalidate this anonymous snapshot for EOF regressions.
+    /// Cached size/digest remain sealed; no file, path or descriptor escapes.
+    /// Requires exclusive per-test ownership of snapshot mutation.
+    /// Metadata check and truncation are not atomic against concurrent truncation.
+    #[cfg(feature = "insecure-test-support")]
+    #[doc(hidden)]
+    pub fn truncate_snapshot_for_tests(&self, shorter_len: u64) -> io::Result<()> {
+        let current_len = self.file.metadata()?.len();
+        if shorter_len >= self.size || shorter_len >= current_len {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "test truncation must be shorter than current snapshot size",
+            ));
+        }
+        self.file.set_len(shorter_len)
+    }
+
     pub fn size(&self) -> u64 {
         self.size
     }
@@ -102,16 +196,23 @@ impl PublicFile {
         self.max_i8
     }
     pub fn read(&self, offset: u64, bytes: &mut [u8]) -> Result<(), String> {
+        self.read_unformatted(offset, bytes).map_err(format_read_error)
+    }
+    /// Same bounded positional read and partial-write behavior as read, without
+    /// allocating a formatted error message. No additional I/O or retry layer.
+    pub fn read_unformatted(&self, offset: u64, bytes: &mut [u8]) -> Result<(), PublicReadError> {
         let length = bytes.len();
-        if length == 0
-            || length > MAX_CHUNK_BYTES
-            || offset
-                .checked_add(length as u64)
-                .is_none_or(|end| end > self.size)
-        {
-            return Err("public snapshot read exceeds bounds".into());
+        if length == 0 || length > MAX_CHUNK_BYTES {
+            return Err(PublicReadError::Bounds);
         }
-        read_at(&self.file, bytes, offset)
+        let end = match offset.checked_add(length as u64) {
+            Some(end) => end,
+            None => return Err(PublicReadError::Bounds),
+        };
+        if end > self.size {
+            return Err(PublicReadError::Bounds);
+        }
+        read_at_unformatted(&self.file, bytes, offset)
     }
 }
 
@@ -262,21 +363,29 @@ impl PublicFileWriter {
 }
 
 pub(crate) fn read_at(file: &File, data: &mut [u8], offset: u64) -> Result<(), String> {
+    read_at_unformatted(file, data, offset).map_err(format_read_error)
+}
+
+fn read_at_unformatted(file: &File, data: &mut [u8], offset: u64) -> Result<(), PublicReadError> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::FileExt;
-        file.read_exact_at(data, offset).map_err(|e| e.to_string())
+        match file.read_exact_at(data, offset) {
+            Ok(()) => Ok(()),
+            Err(error) => Err(PublicReadError::Io(error)),
+        }
     }
     #[cfg(windows)]
     {
         use std::os::windows::fs::FileExt;
         let mut done = 0;
         while done < data.len() {
-            let n = file
-                .seek_read(&mut data[done..], offset + done as u64)
-                .map_err(|e| e.to_string())?;
+            let n = match file.seek_read(&mut data[done..], offset + done as u64) {
+                Ok(n) => n,
+                Err(error) => return Err(PublicReadError::Io(error)),
+            };
             if n == 0 {
-                return Err("private public snapshot is truncated".into());
+                return Err(PublicReadError::Truncated);
             }
             done += n;
         }
@@ -492,4 +601,102 @@ mod tests {
         read_at(&file, &mut result, 0).unwrap();
         assert_eq!(result, bytes);
     }
+
+    #[test]
+    fn typed_reads_preserve_bounds_exact_end_and_legacy_diagnostics() {
+        let mut writer = PublicFileWriter::new_computed(4).unwrap();
+        writer.write(b"abcd").unwrap();
+        let snapshot = writer.finish().unwrap();
+        for (offset, length) in [
+            (u64::MAX, 0), (u64::MAX, MAX_CHUNK_BYTES + 1),
+            (u64::MAX, 1), (3, 2), (4, 1),
+        ] {
+            let mut bytes = vec![0xa5; length];
+            assert!(matches!(snapshot.read_unformatted(offset, &mut bytes), Err(PublicReadError::Bounds)));
+            assert!(bytes.iter().all(|&b| b == 0xa5));
+            assert_eq!(snapshot.read(offset, &mut bytes).unwrap_err(), "public snapshot read exceeds bounds");
+            assert!(bytes.iter().all(|&b| b == 0xa5));
+        }
+        let mut typed = [0; 2];
+        let mut legacy = [0; 2];
+        snapshot.read_unformatted(2, &mut typed).unwrap();
+        snapshot.read(2, &mut legacy).unwrap();
+        assert_eq!(&typed, b"cd");
+        assert_eq!(legacy, typed);
+        let file = snapshot.file();
+        typed.fill(0); legacy.fill(0);
+        read_at_unformatted(&file, &mut typed, 2).unwrap();
+        read_at(&file, &mut legacy, 2).unwrap();
+        assert_eq!(&typed, b"cd");
+        assert_eq!(legacy, typed);
+        // Legacy unbounded kernel retains its original empty-read semantics.
+        read_at(&file, &mut [], u64::MAX).unwrap();
+        assert_eq!(format_read_error(PublicReadError::Truncated), "private public snapshot is truncated");
+    }
+
+    #[test]
+    fn typed_and_legacy_eof_preserve_native_diagnostics_and_written_prefix() {
+        let mut writer = PublicFileWriter::new_computed(4).unwrap();
+        writer.write(b"abcd").unwrap();
+        let snapshot = writer.finish().unwrap();
+        // Privileged test-only external truncation AFTER the genuine writer
+        // finished; production exposes no writable descriptor or fault callback.
+        let file = snapshot.file();
+        file.set_len(2).unwrap();
+        #[cfg(unix)]
+        let expected = {
+            use std::os::unix::fs::FileExt;
+            let mut bytes = [0xa5; 4];
+            let error = file.read_exact_at(&mut bytes, 0).unwrap_err();
+            assert_eq!(error.kind(), io::ErrorKind::UnexpectedEof);
+            assert_eq!(&bytes, b"ab\xa5\xa5");
+            error.to_string() // independent native legacy diagnostic, unchanged
+        };
+        #[cfg(windows)]
+        let expected = "private public snapshot is truncated".to_string();
+        for kernel in [false, true] {
+            let mut typed = [0xa5; 4];
+            let error = if kernel {
+                read_at_unformatted(&file, &mut typed, 0)
+            } else {
+                snapshot.read_unformatted(0, &mut typed)
+            }.unwrap_err();
+            #[cfg(unix)]
+            match error {
+                PublicReadError::Io(error) => {
+                    assert_eq!(error.kind(), io::ErrorKind::UnexpectedEof);
+                    assert_eq!(error.to_string(), expected);
+                }
+                error => panic!("native EOF changed variant: {error:?}"),
+            }
+            #[cfg(windows)]
+            assert!(matches!(error, PublicReadError::Truncated));
+            assert_eq!(&typed, b"ab\xa5\xa5");
+            let mut legacy = [0xa5; 4];
+            let message = if kernel {
+                read_at(&file, &mut legacy, 0)
+            } else {
+                snapshot.read(0, &mut legacy)
+            }.unwrap_err();
+            assert_eq!(message, expected);
+            assert_eq!(legacy, typed);
+        }
+    }
+
+    #[test]
+    fn typed_read_control_quote_matches_independent_target_inventory() {
+        use std::mem::size_of as s;
+        let b = s::<&PublicFile>() + s::<u64>() + s::<&mut [u8]>();
+        let k = s::<&File>() + s::<&mut [u8]>() + s::<u64>();
+        #[cfg(unix)]
+        let platform = s::<Result<(), io::Error>>();
+        #[cfg(windows)]
+        let platform = s::<Result<usize, io::Error>>() + 5*s::<usize>()
+            + s::<std::ops::RangeFrom<usize>>() + 2*s::<u64>() + 2*s::<bool>();
+        let expected = 2*b + 3*k + s::<usize>() + s::<Option<u64>>()
+            + 4*s::<u64>() + 4*s::<bool>() + 3*s::<Result<(), PublicReadError>>()
+            + s::<PublicReadError>() + s::<io::Error>() + platform;
+        assert_eq!(READ_UNFORMATTED_CONTROL_BYTES, expected);
+    }
+
 }

@@ -1338,6 +1338,32 @@ fn scan_original(
     scan_original_policy::<DEPTH, false>(original, limits, bootstrap, charge)
 }
 
+/// Ordinary public-input envelope, sharing the allocation-free lexical scanner.
+/// This is not original-owner, protected-source, work-funding or RSS authority.
+/// Returns conservative JSON-tree backing before callers deserialize a value.
+pub fn public_json_preflight(raw: &[u8], limits: Limits) -> Result<usize, Error> {
+    if raw.is_empty() || raw.len() > limits.max_source_bytes {
+        return Err(Error::SourceLimit);
+    }
+    if limits.max_depth > DEPTH || limits.max_number_bytes > SAFE_NUMBER_BYTES {
+        return Err(Error::DepthLimit);
+    }
+    let mut meter = Meter { used: 0, limit: limits.max_work };
+    meter.pay((2 * DEPTH) as u128)?;
+    meter.pay(raw.len() as u128)?;
+    std::str::from_utf8(raw).map_err(|_| Error::Syntax)?;
+    let counts = Scanner::<DEPTH, false> {
+        raw, position: 0, stack: [Frame::EMPTY; DEPTH], active: 0,
+        stats: SourceCounts::default(), meter: &mut meter, output: None, limits,
+    }.run()?;
+    let required = payload(counts)?;
+    if required > limits.max_payload_bytes {
+        return Err(Error::Capacity);
+    }
+    numeric_work(counts, limits)?;
+    Ok(required)
+}
+
 fn scan_original_policy<const SLOTS: usize, const LEXICAL: bool>(
     original: &OwnedCharged<Vec<u8>>,
     limits: Limits,

@@ -252,7 +252,7 @@ fn original_lookup_norm_genuine_foreign_reader_composed_refusal() {
     let other=Fixture::new().collect(19).unwrap(); other.finish().unwrap();
     let reader=other.claim_reader().unwrap();
     let sibling=leave_primitive_work(&other,quote.work,false);
-    let original=leave_primitive_work(&host,1,false);
+    let original=leave_reader_work(&host,1,false);
     let live=host.inspect(|r|r.header.root.budget().used_bytes());
     let foreign_live=other.inspect(|r|r.header.root.budget().used_bytes());
     // Existing privileged owner-transplant negative: actual independent sole
@@ -296,7 +296,7 @@ fn original_lookup_norm_equalcontent_foreign_backing_composed_refusal() {
     let other=Fixture::new().collect(19).unwrap(); other.finish().unwrap();
     let foreign_lookup=genuine_norm_input(&other,RawGraph::Prefill);
     let sibling=leave_primitive_work(&host,quote.work,false);
-    let foreign=leave_primitive_work(&other,1,false);
+    let foreign=leave_reader_work(&other,1,false);
     // Both actual headers/tensor bytes are independently ingested from the SAME
     // fixture definition, but allocations/directories/original roots differ.
     // Reuse genuinely source-funded backing; no uncharged test writer or bytes.

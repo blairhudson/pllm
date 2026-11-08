@@ -2,6 +2,7 @@
 //! storage is issued here: whole canonical finalization remains mandatory.
 use super::*;
 use crate::replicated_decoder::program::compact_lowering::frozen_region::owning::OwnedEpoch;
+use pllm_garble::shared_allocation::OwnedExternalCharge;
 
 /// Closed two-output continuation map. Only `continue_original` constructs it
 /// from an actually completed source epoch and its checked feedback loan.
@@ -41,7 +42,7 @@ impl HistoryInput {
         }
     }
 }
-impl EmissionContext<'_> {
+impl<G: ControllerAccounting> EmissionContext<'_, G> {
     pub(in crate::replicated_decoder::program) fn program_cap(&self) -> usize {
         self.cap
     }
@@ -54,16 +55,16 @@ impl EmissionContext<'_> {
 }
 
 // Epoch payloads precede the original scope/import/history reservations.
-pub(in crate::replicated_decoder::program) struct PendingCompactHistory<'s> {
+pub(in crate::replicated_decoder::program) struct PendingCompactHistory<'s, G = OwnedExternalCharge> {
     epochs: Vec<OwnedEpoch>,
     selected: (usize, usize),
     selected_bounds: Interval,
-    scope: EmissionScope<'s>,
+    scope: EmissionScope<'s, G>,
 }
-impl<'s> PendingCompactHistory<'s> {
+impl<'s, G: ControllerAccounting> PendingCompactHistory<'s, G> {
     pub(in crate::replicated_decoder::program) fn checked_graph_parts(
         &self,
-    ) -> Result<(&Builder, &EmissionContext<'s>, &OwnedEpoch), Error> {
+    ) -> Result<(&Builder, &EmissionContext<'s, G>, &OwnedEpoch), Error> {
         let context = &self.scope.context;
         context.check_imports(&self.scope.builder)?;
         if context.epoch != 1
@@ -75,7 +76,7 @@ impl<'s> PendingCompactHistory<'s> {
         Ok((&self.scope.builder, context, &self.epochs[0]))
     }
     pub(in crate::replicated_decoder::program) fn continue_original(
-        scope: EmissionScope<'s>,
+        scope: EmissionScope<'s, G>,
         first: OwnedEpoch,
         limits: original_source::Limits,
     ) -> Result<Self, Error> {
@@ -96,14 +97,7 @@ impl<'s> PendingCompactHistory<'s> {
             .len()
             .checked_mul(2)
             .ok_or(Error::Bounds)?;
-        scope
-            .context
-            .plan
-            .prepay_compiler_metadata(
-                &scope.context.reservation(),
-                u64::try_from(visits).map_err(|_| Error::Bounds)?,
-            )
-            .map_err(|_| Error::Bounds)?;
+        scope.context.prepay_metadata(u64::try_from(visits).map_err(|_| Error::Bounds)?)?;
         let (plan_layout, _) = std::alloc::Layout::new::<[std::sync::atomic::AtomicUsize; 2]>()
             .extend(std::alloc::Layout::new::<OriginalSourcePlan>())
             .map_err(|_| Error::Bounds)?;
@@ -172,30 +166,18 @@ impl<'s> PendingCompactHistory<'s> {
             selected_bounds,
             scope,
         };
-        let lowering = pending
-            .scope
-            .context
-            .guard
-            .borrow_mut()
-            .split_owned(bootstrap)
-            .map_err(|_| Error::Bounds)?;
         let context = &mut pending.scope.context;
+        context.guard.borrow_mut().continue_checked_history(HistoryBootstrap {
+            request: &mut context.request, bytes: bootstrap, limits,
+        })?;
         let history = &mut context.request.history;
-        if history.epochs.len() == history.epochs.capacity()
-            || context.request.tokens.words.metadata_bytes()
-                < Words::span_pool_bytes(history.resources.outputs + 1).ok_or(Error::Bounds)?
-        {
-            return Err(Error::Bounds);
-        }
-        history.lower_original_epoch(1, lowering, limits)?;
-        history.prepay_epoch(1)?;
         context.request.tokens.words.push(selected);
         context.request.tokens.shape[1] = history_input.rows();
         history.sticky = history_input.sticky();
         context.plan = Arc::clone(&history.epochs[1]);
-        context.epoch = 1;
-        context.rows = history_input.rows();
-        context.history_input = Some(history_input);
+        context.setup.epoch = 1;
+        context.setup.rows = history_input.rows();
+        context.setup.history_input = Some(history_input);
         context.historical_peak.set(
             context
                 .historical_peak()
@@ -207,24 +189,17 @@ impl<'s> PendingCompactHistory<'s> {
         &mut self,
     ) -> (
         &mut Builder,
-        &EmissionContext<'s>,
+        &EmissionContext<'s, G>,
         &BTreeMap<String, SourceView>,
     ) {
         self.scope.parts()
     }
-    pub(in crate::replicated_decoder::program) fn finish(
+    fn prepare_second(
         mut self,
         second: OwnedEpoch,
-    ) -> Result<owning::OwnedEmission<CompletionLoan>, Error> {
+    ) -> Result<(EmissionScope<'s, G>, CompletionTransport), Error> {
         let context = &self.scope.context;
-        context
-            .plan
-            .prepay_compiler_metadata(
-                &context.reservation(),
-                u64::try_from(context.plan.plan().prefill.operations.len())
-                    .map_err(|_| Error::Bounds)?,
-            )
-            .map_err(|_| Error::Bounds)?;
+        context.prepay_metadata(u64::try_from(context.plan.plan().prefill.operations.len()).map_err(|_| Error::Bounds)?)?;
         if context.epoch != 1 || self.epochs.len() != 1 || context.request.history.epochs.len() != 2
         {
             return Err(Error::Binding);
@@ -292,14 +267,50 @@ impl<'s> PendingCompactHistory<'s> {
         self.epochs.push(second);
         self.scope.context.request.history.sticky = incoming_sticky;
         let Self { epochs, scope, .. } = self;
-        scope.into_owned(move |_, context, _| {
-            if epochs.len() != 2
-                || context.request.tokens.words.len() != context.request.history.resources.rows + 1
-            {
-                return Err(Error::Binding);
-            }
-            Ok(CompletionLoan { epochs, acceptance })
-        })
+        Ok((scope, CompletionTransport { epochs, acceptance }))
+    }
+}
+
+// Constructed only after original source/feedback checks and phase admission.
+// The operation cannot expose its child lowering reservation to a borrower.
+pub(in crate::replicated_decoder) struct HistoryBootstrap<'a, 's> {
+    request: &'a mut RequestInputPermit<'s>,
+    bytes: usize,
+    limits: original_source::Limits,
+}
+impl HistoryBootstrap<'_, '_> {
+    pub(super) fn bytes(&self) -> usize { self.bytes }
+    pub(super) fn lower_original(self, lowering: OwnedExternalCharge) -> Result<(), Error> {
+        let history = &mut self.request.history;
+        if history.epochs.len() == history.epochs.capacity()
+            || self.request.tokens.words.metadata_bytes()
+                < Words::span_pool_bytes(history.resources.outputs + 1).ok_or(Error::Bounds)?
+        { return Err(Error::Bounds); }
+        history.lower_original_epoch(1, lowering, self.limits)?;
+        history.prepay_epoch(1)
+    }
+}
+// Value-only transport: no request/context/controller borrow or callback.
+struct CompletionTransport { epochs: Vec<OwnedEpoch>, acceptance: Acceptance }
+impl CompletionTransport {
+    fn finish<G: ControllerAccounting>(self, context: &EmissionContext<'_, G>) -> Result<CompletionLoan, Error> {
+        // Keep this inside conversion, after original phase admission/retention.
+        if self.epochs.len() != 2
+            || context.request.tokens.words.len() != context.request.history.resources.rows + 1
+        { return Err(Error::Binding); }
+        Ok(CompletionLoan { epochs: self.epochs, acceptance: self.acceptance })
+    }
+}
+impl<'s> PendingCompactHistory<'s> {
+    pub(in crate::replicated_decoder::program) fn finish(self, second: OwnedEpoch) -> Result<owning::OwnedEmission<CompletionLoan>, Error> {
+        let (scope, completion) = self.prepare_second(second)?;
+        scope.into_owned(move |_, context, _| completion.finish(context))
+    }
+}
+impl<'s, 'loan> PendingCompactHistory<'s, ControllerLoan<'loan>> {
+    pub(in crate::replicated_decoder::program) fn finish_detached(self, second: OwnedEpoch) -> Result<owning::DetachedEmission<CompletionLoan>, Error> {
+        let (scope, completion) = self.prepare_second(second)?;
+        scope.into_detached(move |_, context, _| completion.finish(context))
     }
 }
 
@@ -346,7 +357,7 @@ impl schedule_finalization::BorrowedLaneRefs for Single {
 /// Not yet LogicalComplete. Authenticated acceptance can precede finalization,
 /// matching the original compiler, but canonical identity/work/retirement still
 /// gate executable publication under its failure-burning finish attempt.
-pub(in crate::replicated_decoder::program) struct CompletionLoan {
+pub(in crate::replicated_decoder) struct CompletionLoan {
     epochs: Vec<OwnedEpoch>,
     acceptance: Acceptance,
 }

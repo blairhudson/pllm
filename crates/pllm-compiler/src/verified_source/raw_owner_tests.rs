@@ -55,6 +55,107 @@ impl Fixture {
 }
 fn counts() -> (usize,usize) { (HEADER_FACTORIES.with(|c|c.get()),WRITER_FACTORIES.with(|c|c.get())) }
 
+// RawSnapshotDirectory::parent_device/check_file currently require Unix.
+// Core hook itself is portable; no Windows native-EOF coverage claimed here.
+#[cfg(unix)]
+#[test]
+fn genuine_snapshot_payload_eof_retains_old_window() {
+    let fixture=Fixture::new(); // independently owned SYNTHETIC source only
+    let counter=fixture.seed.as_ref().unwrap().root.try_clone().unwrap();
+    let host=fixture.collect(17).unwrap(); host.finish().unwrap();
+    let key=repair_key(&host);
+    let reader=host.claim_reader().unwrap();
+    let tensor=reader.weight(RawGraph::Prefill,key.operation).unwrap();
+    let without_window=counter.budget().used_bytes();
+    let older=tensor.read(2,2).unwrap();
+    assert_eq!(older.bytes(),[0,0x40]); // independent synthetic BF16 2.0
+    let window_charge=independent_window_bytes()+size_of::<OwnedExternalCharge>();
+    let live=counter.budget().used_bytes();
+    assert_eq!(live,without_window+window_charge);
+    // Leave EXACT independently priced read bootstrap + full demand work.
+    // This sibling shares the original ledger; no cap/sentinel is changed.
+    let sibling=leave_reader_work(&host,1+8*4096+1024+256+4,false);
+    let live=counter.budget().used_bytes(); // sibling's own controls included
+    let cover=host.inspect(|r|r.header.collection_charge.payload_bytes());
+    let offset=0u64;
+    let len=2usize;
+    {
+        // Resolve ONLY the selected genuine snapshot under its actual host lock.
+        let state=host.root.state.lock().unwrap();
+        let r=state.payload.as_ref().unwrap();
+        let expected=&r.header.raw_premise.as_ref().unwrap().tensors[tensor.tensor];
+        let backing=&r.files[expected.file];
+        let file=backing.file.as_ref().unwrap();
+        assert!(Arc::ptr_eq(&backing.original.upgrade().unwrap(),file));
+        let start=data_start(file).unwrap();
+        let b=start.checked_add(expected.begin).unwrap().checked_add(offset).unwrap();
+        assert!(len>=2 && len<=4096);
+        assert!(offset+len as u64<=expected.end-expected.begin);
+        assert!(b>=start && b+len as u64<=file.size());
+        let sealed_size=file.size(); let sealed_digest=file.digest();
+        // Non-shorter lengths refuse before any set_len; cached geometry stays.
+        for rejected in [sealed_size,sealed_size+1] {
+            assert_eq!(file.truncate_snapshot_for_tests(rejected).unwrap_err().kind(),
+                std::io::ErrorKind::InvalidInput);
+        }
+        file.truncate_snapshot_for_tests(b+1).unwrap();
+        assert!(b+2<sealed_size);
+        for rejected in [b+1,b+2] {
+            assert_eq!(file.truncate_snapshot_for_tests(rejected).unwrap_err().kind(),
+                std::io::ErrorKind::InvalidInput);
+        }
+        assert_eq!(file.size(),sealed_size); assert_eq!(file.digest(),sealed_digest);
+        assert_eq!(data_start(file).unwrap(),start); // header still intact
+    } // release host mutex BEFORE tensor.read: no recursive lock acquisition
+    assert_eq!(READER_IO_FAULT.with(|n|n.get()),None);
+    reset_repair_probes(); WINDOW_DROP.with(|n|n.set(None));
+    let factories=WINDOW_FACTORIES.with(|n|n.get());
+    // Cached bounds pass. Native positional read gets one byte (0x80), then EOF.
+    // Failure itself uses neither injected read fault nor synthetic error path.
+    let failed=tensor.read(offset,len);
+    assert!(matches!(failed,Err(Error::Binding)));
+    assert_eq!(WINDOW_FACTORIES.with(|n|n.get()),factories+1);
+    assert_eq!(repair_probes()[3],1); assert_eq!(repair_probes()[4],1);
+    assert_eq!(WINDOW_DROP.with(|n|n.get()),Some((true,live+window_charge)));
+    // Existing observer checks ALL FRAME bytes while failed window still charged.
+    assert_eq!(counter.budget().used_bytes(),live);
+    assert_eq!(older.bytes(),[0,0x40]); // old data/charge survive failed read
+    drop(failed);
+    assert_eq!(counter.budget().used_bytes(),live);
+    assert!(host.root.state.lock().unwrap().reader_failed);
+    reset_repair_probes();
+    assert!(matches!(tensor.read(0,2),Err(Error::Retired)));
+    assert!(reader.weight(RawGraph::Prefill,key.operation).is_err());
+    assert_eq!(repair_probes(),[0;7]);
+    assert_eq!(counter.budget().used_bytes(),live);
+    assert_eq!(older.bytes(),[0,0x40]);
+    assert_eq!(host.begin_retire().unwrap(),RetirementReadiness::Busy);
+    host.inspect(|r| {
+        assert_eq!(r.header.collection_charge.payload_bytes(),cover);
+        sibling.prepay_primitive_work(&r.header.controller,0).unwrap();
+    });
+    drop(older);
+    assert_eq!(counter.budget().used_bytes(),live-window_charge);
+    assert_eq!(host.begin_retire().unwrap(),RetirementReadiness::Busy);
+    drop(tensor); drop(reader);
+    let retained=counter.budget().used_bytes();
+    assert_eq!(retained,live-window_charge-independent_tensor_bytes()-size_of::<OwnedExternalCharge>());
+    assert_eq!(host.begin_retire().unwrap(),RetirementReadiness::Ready);
+    host.inspect(|r|assert_eq!(r.header.collection_charge.payload_bytes(),cover));
+    host.retire().unwrap();
+    assert_eq!(counter.budget().used_bytes(),retained);
+    host.inspect(|r| {
+        assert_eq!(r.header.collection_charge.payload_bytes(),cover);
+        // Full failed-read work stayed spent through owner Drop and retirement.
+        sibling.prepay_primitive_work(&r.header.controller,0).unwrap();
+        assert!(sibling.prepay_primitive_work(&r.header.controller,1).is_err());
+    });
+    host.release_final_charges().unwrap();
+    assert!(counter.budget().used_bytes()<retained);
+    drop(host); drop(sibling);
+    assert_eq!(counter.budget().used_bytes(),OwnedBudget::resources().unwrap().initial_reserved_bytes);
+}
+
 #[test]
 fn consuming_fixture_ingestion_keeps_actual_factory_source_counter_and_ledger() {
     let fixture=Fixture::new();
@@ -244,11 +345,11 @@ fn backing_drops_before_charge() {
 #[test]
 fn exact_one_short_phase_bytes_before_writer() {
     for short in [true,false] {
-        let phase=Fixture::new().header().raw_premise.as_ref().unwrap().phase_bytes;
         let mut owned=Fixture::new().into_collector().unwrap();
         let SourceCollector {payload,header}=&mut owned;
         let fixture=payload.as_ref().unwrap();
         let generation=header.collection_charge.payload_bytes();
+        let phase=independent_phase_bytes(header,fixture.files.len(),fixture.tensors.len());
         let mut outside=header.root.charge_external(0).unwrap();
         // The independent premise identity is live alongside the full phase
         // charge. Its try_clone reserves an additional inline OwnedBudget slot.
@@ -308,7 +409,7 @@ fn preparation_charges_both_late_shared_scale_searches_on_original_ledger() {
     let shapes=ops*(source_registry::tree_entry_bytes::<(String,Vec<usize>)>().unwrap()
         +source_registry::tree_entry_bytes::<(String,usize)>().unwrap()+2*NAME+2*size_of::<usize>());
     let controls=3*size_of::<TrustedRawPremise>()+size_of::<OwnedBudget>()+3*size_of::<HostRawExpectations<'_>>();
-    let initial=seed.collection_charge.payload_bytes()+2*source_policy::CONFIG_BYTES+2*metadata+2*shapes+controls
+    let initial=seed.collection_charge.payload_bytes()+independent_registration_reader_io_bootstrap_bytes()+2*source_policy::CONFIG_BYTES+2*metadata+2*shapes+controls
         +canonical::resources::<std::io::Sink>(16).unwrap().hash_workspace_bytes;
     let baseline=2*CANONICAL_WORK+(f+t+ops)*(f+t+ops)*NAME+initial
         +4*source_policy::CONFIG_BYTES+1_000_000_000;
@@ -802,7 +903,7 @@ fn reader_claim_exact_byte_boundary_precedes_factory_and_consumes_attempt() {
     for short in [false,true] {
         let host=Fixture::new().collect(17).unwrap(); host.finish().unwrap();
         let mut outside=host.inspect(|r|r.header.root.charge_external(0).unwrap());
-        let required=plus(reader_control_bytes().unwrap(),size_of::<OwnedExternalCharge>()).unwrap();
+        let required=independent_reader_bytes()+size_of::<OwnedExternalCharge>();
         let used=outside.budget().used_bytes();
         outside.resize_payload(MAX_PROGRAM_BYTES-used-required+usize::from(short)).unwrap();
         let before=READER_FACTORIES.with(|n|n.get());
@@ -823,7 +924,7 @@ fn reader_claim_exact_work_boundary_shares_original_ledger_before_factory() {
             let h=&r.header;
             let bootstrap=h.original.lower_bootstrap_bytes(h.limits).unwrap();
             let sibling=h.original.lower(h.root.charge_external(bootstrap).unwrap(),h.original.workload(),h.limits).unwrap();
-            let fill=h.limits.max_work-sibling.resources().prepaid_work-READER_CLAIM_WORK+u64::from(short);
+            let fill=h.limits.max_work-sibling.resources().prepaid_work-(1+READER_CLAIM_WORK)+u64::from(short);
             h.original.prepay_compiler_metadata(&h.controller,fill).unwrap();
             sibling
         });
@@ -850,7 +951,7 @@ fn retained_windows_pay_overlap_and_wipe_before_scratch_refund() {
     let one=counter.budget().used_bytes();
     let second=tensor.read(2,2).unwrap();
     let both=counter.budget().used_bytes();
-    assert_eq!(one-baseline,raw_window_bytes().unwrap()+size_of::<OwnedExternalCharge>());
+    assert_eq!(one-baseline,independent_window_bytes()+size_of::<OwnedExternalCharge>());
     assert_eq!(both-one,one-baseline);
     assert_eq!(first.bytes(),[0x80,0x3f]); assert_eq!(second.bytes(),[0,0x40]);
     WINDOW_DROP.with(|s|s.set(None));
@@ -870,7 +971,7 @@ fn window_exact_byte_boundary_admits_old_new_overlap_before_factory() {
         let tensor=reader.weight(RawGraph::Prefill,lookup_index(&host)).unwrap();
         let first=tensor.read(0,2).unwrap();
         let mut outside=host.inspect(|r|r.header.root.charge_external(0).unwrap());
-        let required=raw_window_bytes().unwrap()+size_of::<OwnedExternalCharge>();
+        let required=independent_window_bytes()+size_of::<OwnedExternalCharge>();
         let used=outside.budget().used_bytes();
         outside.resize_payload(MAX_PROGRAM_BYTES-used-required+usize::from(short)).unwrap();
         let before=WINDOW_FACTORIES.with(|n|n.get());
@@ -894,7 +995,7 @@ fn last_window_work_short_burns_same_ledger_and_publishes_no_window() {
             let h=&r.header;
             let bootstrap=h.original.lower_bootstrap_bytes(h.limits).unwrap();
             let sibling=h.original.lower(h.root.charge_external(bootstrap).unwrap(),h.original.workload(),h.limits).unwrap();
-            let fill=h.limits.max_work-sibling.resources().prepaid_work-RAW_WINDOW_WORK+u64::from(short);
+            let fill=h.limits.max_work-sibling.resources().prepaid_work-(1+RAW_WINDOW_WORK)+u64::from(short);
             h.original.prepay_primitive_work(&h.controller,fill).unwrap();
             sibling
         });
@@ -1007,7 +1108,7 @@ fn late_final_lookup_row_failure_wipes_partial_output_and_consumes_request() {
     let fixture=Fixture::new(); let host=fixture.collect(17).unwrap(); host.finish().unwrap();
     let input=host.claim_reader().unwrap().admit_tokens(RawGraph::Prefill,&[0,1,2,0]).unwrap();
     let (_,work)=raw_clear_producer::lookup_quote_for_tests(&input);
-    let sibling=leave_primitive_work(&host,work,false); // EXACT final-fault work, no spare unit
+    let sibling=leave_reader_work(&host,work,false); // EXACT final-fault work, no spare unit
     let counter=host.inspect(|r|r.header.root.try_clone().unwrap());
     let live=counter.budget().used_bytes();
     raw_clear_producer::LOOKUP_DROP.with(|n|n.set(None));
@@ -1043,7 +1144,11 @@ fn lookup_rechecks_exact_original_backing_after_request_admission() {
     assert_eq!(raw_clear_producer::LOOKUP_FACTORIES.with(|n|n.get()),before);
 }
 
+// All existing reservation/norm quotes exclude the new separate bootstrap.
 fn leave_primitive_work(host: &RawHost, work: u64, short: bool) -> OriginalSourcePlan {
+    leave_reader_work(host,work.checked_add(24).unwrap(),short)
+}
+fn leave_reader_work(host: &RawHost, work: u64, short: bool) -> OriginalSourcePlan {
     host.inspect(|r| {
         let h=&r.header;
         let bootstrap=h.original.lower_bootstrap_bytes(h.limits).unwrap();
@@ -1079,7 +1184,7 @@ fn request_work_exact_and_one_short_debit_original_ledger_before_factory() {
         let host=Fixture::new().collect(17).unwrap(); host.finish().unwrap();
         let reader=host.claim_reader().unwrap();
         let (_,work)=raw_clear_producer::input_quote_for_tests(&host,RawGraph::Prefill,4);
-        let sibling=leave_primitive_work(&host,work,short);
+        let sibling=leave_reader_work(&host,work,short);
         let before=raw_clear_producer::TOKEN_FACTORIES.with(|n|n.get());
         let result=reader.admit_tokens(RawGraph::Prefill,&[0,1,2,0]);
         assert_eq!(result.is_err(),short);
@@ -1116,7 +1221,7 @@ fn lookup_work_exact_and_one_short_prepay_all_rows_before_output_factory() {
         let host=Fixture::new().collect(17).unwrap(); host.finish().unwrap();
         let input=host.claim_reader().unwrap().admit_tokens(RawGraph::Prefill,&[0,1,2,0]).unwrap();
         let (_,work)=raw_clear_producer::lookup_quote_for_tests(&input);
-        let sibling=leave_primitive_work(&host,work,short);
+        let sibling=leave_reader_work(&host,work,short);
         let before=raw_clear_producer::LOOKUP_FACTORIES.with(|n|n.get());
         let output=PrivateSourceInstance::new(input).token_lookup();
         assert_eq!(output.is_err(),short);
@@ -1783,4 +1888,537 @@ fn norm_spec_byte_one_short_burns_original_work() {
     assert_eq!(host.begin_retire().unwrap(),RetirementReadiness::Ready);
     host.retire().unwrap(); host.release_final_charges().unwrap();
     // Quote-derived boundary/debit test, NOT independent quote completeness proof.
+}
+
+
+// Bootstrap repair regressions: source definitions only, UNRUN. All arithmetic
+// below is independent of production layout/quote helpers. size_of uses actual
+// target layouts, not a hardcoded 64-bit host ABI. Original budget/ledger is
+// created ONCE by Fixture::new BEFORE construction; fillers debit that same
+// ledger irreversibly, never reset/reissue it or adopt a fresh counter.
+fn independent_reader_bytes() -> usize {
+    3*size_of::<RawReader>()+2*size_of::<Result<RawReader,Error>>()
+        +2*size_of::<std::sync::MutexGuard<'_,RawHostState>>()
+        +size_of::<OwnedExternalCharge>()
+}
+fn independent_tensor_bytes() -> usize {
+    3*size_of::<RawTensor<'_>>()+2*size_of::<Result<RawTensor<'_>,Error>>()
+}
+fn independent_window_bytes() -> usize {
+    3*size_of::<RawWindow<'_,'_>>()+2*size_of::<Result<RawWindow<'_,'_>,Error>>()
+        +size_of::<std::sync::MutexGuard<'_,RawHostState>>()+8
+        +2*size_of::<Arc<PublicFile>>()+4*size_of::<u64>()
+        // Actual concrete layouts, independently inventoried multiplicities;
+        // no production quote/helper as arithmetic oracle.
+        +2*size_of::<LockedReadArgs<'_,'_,'_>>()
+        +size_of::<Result<RawWindow<'_,'_>,Error>>()
+}
+fn independent_primitive_controls() -> usize {
+    2*size_of::<std::sync::MutexGuard<'_,RawHostState>>()
+        +2*size_of::<OriginalOperationKey>()+3*size_of::<PrimitiveQuote>()
+        +2*size_of::<OwnedExternalCharge>()+4*size_of::<Arc<PublicFile>>()
+        +2*size_of::<Arc<RootedRawHost>>()+16*size_of::<u64>()
+}
+// Fully expanded target formulas, never the production quote as prediction.
+fn independent_typed_io_controls() -> usize {
+    use std::mem::size_of as s;
+    use public_file::PublicReadError as E;
+    use std::io::Error as I;
+    let b=s::<&PublicFile>()+s::<u64>()+s::<&mut [u8]>();
+    let k=s::<&std::fs::File>()+s::<&mut [u8]>()+s::<u64>();
+    #[cfg(unix)]
+    let platform=s::<Result<(),I>>();
+    #[cfg(windows)]
+    let platform=s::<Result<usize,I>>()+5*s::<usize>()+s::<std::ops::RangeFrom<usize>>()
+        +2*s::<u64>()+2*s::<bool>();
+    2*b+3*k+s::<usize>()+s::<Option<u64>>()+4*s::<u64>()+4*s::<bool>()
+        +3*s::<Result<(),E>>()+s::<E>()+s::<I>()+platform
+}
+fn independent_raw_shared_io_controls() -> usize {
+    use std::mem::size_of as s;
+    use public_file::PublicReadError as E;
+    use std::io::Error as I;
+    // Extra legacy method call transfer/parameters, not typed method's own 2B.
+    let b=s::<&PublicFile>()+s::<u64>()+s::<&mut [u8]>();
+    independent_typed_io_controls()+2*b+6*s::<E>()+3*s::<I>()+s::<&I>()
+        +8*s::<String>()+2*s::<Result<(),String>>()
+}
+fn independent_registration_reader_io_bootstrap_bytes() -> usize {
+    // Entry lock/result + guards; all authority is borrowed, never reconstructed.
+    let entry=size_of::<std::sync::LockResult<std::sync::MutexGuard<'_,RawHostState>>>()
+        +size_of::<Result<std::sync::MutexGuard<'_,RawHostState>,Error>>()
+        +2*size_of::<std::sync::MutexGuard<'_,RawHostState>>()
+        +size_of::<&RawHost>()+size_of::<&RawReader>()+size_of::<&RawTensor<'_>>()
+        +2*size_of::<&RawRegistration>()+size_of::<Result<&RawRegistration,Error>>()
+        +size_of::<&RawPending>()+size_of::<&SourceHeaderEntry>()+size_of::<&OriginalSourcePlan>()
+        +size_of::<&OwnedExternalCharge>();
+    let quotation=size_of::<RawGraph>()+size_of::<OriginalOperationKey>()
+        +size_of::<&OriginalOperationKey>()+size_of::<&pllm_models::DecoderPlan>()
+        +size_of::<&TrustedRawPremise>()+size_of::<Result<&TrustedRawPremise,Error>>()
+        +3*size_of::<PrimitiveQuote>()+2*size_of::<Result<PrimitiveQuote,Error>>()
+        +3*size_of::<usize>()+4*size_of::<usize>()
+        +size_of::<std::array::IntoIter<usize,4>>();
+    let arithmetic=16*(size_of::<usize>()+size_of::<Option<usize>>()
+        +size_of::<Result<usize,Error>>())
+        +4*(size_of::<u64>()+size_of::<Option<u64>>()+size_of::<Result<u64,Error>>())
+        +size_of::<Result<u64,std::num::TryFromIntError>>();
+    let admission=2*size_of::<Result<(),Error>>()
+        +2*(size_of::<OwnedExternalCharge>()+size_of::<Result<OwnedExternalCharge,Error>>());
+    let returns=size_of::<Result<RawReader,Error>>()
+        +size_of::<Result<RawTensor<'_>,Error>>()
+        // Helper Err and wrapper Err outlive the released demand charge.
+        +2*size_of::<Result<RawWindow<'_,'_>,Error>>();
+    entry+quotation+arithmetic+admission+returns+independent_raw_shared_io_controls()
+}
+fn independent_arc_bytes<T>() -> usize {
+    let (layout,_)=std::alloc::Layout::new::<[std::sync::atomic::AtomicUsize;2]>()
+        .extend(std::alloc::Layout::new::<T>()).unwrap();
+    layout.pad_to_align().size()
+}
+fn independent_phase_bytes(h: &SourceHeaderEntry, f: usize, t: usize) -> usize {
+    let ops=h.original.plan().prefill.operations.len();
+    let metadata=f*(size_of::<ExpectedFile>()+NAME)+t*(size_of::<ExpectedTensor>()+2*NAME);
+    let shapes=ops*(source_registry::tree_entry_bytes::<(String,Vec<usize>)>().unwrap()
+        +source_registry::tree_entry_bytes::<(String,usize)>().unwrap()+2*NAME+2*size_of::<usize>());
+    let initial=h.collection_charge.payload_bytes()+independent_registration_reader_io_bootstrap_bytes()
+        +2*source_policy::CONFIG_BYTES+2*metadata+2*shapes+3*size_of::<TrustedRawPremise>()
+        +size_of::<OwnedBudget>()+3*size_of::<HostRawExpectations<'_>>()
+        +canonical::resources::<std::io::Sink>(16).unwrap().hash_workspace_bytes;
+    let host_controls=2*(size_of::<RawRegistration>()+size_of::<RawHostState>()
+        +size_of::<RawHost>()+size_of::<RawPending>()
+        +size_of::<std::sync::MutexGuard<'_,RawHostState>>()
+        +size_of::<Result<RetirementReadiness,Error>>())
+        +independent_arc_bytes::<RootedRawHost>()+independent_arc_bytes::<SourceHeaderEntry>();
+    let phase=initial+f*(size_of::<RawBacking>()+independent_arc_bytes::<PublicFile>()
+        +public_file::backing_bytes().unwrap())+public_file::writer_creation_bytes().unwrap()
+        +host_controls+public_file::MAX_CHUNK_BYTES+2*JSON_BYTES+json::bootstrap_bytes().unwrap()
+        +2*FRAME+size_of::<SourceDecodeWorkspace>()+4*size_of::<Sha256>();
+    #[cfg(feature="lifecycle-test-support")]
+    let phase={
+        use crate::replicated_decoder::source::Publisher;
+        phase+3*std::alloc::Layout::new::<Publisher>().pad_to_align().size()
+            +2*std::alloc::Layout::new::<Option<Publisher>>().pad_to_align().size()
+            +2*size_of::<Result<Publisher,String>>()+4*size_of::<[usize;10]>()
+            +2*size_of::<Result<[usize;10],Error>>()
+            +3*(size_of::<(String,Vec<u8>)>()+NAME+JSON_BYTES)
+            +3*size_of::<Vec<(String,Vec<u8>)>>()+3*size_of::<[u8;17]>()
+            +2*size_of::<Result<([u8;17],usize),Error>>()
+            +3*size_of::<(u64,[u8;32],usize)>()+2*size_of::<Result<(u64,[u8;32],usize),Error>>()
+    };
+    phase
+}
+fn repair_probes() -> [usize;7] { READER_PROBES.with(|n|n.get()) }
+fn reset_repair_probes() { READER_PROBES.with(|n|n.set([0;7])); }
+fn independent_primitive_work(host: &RawHost, demand: u64) -> u64 {
+    host.inspect(|r| {
+        let o=r.header.original.plan().prefill.operations.len() as u64;
+        let t=r.header.raw_premise.as_ref().unwrap().tensors.len() as u64;
+        let f=r.files.len() as u64;
+        demand+2*(o*(4*1024+64)+t*(1024+1)+64*f+1024)
+            +independent_primitive_controls() as u64
+    })
+}
+fn repair_key(host: &RawHost) -> OriginalOperationKey {
+    host.inspect(|r| {
+        let operation=r.header.original.plan().prefill.operations.iter()
+            .position(|op|op.operator==pllm_models::ModelOperator::TokenLookup).unwrap();
+        let name=r.header.original.plan().prefill.operations[operation].attributes["weight"].as_str().unwrap();
+        let tensor=r.header.raw_premise.as_ref().unwrap().tensors.iter().position(|t|t.name==name).unwrap();
+        OriginalOperationKey {graph:RawGraph::Prefill,operation,tensor}
+    })
+}
+
+#[test]
+fn raw_shared_typed_io_controls_are_initial_only_without_demand_surcharge() {
+    assert_eq!(public_file::READ_UNFORMATTED_CONTROL_BYTES,independent_typed_io_controls());
+    assert_eq!(RAW_SHARED_IO_CONTROL_BYTES,independent_raw_shared_io_controls());
+    assert_eq!(REGISTRATION_READER_IO_BOOTSTRAP_BYTES,independent_registration_reader_io_bootstrap_bytes());
+    // No shared I/O surcharge in claim/tensor/primitive/window demands. Their
+    // original independently reconstructed exact/one-short tests remain intact.
+    assert_eq!(reader_control_bytes().unwrap(),independent_reader_bytes());
+    assert_eq!(TENSOR_CONTROL_BYTES,independent_tensor_bytes());
+    assert_eq!(PRIMITIVE_CONTROL_BYTES,independent_primitive_controls());
+    assert_eq!(raw_window_bytes().unwrap(),independent_window_bytes());
+    assert_eq!(RAW_WINDOW_WORK,(8*4096+1024+256+4) as u64);
+    assert_eq!((PRIMITIVE_BOOTSTRAP_WORK,WEIGHT_BOOTSTRAP_WORK,CLAIM_BOOTSTRAP_WORK,READ_BOOTSTRAP_WORK),(24,7,1,1));
+    assert_eq!(READER_CLAIM_WORK,64);
+}
+
+#[test]
+fn raw_bootstrap_const_layouts_and_retained_initial_inventory_are_independent() {
+    assert_eq!(reader_control_bytes().unwrap(),independent_reader_bytes());
+    assert_eq!(TENSOR_CONTROL_BYTES,independent_tensor_bytes());
+    assert_eq!(raw_window_bytes().unwrap(),independent_window_bytes());
+    assert_eq!(PRIMITIVE_CONTROL_BYTES,independent_primitive_controls());
+    assert_eq!(PRIMITIVE_CONTROL_WORK,independent_primitive_controls() as u64);
+    assert_eq!(REGISTRATION_READER_IO_BOOTSTRAP_BYTES,independent_registration_reader_io_bootstrap_bytes());
+    let mut owned=Fixture::new().into_collector().unwrap();
+    let SourceCollector {payload,header}=&mut owned;
+    let fixture=payload.as_ref().unwrap();
+    let expected=independent_phase_bytes(header,fixture.files.len(),fixture.tensors.len());
+    let premise=fixture.with_expected(|e|TrustedRawPremise::provision(header,e)).unwrap().unwrap();
+    assert_eq!(premise.phase_bytes,expected);
+    assert_eq!(header.collection_charge.payload_bytes(),expected);
+    // This original charge survives freeze, reader failure and reader Drop;
+    // existing Busy/custody/wipe regressions cover its eventual release ordering.
+}
+
+#[test]
+fn raw_bootstrap_four_boundaries_distinguish_quote_from_original_demand() {
+    // Paths: claim, weight, primitive, read. The constants here are independently
+    // approved event prices, not values fetched from the implementation.
+    for path in 0..4 {
+        for boundary in 0..4 {
+            let fixture=Fixture::new();
+            let seed=fixture.seed.as_ref().unwrap();
+            let counter=seed.root.try_clone().unwrap(); // identity before construction
+            let host=fixture.collect(17).unwrap(); host.finish().unwrap();
+            host.inspect(|r|assert!(std::ptr::eq(counter.budget(),r.header.original.budget())));
+            let key=repair_key(&host);
+            let reader=if path==0 {None} else {Some(host.claim_reader().unwrap())};
+            let tensor=if path==3 {Some(reader.as_ref().unwrap().weight(RawGraph::Prefill,key.operation).unwrap())} else {None};
+            let b=[1,7,24,1][path];
+            let w=match path {
+                0=>64,
+                1=>host.inspect(|r|r.header.raw_premise.as_ref().unwrap().tensors.len() as u64*1025+128),
+                2=>independent_primitive_work(&host,19),
+                _=>8*4096+1024+256+4,
+            };
+            let remaining=[b-1,b,b+w-1,b+w][boundary];
+            // U is the SAME original cumulative consumption after construction,
+            // claim/tensor preparation and sibling lowering. No ledger reset.
+            let sibling=leave_reader_work(&host,remaining,false);
+            reset_repair_probes();
+            let factories=(READER_FACTORIES.with(|n|n.get()),WINDOW_FACTORIES.with(|n|n.get()));
+            let allocation_trap=RepairAllocationTrap::new();
+            let success=match path {
+                0=>host.claim_reader().is_ok(),
+                1=>reader.as_ref().unwrap().weight(RawGraph::Prefill,key.operation).is_ok(),
+                2=>admit_primitive(reader.as_ref().unwrap(),&key,PrimitiveQuote::checked(19,0).unwrap()).is_ok(),
+                _=>tensor.as_ref().unwrap().read(0,2).is_ok(),
+            };
+            assert_eq!(success,boundary==3);
+            drop(allocation_trap);
+            let probes=repair_probes();
+            assert_eq!(probes[5],0);
+            if boundary==0 { assert_eq!(probes,[0;7]); }
+            else {
+                assert_eq!(probes[0],usize::from(path==2));
+                assert_eq!(probes[1],usize::from(path==1));
+                if boundary<3 { assert_eq!(&probes[2..],&[0;5]); }
+            }
+            if boundary<3 {
+                assert_eq!(READER_FACTORIES.with(|n|n.get()),factories.0);
+                assert_eq!(WINDOW_FACTORIES.with(|n|n.get()),factories.1);
+                // Preexisting failure/claim cannot be reset or charged again.
+                let before=repair_probes();
+                if path==0 { assert!(host.claim_reader().is_err()); }
+                else { assert!(reader.as_ref().unwrap().weight(RawGraph::Prefill,key.operation).is_err()); }
+                assert_eq!(repair_probes(),before);
+            }
+            host.inspect(|r| {
+                // Bj-1 burns at bootstrap; Bj and Bj+Wj-1 burn at demand.
+                // Exact U+Bj+Wj succeeds and remains fully spent after Drop.
+                assert_eq!(sibling.prepay_primitive_work(&r.header.controller,0).is_err(),boundary<3);
+                if boundary==3 { assert!(sibling.prepay_primitive_work(&r.header.controller,1).is_err()); }
+            });
+            drop(tensor); drop(reader);
+        }
+    }
+}
+
+#[test]
+fn raw_bootstrap_second_success_is_cumulative_then_exhaustion_is_terminal() {
+    for primitive in [false,true] {
+        let host=Fixture::new().collect(17).unwrap(); host.finish().unwrap();
+        let reader=host.claim_reader().unwrap(); let key=repair_key(&host);
+        let work=if primitive {24+independent_primitive_work(&host,11)} else {1+8*4096+1024+256+4};
+        let tensor=if primitive {None} else {Some(reader.weight(RawGraph::Prefill,key.operation).unwrap())};
+        let sibling=leave_reader_work(&host,2*work,false);
+        for _ in 0..2 {
+            if primitive { drop(admit_primitive(&reader,&key,PrimitiveQuote::checked(11,0).unwrap()).unwrap()); }
+            else { drop(tensor.as_ref().unwrap().read(0,2).unwrap()); }
+        }
+        // Zero query proves unburned at exact cumulative U+2*(B+W), after Drop.
+        host.inspect(|r|sibling.prepay_primitive_work(&r.header.controller,0).unwrap());
+        if primitive { assert!(admit_primitive(&reader,&key,PrimitiveQuote::checked(11,0).unwrap()).is_err()); }
+        else { assert!(tensor.as_ref().unwrap().read(0,2).is_err()); }
+        assert!(host.root.state.lock().unwrap().reader_failed);
+        reset_repair_probes();
+        assert!(reader.weight(RawGraph::Prefill,key.operation).is_err());
+        assert_eq!(repair_probes(),[0;7]);
+        host.inspect(|r|assert!(sibling.prepay_primitive_work(&r.header.controller,0).is_err()));
+    }
+}
+
+#[test]
+fn raw_bootstrap_late_io_callsite_faults_keep_debit_latch_and_wipe_custody() {
+    for primitive in [false,true] {
+        for fault in 0..if primitive {1} else {2} {
+            let host=Fixture::new().collect(17).unwrap(); host.finish().unwrap();
+            let reader=host.claim_reader().unwrap(); let key=repair_key(&host);
+            let tensor=if primitive {None} else {Some(reader.weight(RawGraph::Prefill,key.operation).unwrap())};
+            let work=if primitive {24+independent_primitive_work(&host,17)} else {1+8*4096+1024+256+4};
+            let sibling=leave_reader_work(&host,work,false);
+            let (cover,used)=host.inspect(|r|(r.header.collection_charge.payload_bytes(),r.header.root.budget().used_bytes()));
+            reset_repair_probes(); WINDOW_DROP.with(|n|n.set(None));
+            // Test-only faults AT actual I/O call sites, not success publication.
+            READER_IO_FAULT.with(|n|n.set(Some(fault)));
+            if primitive { assert!(admit_primitive(&reader,&key,PrimitiveQuote::checked(17,0).unwrap()).is_err()); }
+            else {
+                let result=tensor.as_ref().unwrap().read(0,2);
+                assert!(result.is_err());
+                // Actual helper -> wrapper error return: demand charge is gone,
+                // yet full result forwarding remains covered by the ORIGINAL
+                // retained bootstrap frame (two R slots), not released demand.
+                host.inspect(|r| {
+                    assert_eq!(r.header.root.budget().used_bytes(),used);
+                    assert_eq!(r.header.collection_charge.payload_bytes(),cover);
+                    assert!(cover>=independent_registration_reader_io_bootstrap_bytes());
+                });
+                drop(result);
+                host.inspect(|r| {
+                    assert_eq!(r.header.root.budget().used_bytes(),used);
+                    assert_eq!(r.header.collection_charge.payload_bytes(),cover);
+                });
+            }
+            READER_IO_FAULT.with(|n|n.set(None));
+            assert_eq!(repair_probes()[3],1);
+            assert_eq!(repair_probes()[4],usize::from(fault==1));
+            if fault==1 {
+                let (wiped,covered)=WINDOW_DROP.with(|n|n.get()).unwrap();
+                assert!(wiped); assert_eq!(covered,used+independent_window_bytes()+size_of::<OwnedExternalCharge>());
+            } else { assert!(WINDOW_DROP.with(|n|n.get()).is_none()); }
+            assert!(host.root.state.lock().unwrap().reader_failed);
+            assert_eq!(host.begin_retire().unwrap(),RetirementReadiness::Busy);
+            host.inspect(|r| {
+                assert_eq!(r.header.collection_charge.payload_bytes(),cover);
+                assert_eq!(r.header.root.budget().used_bytes(),used);
+                sibling.prepay_primitive_work(&r.header.controller,0).unwrap();
+            });
+            reset_repair_probes(); assert!(reader.weight(RawGraph::Prefill,key.operation).is_err());
+            assert_eq!(repair_probes(),[0;7]);
+            drop(tensor); drop(reader);
+            assert_eq!(host.begin_retire().unwrap(),RetirementReadiness::Ready);
+            host.retire().unwrap();
+            host.inspect(|r| {
+                assert_eq!(r.header.collection_charge.payload_bytes(),cover);
+                assert!(sibling.prepay_primitive_work(&r.header.controller,1).is_err());
+            });
+            host.release_final_charges().unwrap();
+        }
+    }
+}
+
+#[test]
+fn raw_bootstrap_quote_failure_is_reader_local_and_does_not_abandon_source() {
+    let host=Fixture::new().collect(17).unwrap(); host.finish().unwrap();
+    let reader=host.claim_reader().unwrap(); let key=repair_key(&host);
+    let sibling=leave_reader_work(&host,24+5,false);
+    reset_repair_probes();
+    assert!(admit_primitive(&reader,&key,PrimitiveQuote::checked(u64::MAX,0).unwrap()).is_err());
+    assert_eq!(repair_probes(),[1,0,0,0,0,0,0]);
+    assert!(host.root.state.lock().unwrap().reader_failed);
+    assert!(reader.weight(RawGraph::Prefill,key.operation).is_err());
+    // Only bootstrap spent: full demand never admitted, source not abandoned.
+    host.inspect(|r| {
+        sibling.prepay_primitive_work(&r.header.controller,5).unwrap();
+        sibling.prepay_primitive_work(&r.header.controller,0).unwrap();
+    });
+    drop(reader);
+    assert_eq!(host.begin_retire().unwrap(),RetirementReadiness::Ready);
+}
+
+
+#[test]
+fn raw_bootstrap_independent_exact_storage_all_paths_and_old_window_peak() {
+    for path in 0..4 {
+        for short in [false,true] {
+            let host=Fixture::new().collect(17).unwrap(); host.finish().unwrap();
+            let key=repair_key(&host);
+            let reader=if path==0 {None} else {Some(host.claim_reader().unwrap())};
+            let tensor=if path==3 {Some(reader.as_ref().unwrap().weight(RawGraph::Prefill,key.operation).unwrap())} else {None};
+            let old=if path==3 {Some(tensor.as_ref().unwrap().read(0,2).unwrap())} else {None};
+            let work=match path {
+                0=>1+64,
+                1=>7+host.inspect(|r|r.header.raw_premise.as_ref().unwrap().tensors.len() as u64*1025+128),
+                2=>24+independent_primitive_work(&host,23),
+                _=>1+8*4096+1024+256+4,
+            };
+            let sibling=leave_reader_work(&host,work,false);
+            let bytes=match path {
+                0=>independent_reader_bytes(),1=>independent_tensor_bytes(),
+                2=>independent_primitive_controls()+37,_=>independent_window_bytes(),
+            }+size_of::<OwnedExternalCharge>();
+            let mut outside=host.inspect(|r|r.header.root.charge_external(0).unwrap());
+            let before=outside.budget().used_bytes();
+            outside.resize_payload(MAX_PROGRAM_BYTES-before-bytes+usize::from(short)).unwrap();
+            let baseline=outside.budget().used_bytes();
+            let counts=norm_counts(); reset_repair_probes();
+            // Each result remains alive while checking the independently
+            // reconstructed actual counter peak, not merely a quote return.
+            macro_rules! check_peak {
+                ($result:expr)=>{{
+                    let result=$result;
+                    assert_eq!(result.is_err(),short);
+                    assert_eq!(outside.budget().used_bytes(),if short {baseline} else {MAX_PROGRAM_BYTES});
+                    drop(result);
+                }};
+            }
+            match path {
+                0=>check_peak!(host.claim_reader()),
+                1=>check_peak!(reader.as_ref().unwrap().weight(RawGraph::Prefill,key.operation)),
+                2=>check_peak!(admit_primitive(reader.as_ref().unwrap(),&key,PrimitiveQuote::checked(23,37).unwrap())),
+                _=>check_peak!(tensor.as_ref().unwrap().read(2,2)),
+            }
+            // Reader controls deliberately remain in reader_charge after
+            // reader Drop; tensor/window/reservation charges are per-call.
+            assert_eq!(outside.budget().used_bytes(),
+                if path==0 && !short {MAX_PROGRAM_BYTES} else {baseline});
+            if short {
+                assert_eq!(norm_counts(),counts);
+                assert_eq!(&repair_probes()[2..],&[0;5]);
+            }
+            if let Some(old)=old.as_ref() { assert_eq!(old.bytes(),[0x80,0x3f]); }
+            host.inspect(|r| {
+                // Storage refusal does not refund the successful B+W debits,
+                // nor does it burn the source as an abandoned PrimitiveAttempt.
+                sibling.prepay_primitive_work(&r.header.controller,0).unwrap();
+                assert!(sibling.prepay_primitive_work(&r.header.controller,1).is_err());
+            });
+            drop(outside); drop(old); drop(tensor); drop(reader);
+        }
+    }
+}
+
+#[test]
+fn raw_bootstrap_weight_quote_failure_spends_only_bootstrap_and_latches() {
+    let host=Fixture::new().collect(17).unwrap(); host.finish().unwrap();
+    let reader=host.claim_reader().unwrap(); let key=repair_key(&host);
+    let sibling=leave_reader_work(&host,7+3,false);
+    {
+        // Privileged test corruption of retained premise; no production setter,
+        // alternate authority, budget replacement or callback is introduced.
+        let mut state=host.root.state.lock().unwrap(); let r=state.payload.as_mut().unwrap();
+        r.header.identity=std::sync::Weak::new();
+        Arc::get_mut(&mut r.header.header).unwrap().raw_premise.take();
+        r.header.identity=Arc::downgrade(&r.header.header);
+    }
+    reset_repair_probes();
+    assert!(reader.weight(RawGraph::Prefill,key.operation).is_err());
+    assert_eq!(repair_probes(),[0,1,0,0,0,0,0]);
+    assert!(host.root.state.lock().unwrap().reader_failed);
+    assert!(reader.weight(RawGraph::Prefill,key.operation).is_err());
+    assert_eq!(repair_probes(),[0,1,0,0,0,0,0]);
+    drop(reader);
+    host.inspect(|r| {
+        sibling.prepay_primitive_work(&r.header.controller,3).unwrap();
+        sibling.prepay_primitive_work(&r.header.controller,0).unwrap();
+        assert!(sibling.prepay_primitive_work(&r.header.controller,1).is_err());
+    });
+}
+
+#[test]
+fn raw_bootstrap_controller_precondition_failure_is_not_a_ledger_burn() {
+    let host=Fixture::new().collect(17).unwrap(); host.finish().unwrap();
+    let reader=host.claim_reader().unwrap(); let key=repair_key(&host);
+    let sibling=leave_reader_work(&host,9,false);
+    let capacity={
+        let mut state=host.root.state.lock().unwrap(); let r=state.payload.as_mut().unwrap();
+        r.header.identity=std::sync::Weak::new();
+        let h=Arc::get_mut(&mut r.header.header).unwrap();
+        let capacity=h.controller.payload_bytes(); h.controller.resize_payload(0).unwrap();
+        r.header.identity=Arc::downgrade(&r.header.header); capacity
+    };
+    reset_repair_probes();
+    assert!(reader.weight(RawGraph::Prefill,key.operation).is_err());
+    assert_eq!(repair_probes(),[0;7]);
+    assert!(host.root.state.lock().unwrap().reader_failed);
+    {
+        let mut state=host.root.state.lock().unwrap(); let r=state.payload.as_mut().unwrap();
+        r.header.identity=std::sync::Weak::new();
+        Arc::get_mut(&mut r.header.header).unwrap().controller.resize_payload(capacity).unwrap();
+        r.header.identity=Arc::downgrade(&r.header.header);
+    }
+    // Restoring only test-corrupted storage cannot reset the failed reader.
+    assert!(reader.weight(RawGraph::Prefill,key.operation).is_err());
+    assert_eq!(repair_probes(),[0;7]);
+    host.inspect(|r| {
+        sibling.prepay_primitive_work(&r.header.controller,9).unwrap();
+        sibling.prepay_primitive_work(&r.header.controller,0).unwrap();
+    });
+}
+
+
+// Test-only allocation factory trap; restore even during assertion unwind.
+struct RepairAllocationTrap;
+impl RepairAllocationTrap {
+    fn new() -> Self { READER_ALLOC_FAULT.with(|n|n.set(true)); Self }
+}
+impl Drop for RepairAllocationTrap {
+    fn drop(&mut self) { READER_ALLOC_FAULT.with(|n|n.set(false)); }
+}
+
+#[test]
+fn raw_bootstrap_weight_second_success_then_cumulative_exhaustion() {
+    let host=Fixture::new().collect(17).unwrap(); host.finish().unwrap();
+    let reader=host.claim_reader().unwrap(); let key=repair_key(&host);
+    let work=7+host.inspect(|r|r.header.raw_premise.as_ref().unwrap().tensors.len() as u64*1025+128);
+    let sibling=leave_reader_work(&host,2*work,false);
+    for _ in 0..2 { drop(reader.weight(RawGraph::Prefill,key.operation).unwrap()); }
+    host.inspect(|r|sibling.prepay_primitive_work(&r.header.controller,0).unwrap());
+    reset_repair_probes();
+    assert!(reader.weight(RawGraph::Prefill,key.operation).is_err());
+    assert_eq!(repair_probes(),[0;7]); // bootstrap exhausted before quotation
+    assert!(host.root.state.lock().unwrap().reader_failed);
+    assert!(reader.weight(RawGraph::Prefill,key.operation).is_err());
+    assert_eq!(repair_probes(),[0;7]);
+    drop(reader);
+    host.inspect(|r|assert!(sibling.prepay_primitive_work(&r.header.controller,0).is_err()));
+}
+
+#[test]
+fn raw_bootstrap_poisoned_host_lock_never_debits_or_quotes() {
+    let host=Fixture::new().collect(17).unwrap(); host.finish().unwrap();
+    let reader=host.claim_reader().unwrap(); let key=repair_key(&host);
+    let sibling=leave_reader_work(&host,13,false);
+    assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _guard=host.root.state.lock().unwrap();
+        panic!("test-only poisoned raw host lock");
+    })).is_err());
+    reset_repair_probes();
+    assert!(reader.weight(RawGraph::Prefill,key.operation).is_err());
+    assert!(admit_primitive(&reader,&key,PrimitiveQuote::checked(1,0).unwrap()).is_err());
+    assert!(host.claim_reader().is_err());
+    assert_eq!(repair_probes(),[0;7]);
+    let state=match host.root.state.lock() {Err(error)=>error.into_inner(),Ok(_)=>panic!("lock not poisoned")};
+    let r=state.payload.as_ref().unwrap();
+    sibling.prepay_primitive_work(&r.header.controller,13).unwrap();
+    sibling.prepay_primitive_work(&r.header.controller,0).unwrap();
+}
+
+#[test]
+fn raw_bootstrap_registration_cover_survives_freeze_busy_retirement_and_reader_drop() {
+    let fixture=Fixture::new();
+    let counter=fixture.seed.as_ref().unwrap().root.try_clone().unwrap();
+    let host=fixture.collect(17).unwrap(); host.finish().unwrap();
+    let cover=host.inspect(|r|r.header.collection_charge.payload_bytes());
+    assert!(cover>=independent_registration_reader_io_bootstrap_bytes());
+    let reader=host.claim_reader().unwrap(); let key=repair_key(&host);
+    let tensor=reader.weight(RawGraph::Prefill,key.operation).unwrap();
+    let window=tensor.read(0,2).unwrap();
+    assert_eq!(host.begin_retire().unwrap(),RetirementReadiness::Busy);
+    host.inspect(|r|assert_eq!(r.header.collection_charge.payload_bytes(),cover));
+    let root=Arc::downgrade(&host.root); drop(host);
+    let host=RawHost {root:root.upgrade().unwrap()};
+    host.inspect(|r|assert_eq!(r.header.collection_charge.payload_bytes(),cover));
+    assert_eq!(host.begin_retire().unwrap(),RetirementReadiness::Busy);
+    drop(window); drop(tensor); drop(reader);
+    assert_eq!(host.begin_retire().unwrap(),RetirementReadiness::Ready);
+    host.inspect(|r|assert_eq!(r.header.collection_charge.payload_bytes(),cover));
+    host.retire().unwrap();
+    let covered=counter.budget().used_bytes();
+    host.release_final_charges().unwrap();
+    assert!(counter.budget().used_bytes()<covered);
+    drop(host); assert!(root.upgrade().is_none());
 }

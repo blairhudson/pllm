@@ -69,12 +69,20 @@ enum Stage {
     Retired,
 }
 pub(super) struct CompactPublisher {
+    // Explicit custody uses the SAME ingress directory and original ledger.
+    // The enum distinguishes a resource-free prepared owner from a started one.
+    custody: Option<CompactDirectoryCustody>,
     stage: Stage,
     manifest_bytes: usize,
     collection_bytes: usize,
     visits: u64,
     disk_bytes: usize,
 }
+struct CompactDirectoryCustody {
+    directory: Arc<program::source_entry::snapshot_directory::OwnedSnapshotDirectory>,
+    state: CompactDirectoryState,
+}
+enum CompactDirectoryState { Pending, Started, Failed, RetireFailed, Retired }
 
 impl CompactPublisher {
     /// Host-only provisioned expectations, NOT a worker/payload/SDK entrypoint.
@@ -105,12 +113,25 @@ impl CompactPublisher {
         source: [u8; 32],
         composition: [u8; 32],
     ) -> Result<Self, String> {
+        Self::construct(experiment, config, rows, outputs, source, composition, false)
+    }
+    pub(super) fn prepare(
+        experiment: &[u8], config: &[u8], rows: usize, outputs: usize,
+        source: [u8; 32], composition: [u8; 32],
+    ) -> Result<Self, String> {
+        Self::construct(experiment, config, rows, outputs, source, composition, true)
+    }
+    fn construct(
+        experiment: &[u8], config: &[u8], rows: usize, outputs: usize,
+        source: [u8; 32], composition: [u8; 32], pending: bool,
+    ) -> Result<Self, String> {
         if outputs != 2 {
             return Err("compact publisher requires exactly two output epochs".into());
         }
         let mut session = [0; 32];
         getrandom::fill(&mut session).map_err(|_| "replicated OS randomness failed")?;
-        let mut header = SourceHeaderEntry::begin(
+        let begin = if pending { SourceHeaderEntry::prepare_compact } else { SourceHeaderEntry::begin };
+        let mut header = begin(
             experiment,
             config,
             rows,
@@ -217,6 +238,9 @@ impl CompactPublisher {
         )?)
         .map_err(|_| "compact visits overflow")?;
         let root = header.clone_collection_budget().map_err(native)?;
+        let custody = pending.then(|| CompactDirectoryCustody {
+            directory: Arc::clone(header.directory()), state: CompactDirectoryState::Pending,
+        });
         let directory =
             Arc::clone(header.directory()) as Arc<dyn pllm_core::public_file::SnapshotDirectory>;
         let owner = header
@@ -296,12 +320,41 @@ impl CompactPublisher {
         // resident-byte lease is misrepresented as a filesystem reservation.
         let disk_bytes = mul(words, 20)?;
         Ok(Self {
+            custody,
             stage: Stage::Collecting(owner),
             manifest_bytes,
             collection_bytes,
             visits,
             disk_bytes,
         })
+    }
+    pub(super) fn retained(&self) -> bool { self.custody.is_some() }
+    pub(super) fn start(&mut self) -> Result<(), String> {
+        let custody = self.custody.as_mut().ok_or("compact owner is not pending")?;
+        if !matches!(custody.state, CompactDirectoryState::Pending) {
+            return Err("compact acquisition already attempted".into());
+        }
+        custody.state = CompactDirectoryState::Failed;
+        custody.directory.start().map_err(native)?;
+        custody.state = CompactDirectoryState::Started;
+        Ok(())
+    }
+    pub(super) fn retire(&mut self) -> Result<(), String> {
+        let custody = self.custody.as_mut().ok_or("compact owner has no explicit custody")?;
+        if matches!(custody.state, CompactDirectoryState::Retired) { return Ok(()); }
+        if matches!(custody.state, CompactDirectoryState::RetireFailed) {
+            return Err("compact directory retirement previously failed".into());
+        }
+        custody.state = CompactDirectoryState::RetireFailed;
+        // Keep the original stage, its directory handles, payload and covering
+        // leases intact on failure. Anonymous snapshot handles need no unlink.
+        custody.directory.retire().map_err(native)?;
+        self.stage = Stage::Retired;
+        custody.state = CompactDirectoryState::Retired;
+        Ok(())
+    }
+    fn ready(&self) -> bool {
+        self.custody.as_ref().is_none_or(|c| matches!(c.state, CompactDirectoryState::Started))
     }
     pub(super) fn shapes(&self) -> &[(String, Vec<usize>)] {
         match &self.stage {
@@ -320,6 +373,13 @@ impl CompactPublisher {
         }
     }
     pub(super) fn directory(&self) -> Result<&std::path::Path, String> {
+        if let Some(custody) = &self.custody {
+            return match custody.state {
+                CompactDirectoryState::Pending => program::source_entry::snapshot_directory::parent().map_err(native),
+                CompactDirectoryState::Started => Ok(custody.directory.path()),
+                _ => Err("compact directory unavailable after failed operation".into()),
+            };
+        }
         match &self.stage {
             Stage::Collecting(c) => Ok(c.directory().path()),
             Stage::Sealed(c) => c.directory().map(|d| d.path()).map_err(native),
@@ -327,6 +387,7 @@ impl CompactPublisher {
         }
     }
     pub(super) fn append(&mut self, key: &str, offset: usize, bytes: &[u8]) -> Result<(), String> {
+        if !self.ready() { return Err("compact acquisition not ready".into()); }
         let result = match &mut self.stage {
             Stage::Collecting(c) => c
                 .phase(
@@ -468,11 +529,13 @@ impl CompactPublisher {
             _ => Err("compact publisher is not collecting".into()),
         };
         if result.is_err() {
-            self.stage = Stage::Retired;
+            if let Some(custody) = &mut self.custody { custody.state = CompactDirectoryState::Failed; }
+            else { self.stage = Stage::Retired; }
         }
         result
     }
     pub(super) fn seal(&mut self, ids: &[u32]) -> Result<(), String> {
+        if !self.ready() { return Err("compact acquisition not ready".into()); }
         // Reject wrong-stage and failed collectors without extracting or
         // dropping their existing owner. Fallible collecting transitions below
         // still require the separate retained-ownership repair.
@@ -574,10 +637,15 @@ impl CompactPublisher {
         Ok(())
     }
     pub(super) fn cancel(&mut self) {
+        if let Some(custody) = &mut self.custody {
+            if matches!(custody.state, CompactDirectoryState::Pending | CompactDirectoryState::Started) { custody.state = CompactDirectoryState::Failed; }
+            return;
+        }
         self.stage = Stage::Retired;
     }
 
     pub(super) fn manifest(&mut self) -> Result<Vec<u8>, String> {
+        if !self.ready() { return Err("compact acquisition not ready".into()); }
         let Stage::Sealed(owner) = &mut self.stage else {
             return Err("replicated publisher not sealed".into());
         };
@@ -604,6 +672,7 @@ impl CompactPublisher {
             .map_err(native)
     }
     pub(super) fn next_chunk(&mut self) -> Result<Option<SourceChunk>, String> {
+        if !self.ready() { return Err("compact acquisition not ready".into()); }
         let Stage::Sealed(owner) = &mut self.stage else {
             return Err("replicated publisher not sealed".into());
         };
@@ -655,7 +724,8 @@ impl CompactPublisher {
             })
             .map_err(native)
     }
-    pub(super) fn finish_outcome(mut self, frames: [&[u8]; 3]) -> Result<FinalOutcome, String> {
+    pub(super) fn finish_outcome(&mut self, frames: [&[u8]; 3]) -> Result<FinalOutcome, String> {
+        if !self.ready() { return Err("compact acquisition not ready".into()); }
         let Stage::Sealed(owner) = &mut self.stage else {
             return Err("replicated publisher not sealed".into());
         };

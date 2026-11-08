@@ -7,6 +7,11 @@ enum ParameterStore<'a> {
         cosine: Vec<i64>,
         sine: Vec<i64>,
     },
+    RotaryExact {
+        input: Interval,
+        cosine: Box<[i64]>,
+        sine: Box<[i64]>,
+    },
 }
 
 struct FactoryBody<'a> {
@@ -60,6 +65,9 @@ impl FactoryBody<'_> {
             ParameterStore::Rotary { input, cosine, sine } => FactoryParameters::RotaryHalf {
                 input: *input, cosine, sine,
             },
+            ParameterStore::RotaryExact { input, cosine, sine } => FactoryParameters::RotaryHalf {
+                input: *input, cosine, sine,
+            },
         };
         EphemeralBoundLens { construction: &self.construction, parameters }
     }
@@ -74,6 +82,28 @@ pub struct ResidentFactorySource<'a> {
 }
 
 impl Construction {
+    /// Validate before taking either exact coefficient owner. Both backing
+    /// allocations then move into the existing resident source, without copy,
+    /// resize, or an intervening fallible callback. Legacy Vec sources retain
+    /// their original capacity; the exact source keeps these same Box owners.
+    pub fn install_exact_rotary_source<'a>(self, out: &mut Option<ResidentFactorySource<'a>>,
+        input: Interval, cosine: &mut Box<[i64]>, sine: &mut Box<[i64]>) -> Result<(), WorkPreflightError> {
+        if out.is_some() { return Err(Error::Phase.into()); }
+        let Construction::RotaryHalf { rows, width, cosine_len, sine_len } = self else {
+            return Err(WorkPreflightError::ParameterBinding);
+        };
+        self.quote().map_err(WorkPreflightError::Quote)?;
+        if rows.checked_mul(width).ok_or(Error::Bounds)? / 2 != cosine.len()
+            || cosine.len() != cosine_len || sine.len() != sine_len {
+            return Err(WorkPreflightError::ParameterBinding);
+        }
+        *out = Some(ResidentFactorySource { body: FactoryBody { construction: self,
+            parameters: ParameterStore::RotaryExact { input,
+                cosine: std::mem::take(cosine), sine: std::mem::take(sine),
+            },
+        } });
+        Ok(())
+    }
     /// Infallibly capture existing borrowed parameters without binding them.
     /// RMS gamma remains borrowed for the resident schedule's entire lifetime.
     ///
@@ -127,10 +157,9 @@ enum Phase {
 /// Opaque retained parameter, RMS recipe and rotary-finish custody. Keep slots
 /// resident outside unwind frames. Entered/failed/burned stages cannot retry,
 /// including after scratch reset. Numeric summaries cannot grant permission.
-/// Rotary finish custody starts ONLY after recipe success and installation in
-/// the private slot. RMS installs its empty-header Builder before recipe entry;
-/// recipe/pending/partial-finish backing stays resident on error/unwind. Rotary
-/// prepare/recipe, other native custody, first acquisition, compiler publication
+/// RMS and rotary install their empty-header Builder before recipe entry;
+/// recipe/pending/partial-finish backing stays resident on error/unwind. Other
+/// native custody, first acquisition, compiler publication
 /// and funding remain open. Full/tail inline slots enlarge this owner: layout,
 /// temporary/result overlap and original native parameter backing require
 /// prepayment review before composition.
@@ -180,9 +209,21 @@ impl NativeFinishSlot {
             (Construction::RotaryHalf { rows, width, .. }, FactoryParameters::RotaryHalf { input, cosine, sine }) => {
                 #[cfg(test)]
                 test_hook(TestStage::Build);
-                let (builder, output) = numeric::prepare_rotary_half(rows, width, *input, cosine, sine)?;
-                // Safe inline move immediately after recipe return, BEFORE finish.
-                self.builder = Some(ResidentBuilder::from_builder(builder));
+                if self.builder.is_some() || self.program.is_some() || out.is_some() {
+                    return Err(Error::Phase);
+                }
+                #[cfg(test)]
+                rotary_work::entered_factory();
+                // Keep the legacy geometry -> tile -> domain -> recipe order.
+                // Builder::new returns empty Vec headers only. Install BEFORE
+                // domain/recipe entry, in particular before either native table.
+                let lanes = rotary_work::geometry(rows, width, cosine.len(), sine.len())?;
+                self.builder = Some(ResidentBuilder::from_builder(Builder::new(lanes, *input)?));
+                rotary_work::validate_coefficients(cosine, sine)?;
+                let output = rotary_work::recipe(
+                    &mut rms_resident::ResidentRecipeSink(self.builder.as_mut().ok_or(Error::Phase)?),
+                    width, cosine, sine,
+                )?;
                 #[cfg(test)]
                 rotary_finish_regressions::installed(self.builder.as_ref().unwrap());
                 self.finish_into(output, out)
@@ -195,6 +236,9 @@ impl NativeFinishSlot {
     }
 
     fn finish_into(&mut self, output: Value, out: &mut Option<FactoryOutput>) -> Result<(), Error> {
+        if out.is_some() {
+            return Err(Error::Binding);
+        }
         let builder = self.builder.as_mut().ok_or(Error::Phase)?;
         builder.finish(output)?;
         builder.transfer_complete(&mut self.program)?;

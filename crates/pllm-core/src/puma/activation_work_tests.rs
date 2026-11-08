@@ -341,3 +341,124 @@ fn activation_query_leaves_live_prss_untouched_then_actual_native_cursors_and_eq
         }
     }
 }
+
+fn silu_bound_points() -> [i64; 17] {
+    [
+        -9 * ONE, -8 * ONE - 1, -8 * ONE, -8 * ONE + 1,
+        -4 * ONE - 1, -4 * ONE, -4 * ONE + 1,
+        4 * ONE - 1, 4 * ONE, 4 * ONE + 1,
+        -6 * ONE, -ONE - 1, -1, 0, 1, ONE + 1, 9 * ONE,
+    ]
+}
+
+// Selected-output checks only: not bounds on eager intermediates, fallback
+// integration, source provenance or an exhaustive polynomial-domain proof.
+fn assert_selected_silu_bound(input: i64, output: i64) {
+    if input < -8 * ONE {
+        assert_eq!(output, 0);
+    } else if input < -4 * ONE {
+        assert!(output.unsigned_abs() <= 345_317, "low: {input}/{output}");
+    } else if input <= 4 * ONE {
+        assert!(output.unsigned_abs() <= 2_519_957, "high: {input}/{output}");
+    } else {
+        assert_eq!(output, input);
+    }
+    let x = i128::from(input);
+    let y = i128::from(output);
+    assert!(y * y <= x * x + 2_519_957_i128 * 2_519_957);
+}
+
+#[test]
+fn guarded_silu_selected_bound_matches_native_tape() {
+    let values = silu_bound_points();
+    for (i, value) in values.iter().enumerate() {
+        assert!(!values[..i].contains(value));
+    }
+    let program = construct(Activation::Silu, true, values.len(),
+        Interval::new(-9 * ONE, 9 * ONE).unwrap()).unwrap();
+    // Reuse the existing deterministic test-owner contract; no new ledger.
+    let mut owners = owners(&program, &values);
+    let mut tapes = Vec::new();
+    for _ in 0..program.instructions() {
+        let (tape, _) = step(&mut owners);
+        if let Some(tape) = tape {
+            assert_eq!(tape.len(), values.len());
+            tapes.push(tape);
+        }
+    }
+    // Native PRSS masks, in eager order: x², x⁴, x⁶, two low
+    // coefficient products, then four high coefficient products. All TR18.
+    assert_eq!(tapes.len(), 9);
+    let usage = owners.each_ref().map(Executor::payload_usage);
+    let output = owners.map(|owner| {
+        let (mut runtime, output) = owner.finish().unwrap();
+        runtime.cancel();
+        drop(runtime);
+        output
+    });
+    let actual = clear(&output);
+    assert_eq!(actual.len(), values.len());
+    for (i, (&input, &selected)) in values.iter().zip(&actual).enumerate() {
+        // Guarded tails select the ORIGINAL input or zero. Do not claim that
+        // the oracle's unused, unmasked tail intermediates match native ones.
+        let expected = if input < -8 * ONE { 0 }
+            else if input > 4 * ONE { input }
+            else { oracle(Activation::Silu, input, tapes.iter().map(|t| t[i])) };
+        assert_eq!(selected, expected, "lane {i}: {input}");
+        assert_selected_silu_bound(input, selected);
+    }
+    drop(output);
+    assert!(usage.iter().all(|owner| owner.live_bytes() == 0));
+}
+
+#[test]
+fn silu_oracle_signed_tape_endpoints() {
+    // Independent coefficient/radius arithmetic, not production bound queries.
+    assert_eq!(80_413 + 8 * 21_489 + 64 * 1_453, 345_317);
+    assert_eq!(2_229 + 4 * 131_072 + 16 * 59_806
+        + 256 * 2_913 + 4096 * 71, 2_519_957);
+    let last = (ONE - 1) as u64;
+    let tapes: [[u64; 9]; 4] = [
+        [0; 9], [last; 9],
+        std::array::from_fn(|i| if i % 2 == 0 { 0 } else { last }),
+        std::array::from_fn(|i| if i % 2 == 0 { last } else { 0 }),
+    ];
+    let mut exact_signed = [false; 2];
+    let mut inexact_signed = [false; 2];
+    for input in silu_bound_points() {
+        // Existing independent rounded helper: signed Euclidean quotient plus
+        // carry, not production evaluator. Exercise exact/nonexact signed
+        // coefficient products at floor/ceil mask endpoints explicitly.
+        for coefficient in [-21_489_i128, -1_453, 131_072, 59_806, -2_913, 71] {
+            let raw = coefficient * i128::from(input);
+            let floor = raw.div_euclid(i128::from(ONE));
+            let inexact = raw.rem_euclid(i128::from(ONE)) != 0;
+            assert_eq!(i128::from(rounded(raw, 0, 18)), floor);
+            assert_eq!(i128::from(rounded(raw, last, 18)), floor + i128::from(inexact));
+            if raw != 0 {
+                let sign = usize::from(raw > 0);
+                if inexact { inexact_signed[sign] = true; }
+                else { exact_signed[sign] = true; }
+            }
+        }
+        for tape in tapes {
+            // Existing oracle independently evaluates all nine eager TR18
+            // operations and selects zero/low/high/identity at exact pivots.
+            let selected = oracle(Activation::Silu, input, tape.into_iter());
+            assert_selected_silu_bound(input, selected);
+            // At exact Q-multiple pivots all nine divisions are exact;
+            // independently pin low at -8Q and HIGH at both -4Q and +4Q.
+            if input == -8 * ONE {
+                assert_eq!(selected, -80_413 + 8 * 21_489 - 64 * 1_453);
+            } else if input == -4 * ONE {
+                assert_eq!(selected, 2_229 - 4 * 131_072 + 16 * 59_806
+                    - 256 * 2_913 + 4096 * 71);
+            } else if input == 4 * ONE {
+                assert_eq!(selected, 2_229 + 4 * 131_072 + 16 * 59_806
+                    - 256 * 2_913 + 4096 * 71);
+            }
+        }
+    }
+    assert_eq!(exact_signed, [true; 2]);
+    assert_eq!(inexact_signed, [true; 2]);
+}

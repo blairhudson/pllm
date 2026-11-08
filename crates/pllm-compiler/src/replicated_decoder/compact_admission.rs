@@ -12,6 +12,7 @@
 use super::{
     frozen_region::FrozenRegion, Code, CompactGraph, DecoderGraph, DescriptorKind, Error,
     PhysicalLayout, PublishedOp, PublishedView, WorkBudget, MAX_NODES, MAX_PROGRAM_BYTES,
+    OwnedExternalCharge, ControllerAccounting,
 };
 use crate::replicated_decoder::{
     multiply::PartyRuntime,
@@ -107,7 +108,7 @@ pub(super) struct CompactOwnerCensus {
 }
 
 impl CompactOwnerCensus {
-    fn read(graph: &CompactGraph<'_, '_>) -> Result<Self, Error> {
+    fn read<G: ControllerAccounting>(graph: &CompactGraph<'_, '_, G>) -> Result<Self, Error> {
         let containers = graph.container_census()?;
         let mut slots = 0usize;
         let mut payload = 0usize;
@@ -216,7 +217,7 @@ pub(in crate::replicated_decoder::program) struct RequestWork {
 }
 
 impl RequestWork {
-    pub(super) fn record_graph(&mut self, graph: &CompactGraph<'_, '_>) -> Result<(), Error> {
+    pub(super) fn record_graph<G: ControllerAccounting>(&mut self, graph: &CompactGraph<'_, '_, G>) -> Result<(), Error> {
         if graph.failed {
             return Err(Error::Retired);
         }
@@ -247,7 +248,7 @@ impl RequestWork {
     /// enclosing owner keeps it and its original source/import borrows alive.
     /// Retained resources include their existing outside-owner allowance; no
     /// sharing credit, historical-peak refund or completion authority is inferred.
-    pub(super) fn record_frozen(&mut self, region: &FrozenRegion<'_>) -> Result<(), Error> {
+    pub(super) fn record_frozen<G: ControllerAccounting>(&mut self, region: &FrozenRegion<'_, G>) -> Result<(), Error> {
         self.record_region(
             region.work_budget(),
             || {
@@ -437,7 +438,7 @@ fn graph_source_preflight(
     registry: Option<&SourceRegistry<'_>>,
     limit: usize,
 ) -> Result<ConstructionPreflight, Error> {
-    graph_input_preflight(
+    graph_input_preflight::<OwnedExternalCharge>(
         imports, semantic, start, sources, norms, prior, owners, registry, limit, 0, false,
     )
 }
@@ -456,6 +457,21 @@ pub(super) fn preflight_bound_inputs(
     extra_owners: usize,
     limit: usize,
 ) -> Result<ConstructionPreflight, Error> {
+    preflight_bound_inputs_for::<OwnedExternalCharge>(imports, semantic, start, sources, norms, prior, owners, extra_owners, limit)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn preflight_bound_inputs_for<G: ControllerAccounting>(
+    imports: &super::Builder,
+    semantic: &DecoderGraph,
+    start: usize,
+    sources: &BTreeMap<String, SourceTensor>,
+    norms: &SourceNorms,
+    prior: &RequestWork,
+    owners: &RequestOwners<'_>,
+    extra_owners: usize,
+    limit: usize,
+) -> Result<ConstructionPreflight, Error> {
     // Pending original full/tail contraction work is known without constructing
     // kernels. Price every occurrence, including repeated equal-digest recipes.
     let pending = super::pending_contraction_work(imports, semantic, start, sources)?;
@@ -464,7 +480,7 @@ pub(super) fn preflight_bound_inputs(
         .checked_add(owners.other_work)?
         .checked_add(pending)?;
     aggregate.limits()?;
-    let mut quote = graph_input_preflight(
+    let mut quote = graph_input_preflight::<G>(
         imports,
         semantic,
         start,
@@ -477,7 +493,7 @@ pub(super) fn preflight_bound_inputs(
         extra_owners,
         true,
     )?;
-    let (norm_work, work_peak) = super::compact_validity::pending_input_work(
+    let (norm_work, work_peak) = super::compact_validity::pending_input_work_for::<G>(
         imports,
         semantic,
         start,
@@ -493,7 +509,7 @@ pub(super) fn preflight_bound_inputs(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn graph_input_preflight(
+fn graph_input_preflight<G: ControllerAccounting>(
     imports: &super::Builder,
     semantic: &DecoderGraph,
     start: usize,
@@ -525,19 +541,19 @@ fn graph_input_preflight(
     let semantic_bytes = semantic_bytes(semantic)?;
     let mut graph_bytes = CompactGraph::imports_bytes(imports)?;
     for bytes in [
-        size_of::<CompactGraph<'_, '_>>(),
-        array::<PublishedOp<'_>>(operations)?,
+        size_of::<CompactGraph<'_, '_, G>>(),
+        array::<PublishedOp<'_, G>>(operations)?,
         super::graph::OrderedGraph::<PublishedView>::storage_bound(semantic)?,
         // The constructor reserves all semantic input references, not merely
         // the imports bound so far or the suffix's distinct input names.
         CompactGraph::import_binding_storage_bound(semantic)?,
-        2 * size_of::<Result<CompactGraph<'_, '_>, Error>>(),
+        2 * size_of::<Result<CompactGraph<'_, '_, G>, Error>>(),
         2 * size_of::<usize>(),
-        4 * size_of::<PublishedOp<'_>>(),
+        4 * size_of::<PublishedOp<'_, G>>(),
     ] {
         graph_bytes = add(graph_bytes, bytes)?;
     }
-    let mut total = add(add(graph_bytes, outside_bytes(owners)?)?, extra_owners)?;
+    let mut total = add(add(graph_bytes, outside_bytes_for::<G>(owners)?)?, extra_owners)?;
     for bytes in [
         semantic_bytes,
         prior.retained_graph_bytes,
@@ -598,6 +614,12 @@ fn graph_input_preflight(
 pub(in crate::replicated_decoder::program) fn outside_bytes(
     owners: &RequestOwners<'_>,
 ) -> Result<usize, Error> {
+    outside_bytes_for::<OwnedExternalCharge>(owners)
+}
+
+fn outside_bytes_for<G: ControllerAccounting>(
+    owners: &RequestOwners<'_>,
+) -> Result<usize, Error> {
     let mut bytes = 0;
     for n in [
         owners.borrowed_external_bytes,
@@ -609,8 +631,8 @@ pub(in crate::replicated_decoder::program) fn outside_bytes(
         size_of::<Worker>(),
         TRANSITION_INLINE_BYTES,
         size_of::<RequestOwners<'_>>(),
-        size_of::<RequestQuote<'_, '_, '_>>(),
-        size_of::<Result<RequestQuote<'_, '_, '_>, Error>>(),
+        size_of::<RequestQuote<'_, '_, '_, G>>(),
+        size_of::<Result<RequestQuote<'_, '_, '_, G>, Error>>(),
         size_of::<RequestPeak>(),
         size_of::<Result<RequestPeak, Error>>(),
     ] {
@@ -706,8 +728,8 @@ pub(super) struct RequestPeak {
 /// Borrows the actual compact metadata and physical retained values. Consequently
 /// neither can be changed through this handle while its snapshot is in use.
 /// Source/transport byte inputs remain the enclosing owners' audited inventories.
-pub(super) struct RequestQuote<'q, 'g, 'a> {
-    graph: &'q CompactGraph<'g, 'a>,
+pub(super) struct RequestQuote<'q, 'g, 'a, G: ControllerAccounting = OwnedExternalCharge> {
+    graph: &'q CompactGraph<'g, 'a, G>,
     owners: RequestOwners<'q>,
     census: CompactOwnerCensus,
     baseline: usize,
@@ -716,9 +738,9 @@ pub(super) struct RequestQuote<'q, 'g, 'a> {
     limit: usize,
 }
 
-impl<'q, 'g, 'a> RequestQuote<'q, 'g, 'a> {
+impl<'q, 'g, 'a, G: ControllerAccounting> RequestQuote<'q, 'g, 'a, G> {
     pub(super) fn new(
-        graph: &'q CompactGraph<'g, 'a>,
+        graph: &'q CompactGraph<'g, 'a, G>,
         owners: RequestOwners<'q>,
     ) -> Result<Self, Error> {
         Self::with_limit(graph, owners, MAX_PROGRAM_BYTES)
@@ -730,7 +752,7 @@ impl<'q, 'g, 'a> RequestQuote<'q, 'g, 'a> {
     /// prior.record_retained_plan. Shared semantic/source/template backing is
     /// overcounted, not deduplicated or released while it remains live.
     pub(super) fn with_request_work(
-        graph: &'q CompactGraph<'g, 'a>,
+        graph: &'q CompactGraph<'g, 'a, G>,
         mut owners: RequestOwners<'q>,
         prior: &RequestWork,
     ) -> Result<Self, Error> {
@@ -748,7 +770,7 @@ impl<'q, 'g, 'a> RequestQuote<'q, 'g, 'a> {
     }
 
     fn with_limit(
-        graph: &'q CompactGraph<'g, 'a>,
+        graph: &'q CompactGraph<'g, 'a, G>,
         owners: RequestOwners<'q>,
         limit: usize,
     ) -> Result<Self, Error> {
@@ -768,7 +790,7 @@ impl<'q, 'g, 'a> RequestQuote<'q, 'g, 'a> {
         // The actual compact baseline includes its imports Builder, frontier,
         // descriptor capacity, owned prepared full/tail backing and candidate
         // construction/result overlap. It does NOT include the outside fields.
-        let mut baseline = add(census.metadata_bytes, outside_bytes(&owners)?)?;
+        let mut baseline = add(census.metadata_bytes, outside_bytes_for::<G>(&owners)?)?;
         baseline = add(baseline, census.borrowed_source_bytes)?;
         baseline = add(baseline, census.borrowed_semantic_bytes)?;
         baseline = add(baseline, size_of::<CompactOwnerCensus>())?;
