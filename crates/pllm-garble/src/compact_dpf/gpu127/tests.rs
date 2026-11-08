@@ -115,6 +115,177 @@ fn source_word_oracle(packed: u128, branch: usize) -> u128 {
     u128::from_le_bytes(out)
 }
 
+/// Independent per-terminal scalar source expansion. Only reads issued fields;
+/// never calls production child/children/descend/point/less/all/visit.
+pub(crate) fn source_bits(key: &GpuKey) -> Vec<u8> {
+    let width = key.profile.bits;
+    let ordinary = usize::from(width - 8);
+    let mut output = Vec::new();
+    for block in 0..1usize << (width - 7) {
+        let mut state = *key.root;
+        for level in 0..ordinary {
+            let branch = (block >> (ordinary - level)) & 1;
+            let seed = key.words[level] & !1;
+            let control = if branch == 0 {
+                key.words[level] & 1
+            } else {
+                u128::from(key.right[level])
+            };
+            let correction = if state & 1 == 1 { seed | control } else { 0 };
+            state = source_word_oracle(state, branch) ^ correction;
+        }
+        let branch = block & 1;
+        let word = source_word_oracle(state, branch)
+            ^ if state & 1 == 1 { key.terminal[branch] } else { 0 };
+        for offset in 0..128 {
+            output.push(((word >> offset) & 1) as u8);
+        }
+    }
+    output
+}
+
+#[test]
+fn ascending_visit_independent_scalar_source_bits_exact_work_and_once_only() {
+    for (width, visits, blocks) in [(8, 256, 2), (10, 1024, 14)] {
+        for phase in [0, 1] {
+            for point in [0, 127, 128, (visits - 1) as u64] {
+                let keys = fixture(Profile::new(width).unwrap(), point, phase, 79);
+                assert_eq!(*keys[1].root & 1, u128::from(phase));
+                assert_eq!(*keys[0].root & 1, u128::from(phase ^ 1));
+                let expected = [source_bits(&keys[0]), source_bits(&keys[1])];
+                for (role, key) in keys.iter().enumerate() {
+                    let mut seen = vec![0usize; visits];
+                    let mut next = 0;
+                    let before = measured_aes_blocks();
+                    key.preparation_visit(|index, bit| {
+                        assert_eq!(index, next);
+                        next += 1;
+                        seen[index] += 1;
+                        assert_eq!(*bit.value(), expected[role][index]);
+                    }).unwrap();
+                    assert_eq!(measured_aes_blocks() - before, blocks);
+                    assert_eq!(next, visits);
+                    assert!(seen.iter().all(|&n| n == 1));
+                    // API continuity, not the independent expected-bit proof.
+                    assert_eq!(&*key.all(visits).unwrap(), &expected[role]);
+                }
+                for index in 0..visits {
+                    assert_eq!(expected[0][index] ^ expected[1][index], u8::from(index as u64 == point));
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn visit_wide_rejects_before_callback_or_aes_and_callback_unwind_erases_key_on_drop() {
+    for width in [9, 11, 13, 63] {
+        let [key, _] = fixture(Profile::new(width).unwrap(), 127, 0, 3);
+        let before = measured_aes_blocks();
+        assert_eq!(key.preparation_visit(|_, _| panic!("unsupported callback")), Err(Error::Resource));
+        assert_eq!(measured_aes_blocks(), before);
+    }
+    for at in [0, 127, 128, 1023] {
+        let [key, other] = fixture(Profile::new(10).unwrap(), 127, 1, 3);
+        let before = ERASED_KEYS.with(|n| n.get());
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            key.preparation_visit(|index, _| if index == at { panic!("visit unwind") }).unwrap();
+        }));
+        assert!(outcome.is_err());
+        // Borrowing traversal does not consume the key or give it to callback.
+        assert_eq!(ERASED_KEYS.with(|n| n.get()), before);
+        drop((key, other));
+        assert_eq!(ERASED_KEYS.with(|n| n.get()), before + 2);
+    }
+}
+
+#[test]
+fn preparation_actual_borrowed_bit_owner_erases_on_return_and_callback_unwind() {
+    for width in [8, 10] {
+        for party in 0..2 {
+            let keys = fixture(Profile::new(width).unwrap(), 127, party as u8, 3);
+            let key = &keys[party];
+            for at in [0, 127, 128, (1usize << width) - 1] {
+                for unwind in [false, true] {
+                    let mut observed = None;
+                    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        key.preparation_visit(|index, bit| {
+                            if index == at {
+                                // Observes Drop of THIS actual walk's bit owner,
+                                // not a global counter or fabricated static flag.
+                                observed = Some(std::rc::Rc::clone(&bit.retired));
+                                assert_eq!(bit.retired.get(), None);
+                                if unwind { panic!("protected owner unwind"); }
+                            }
+                        }).unwrap();
+                    }));
+                    assert_eq!(result.is_err(), unwind);
+                    assert_eq!(observed.unwrap().get(), Some(0));
+                }
+            }
+        }
+    }
+    let [mut invalid, _] = fixture(Profile::new(8).unwrap(), 0, 0, 3);
+    invalid.party = 2;
+    let before = measured_aes_blocks();
+    assert_eq!(invalid.preparation_visit(|_, _| panic!("invalid actual role")), Err(Error::Domain));
+    assert_eq!(measured_aes_blocks(), before);
+}
+
+#[test]
+fn preparation_real_key_mutations_each_width_party_have_non_target_scalar_witness() {
+    // Finite deterministic fixture/counterexample search in TEST ONLY. Neither
+    // production traversal nor preparation chooses a secret-dependent algorithm.
+    for width in [8, 10] {
+        for party in 0..2 {
+            let kinds: &[&str] = if width == 8 {
+                &["root-seed", "root-control", "terminal-left", "terminal-right"]
+            } else {
+                &["root-seed", "root-control", "terminal-left", "terminal-right",
+                  "correction-seed", "correction-left-control", "correction-right-control"]
+            };
+            for &kind in kinds {
+                let mut witness = None;
+                for salt in 0..64 {
+                    // This party's root control is one: width8 terminal changes
+                    // must not be tested through an inactive root-control-zero key.
+                    let mut keys = fixture(Profile::new(width).unwrap(), 127, party as u8, salt);
+                    let original = source_bits(&keys[party]);
+                    let sibling = source_bits(&keys[1 - party]);
+                    let key = &mut keys[party];
+                    match kind {
+                        "root-seed" => *key.root ^= 2,
+                        "root-control" => *key.root ^= 1,
+                        "terminal-left" => key.terminal[0] ^= 1,
+                        "terminal-right" => key.terminal[1] ^= 1,
+                        "correction-seed" => key.words[0] ^= 2,
+                        "correction-left-control" => key.words[0] ^= 1,
+                        "correction-right-control" => key.right[0] ^= 1,
+                        _ => unreachable!(),
+                    }
+                    let changed = source_bits(key);
+                    let mut actual = Vec::new();
+                    let before = measured_aes_blocks();
+                    key.preparation_visit(|index, bit| {
+                        assert_eq!(index, actual.len());
+                        actual.push(*bit.value());
+                    }).unwrap();
+                    assert_eq!(actual, changed, "AES-correct mutated vector {width}/{party}/{kind}/{salt}");
+                    assert_eq!(measured_aes_blocks() - before, if width == 8 { 2 } else { 14 });
+                    if let Some(index) = (0..changed.len()).find(|&i| i != 127 && changed[i] != original[i]) {
+                        assert_eq!(original[index] ^ sibling[index], 0);
+                        assert_eq!(actual[index] ^ sibling[index], 1,
+                            "explicit non-target {index}: width={width}, party={party}, kind={kind}, salt={salt}");
+                        witness = Some((salt, index));
+                        break;
+                    }
+                }
+                assert!(witness.is_some(), "missing finite non-target witness: {width}/{party}/{kind}");
+            }
+        }
+    }
+}
+
 #[test]
 fn independent_word_mapping_nist_and_openssl_half_paired_vectors() {
     // FIPS 197 Appendix B/C AES-128 known answer; validates independent oracle.

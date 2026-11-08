@@ -173,6 +173,81 @@ impl Drop for ExpansionBlocks {
     }
 }
 
+// Quote-only whole padded layouts, not a claim about compiler stack frames.
+// Keep all simultaneously live branch/move slots, even mutually exclusive ones.
+#[allow(dead_code)]
+struct VisitFrameLayout<'a> {
+    key: &'a GpuKey,
+    callback: &'a mut dyn FnMut(usize, &VisitBit),
+    depth: usize,
+    base: usize,
+    branch: usize,
+    span: usize,
+    offset: usize,
+    state_argument: u128,
+    state: Zeroizing<u128>,
+    expanded: Zeroizing<[u128; 2]>,
+    leaf: Zeroizing<u128>,
+    correction: Zeroizing<u128>,
+    next: Zeroizing<u128>,
+    bit: VisitBit,
+    bit_borrow: &'a VisitBit,
+}
+
+// Preparation-only named bit owner. Every forwarding callback borrows this
+// storage; no forwarding function takes an owned plain u8. Erasure concerns
+// this named storage only, NOT all compiler temporaries/registers or legacy walk.
+pub(crate) struct VisitBit {
+    storage: Zeroizing<u8>,
+    #[cfg(test)]
+    retired: std::rc::Rc<std::cell::Cell<Option<u8>>>,
+}
+impl VisitBit {
+    pub(crate) fn value(&self) -> &u8 {
+        &self.storage
+    }
+}
+impl Drop for VisitBit {
+    fn drop(&mut self) {
+        self.storage.zeroize();
+        #[cfg(test)]
+        self.retired.set(Some(*self.storage));
+    }
+}
+
+#[allow(dead_code)]
+struct VisitExpansionLayout {
+    // children -> cipher call/move overlap; retained schedule and AES blocks.
+    packed_argument: u128,
+    packed: Zeroizing<u128>,
+    cipher_argument: u128,
+    cipher_packed: Zeroizing<u128>,
+    cipher_bytes: Zeroizing<[u8; 16]>,
+    schedule_result: Aes128,
+    schedule_move: Aes128,
+    right: [u8; 16],
+    blocks: ExpansionBlocks,
+    children_result: Zeroizing<[u128; 2]>,
+    children_move: Zeroizing<[u128; 2]>,
+    correction_word: Zeroizing<u128>,
+    correction_result: Zeroizing<u128>,
+}
+
+/// Proposed logical traversal inventory for a containing owner's review.
+/// Does not reserve resources, price callback state or replace its AES workspace
+/// tariff. Whole layouts and recursive depth use checked, positive arithmetic.
+#[allow(dead_code)]
+pub(crate) fn visit_layout_bytes(bits: u8) -> Result<usize, Error> {
+    if !matches!(bits, 8 | 10) {
+        return Err(Error::Resource);
+    }
+    let frames = std::mem::size_of::<VisitFrameLayout<'_>>()
+        .checked_mul(usize::from(bits - 7)).ok_or(Error::Resource)?;
+    frames.checked_add(std::mem::size_of::<VisitExpansionLayout>())
+        .and_then(|n| n.checked_add(std::mem::size_of::<Result<(), Error>>()))
+        .filter(|&n| n > 0).ok_or(Error::Resource)
+}
+
 fn cipher(packed: u128) -> Aes128 {
     let packed = Zeroizing::new(packed);
     let bytes = Zeroizing::new((*packed & !1).to_le_bytes());
@@ -207,6 +282,17 @@ fn children(packed: u128) -> Zeroizing<[u128; 2]> {
 }
 
 impl GpuKey {
+    #[allow(dead_code)] // Inactive preparation's geometry preflight only.
+    pub(crate) fn profile(&self) -> Profile {
+        self.profile
+    }
+
+    /// Internal consistency only: decoded caller framing is not authentication.
+    #[allow(dead_code)] // Inactive lookup preparation only.
+    pub(crate) fn matches_party(&self, party: u8) -> bool {
+        self.party == party
+    }
+
     fn empty(profile: Profile, party: u8) -> Self {
         Self {
             profile,
@@ -374,6 +460,54 @@ impl GpuKey {
         }
     }
 
+    // NEW, INACTIVE preparation. No legacy API calls this recursion.
+    fn preparation_walk(
+        &self, depth: usize, base: usize, state: u128,
+        visit: &mut impl FnMut(usize, &VisitBit),
+    ) {
+        let state = Zeroizing::new(state);
+        let expanded = children(*state);
+        for branch in 0..2 {
+            if depth == self.profile.ordinary() {
+                let leaf = Zeroizing::new(
+                    expanded[branch] ^ (self.terminal[branch] & mask((*state & 1) as u8)),
+                );
+                for offset in 0..128 {
+                    let bit = VisitBit {
+                        storage: Zeroizing::new(((*leaf >> offset) & 1) as u8),
+                        #[cfg(test)]
+                        retired: std::rc::Rc::new(std::cell::Cell::new(None)),
+                    };
+                    visit(base + branch * 128 + offset, &bit);
+                }
+            } else {
+                let correction = self.correction(depth, branch);
+                let next =
+                    Zeroizing::new(expanded[branch] ^ (*correction & mask((*state & 1) as u8)));
+                let span = 1usize << (usize::from(self.profile.bits) - depth - 1);
+                self.preparation_walk(depth + 1, base + branch * span, *next, visit);
+            }
+        }
+    }
+
+    /// Inactive preparation ONLY; ascending public indices, LSB-first leaves.
+    /// Callback borrows named protected bit storage, never a key/seed owner.
+    /// No point fallback. Actual key role and width cap checked before AES.
+    /// Owning lookup fold separately checks issued party consistency.
+    #[allow(dead_code)]
+    pub(crate) fn preparation_visit(
+        &self, mut visit: impl FnMut(usize, &VisitBit),
+    ) -> Result<(), Error> {
+        if self.party > 1 {
+            return Err(Error::Domain);
+        }
+        if !matches!(self.profile.bits, 8 | 10) {
+            return Err(Error::Resource);
+        }
+        self.preparation_walk(0, 0, *self.root, &mut visit);
+        Ok(())
+    }
+
     /// Public-order full scan, at most 1024 output bytes / 14 AES blocks per key.
     /// Geometry and caller's output-byte limit precede callback, allocation, AES.
     pub fn all(&self, allocation_limit: usize) -> Result<Zeroizing<Vec<u8>>, Error> {
@@ -517,7 +651,7 @@ impl GpuKey {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 #[cfg(test)]
 #[path = "gpu127_layernorm13_tests.rs"]
