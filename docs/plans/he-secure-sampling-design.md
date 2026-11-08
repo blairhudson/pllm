@@ -491,6 +491,141 @@ threat/operational treatment. A kill guard prevents continuation, not guaranteed
 physical erasure. Preserve the zero-additional-swap policy; do not overclaim it
 as proof that no private byte ever reached persistent storage.
 
+### 7.1 COMMON exact-ring original issuer — PROPOSED / implementation HELD
+
+USER71483 approved the BumbleBee COMMON original-issuer **design tranche only**.
+This records Astra's proposed contract, not implemented APIs or authority for
+secrets, RNG, numeric profiles, parameters, a backend or execution. The CKKS graph,
+sampler laws and counts elsewhere in this packet do **not** transfer to COMMON.
+The existing [exact CRT/Down component selection](bumblebee-encrypted-olt-closure.md#17-selected-exact-crtdown-component-design--untimed-reuse--residue-classes)
+remains component-scoped; this proposal supplies no genuine issuer today.
+
+#### Proposed private custody names, not APIs
+
+| Name | Required custody contract |
+| --- | --- |
+| `ExactRingCollection` | Original request ledger, two separated party-epoch handles, failure state and outstanding-owner inventory; no secret material. |
+| `OriginalExactRingEpoch` | Party-local, non-Clone owner of actual sampled originals and transformed descendants, ordered domain and original reservation. |
+| `OriginBoundCiphertext` | Genuine charged ciphertext components with internally minted generation/evaluation lineage; no caller-byte, digest or ledger adoption. |
+| `MaskedCipherLoan<'epoch>` | Immutable authenticated two-component ciphertext loan tied to the live original epoch and receiver allocation. |
+| `PhasePermit` | Exclusive one-use authority bound to that loan, recipient, purpose and original ledger. |
+| `OpaqueMaskedPhase` / `DownOutput` | Private zeroizing owners, without getters, Clone, Debug, serde or callbacks. Only consuming authorized-output release is contemplated. |
+
+Collection metadata must not centralize either party's secret. Separated
+party-local runtimes are required for a secrecy claim; colocated operation can
+only be a fixture, not evidence of party separation or protocol secrecy.
+
+#### Proposed generating chain and authentication boundary
+
+1. Preadmit collection and epoch construction on the original ledger, then
+   genuinely COMMON-sample the original secret `s`. Generate actual public and
+   evaluation keys from the same originals. Mint origin inside that construction;
+   a hash, label or claimed key identity cannot substitute for key birth.
+2. Genuinely public-key encrypt packed full-U `lhs`. Evaluator operations
+   (ciphertext×plaintext, trace, key switch and drop) must propagate ordered
+   original-key/domain identity and operation lineage through actual transforms,
+   not relabel imported results. Consume distinct fresh-zero and full-ring-mask
+   draw entitlements; retain the separate sender Down output and its attachments.
+3. Receiver authenticates the actual returned ciphertext and binds its immutable
+   two-component loan to the live original key birth and receiver allocation.
+   An exclusive epoch-consuming entry then computes actual `c0 + c1*s`, followed
+   by inverse NTT → exact Down into opaque ownership → authorized decoded output.
+   No public raw-phase ingress or caller-supplied phase-producing factory exists
+   in this proposed trust boundary.
+
+The authenticated envelope must bind protocol version, session, request,
+collection epoch, party roles, direction, key identity, domain/codec identity,
+N, ordered limbs, level, representation, exactly two components, exact bytes and
+length, operation-output ordinal, parent lineage, draw-issuance IDs, replay state
+and purpose. **Authentication mechanism and peer-credential binding remain
+UNRESOLVED.** `material_wire` checksums detect corruption, not authentication.
+Draw IDs establish issuance bookkeeping, not honest randomness or correct
+evaluation; malicious-party enforcement remains unresolved. Internal origin
+continuity is not remote authentication, a proof of correct evaluation or a
+circuit-privacy theorem.
+
+#### Proposed lifecycle, debit and erasure obligations
+
+Epoch states: `Constructing → Ready → Retiring → Retired`, with failure to
+`Burned`. Permit states: `Issued → Running → Spent`; post-consumption failure
+burns the permit and outstanding siblings through collection failure inventory.
+Validate public metadata/authentication before secret work. Consume exclusive
+authority before fallible covered admission; debit work and reserve capacity
+before allocation, initialization or secret reads. Original-attempt debits
+survive refusal and retries: no reset, caller-ledger adoption or replacement
+ledger. Resource guards remain locally distinct, bound to the same original
+request accounting rather than interchangeable party authority. A burned epoch
+admits no continuation; burning cannot undo an output already disclosed.
+
+Outputs retain required original-key/domain/input/charge attachments until
+retirement; no reservation release while attached backing remains live. Reuse
+shared preconstruction charge composition and cumulative work semantics audited
+in [§17.3](bumblebee-encrypted-olt-closure.md#173-prepaid-original-ledger-admission-not-a-guessed-allowance),
+not clear-owner issuance authority or numeric tariffs. Do not apply Maverick's
+retry/logical-choice policy to COMMON.
+
+Install zeroizing **owners before population**, including partial constructors.
+Destroy all owned partial outputs, phases, scratch, draws and secret descendants
+before their backing charges refund on normal return, error, unwind or
+cancellation. Borrowed input keeps its original owner's retirement duty; do not
+wipe it destructively through a loan. `OwnedCharged` payload-before-charge drop
+ordering is not a wipe proof. Failed retirement retains charges and burns
+ownership. Abort, compiler-created copies, leaks and physical residuals have no
+guarantee absent an explicit accepted scope. The exact-Down component's transient-
+copy exclusion does not relax COMMON key, seed, state or constructor-copy
+obligations.
+
+Consumption stays synchronous and exclusive. No callbacks, suspension or
+reentrant factories under the secret-loan lock; transport occurs outside that
+lock. Cancellation/unwind ownership and nonpanicking cleanup require concrete
+proof before implementation approval.
+
+#### Reuse, symbolic admission and remaining gates
+
+Reuse `Rns3::reconstruct` / `down` **after per-limb normalization**, within the
+selected bounded untimed residue semantics only. Public NTT and `RoundedLimbDrop`
+provide arithmetic, not secret-qualified key lineage or complete key switching;
+component-wise limb drop is not global CRT Down. Do not introduce a second
+backend, planner, evidence/receipt framework or upstream runtime dependency.
+Public `Rns3` arithmetic reuse does not qualify secret-bearing execution;
+timing, copy and cleanup qualification remain held, as for public NTT/drop reuse.
+
+The symbolic peak must cover all retained keys, ciphertexts, domains and
+descendants, constructor/codec/transform overlap, phase/output retention and
+cleanup/control, using full actual capacities:
+
+```text
+P = max_t[retained original owners + keys/ciphertexts/domains/descendants
+          + constructor/codec/transform overlap + phase/output + cleanup/control].
+```
+
+Avoid double-counting shared original backing, without releasing it early.
+`Rns3`'s 13 payload words and the arithmetic macros in
+[§17.3.1](bumblebee-encrypted-olt-closure.md#1731-source-audited-conservative-arithmetic-inventory--not-a-tariff)
+are neither stack/layout/allocator bounds nor a Zeroize tariff. Finite work and
+draw inventories require future concrete constructor, sampler, transform, codec
+and cleanup bodies. Retries, provider latency, exhaustion behavior and COMMON
+sampler laws remain **UNSET**; CKKS stream ceilings and counts supply no defaults.
+Provider selection and persistence policy remain explicitly **UNSELECTED**;
+no serialization or storage authority follows from this proposal.
+
+`q`, `p_i`, `N` and the numeric/security profile remain **UNSELECTED**. BumbleBee
+[§15](bumblebee-encrypted-olt-closure.md#15-conditional-rigorous-per-direction-failure-theorem--reviewed-model-only)
+is a narrow conditional failure result;
+[§16](bumblebee-encrypted-olt-closure.md#16-unapproved-deterministic-parameter-repair-family)
+is a conditional candidate, not an adopted repair/profile. Before any
+implementation or crypto execution, obtain separate approval and evidence for:
+
+- COMMON expander/dependency identity, constructor erasure and governing sampler
+  laws, including failure/exhaustion semantics;
+- exact operation, codec, authentication and peer-binding contracts;
+- parameter/security, privacy and composed error/failure qualification;
+- complete original-ledger funding, full-capacity peak, finite work/draw inventory
+  and normal/failure/cancellation retirement proof.
+
+**Freeze: PROPOSED contract only; implementation HELD.** No code, dependency,
+parameter, numeric, secret-generation or backend authority is granted here.
+
 ## 8. Preconstruction numeric and resource admission
 
 ### Frozen numbers, not adjustable RNG tuning knobs

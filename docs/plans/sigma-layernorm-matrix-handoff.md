@@ -1,10 +1,133 @@
 # SIGMA private four-lane LayerNorm-to-matrix design
 
-Status: **design only; implementation not approved**. This document freezes the
-new constructor/move/retirement schedule. It is not execution evidence or a
-security qualification. The reconciled native-work/cleanup appendix below is
-part of the implementation-decision packet; its explicit residual gates remain
-open. No implementation approval is conferred by this document.
+Status: **held; historical local design, not implementation approval**. Completed
+Astra privacy/custody reviews supersede the former frozen/approval-ready wording.
+The constructor, keeper, driver and accounting sections below preserve useful
+history for the old coupled-memory proposal only; none qualifies a transitively
+separated distributed scheme. No implementation, composed-security clearance,
+D16 adoption or D43 matrix activation is authorized.
+
+## Current review boundary (supersedes historical schedule claims)
+
+USER71483 approves detailed bridge DESIGN only. Concrete issuer/type/construction,
+authority and security proposals live in the shared contract's
+[§8 Authentic consuming transition](common-share-to-mask-contract.md#authentic-consuming-transition),
+with [§4 failures/authority](common-share-to-mask-contract.md#4-linear-lifecycle-and-erasure),
+[§5 funding](common-share-to-mask-contract.md#5-concrete-resourcework-inventory-and-admission-blockers)
+and [§7 privacy](common-share-to-mask-contract.md#7-independent-privacy-review-activation-held).
+Those integrated requirements govern this boundary; historical local schedules
+below are not a second bridge plan. No interface/protocol adoption, code, numeric
+change, tariff, implementation, tests or execution is authorized by this tranche.
+
+Separation must happen **transitively before private issuance**, not at terminal
+handoff. Online `Role`/`Frame`/`Share -> CoordinationFor.slots ->
+InitializerState.keeper` currently reaches dealer secrets. Coordinate
+`ModularParty`/`ModularFrame`/`ModularValue`/`CoordinateParty` also retain
+`ModularCreation`; removing the outer keeper alone does not separate custody.
+This includes `PartyInitializer`/`Role`/`FrameHandle`/`ShareHandle.coordination`
+through `slots[0..2]`, every creation backlink and nested input owner. Bare coordinate
+begin/advance frames and Index output retain actual backing plus cover; cancel
+leaves inputs/TR and Initializer retirement leaves frames. Terminal-handle drop
+cannot undo prior observations or external strong references. Public control keeps
+only original source/session/profile/wire/use and phase/decision metadata, no
+secret slots or RNG backlinks. Authentic protected-X predecessor ingress and
+model-owner gamma/beta contributions remain OPEN prerequisites.
+Keep dealer `RootInputFor` (rho and both destinations) off evaluators. Online
+matrix owners retain only their own coefficients, never dealer or peer secrets.
+
+Proposed shared authentic nonsecret provenance cell retains original `SourceFor`,
+original declaration identity, full energy/output `Binding`s, and original plus
+incremental cover anchors. It has no secret parent, callback, native mask or peer
+key. Escaped bare coordinate frames and Index output must retain cover too.
+Reuse shared owners/provenance/admission machinery, not parallel SIGMA types.
+These are unimplemented contract requirements, not approved interfaces.
+
+Bind genuine terminal `Yi` and unique matrix use BEFORE entropy. The proposed
+role-local chain is authenticated predecessor/contribution → D43 native owners →
+original `ShareFor` → bridge continuation → pending `CommonMaskedFor` → unique
+matrix operand. Preserve original strong provenance/`Arc` identity and root ledger,
+not digest adoption. Exact reshape is `[4] -> [1,4]`, `j -> (0,j)`, Ring50/Q12,
+no truncation/rescaling/new range certificate. Independent private preprocessing
+delivers `r0=a`, `r1=rho-a` for uniform independent `rho,a in R^4`; opaque retained
+`rho` is a unique `DealerMaskFor` for the precommitted consumer only. Dealer sees
+no online shares, openings or completion payload.
+
+Proposed consuming lifecycle: `Admitted -> Issued -> Begun -> Validated ->
+Prepared -> Committed -> Consumed`; precommit failures become `Burned`.
+`begin` spends the original use before frame escape; its spent continuation keeps
+its own backing/cover. Bridge payload: exactly 32 bytes, four LE u64 residues
+with top 14 bits zero. Reject malformed ingress without reduction; preserve
+binding/digest, role, phase, count and canonical checks. `finish` needs an
+authentic committed-use capability, not matching labels or ready messages.
+Prepared owns unpublished `H` with preparation bound to exact ORDERED opening
+transcript and original use; accepting preparation is not publication. Move
+pending backing AND cover once into the unique operand only after verified COMMIT.
+
+Proposed SEPARATE durable non-equivocating authority requires authenticated
+enrollment, genuine issuance, exclusive COMMIT-or-abort, crash persistence and
+consumer-verifiable authentication; COMMIT binds both preparations. It could ensure
+**no publication without joint authorization**, not simultaneous delivery or global
+abort after commit. Labels, ACKs and `require_both_ready` are not authority; no
+existing native/Python owner supplies it. Precommit cancel REQUESTS abort, not
+proof of global abort; unknown decision stays IN-DOUBT, unpublished and without
+reissue. Postcommit loss preserves COMMIT, with no fresh issuance/reconstruction
+retry; local cancel cannot revoke peer authorization/disclosure. Retire owned
+secrets/frames before cover; spent work/uses never refund. No remote-erasure or
+crash-cleanup promise. Authority/channel construction remains OPEN: without
+approval, stay blocked or obtain an explicitly weakened contract.
+
+Bounded counterexamples live in shared
+[§4 authorization/freshness](common-share-to-mask-contract.md#proposal-counterexamples-authorization-is-not-freshness),
+[§7 matrix distributions](common-share-to-mask-contract.md#7-independent-privacy-review-activation-held)
+and [§8 custody paths](common-share-to-mask-contract.md#source-backed-separation-boundary):
+P0's retained coordination reaches `slots[1].state.share`/`Y1` despite owning `Y0`;
+removing that edge misses keeper/creation/nested-input paths. Proposed
+`A0=rho,A1=-2*rho` preserves the correlation identity but reveals `Y=H-A0`;
+authorization is not independence. Restoring authentic pre-use owners, ledger and
+acceptance state can replay authorization without forgery; SQLite crash durability
+alone is not rollback safety. Actual changed-input `rho` reuse gives
+`H-H'=Y-Y' mod 2^50`, not merely replay of identical bytes. Proposal examples are
+not current-bridge exploits. One-sided delivery loss requires permanent burn of
+the uncertain instance, no reissue/refund/recovery, and no premature cover release.
+D66 selects research-only NONRESUMABLE lifecycle for the next security review:
+exclude issuer/evaluator/authority/consumer rollback/cloning; permanently abandon
+uncertain instances/uses, no reissue/refund. Separately authenticated, durable,
+non-equivocating authority remains required; construction/API and authenticated-
+two-role alternative remain UNSELECTED. Retained backing erases before storage-cover
+refund; spent work/uses never refund, provenance retains no secret parents/RNG/
+callback paths. D63 independent review and original funding/custody/admission/masks/
+arithmetic/HOLDs remain; role isolation and complete simulation/funding stay OPEN.
+No production antirollback, security qualification or implementation/execution grant.
+
+Funding remains unresolved. Price actual-layout peak over unique allocations
+and distinct inline live slots, including moves, Options/Results, locks,
+transport and cleanup. Cell Arc clones are not new allocations; original cover
+anchors preserve original identity, not a fresh ledger. Extend original
+`Resources`, `IssuanceWork` and `internal_use::Ledger` before entropy. Known
+bridge partial subtotal is 64 entropy bytes, 20 add/sub operations, 28 reductions
+and two 32-byte sends: not a complete quote or 64 MiB proof. Old fixed-driver
+numbers below apply only to the old proposed local design. Full separated
+layout/work/admission, joint security and publication authority remain OPEN.
+The shared §5 phase peaks retain original D43 cover plus issuance masks/scratch/
+private delivery, and Prepared's both mask shares, two sends, two received peers,
+two unpublished `H` owners, bounded codec copies and downstream material. Extend
+original `Work` and existing issuance/transition controls too; no fresh inventory
+or removed-field credits. Embedded arrays are not double-charged, but each distinct
+owner/move/error slot is priced. Headers/auth/queues/persistence/recovery/failure
+overlaps remain UNKNOWN; finite entropy-retry/wait/recovery bounds are not adopted,
+and IN-DOUBT has no duration bound. Check retained + incremental + downstream +
+failure peaks and cumulative cleanup work BEFORE entropy. Maverick's atomic-call
+choice is not a SIGMA tariff. Execution and memory-headroom gates stay held.
+
+Shared §7 proves only conditional bridge arithmetic: for genuinely separated
+fixed `Vi,Yi`, fresh `rho,a` independent of ENTIRE prior execution give independent
+uniform `(ri,H)`; simulate `mi=Yi+ri`, `mpeer=H-mi`. Actual-view extension needs
+specified authenticated channels, authority and leakage kernel covering bindings,
+canonical bytes, sender identity, ordered commitments, preparation/decision/delivery,
+lengths/timing/aborts. No forged credentials or hidden private-failure assumption.
+Prior D43/weight history, downstream matrix `Material a,b,c`, fresh masks and dealer
+view still require JOINT proof; D17 alone is insufficient. All unknowns and HOLDs
+are preserved. Freeze here: no implementation or execution continuation.
 
 ## Provenance and scope
 
@@ -43,7 +166,7 @@ rY=rF+rBeta, all modulo M. No clear Y or additive-share endpoint is constructed.
 W ranges over every signed ring50 Q12 code. Output is
 sum(Y[i]*W[i], i=0..3) modulo M, Q24; no rescaling/no-wrap interpretation.
 
-## One proposed constructor schedule
+## Historical local constructor schedule (not separated-design clearance)
 
 Names below are proposed private fields/calls, not claims about committed code.
 Reuse `issuer`, `runtime`, `coordinate`, `internal_use::Ledger`,
@@ -242,7 +365,7 @@ The independently recovered native inventory is expanded in the appendix.
 Logical wipe traversals do not prove physical erasure of compiler copies,
 registers, or backend temporaries.
 
-## Review and implementation decision
+## Historical review packet (approval wording superseded/held)
 
 Review must check proposed constructors against this event list: no extra
 binding/namespace, no duplicate root/native entropy, no copy or uncharged
@@ -250,13 +373,10 @@ allocation from borrowing matrix inputs, exactly one retire gate per state,
 correct e, and no erased owner's premature credit. Joint-transcript security
 qualification remains separate; conditional algebra is not that qualification.
 
-Suggested implementation-approval wording for the frozen contract below;
-compiler-resolved byte fit and admission checks remain implementation gates:
-"Approve implementation of this private LocalClearRoot4 common-masked terminal
-and single modular private-weight contraction, including consuming fixed driver
-and explicit producer-owned reshape, under this owner/admission schedule.
-Preserve D39/D43 endpoints, original caps, numeric map and exclusions. No SDK,
-trained execution or security qualification is authorized."
+Former suggested implementation-approval wording is superseded and held. The
+shared local keeper is not a qualified separated custody boundary; resolving
+compiler layouts alone cannot close transitive custody, joint simulation,
+original-ledger funding or distributed joint-authorization obligations above.
 
 Future Sol ownership: private `typed/layernorm4/parent/matrix_handoff.rs` and
 focused tests; minimal shared-prefix extraction in parent issuer/runtime;
@@ -571,7 +691,7 @@ Q43 alone. Require checked B<=67108864 before all factories/entropy, then the
 source-level work vector under the same reservation. No early refund, assumed
 zero metadata, physical allocator/RSS or wall-time claim is permitted.
 
-### Frozen constructor-tail decision (supersedes the historical gap above)
+### Historical local constructor-tail decision (not current custody approval)
 
 **Retain** the original `Arc<RowMaterial<C>>` and original `InitializerState<C>`
 values. **Replace** the two old RoleSlot Arcs, old Coordination Arc and escaping
@@ -910,24 +1030,127 @@ Their original byte allowances remain reserved. The constructor-tail decision
 is now closed parametrically; explicit implementation approval and numerical
 layout/admission verification remain separate gates.
 
-### Joint-transcript and approval gates remain held
+### Conditional privacy extension; joint-transcript gates remain held
 
-Given already-visible Fhat and betahat, Yhat=Fhat+betahat is deterministic and
-rY=rF+rBeta; this is not marginal-uniformity justification for revealing Fhat.
-Fresh independent matrix splits of -rY,-rW,rY*rW+rC make either role's matrix
-material conditionally uniform even given predecessor masks/view; fresh rW/rC
-mask W/output. This is a conditional extension argument only. The complete
-prefix-key/carry-opening/Fhat/beta/matrix joint view still requires independent
-cryptographic review under the trusted offline dealer, static semi-honest single
-evaluator/noncollusion premise. Local clear roots confer no deployment claim.
-O129 records only a conditional matrix extension: simulate the entire prefix/W
-view, own material and local t, then fresh uniform Chat and peer Chat-t.
-Independent rW/rC/matrix splits support that extension despite rY=rF+rBeta;
-they do not prove safe reconstruction of Fhat from the old D43 endpoint. The
-entire key/carry/output-share/prior-message prefix view needs its stated D17
-simulation premise. A dealer seeing Yhat while holding rY breaks privacy.
-Shared keeper access is not process isolation; driver/hash checks do not provide
-active security or authenticated transport. COMMON common-mask primitive approval,
-separate composed-transcript and implementation approval, compiler-resolved
-admission checks and independent composed-security qualification remain held.
-No SIGMA adoption, security qualification or D39/D43 change is authorized.
+For the additive-share bridge, `R=Z/(2^50)`, `rho,s in R^4`, scalar output
+mask `t in R`. Source `matrix/core.rs::{deal,evaluate}` gives
+`A0+A1=-rho`, `B0+B1=-s`, `C0+C1=rho*s+t`. With `H=Y+rho`, `K=W+s`,
+`qi=Ai*K+H*Bi+Ci+[i=1]*H*K`, so `q0+q1=Y*W+t` (row/column contractions).
+
+Only given a simulatable fixed prior D43 view `Vi` and its own legitimate `Yi`,
+the extension simulator samples independent uniform `ri,H,K,Ai,Bi,Ci,O` with
+dimensions `4,4,4,4,4,1,1`, sets `mi=Yi+ri`, `mpeer=H-mi`, computes `qi`
+above and sets `qpeer=O-qi`. Keep actual frame binding/digest, role, phase,
+count and canonical fields. `Vi` includes historically observed terminal `hi`,
+keys/material/randomness/frames/failures; dropping backing does not erase history.
+This does not simulate D43 or its secret-dependent abort kernel.
+
+Required hypothesis: fresh `rho,a,s,t` and all nine matrix split pads are mutually
+independent uniform AND independent of the joint prior execution/private operands.
+Existing weight-mask history requires a separate joint proof, not uniform
+marginals. Input-independent preprocessing and correct splits alone fail:
+`A0=rho`, `A1=-2*rho` are valid, with uniform individual marginals of `rho` and P0's `A0`, but reveal `Y=H-A0`.
+The `fill` callback guarantees neither independent entropy nor independent
+captures. No conditional extension applies without its joint hypotheses.
+
+For the old reconstructed-terminal design, `Yhat=Fhat+betahat` and
+`rY=rF+rBeta` are deterministic identities, not a fresh-independent-rho proof.
+Historical O129/local-driver arguments do not prove safe reconstruction of Fhat
+or qualify the full prefix/weight/key/carry/share/failure view. Dealer access to
+Yhat together with rY breaks privacy. Shared keeper access is not process
+isolation; hashes/driver checks are not authenticated transport or active security.
+COMMON primitive, composed-transcript, implementation, complete funding and
+independent composed-security gates remain held. No D16 adoption, security
+qualification, SIGMA activation or D39/D43 change is authorized.
+
+### Astra49 conditional process-boundary counterexample (Astra23 source-only review complete)
+
+**Independent Astra23 review confirms only this conditional, source-level
+counterexample.** This is source-clear for that scope only, not deployed-attack
+confirmation, role-isolation approval, security change or runtime qualification;
+runtime/API remain held and the independent joint proof gate remains open.
+This records a conditional obstruction to reusing current LOCAL clear/dealer
+harness role objects as production evaluator-process memory. It is not a
+deployed attack or a violation of the existing clear-reference contract. The
+actual `LocalClearRoot` dealer sees all clear roots; that trusted dealer must
+not be reinterpreted as an honest evaluator with private operand ingress.
+
+The current constructor accepts all three clear roots. Roles 0/1 are share
+indices, not an X-versus-gamma/beta owner assignment; see root issuance in
+[`parent/issuer.rs:745–768`](../../crates/pllm-garble/src/masked_wire_reference/typed/layernorm4/parent/issuer.rs#L745-L768).
+Any future experiment must explicitly stipulate a different private-ingress
+role model: the corrupted evaluator knows gamma=beta=0, an honest owner supplies
+X through trusted private encoding, and the ideal functionality hides X and S
+from that evaluator. Its view includes reachable process memory, not merely
+public Rust methods or selected wire messages. If the corrupted principal
+includes the CURRENT clear-root caller/dealer, its simulator legitimately knows
+X and the counterexample premise fails. The existing logical-custody
+clear-reference contract is not violated.
+
+Under that conditional model, the current private-field graph is not an
+isolation boundary. A Role owns an Arc to Coordination, which owns BOTH slots,
+although its own slot suffices for the projection below; see
+[`parent/runtime.rs:5–8`](../../crates/pllm-garble/src/masked_wire_reference/typed/layernorm4/parent/runtime.rs#L5-L8)
+and [`role_coordination.rs:46–50`](../../crates/pllm-garble/src/masked_wire_reference/typed/role_coordination.rs#L46-L50).
+
+* `role -> coordination.slots[i].state` retains both `values[0]` and
+  `keeper.masks[0]`; their backing values subtract to X modulo `2^50`,
+  immediately after issuance, BEFORE the first online contribution.
+  Root encoding establishes the masked-value identity in
+  [`typed.rs:618–626`](../../crates/pllm-garble/src/masked_wire_reference/typed.rs#L618-L626);
+  the retained mask array and state keeper link are in
+  [`parent/issuer.rs:150–159`](../../crates/pllm-garble/src/masked_wire_reference/typed/layernorm4/parent/issuer.rs#L150-L159)
+  and [`parent/issuer.rs:991–994`](../../crates/pllm-garble/src/masked_wire_reference/typed/layernorm4/parent/issuer.rs#L991-L994).
+* Removing only the outer keeper still leaves a retained `ModularFrame` with
+  `inputs.energy.backing` and `creation.energy.backing`; their difference
+  modulo `2^50` recovers S. This frame projection exists ONLY after interval
+  evaluation and modular-product begin, not before online execution. See
+  [`parent/runtime.rs:278–285`](../../crates/pllm-garble/src/masked_wire_reference/typed/layernorm4/parent/runtime.rs#L278-L285)
+  and frame retention at
+  [`parent/runtime.rs:441–447`](../../crates/pllm-garble/src/masked_wire_reference/typed/layernorm4/parent/runtime.rs#L441-L447).
+  The transitive owners are explicit in
+  [`parent/coordinate.rs:54–93`](../../crates/pllm-garble/src/masked_wire_reference/typed/layernorm4/parent/coordinate.rs#L54-L93),
+  and input/frame retention in
+  [`parent/coordinate.rs:367–382`](../../crates/pllm-garble/src/masked_wire_reference/typed/layernorm4/parent/coordinate.rs#L367-L382).
+
+These are private Rust fields, not public getters; field privacy and mutexes
+do not provide process privacy. The counterexample concerns
+the proposed evaluator-process memory boundary, not an assertion that an
+external API caller can read those fields.
+
+For that explicitly stipulated experiment, compare X=(0,0,0,0) with
+X=(1,-1,0,0) as INTEGER Q12 CODES, not real-valued units. X/gamma/beta domains
+are [-4096,4095]. With mu=floor(sum(X)/4), both means are zero and
+S=1+sum((X[i]-mu)^2) is respectively 1 and 3: the energy constant is ONE Q24
+code, NOT `2^24`. See local arithmetic in
+[`parent.rs:42–75`](../../crates/pllm-garble/src/masked_wire_reference/typed/layernorm4/parent.rs#L42-L75),
+mean shift in
+[`parent/issuer.rs:32–37`](../../crates/pllm-garble/src/masked_wire_reference/typed/layernorm4/parent/issuer.rs#L32-L37)
+and mean issuance in
+[`parent/issuer.rs:815–820`](../../crates/pllm-garble/src/masked_wire_reference/typed/layernorm4/parent/issuer.rs#L815-L820).
+
+With gamma=beta=0, true LayerNorm output is zero in both cases. Conditional on
+fresh INDEPENDENT uniform fill, terminal h0/h1 give uniform individual output
+shares and the same joint output distribution (U,-U) in both cases, not
+identical realized shares across runs. The mere `FnMut` fill signature does not
+guarantee this independence or uniformity. See terminal splitting and subtraction
+in [`gapars_terminal.rs:229–238`](../../crates/pllm-garble/src/masked_wire_reference/typed/gapars_terminal.rs#L229-L238)
+and [`gapars_terminal.rs:298–306`](../../crates/pllm-garble/src/masked_wire_reference/typed/gapars_terminal.rs#L298-L306),
+with fill/draw/split in
+[`arithmetic.rs:192–205`](../../crates/pllm-garble/src/masked_wire_reference/arithmetic.rs#L192-L205).
+Thus legitimate evaluator input/output marginals coincide while the
+deterministic memory projection recovering X (or just S) distinguishes the two
+cases. Extra fields in the complete view cannot repair that projection. This
+conditional memory-view obstruction neither proves the ideal restricted
+transcript insecure nor establishes its simulatability.
+
+Required boundary remains **pre-issuance isolation of all transitive secrets,
+private operand ingress, and an observable-abort contract before the first
+private contribution**. Endpoint cleanup cannot erase secrets already observed.
+The prior conditional share-to-matrix extension lemma remains conditional on
+its stated joint independence and simulatable-prior-view hypotheses; this
+counterexample does not discharge or replace the future independent joint proof
+gate, including failures. No new PRF, entropy or security assumption, weakened
+revealed functionality, implementation approval, or role/API/Rust change is
+introduced. Astra23's completed source-only review does not discharge the future
+independent composed-security review; runtime/API remain held.
