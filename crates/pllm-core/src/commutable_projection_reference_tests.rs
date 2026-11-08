@@ -361,6 +361,65 @@ fn projection_refusals_preserve_output() {
 }
 
 #[test]
+fn projection_noncanonical_retry_preserves_original_ledger_residue() {
+    let ring = CoefficientRing::new(4, 17).unwrap();
+    let shape = [2, 3, 2];
+    let a = [1; 6];
+    let u = [2; 6];
+    let mut w = [3, 3, 3, 3, 3, 17];
+    let sentinel = [55, 66, 77, 88];
+    let mut out = sentinel;
+    let p = price(ring, Operation::ComposeProjection(shape));
+    let initial = 2 * p.work - 1;
+    let residue = p.work - 1;
+    let mut work = ledger(initial);
+    assert_eq!(work.remaining(), initial);
+    assert_eq!(work.control_remaining(), 0);
+
+    assert_eq!(
+        compose_projection(
+            ring,
+            shape,
+            &a,
+            &u,
+            &w,
+            &mut out,
+            p.caller_bytes,
+            p.work,
+            &mut work,
+        ),
+        Err(Error::Layout(LayoutError::NonCanonical))
+    );
+    assert_eq!(work.remaining(), residue);
+    assert_eq!(out, sentinel);
+    assert_eq!(work.control_remaining(), 0);
+
+    // Retry unchanged first, then repair the input without replacing the ledger.
+    for repair in [false, true] {
+        if repair {
+            w[5] = 3;
+        }
+        assert_eq!(
+            compose_projection(
+                ring,
+                shape,
+                &a,
+                &u,
+                &w,
+                &mut out,
+                p.caller_bytes,
+                p.work,
+                &mut work,
+            ),
+            Err(Error::Work(crate::row_fold::Error::WorkRefused))
+        );
+        assert_eq!(work.remaining(), residue);
+        assert_eq!(out, sentinel);
+        assert_eq!(work.control_remaining(), 0);
+    }
+}
+
+#[test]
 fn quote_boundaries_and_cumulative_debit_cannot_reset() {
     let ring = CoefficientRing::new(4, 17).unwrap();
     for op in [
@@ -428,4 +487,185 @@ fn quote_boundaries_and_cumulative_debit_cannot_reset() {
     );
     assert_eq!(out, [55; 4]);
     assert_eq!(scratch, [66; 4]);
+}
+
+#[test]
+fn noisy_post_removal_decompression_composes_rectangular_projection_with_tail() {
+    use crate::coefficient_compression::CompressionGeometry;
+
+    // Caller-owned clear test arrays: neither factors nor noise carry key authority.
+    let q = 97_i128;
+    let ring = CoefficientRing::new(4, q as u64).unwrap();
+    let shape = [2, 2, 3];
+    let matrix = [1, 4, 6, 2];
+    let u = [5, 3, 2, 7];
+    let weights = [2, 5, 1, 7, 3, 4];
+    // Independent row-major dot products, never compression-derived oracles.
+    let uw = dense(&u, &weights, shape, q);
+    let aw = dense(&matrix, &weights, shape, q);
+    assert_eq!(uw, [31, 34, 17, 53, 31, 30]);
+    assert_eq!(aw, [30, 17, 17, 26, 36, 14]);
+    let masked: Vec<_> = matrix
+        .iter()
+        .zip(u.iter())
+        .map(|(&a, &mask)| (i128::from(a) - i128::from(mask)).rem_euclid(q) as u64)
+        .collect();
+    let online = dense(&masked, &weights, shape, q);
+    assert_eq!(online, [96, 80, 0, 70, 5, 81]);
+
+    let geometry = CompressionGeometry::new(ring.degree(), aw.len()).unwrap();
+    assert_eq!(geometry.polynomial_count(), 2);
+    assert_eq!(geometry.packed_words(), 8);
+    assert_eq!(geometry.valid_coefficients(0).unwrap(), 4);
+    assert_eq!(geometry.valid_coefficients(1).unwrap(), 2);
+    for scalar in 0..aw.len() {
+        assert_eq!(geometry.address(scalar).unwrap(), (scalar / 4, scalar % 4));
+    }
+    let public = [[96, 3, 4, 7], [2, 95, 5, 9]];
+    let server = [[2, 0, 96, 3], [4, 1, 3, 96]];
+    let client = [[1, 95, 3, 1], [3, 2, 96, 4]];
+    let noise = [[-2_i64, 1, -3, 4], [5, -6, 7, -8]];
+    let prime = [[1_i64, -3, 2, 1], [-2, 1, -4, 2]];
+    let compression = CoefficientCompression::new(ring, MAX_INVOCATION_WORK).unwrap();
+    assert_eq!(compression.output_words(), 16);
+    assert_eq!(compression.scratch_words(), 8);
+    let p_add = price(ring, Operation::AddClientLayer);
+    let p_remove = price(ring, Operation::RemoveServerLayer);
+    // Compression has no ledger argument: debit its conservative envelope before
+    // each call. One shared-operation ledger includes a test bookkeeping
+    // allowance, not whole-resource pricing or admission, with no reset.
+    let auxiliary_work = 128;
+    let per_polynomial = compression
+        .coefficient_work()
+        .checked_mul(2)
+        .and_then(|work| work.checked_add(p_add.work))
+        .and_then(|work| work.checked_add(p_remove.work))
+        .unwrap();
+    let total_work = geometry
+        .polynomial_count()
+        .checked_mul(per_polynomial)
+        .and_then(|work| work.checked_add(auxiliary_work))
+        .unwrap();
+    assert!(total_work <= MAX_INVOCATION_WORK);
+    let mut work = ledger(total_work);
+    work.debit(auxiliary_work, 0).unwrap();
+    let mut packed = [99; 8];
+    let mut decompressed = [99; 32];
+    let mut wrong_factor_phase = [0; 8];
+    let mut scratch = [88; 4];
+    let mut compression_scratch = [88; 8];
+    for polynomial in 0..geometry.polynomial_count() {
+        let start = polynomial * 4;
+        let valid = geometry.valid_coefficients(polynomial).unwrap();
+        work.debit(compression.coefficient_work(), 0).unwrap();
+        compression
+            .compress(&uw[start..start + valid], &mut packed[start..start + 4])
+            .unwrap();
+        for coefficient in valid..4 {
+            assert_eq!(packed[start + coefficient], 0);
+        }
+        // CoefficientRing::monomial uses negacyclic indexing. The independent
+        // full convolution reduces high powers with X^4=-1, not cyclic wrap.
+        let server_product = convolution(&public[polynomial], &server[polynomial], q);
+        let client_product = convolution(&public[polynomial], &client[polynomial], q);
+        let b: Vec<_> = (0..4)
+            .map(|i| {
+                (server_product[i]
+                    + i128::from(packed[start + i])
+                    + i128::from(noise[polynomial][i]))
+                .rem_euclid(q) as u64
+            })
+            .collect();
+        let mut layered = [99; 4];
+        add_client_layer(
+            ring,
+            &public[polynomial],
+            &b,
+            &client[polynomial],
+            &prime[polynomial],
+            &mut layered,
+            &mut scratch,
+            p_add.caller_bytes,
+            p_add.work,
+            &mut work,
+        )
+        .unwrap();
+        let mut removed = [99; 4];
+        remove_server_layer(
+            ring,
+            &public[polynomial],
+            &layered,
+            &server[polynomial],
+            &mut removed,
+            &mut scratch,
+            p_remove.caller_bytes,
+            p_remove.work,
+            &mut work,
+        )
+        .unwrap();
+        let mut phase = [0; 4];
+        for i in 0..4 {
+            phase[i] = (i128::from(removed[i]) - client_product[i]).rem_euclid(q) as u64;
+            wrong_factor_phase[start + i] =
+                (i128::from(removed[i]) - server_product[i]).rem_euclid(q) as u64;
+            // Padding has zero message, not zero noise. Derive independently
+            // from UW and signed fixtures, never from the packed candidate.
+            let message = if i < valid { uw[start + i] } else { 0 };
+            let expected = (i128::from(message)
+                + i128::from(noise[polynomial][i])
+                + i128::from(prime[polynomial][i]))
+            .rem_euclid(q) as u64;
+            assert_eq!(phase[i], expected);
+        }
+        assert_ne!(phase.as_slice(), &wrong_factor_phase[start..start + 4]);
+        work.debit(compression.coefficient_work(), 0).unwrap();
+        compression
+            .decompress(
+                &phase,
+                &mut decompressed[polynomial * 16..(polynomial + 1) * 16],
+                &mut compression_scratch,
+            )
+            .unwrap();
+    }
+    let constants: Vec<_> = decompressed.chunks_exact(4).map(|poly| poly[0]).collect();
+    assert_eq!(constants, [30, 32, 16, 58, 34, 25, 3, 91]);
+    for (scalar, poly) in decompressed.chunks_exact(4).enumerate() {
+        assert_eq!(poly, &[constants[scalar], 0, 0, 0]);
+    }
+    // Explicit tail calculation: 7 + (-4) = 3; -8 + 2 = -6 = 91 mod 97.
+    assert_eq!(&decompressed[24..28], &[3, 0, 0, 0]);
+    assert_eq!(&decompressed[28..32], &[91, 0, 0, 0]);
+
+    let expected: Vec<_> = (0..aw.len())
+        .map(|i| {
+            (i128::from(aw[i])
+                + i128::from(noise[i / 4][i % 4])
+                + i128::from(prime[i / 4][i % 4]))
+            .rem_euclid(q) as u64
+        })
+        .collect();
+    assert_eq!(expected, [29, 15, 16, 31, 39, 9]);
+    let correct = |values: &[u64]| -> Vec<u64> {
+        (0..aw.len())
+            .map(|i| (i128::from(values[i]) + i128::from(online[i])).rem_euclid(q) as u64)
+            .collect()
+    };
+    assert_eq!(correct(&constants), expected);
+    for i in 0..aw.len() {
+        decompressed[i * 4] =
+            (i128::from(decompressed[i * 4]) + i128::from(online[i])).rem_euclid(q) as u64;
+        assert_eq!(&decompressed[i * 4..i * 4 + 4], &[expected[i], 0, 0, 0]);
+    }
+    let swapped_polynomials: Vec<_> = (0..8).map(|i| constants[(i + 4) % 8]).collect();
+    let reversed_coefficients: Vec<_> = (0..8)
+        .map(|i| constants[(i / 4) * 4 + 3 - i % 4])
+        .collect();
+    // Each control reaches a well-shaped algebraic result; none relies on panic
+    // or refusal to distinguish wrong ordering, missing noise or wrong factors.
+    assert_ne!(correct(&swapped_polynomials), expected);
+    assert_ne!(correct(&reversed_coefficients), expected);
+    assert_eq!(correct(&uw), aw);
+    assert_ne!(correct(&uw), expected);
+    assert_ne!(correct(&wrong_factor_phase), expected);
+    assert_eq!(work.remaining(), 0);
 }

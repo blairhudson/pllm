@@ -51,6 +51,102 @@ fn worker(
 }
 
 #[test]
+fn decoder_high_token_ids_wire_lookup_reconstructs_exact_float_rows() {
+    let _serial = SERIAL.lock().unwrap();
+    const VOCABULARY: usize = 151646;
+    const WIDTH: usize = 2;
+    let tokens = [151644usize, 151645];
+    let rows = [[1.25f32, -2.5], [-0.0, 17.75]];
+    let alias_rows = [[32.0f32, -64.0], [-128.0, 256.0]];
+    let mut expected = [[0u8; WIDTH * 4]; 2];
+    let mut bytes = vec![0u8; VOCABULARY * WIDTH * 4];
+    for (i, &token) in tokens.iter().enumerate() {
+        let alias = usize::from(token as u16);
+        assert!(token > usize::from(u16::MAX));
+        assert_ne!(token, alias);
+        for column in 0..WIDTH {
+            assert!(rows[i][column].is_finite());
+            assert!(alias_rows[i][column].is_finite());
+            expected[i][column * 4..(column + 1) * 4]
+                .copy_from_slice(&rows[i][column].to_le_bytes());
+            bytes[(token * WIDTH + column) * 4..(token * WIDTH + column + 1) * 4]
+                .copy_from_slice(&rows[i][column].to_le_bytes());
+            bytes[(alias * WIDTH + column) * 4..(alias * WIDTH + column + 1) * 4]
+                .copy_from_slice(&alias_rows[i][column].to_le_bytes());
+        }
+        assert_eq!(&bytes[token * WIDTH * 4..(token + 1) * WIDTH * 4], &expected[i]);
+        assert_ne!(&bytes[alias * WIDTH * 4..(alias + 1) * WIDTH * 4], &expected[i]);
+    }
+    assert_ne!(expected[0], expected[1]);
+    // Independent raw expected rows stay outside the table owner consumed here.
+    let table = FloatTable::from_le_bytes_owned_with_capacity(
+        VOCABULARY, WIDTH, bytes, Capacity::Decoder,
+    ).unwrap();
+    let matrix = matrix(1, 1);
+    let stages = [Stage { id: OUT, matrix: &matrix }];
+    let original = Publication::publish_with_capacity(
+        CONTEXT, &stages, &table, Capacity::Decoder,
+    ).unwrap();
+    let encoded = original.export_wire().unwrap();
+    let public = Arc::new(Publication::import_wire_with_capacity(
+        encoded.as_bytes(), original.digest(), Capacity::Decoder,
+    ).unwrap());
+    let client = Client::new(Arc::clone(&public), public.digest()).unwrap();
+    let mut zero = worker(&public, Worker::Zero, &stages, &table);
+    let mut one = worker(&public, Worker::One, &stages, &table);
+    let plan = [Step::Lookup, Step::Lookup];
+    let mut previous_request = None;
+    // Reuse immutable worker owners, never window inventory or seeded material.
+    for seeded in [false, true] {
+        let mut window = if seeded {
+            client.begin_seeded_wire(CONTEXT, &plan)
+        } else {
+            client.begin_wire(CONTEXT, &plan)
+        }.unwrap();
+        let request_id = window.request_id();
+        if let Some(previous) = previous_request {
+            assert_ne!(request_id, previous);
+        }
+        previous_request = Some(request_id);
+        let start = window.start_frames().unwrap();
+        let mut left = zero.begin_bound(start[0].as_bytes(), CONTEXT, &plan).unwrap();
+        let mut right = one.begin_bound(start[1].as_bytes(), CONTEXT, &plan).unwrap();
+        assert_eq!(left.request_id(), request_id);
+        assert_eq!(right.request_id(), request_id);
+        for (i, &token) in tokens.iter().enumerate() {
+            let request = window.lookup(token).unwrap();
+            let a = left.execute(request[0].as_bytes()).unwrap();
+            let b = right.execute(request[1].as_bytes()).unwrap();
+            let row = window.accept_replies(a.as_bytes(), b.as_bytes()).unwrap();
+            assert_eq!(row.values.len(), WIDTH);
+            let mut reconstructed = [0u8; WIDTH * 4];
+            for (column, (&value, word)) in row.values.iter()
+                .zip(expected[i].chunks_exact(4)).enumerate()
+            {
+                let expected_value = f32::from_le_bytes(word.try_into().unwrap());
+                assert_eq!(value.to_bits(), expected_value.to_bits());
+                reconstructed[column * 4..(column + 1) * 4]
+                    .copy_from_slice(&value.to_le_bytes());
+            }
+            assert_eq!(reconstructed, expected[i]);
+            drop((request, a, b));
+        }
+        assert_eq!(left.finish().unwrap().steps, plan.len());
+        assert_eq!(right.finish().unwrap().steps, plan.len());
+        assert_eq!(window.finish().unwrap().steps(), plan.len());
+        drop((start, window, left, right));
+    }
+    // Worker source permits and last-run leases persist across the two windows;
+    // explicitly retire these owners before checking complete logical release.
+    drop((zero, one, client, encoded, original));
+    assert_eq!(public.live_windows(), 0);
+    assert_eq!(
+        WireResources::current_with_capacity(Capacity::Decoder).process_live_bytes,
+        0
+    );
+}
+
+#[test]
 fn asymmetric_wire_requests_roundtrip_and_reconstruct_exact_signed_outputs() {
     let _serial = SERIAL.lock().unwrap();
     asymmetric_roundtrip(false);

@@ -5,6 +5,175 @@ use pllm_core::coefficient_conversion::CoefficientConversion;
 use pllm_core::coefficient_extraction::{Destination, KeyDomain, Layout, Limb, Scale, Sign};
 use pllm_core::coefficient_torus_conversion::{Error, MAX_DIMENSION, Torus64Conversion};
 
+#[test]
+fn extraction_to_torus_preserves_negacyclic_phase_bound() {
+    use pllm_core::coefficient_extraction::{self, Case, Source};
+
+    // Entirely public synthetic degree-four algebra; no secret/key issuer.
+    // Oracle deliberately uses dense BigInt multiplication and polynomial
+    // reduction, not extraction, conversion, or production rounding helpers.
+    fn dense_constant(b: &[u64; 4], a: &[u64; 4], s: &[u64; 4]) -> BigInt {
+        let mut product = vec![BigInt::from(0); 7];
+        for i in 0..4 {
+            for j in 0..4 {
+                product[i + j] += BigInt::from(a[i]) * BigInt::from(s[j]);
+            }
+        }
+        let mut reduced: Vec<BigInt> = b.iter().copied().map(BigInt::from).collect();
+        for (power, coefficient) in product.iter().enumerate() {
+            if power < 4 {
+                reduced[power] += coefficient;
+            } else {
+                // X^4 = -1, independently of extracted-coordinate ordering.
+                reduced[power - 4] -= coefficient;
+            }
+        }
+        reduced[0].clone()
+    }
+
+    fn canonical(x: BigInt, modulus: &BigInt) -> BigInt {
+        ((x % modulus) + modulus) % modulus
+    }
+
+    fn reconstruct(words: &[u64], s: &[u64; 4]) -> BigInt {
+        let mut value = BigInt::from(words[0]);
+        for i in 0..4 {
+            // Actual public API convention: B - sum(A_i s_i).
+            value -= BigInt::from(words[i + 1]) * BigInt::from(s[i]);
+        }
+        value
+    }
+
+    // d is an INTEGER numerator: distance in torus-word units is d/q;
+    // normalized distance modulo one is d/(q*2^64), not d/q alone.
+    fn circular_numerator(p: BigInt, residue: &BigInt, q: &BigInt, t: &BigInt) -> BigInt {
+        let period = q * t;
+        let forward = canonical(q * p - t * residue, &period);
+        let backward = &period - &forward;
+        forward.min(backward)
+    }
+
+    const Q: u64 = 4097;
+    let small = Limb { id: 10, modulus: 17 };
+    let selected = Limb { id: 20, modulus: Q };
+    let key = KeyDomain { label: 30, dimension: 4 };
+    let scale = Scale { numerator: 3, denominator: 2 };
+    let destination = Destination {
+        degree: 4,
+        rank: 1,
+        limb: selected,
+        layout: Layout::ConstantBASecretOrder,
+        sign: Sign::BPlusAS,
+        scale,
+        key,
+    };
+    let case = Case {
+        source: Source {
+            degree: 4,
+            rank: 1,
+            limbs: [Some(small), Some(selected)],
+            limb_count: 2,
+            layout: Layout::OrderedLimbBA,
+            sign: Sign::BPlusAS,
+            scale,
+            key,
+        },
+        destination,
+        selected: 1,
+    };
+    let b = [37, 19, 31, 47];
+    let a = [Q - 1, 0, 23, 701];
+    // Ordered limb-major b,a storage. First limb is canonical and distinct,
+    // so selecting the wrong limb cannot accidentally reproduce this fixture.
+    let input = [
+        3, 5, 7, 11, 0, 16, 2, 9,
+        b[0], b[1], b[2], b[3], a[0], a[1], a[2], a[3],
+    ];
+    let mut extracted_storage = [99; 5];
+    let extraction = coefficient_extraction::extract(case, &input, &mut extracted_storage).unwrap();
+    assert_eq!(extraction.descriptor(), destination);
+    assert_eq!(extraction.words(), &[37, Q - 1, Q - 701, Q - 23, 0]);
+    let conversion = Torus64Conversion::new(extraction.descriptor()).unwrap();
+    let quote = conversion.quote();
+    let mut torus_storage = [99; 5];
+    let torus = conversion.convert_into(
+        extraction.words(), &mut torus_storage, quote.word_ops, quote.caller_bytes,
+    ).unwrap();
+    assert_eq!(torus.source_descriptor(), extraction.descriptor());
+
+    // Negative controls change only one obligation each. Both use the same
+    // converter as the real chain; neither supplies an oracle for that chain.
+    let omitted_extraction_negation = [b[0], a[0], a[3], a[2], a[1]];
+    let unreversed_coordinates = [b[0], a[0], 0, Q - a[2], Q - a[3]];
+    let mut omitted_storage = [0; 5];
+    let omitted = conversion.convert_into(
+        &omitted_extraction_negation, &mut omitted_storage, quote.word_ops, quote.caller_bytes,
+    ).unwrap();
+    let mut unreversed_storage = [0; 5];
+    let unreversed = conversion.convert_into(
+        &unreversed_coordinates, &mut unreversed_storage, quote.word_ops, quote.caller_bytes,
+    ).unwrap();
+    // Undo converter's mask negation, leaving extraction's negation intact.
+    let mut omitted_conversion_negation = [0; 5];
+    omitted_conversion_negation.copy_from_slice(torus.words());
+    for mask in &mut omitted_conversion_negation[1..] {
+        *mask = mask.wrapping_neg();
+    }
+
+    let q = BigInt::from(Q);
+    let t = BigInt::from(1_u64) << 64_usize;
+    let mut nonzero_error = false;
+    let mut source_wrap = false;
+    let mut torus_wrap = false;
+    let mut counterexamples = [false; 3];
+    for bits in 0_u64..16 {
+        let s = [bits & 1, (bits >> 1) & 1, (bits >> 2) & 1, (bits >> 3) & 1];
+        let raw = dense_constant(&b, &a, &s);
+        source_wrap |= raw < BigInt::from(0) || raw >= q;
+        let residue = canonical(raw, &q);
+        let reconstructed = reconstruct(torus.words(), &s);
+        torus_wrap |= reconstructed < BigInt::from(0) || reconstructed >= t;
+        let p = canonical(reconstructed, &t);
+        let d = circular_numerator(p, &residue, &q, &t);
+        let h: u64 = s.iter().sum();
+        let bound = BigInt::from(h + 1) * &q;
+        // Each nearest-rounded component contributes <=q/2 numerator units;
+        // binary weight h selects h masks plus b. Circular reduction can only
+        // decrease distance. This bounds rounding, not incoming phase error.
+        assert!(&d * 2 <= bound, "binary vector {s:?}: numerator {d}");
+        nonzero_error |= d != BigInt::from(0);
+
+        for (index, wrong) in [
+            omitted.words(),
+            unreversed.words(),
+            &omitted_conversion_negation[..],
+        ].iter().enumerate() {
+            let wrong_d = circular_numerator(reconstruct(wrong, &s), &residue, &q, &t);
+            counterexamples[index] |= wrong_d * 2 > bound;
+        }
+    }
+    // Isolated basis terms ensure nonzero asymmetric terms, including a0,
+    // matter; reversal swaps the zero and 701 terms, not equivalent masks.
+    let base = dense_constant(&b, &a, &[0, 0, 0, 0]);
+    for (s, delta) in [
+        ([1, 0, 0, 0], 4096_i64),
+        ([0, 1, 0, 0], -701),
+        ([0, 0, 1, 0], -23),
+        ([0, 0, 0, 1], 0),
+    ] {
+        assert_eq!(dense_constant(&b, &a, &s) - &base, BigInt::from(delta));
+    }
+    assert!(nonzero_error, "must not imply exact rational conversion");
+    assert!(source_wrap && torus_wrap, "both modular domains must wrap");
+    assert_eq!(counterexamples, [true; 3],
+        "omitted extraction negation, reversal, omitted conversion negation");
+    // Extraction remains live/borrowed through all checks, not copied and
+    // dropped before conversion; its existing cleanup contract stays intact.
+    assert_eq!(extraction.words(), &[37, Q - 1, Q - 701, Q - 23, 0]);
+    drop(extraction);
+    assert_eq!(extracted_storage, [0; 5]);
+}
+
 // INFERRED 53-bit fixed odd test modulus, NOT a recovered source prime manifest.
 const PROFILE_Q: u64 = (1_u64 << 53) - 111;
 const T: u128 = 1_u128 << 64;
