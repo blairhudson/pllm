@@ -162,7 +162,7 @@ def _result(case, suite, replicate, cohort, build, payload):
         "details": details, "failure_code": failure, "budgets": assess_budgets(case, metrics)}
     return BenchmarkResult.from_dict({"schema_version": "pllm.benchmark_result.v2",
         "id": f"{case.name}/{cohort[:16]}/{replicate}", "created_at": datetime.now(timezone.utc).isoformat(),
-        "status": status, "scope": {"artifacts": "artifact", "response": "deployment"}.get(case.target.kind, case.target.kind),
+        "status": status, "scope": {"artifacts": "artifact", "response": "deployment", "forward": "full_model"}.get(case.target.kind, case.target.kind),
         "profile": "pllm/benchmark-target/v1", "component_ids": details.get("component_ids", []),
         "model": model, "plan_lock_digest": details.get("plan_digest"), "configuration_digest": case.target.digest,
         "workload_digest": comparison["workload_digest"], "privacy_cohort": "target-local",

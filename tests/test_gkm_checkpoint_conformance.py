@@ -1,7 +1,8 @@
 """Independent complete-state GKM conformance, generated and opt-in offline Qwen.
 
-Run optional test with PLLM_RUN_GKM_CHECKPOINT=1; use ordinary HF_HUB_CACHE to
-select cache location. No downloads, wheel builds, or benchmark driver needed.
+Legacy opt-in: PLLM_RUN_GKM_CHECKPOINT=1. Corrected Hello opt-in separately:
+PLLM_RUN_GKM_CORRECTED_PROMPT=1. Use ordinary HF_HUB_CACHE to select existing
+cache location. No downloads, wheel builds, or benchmark driver needed.
 Use pytest --basetemp=target/gkm-conformance for temporary source/role files.
 """
 
@@ -542,24 +543,225 @@ def test_generated_template_bos_batch_request_lengths(tmp_path, monkeypatch, sha
     assert all(not status.running for status in topology.statuses)
 
 
+def _generated_template_bos_batch_failed_retirement(
+        tmp_path, monkeypatch, failure, prompt, literal_ids, position):
+    from pllm import OpenAI
+    from pllm.deployment import resources
+    from pllm.runtime import delegated_transport as transport, responses, tokenizer_admission
+    from pllm.runtime.client import ProtocolError
+    from pllm.runtime.transformer_client import TokenizersJSONTokenizer
+    from test_delegated_sdk import active_sessions, experiment_fixture
+
+    experiment, cfg, arrays = experiment_fixture(
+        tmp_path, capacity="decoder", sharing="full", execution="source_stage_batch_v1",
+        rows=8, requests=2)
+    tokenizer_config = tmp_path / "source" / "tokenizer_config.json"
+    options = json.loads(tokenizer_config.read_text(encoding="utf-8"))
+    options.update(add_bos_token=True, chat_template="world {{ messages[0].content }} world")
+    tokenizer_config.write_text(json.dumps(options), encoding="utf-8")
+    assert (experiment.budget.max_input_tokens, experiment.budget.max_new_tokens) == (8, 3)
+    assert 8 + 3 - 1 <= cfg["max_position_embeddings"] == 32
+    expected = clear_decoder(cfg, arrays, literal_ids, decode_steps=1, row_block=3)
+    assert expected[4] == position and len(expected[2]) == 2
+    owners, reservations, encoded, batches, checked, failures = [], [], [], [], [], []
+    failing = True
+    original_reserve = resources.reserve_incremental_memory
+    original_exit = resources._MemoryReservation.__exit__
+    original_tokenizer_close = tokenizer_admission._PromptTokenizer.close
+    original_consume = responses._PreparedPromptUse.consume
+    original_encode = TokenizersJSONTokenizer.encode
+    original_lookup = transport._NativeExchange.lookup_batch
+    original_linear = transport._NativeExchange.linear_batch
+
+    def reserve(amount):
+        reservation = original_reserve(amount)
+        if amount == tokenizer_admission.DECODER_METADATA_MEMORY_BYTES and not reservations:
+            reservations.append(reservation)
+        return reservation
+
+    def consume(self, body, source):
+        tokenizer, ids = original_consume(self, body, source)
+        assert type(ids) is tuple and ids == literal_ids
+        assert type(tokenizer) is tokenizer_admission._PromptTokenizer
+        assert self._metadata_owner is not None
+        # Capture real request custody, not a constructed prepared owner.
+        owners.append((self, tokenizer, self._payload, self._metadata_owner))
+        return tokenizer, ids
+
+    def encode(self, text, *, add_bos=False):
+        ids = original_encode(self, text, add_bos=add_bos)
+        encoded.append((text, add_bos, tuple(ids)))
+        return ids
+
+    def close_tokenizer(self):
+        if failing and failure == "tokenizer" and owners and self is owners[0][1]:
+            failures.append("tokenizer")
+            raise RuntimeError("generated batch tokenizer retirement failure")
+        return original_tokenizer_close(self)
+
+    def exit_metadata(self, *exc):
+        if failing and failure == "metadata" and reservations and self is reservations[0]:
+            failures.append("metadata")
+            raise RuntimeError("generated batch metadata retirement failure")
+        return original_exit(self, *exc)
+
+    def observe(self, descriptor):
+        rows = len(literal_ids) if descriptor["phase_index"] == 0 else 1
+        if descriptor["kind"] == "linear" and descriptor["stage"] == self.head_stage:
+            rows = 1
+        assert descriptor["rows"] == rows
+        batches.append(dict(descriptor))
+
+    def lookup_batch(self, tokens):
+        descriptor = self.peers.batch_descriptor("lookup")
+        if descriptor["phase_index"] == 0:
+            assert tokens == literal_ids
+        result = original_lookup(self, tokens)
+        observe(self, descriptor)
+        return result
+
+    def linear_batch(self, stage, values):
+        descriptor = self.peers.batch_descriptor("linear", stage)
+        pending = [values]
+        values = None
+        result = original_linear(self, stage, pending.pop())
+        observe(self, descriptor)
+        return result
+
+    with OpenAI(experiment=experiment) as client:
+        topology, core = client._owned_topology, client._core
+        # Startup has its own metadata reservations; inject only after it ends.
+        monkeypatch.setattr(resources, "reserve_incremental_memory", reserve)
+        monkeypatch.setattr(resources._MemoryReservation, "__exit__", exit_metadata)
+        monkeypatch.setattr(tokenizer_admission._PromptTokenizer, "close", close_tokenizer)
+        monkeypatch.setattr(responses._PreparedPromptUse, "consume", consume)
+        monkeypatch.setattr(TokenizersJSONTokenizer, "encode", encode)
+        monkeypatch.setattr(transport._NativeExchange, "lookup_batch", lookup_batch)
+        monkeypatch.setattr(transport._NativeExchange, "linear_batch", linear_batch)
+
+        def check_result(result):
+            assert_complete_result(result, expected)
+            assert result.executed == literal_ids + result.selected[:-1]
+            assert result.position == position and len(result.selected) == 2
+            runtime = core._ensure_source().runtime_contract(experiment, len(literal_ids), 2)
+            acceptance = json.loads(result.acceptance)
+            assert acceptance["schema_version"] == "pllm.gkm.sdk-acceptance.v1"
+            assert acceptance["sharing"] == "full"
+            assert acceptance["contract"] == hashlib.sha256(
+                b"pllm.gkm.sdk-contract.v1\0" + runtime).hexdigest()
+            descriptors = json.loads(runtime)["batch_execution"]["descriptors"]
+            assert batches == descriptors
+            assert len(descriptors) == 2 * (7 * cfg["num_hidden_layers"] + 2)
+            assert sum(item["rows"] for item in descriptors) == (
+                (7 * cfg["num_hidden_layers"] + 1) * (len(literal_ids) + 1) + 2)
+            checked.append(True)
+
+        core._result_hook = check_result
+        body = {"input": prompt, "max_output_tokens": 2, "stream": True}
+        attempt = core.events(body)
+        try:
+            # _produce runs the complete native batch before its first event.
+            # Explicit close isolates retirement from __next__'s automatic retry.
+            event = next(attempt)
+            assert event.type not in {"response.completed", "response.incomplete"}
+            assert checked == [True] and failures == []
+            assert encoded == [(f"world {prompt} world", True, literal_ids)]
+            assert active_sessions(core) == [0, 0]
+            prepared, tokenizer, payload, metadata = owners[0]
+            reservation, = reservations
+            with resources._capacity.lock:
+                charged = resources._capacity._owners[reservation._token]
+            assert charged == tokenizer_admission.DECODER_METADATA_MEMORY_BYTES
+            assert attempt._prepared_prompt is prepared and core._active is attempt
+
+            for retry in range(2):
+                with pytest.raises(RuntimeError, match=f"generated batch {failure} retirement failure"):
+                    attempt.close()
+                assert failures == [failure] * (retry + 1)
+                assert not attempt.closed and core._active is attempt
+                assert attempt._prepared_prompt is prepared and not prepared._closed
+                assert prepared._metadata_owner is metadata
+                if failure == "tokenizer":
+                    assert prepared._tokenizer is tokenizer and prepared._payload is payload
+                    assert tokenizer._inner is not None
+                else:
+                    assert prepared._tokenizer is None and prepared._payload is None
+                    assert tokenizer._inner is None
+                with resources._capacity.lock:
+                    assert resources._capacity._owners[reservation._token] == charged
+                assert not reservation._exited  # Failed retirement is not a refund.
+                with pytest.raises(ProtocolError, match="exclusive request"):
+                    core.events(body)
+                assert checked == [True] and active_sessions(core) == [0, 0]
+
+            failing = False
+            attempt.close()
+            assert attempt.closed and core._active is None
+            assert attempt._prepared_prompt is None and prepared._closed
+            assert prepared._tokenizer is prepared._payload is prepared._metadata_owner is None
+            assert reservation._exited
+            with resources._capacity.lock:
+                assert reservation._token not in resources._capacity._owners
+            # A replacement seat is allowed only after actual cleanup/refund.
+            replacement = core.events(body)
+            assert core._active is replacement
+            replacement.close()
+            assert core._active is None and active_sessions(core) == [0, 0]
+        finally:
+            failing = False
+            attempt.close()
+            # Keep a failing regression from leaking real admission into other
+            # tests. This is teardown, never evidence of production retirement.
+            if reservations:
+                original_exit(reservations[0], None, None, None)
+    assert all(not status.running for status in topology.statuses)
+
+
+@pytest.mark.parametrize("prompt,literal_ids,position", [
+    ("hello", (0, 4, 3, 4), 5), ("hello world", (0, 4, 3, 4, 4), 6),
+])
+def test_generated_template_bos_batch_tokenizer_close_failure_retains_attempt(
+        tmp_path, monkeypatch, prompt, literal_ids, position):
+    _generated_template_bos_batch_failed_retirement(
+        tmp_path, monkeypatch, "tokenizer", prompt, literal_ids, position)
+
+
+@pytest.mark.parametrize("prompt,literal_ids,position", [
+    ("hello", (0, 4, 3, 4), 5), ("hello world", (0, 4, 3, 4, 4), 6),
+])
+def test_generated_template_bos_batch_metadata_close_failure_retains_attempt(
+        tmp_path, monkeypatch, prompt, literal_ids, position):
+    # Required contract: failed metadata callback remains retryable and charged
+    # under the SAME attempt until successful close. Current ExitStack pops the
+    # callback on failure, so second close can falsely retire without refund.
+    # Freeze that regression; production repair needs separate approval.
+    _generated_template_bos_batch_failed_retirement(
+        tmp_path, monkeypatch, "metadata", prompt, literal_ids, position)
+
+
 @pytest.mark.slow
 @pytest.mark.parametrize("sharing", ["full", "seeded"])
 @pytest.mark.parametrize("execution", [None, "source_stage_batch_v1"])
 @pytest.mark.skipif(os.getenv("PLLM_RUN_GKM_CHECKPOINT") != "1",
-                    reason="opt-in pinned offline GKM complete checkpoint")
-def test_pinned_qwen_checkpoint_two_role_sdk_complete_accepted_state(tmp_path, monkeypatch,
-                                                                  record_property, sharing, execution):
+                    reason="opt-in pinned offline GKM historical eight-row refusal")
+def test_pinned_qwen_checkpoint_source_template_oversize_refusal(tmp_path, monkeypatch,
+                                                              record_property, sharing, execution):
     from pllm import Deployment, ExecutionBudget, Experiment, Model, OpenAI
     from pllm.profiles import OpenWeightVerifiableCpu
     from pllm.protocols import OpenWeightVerifiableOutsourcing
-    from pllm.runtime import benchmark_memory as memory, benchmark_response_audit as audit, delegated_source
-    from pllm.runtime.responses import normalize_input, prompt_text
+    from pllm.deployment.network import NetworkError
+    from pllm.deployment import resources
+    from pllm.runtime import benchmark_memory as memory, benchmark_response_audit as audit
+    from pllm.runtime import delegated_client, delegated_source, delegated_transport, responses
     from pllm.runtime.safetensors_store import SafeTensorStore
-    from test_delegated_sdk import active_sessions
 
     # Select the existing standard shared cache before pytest's per-test XDG
     # isolation. The optional offline checkpoint must not use an empty scratch cache.
     monkeypatch.setenv("HF_HUB_CACHE", HF_HUB_CACHE)
+    monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+    snapshot = Path(HF_HUB_CACHE) / "models--Qwen--Qwen2.5-0.5B-Instruct" / "snapshots" / PIN
+    if not snapshot.is_dir():
+        pytest.skip(f"missing pinned offline checkpoint cache: {snapshot}; no download/fallback")
     model = Model.hf(MODEL, revision=PIN, local_files_only=True)
     experiment = Experiment(
         "gkm-checkpoint-conformance", OpenWeightVerifiableCpu(model,
@@ -581,9 +783,8 @@ def test_pinned_qwen_checkpoint_two_role_sdk_complete_accepted_state(tmp_path, m
         early.setattr(delegated_source._AdmittedTensorStore, "get", forbidden)
         report = memory.benchmark_memory(experiment, backend="native")
         estimate = copy.deepcopy(report["estimate"])
-        # Bounded Qwen rows, f64 blocks, local activations, retained expected /
-        # accepted full state, BLAS workspace; reserve 64 MiB within this allowance
-        # for independent / production audit scratch. Extra owner, not cache.
+        # Preserve the historical admission allowance unchanged. This refusal
+        # case no longer constructs tensor-oracle or accepted-state arrays.
         extra = 512 << 20
         estimate["client_peak_bytes"] += extra
         estimate["native_total_peak_bytes"] += extra
@@ -597,7 +798,8 @@ def test_pinned_qwen_checkpoint_two_role_sdk_complete_accepted_state(tmp_path, m
     def abort(reason):
         stopped.set()
         for client in clients:
-            active = client._core._active
+            lease = client.responses._lease
+            active = None if lease._client is None else lease._client._core._active
             if active is not None:
                 active.cancel()
 
@@ -608,55 +810,69 @@ def test_pinned_qwen_checkpoint_two_role_sdk_complete_accepted_state(tmp_path, m
             raise memory.BenchmarkMemoryError(guard.error or "checkpoint test cancelled")
         guard.check()
 
-    captured = []
+    captured, owners, reached = [], [], []
     salt = os.urandom(32)
-    observer = SelectionCommitments(salt, max_selections=OUTPUTS)
     guard.start()
     try:
         source = delegated_source.admit_source(experiment)
         assert source.model == model and source.source_lock["commit"] == PIN
         assert source.source_lock_digest == estimate["gkm_admission"]["source_lock_digest"]
         assert source.checkpoint_digest == estimate["gkm_admission"]["checkpoint_digest"]
-        ids = tuple(source.tokenizer().encode(prompt_text(normalize_input(PROMPT)), add_bos=False))
-        assert 1 <= len(ids) <= experiment.budget.max_input_tokens
-        tensors = AdmittedTensors(source, check=check)
-        tensors.verify_lock()
-        expected = clear_decoder(source.config, tensors, ids, OUTPUTS - 1, check=check,
-                                 selection_observer=observer)
-        tensors.verify_lock()
+        # Authored opt-in oracle only: actual Hello world count is not yet
+        # observed. Never substitute Hello's corrected 30-token count here.
+        ids = _independent_pinned_qwen_prompt(source, PROMPT)
+        assert len(ids) > experiment.budget.max_input_tokens == 8
+        original_complete = responses._PreparedPromptUse._complete_payload
+
+        def complete(owner, payload):
+            result = original_complete(owner, payload)
+            # Observe the actual SDK request owner; never inject oracle IDs.
+            assert payload.ids == ids
+            owners.append((owner, payload.tokenizer, owner._metadata_owner))
+            return result
+
+        def trap(name):
+            def fail(*args, **kwargs):
+                reached.append(name)
+                raise AssertionError(f"historical oversized prompt reached {name}")
+            return fail
+
+        monkeypatch.setattr(responses._PreparedPromptUse, "_complete_payload", complete)
+        monkeypatch.setattr(delegated_source, "_source_float_frame", trap("_source_float_frame"))
+        monkeypatch.setattr(delegated_source.AdmittedSource, "load_values", trap("load_values"))
+        monkeypatch.setattr(delegated_source.AdmittedSource, "load_transport", trap("load_transport"))
+        monkeypatch.setattr(delegated_source._native, "_GkmTransportImport", trap("_GkmTransportImport"))
+        monkeypatch.setattr(SafeTensorStore, "get", trap("SafeTensorStore.get"))
+        monkeypatch.setattr(delegated_source._AdmittedTensorStore, "get", trap("_AdmittedTensorStore.get"))
+        monkeypatch.setattr(delegated_client, "_execute_request", trap("client._execute_request"))
+        monkeypatch.setattr(delegated_transport, "execute_request", trap("transport.execute_request"))
+        monkeypatch.setattr(delegated_transport._Peers, "start", trap("_Peers.start"))
+
+        def reject_result(*args):
+            captured.append(True)
+            raise AssertionError("historical oversized prompt reached accepted result validation")
+
+        monkeypatch.setattr(delegated_client.DelegatedClient, "_validate_result", reject_result)
         with (audit.response_state_audit(salt, runtime_kind="gkm") as records,
               OpenAI(experiment=experiment, timeout=3600) as client):
-            topology = client._owned_topology
             clients.append(client)
-            client._core._result_hook = captured.append
+            lease = client.responses._lease
+            assert lease._state == "pending" and lease._client is None
             check()
-            response = client.responses.create(input=PROMPT, max_output_tokens=OUTPUTS)
-            actual_source = client._core._ensure_source()
-            assert actual_source.source_lock_digest == source.source_lock_digest
-            assert actual_source.checkpoint_digest == source.checkpoint_digest
-            assert actual_source.tokenizer_digest == source.tokenizer_digest
-            result, = captured
-            assert_complete_result(result, expected)
-            assert result.executed == ids + result.selected[:-1]
-            acceptance = json.loads(result.acceptance)
-            runtime = source.runtime_contract(experiment, len(ids), OUTPUTS)
-            assert acceptance["schema_version"] == "pllm.gkm.sdk-acceptance.v1"
-            assert acceptance["sharing"] == sharing
-            assert acceptance["contract"] == hashlib.sha256(
-                b"pllm.gkm.sdk-contract.v1\0" + runtime).hexdigest()
-            assert response.usage.input_tokens == len(ids)
-            assert response.usage.output_tokens == OUTPUTS
-            assert response.output_text == source.tokenizer().decode(list(result.selected))
-            assert active_sessions(client._core) == [0, 0]
-            roles = client._owned_topology.statuses
-            assert {role.role for role in roles} == {"worker_a", "worker_b"}
-            assert len({role.pid for role in roles}) == 2
-            assert all(role.running and role.pid != os.getpid() for role in roles)
-            assert records == []
+            with pytest.raises(NetworkError, match="request input exceeds selected budget"):
+                client.responses.create(input=PROMPT, max_output_tokens=OUTPUTS)
+            (owner, tokenizer, metadata), = owners
+            assert owner._closed and owner._payload is owner._tokenizer is owner._metadata_owner is None
+            assert owner._failure is None and tokenizer._inner is None
+            assert metadata is not None and metadata._exited
+            with resources._capacity.lock:
+                assert metadata._token not in resources._capacity._owners
+            assert lease._request_owner is None and not lease._request_busy
+            assert lease._state == "closed" and lease._requests == 0
+            assert lease._client is None and client._owned_topology is None
+            assert reached == captured == records == []
             check()
-        tensors.verify_lock()
-        assert all(not status.running for status in topology.statuses)
-        assert records == [observer.expected_record(source.contract)]
+        assert reached == captured == records == []
         record_property("sharing", sharing)
         record_property("execution", execution or "scalar")
         record_property("source_lock_digest", source.source_lock_digest)
@@ -664,15 +880,11 @@ def test_pinned_qwen_checkpoint_two_role_sdk_complete_accepted_state(tmp_path, m
         record_property("tokenizer_digest", source.tokenizer_digest)
         record_property("model_revision", PIN)
         record_property("input_tokens", len(ids))
-        record_property("output_tokens", OUTPUTS)
-        record_property("oracle_row_block", ROW_BLOCK)
+        record_property("requested_output_tokens", OUTPUTS)
+        record_property("max_input_tokens", 8)
+        record_property("outcome", "source_template_oversize_refusal")
         record_property("oracle_and_audit_allowance_bytes", extra)
-        record_property("checked_float32_values", (
-            sum(map(len, result.logits))
-            + sum(len(key) + len(value) for _, key, value in result.kv)) // 4)
-        record_property("checked_selections", len(observer.selections))
-        record_property("checked_selection_float32_values",
-                        sum(row["checked_values"] for row in observer.selections))
+        record_property("checked_selections", 0)
     finally:
         guard.close()
     check()
@@ -843,158 +1055,23 @@ def test_corrected_prompt_oversized_geometry_refuses_before_native_or_checkpoint
 
 
 @contextmanager
-def _corrected_prompt_extra_allowance(extra, owners=None):
+def _corrected_prompt_extra_allowance(extra):
     """Ordinary logical reservation; caller retires payloads before scope exit."""
     from pllm.deployment import resources
 
     assert 0 < extra <= 512 << 20
     reservation = resources.reserve_incremental_memory(extra)
-    if owners is not None:
-        owners.reservation = reservation  # Publish before acquisition can fail.
-    primary = None
     try:
-        reservation.__enter__()
-        with resources._capacity.lock:
-            assert resources._capacity._owners[reservation._token] == extra
-        yield reservation
-    except BaseException as error:
-        primary = error
-        raise
+        with reservation:
+            with resources._capacity.lock:
+                assert resources._capacity._owners[reservation._token] == extra
+            yield reservation
     finally:
-        # A failed custody publication must not fall through to ordinary refund.
-        try:
-            if owners is None or not owners.failed:
-                reservation.__exit__(type(primary) if primary else None, primary,
-                                     primary.__traceback__ if primary else None)
-        except BaseException as error:
-            if primary is None:
-                raise
-            _corrected_prompt_cleanup_note(primary, error)
         if reservation._acquired:
-            try:
-                if reservation.pending_retirement:
-                    assert owners is not None and owners.failed
-                    assert reservation._failed == (owners,)
-                    raise RuntimeError("corrected prompt retirement UNKNOWN; allowance retained")
-                assert reservation._exited
-                with resources._capacity.lock:
-                    assert reservation._token not in resources._capacity._owners
-            except BaseException as error:
-                if primary is None:
-                    raise
-                _corrected_prompt_cleanup_note(primary, error)
+            assert reservation._exited
+            with resources._capacity.lock:
+                assert reservation._token not in resources._capacity._owners
     # Ledger retirement is not evidence of physical allocator reclamation.
-
-
-def _corrected_prompt_cleanup_note(primary, cleanup):
-    # Diagnostics must never replace the body exception or interrupt custody.
-    try:
-        BaseException.add_note(primary, f"corrected prompt cleanup: {cleanup!r}")
-    except BaseException:
-        pass
-
-
-class _CorrectedPromptOwners:
-    """Fixture custody only; unknown retirement sticks to the original token."""
-    def __init__(self):
-        self.guard = self.reservation = self.client = self.topology = None
-        self.payloads, self.failures = {}, []
-        self.start_attempt = self.started = False
-        self.client_attempt = self.client_constructed = False
-        self.client_close_attempt = self.client_closed = False
-        self.close_attempt = self.failed = self.retired = False
-
-    @contextmanager
-    def client_scope(self, factory, **kwargs):
-        primary = None
-        self.client_attempt = True
-        try:
-            # Constructor failure frames retain any partially constructed owner.
-            self.client = factory(**kwargs)
-            self.client_constructed = True
-            self.topology = self.client._owned_topology
-            yield self.client
-        except BaseException as error:
-            primary = error
-            self.failures.append(error)
-            raise
-        finally:
-            if self.client_constructed:
-                self.client_close_attempt = True
-                try:
-                    self.client.close()  # Exactly once, independently of body outcome.
-                    assert self.client._core._active is None
-                    assert self.topology is not None
-                    assert all(not status.running for status in self.topology.statuses)
-                    self.client_closed = True
-                except BaseException as error:
-                    self.failures.append(error)
-                    if primary is None:
-                        raise
-                    _corrected_prompt_cleanup_note(primary, error)
-
-    def close(self):
-        from pllm.runtime import benchmark_memory as memory
-
-        if self.failed or self.close_attempt and not self.retired:
-            raise RuntimeError("corrected prompt retirement UNKNOWN; no retry")
-        if self.retired:
-            return
-        self.close_attempt = True
-        unknown = self.client_attempt and not self.client_closed
-        errors = []
-        if unknown:
-            errors.append(RuntimeError("corrected prompt client retirement UNKNOWN"))
-        if self.guard is not None:
-            # Last live sample stays charged, after confirmed client retirement.
-            if not unknown and self.started:
-                try:
-                    self.guard.check()
-                except BaseException as error:
-                    errors.append(error)
-            try:
-                self.guard.close()  # Real stop + bounded join, exactly once.
-            except BaseException as error:
-                unknown = True
-                errors.append(error)
-            try:
-                # Private evidence about THIS actual watchdog, not public close
-                # authority. Never infer a start outcome from thread.ident.
-                thread = self.guard._thread
-                if (type(thread) is not threading.Thread
-                        or thread is threading.current_thread() or thread.is_alive()
-                        or self.start_attempt and not self.started):
-                    raise RuntimeError("corrected prompt watchdog retirement UNKNOWN")
-            except BaseException as error:
-                unknown = True
-                errors.append(error)
-            # No new sample after join. A stored failure still fails qualification.
-            try:
-                if self.guard.error is not None:
-                    errors.append(memory.BenchmarkMemoryError(self.guard.error))
-            except BaseException as error:
-                unknown = True
-                errors.append(error)
-        elif self.start_attempt:
-            unknown = True
-            errors.append(RuntimeError("corrected prompt watchdog owner missing"))
-        self.failures.extend(errors)
-        if unknown:
-            self.failed = True  # Sticky even after physical thread death later.
-            try:
-                self.reservation.retain_failed((self,))
-            except BaseException as error:
-                self.failures.append(error)
-                if errors:
-                    _corrected_prompt_cleanup_note(errors[0], error)
-                else:
-                    raise
-        else:
-            self.retired = True
-        if errors:
-            for error in errors[1:]:
-                _corrected_prompt_cleanup_note(errors[0], error)
-            raise errors[0]
 
 
 @pytest.mark.parametrize("fail_after_acquisition", [False, True])
@@ -1056,94 +1133,6 @@ def test_corrected_prompt_extra_allowance_retires_after_protected_work(
                       "owners-retired-still-charged", "allowance-retired"]
 
 
-@pytest.mark.parametrize("body_error", [False, True])
-def test_corrected_prompt_watchdog_unknown_retains_allowance(body_error):
-    """Fresh pytest payload only: sticky failed charge intentionally never drains."""
-    from pllm.deployment import resources
-    from pllm.runtime import benchmark_memory as memory
-
-    entered, release, stopped = threading.Event(), threading.Event(), threading.Event()
-    owners = _CorrectedPromptOwners()
-    extra, normal_terminal = 64 << 10, []
-    observation = SimpleNamespace(available=4 << 30, swap_used=0, pressure="normal")
-    report = {"host": {"available": 4 << 30, "swap_used": 0, "reserve_bytes": 2 << 30}}
-
-    def sample():
-        if threading.current_thread() is owners.guard._thread:
-            entered.set()
-            release.wait()  # Artificial blocked sample; finally always releases it.
-            raise memory.BenchmarkMemoryError("synthetic blocked sample failure")
-        return observation
-
-    body = RuntimeError("corrected prompt body sentinel") if body_error else None
-    caught = None
-    try:
-        with _corrected_prompt_extra_allowance(extra, owners) as reservation:
-            token = reservation._token
-            owners.guard = memory.MemoryWatchdog(report, lambda reason: stopped.set(), sample=sample)
-            owners.payloads["sentinel"] = payload = object()
-            primary = None
-            try:
-                owners.start_attempt = True
-                owners.guard.start()
-                owners.started = True
-                assert entered.wait(3), "real watchdog never entered injected sample"
-                if body is not None:
-                    raise body
-            except BaseException as error:
-                primary = error
-                owners.failures.append(error)
-            finally:
-                try:
-                    owners.close()
-                except BaseException as error:
-                    if primary is None:
-                        primary = error
-                    else:
-                        _corrected_prompt_cleanup_note(primary, error)
-            if primary is not None:
-                raise primary
-        normal_terminal.append("success")
-    except BaseException as error:
-        caught = error
-        # Inspect charged custody while the actual sample is STILL blocked.
-        assert owners.guard._thread.is_alive()
-        assert owners.failed and reservation.pending_retirement
-        assert token.retained is reservation and reservation._failed == (owners,)
-        assert reservation._failed[0].guard is owners.guard
-        assert owners.payloads["sentinel"] is payload
-        assert normal_terminal == []
-        with resources._capacity.lock:
-            assert resources._capacity._owners[token] == extra
-    finally:
-        release.set()
-        if owners.guard is not None and owners.guard._thread.is_alive():
-            owners.guard._thread.join(timeout=3)  # Hygiene only, never retry close/refund.
-
-    assert caught is not None
-    if body_error:
-        assert caught is body
-        assert any("watchdog retirement UNKNOWN" in note for note in body.__notes__)
-    else:
-        assert isinstance(caught, RuntimeError)
-        assert "watchdog retirement UNKNOWN" in str(caught)
-    assert normal_terminal == []
-    assert owners.failed and not owners.retired
-    assert owners.guard._thread is not threading.current_thread()
-    assert not owners.guard._thread.is_alive() and stopped.is_set()
-    assert owners.guard.error == "synthetic blocked sample failure"
-    assert owners.payloads["sentinel"] is payload
-    assert owners.reservation is reservation and reservation._token is token
-    assert reservation.pending_retirement and not reservation._exited
-    assert token.retained is reservation and reservation._failed == (owners,)
-    assert reservation._failed[0].guard is owners.guard
-    with resources._capacity.lock:
-        assert resources._capacity._owners[token] == extra
-    assert reservation.pending_retirement  # Even physically dead later: no refund.
-    with resources._capacity.lock:
-        assert resources._capacity._owners[token] == extra
-
-
 def _independent_pinned_qwen_prompt(source, prompt):
     """Render pinned source template independently; never call prepared helpers."""
     from jinja2 import StrictUndefined
@@ -1192,8 +1181,6 @@ def test_pinned_qwen_corrected_prompt(tmp_path, monkeypatch, record_property):
 
     Future launch requires explicit permission, coherent wheel and physical
     headroom. Opt-in is not permission to bypass ordinary source/memory admission.
-    Qualification remains BLOCKED on separately granted supervised topology;
-    current role sessions escape the existing command guard. Native HOLD stays.
     """
     # Import candidate configuration ONLY after opt-in. Never construct alternate
     # token-vector requests, pipelines or execution overrides for this cohort.
@@ -1256,7 +1243,6 @@ def test_pinned_qwen_corrected_prompt(tmp_path, monkeypatch, record_property):
     assert runtime == source.runtime_contract_bytes
     assert json.loads(runtime)["decoder"] == source.contract
 
-    owners = _CorrectedPromptOwners()  # Publish before any protected acquisition.
     stopped, clients = threading.Event(), []
 
     def abort(reason):
@@ -1266,6 +1252,8 @@ def test_pinned_qwen_corrected_prompt(tmp_path, monkeypatch, record_property):
             if active is not None:
                 active.cancel()
 
+    guard = memory.MemoryWatchdog(report, abort)
+
     def check():
         if stopped.is_set():
             raise memory.BenchmarkMemoryError(guard.error or "corrected checkpoint test cancelled")
@@ -1273,18 +1261,12 @@ def test_pinned_qwen_corrected_prompt(tmp_path, monkeypatch, record_property):
 
     captured, salt = [], os.urandom(32)
     observer = SelectionCommitments(salt, max_selections=OUTPUTS)
-    scope = ExitStack()
-    primary = None
-    guard = allowance = expected = result = response = client = actual = tensors = None
-    records = topology = ids = acceptance = roles = None
+    owners = ExitStack()
     try:
         # Reuse process-wide incremental-owner ledger. It accounts the allowance
         # against live capacity, but cannot enforce allocator/BLAS RSS limits.
-        allowance = scope.enter_context(_corrected_prompt_extra_allowance(extra, owners))
-        owners.guard = guard = memory.MemoryWatchdog(report, abort)
-        owners.start_attempt = True
+        allowance = owners.enter_context(_corrected_prompt_extra_allowance(extra))
         guard.start()
-        owners.started = True
         check()
         ids = _independent_pinned_qwen_hello(source)
         gc.collect()  # Independent tokenizer/template phase retired before arrays.
@@ -1301,7 +1283,7 @@ def test_pinned_qwen_corrected_prompt(tmp_path, monkeypatch, record_property):
                                              * position * cfg["num_key_value_heads"] * head_dim)
         tensors.verify_lock()
         with audit.response_state_audit(salt, runtime_kind="gkm") as records:
-            with owners.client_scope(OpenAI, experiment=experiment, timeout=600) as client:
+            with OpenAI(experiment=experiment, timeout=600) as client:
                 topology = client._owned_topology
                 clients.append(client)
                 client._core._result_hook = captured.append
@@ -1339,7 +1321,7 @@ def test_pinned_qwen_corrected_prompt(tmp_path, monkeypatch, record_property):
         tensors.verify_lock()
         assert records == [observer.expected_record(source.contract)]
         check()
-        properties = {
+        for key, value in {
             "cohort": "pinned_qwen_corrected_prompt", "model_revision": PIN,
             "configuration_digest": source.configuration_digest,
             "composition_digest": source.composition_digest,
@@ -1349,76 +1331,27 @@ def test_pinned_qwen_corrected_prompt(tmp_path, monkeypatch, record_property):
             "oracle_workspace_estimate": workspace, "oracle_and_audit_allowance_bytes": extra,
             "checked_selections": len(observer.selections),
             "checked_selection_float32_values": sum(row["checked_values"] for row in observer.selections),
-        }
+        }.items():
+            record_property(key, value)
     except BaseException as error:
-        primary = error
-        owners.failures.append(error)
+        from pllm.runtime.delegated_protocol import clear_failure_frames
+
+        # Failed decoder/tokenizer frames must not keep payloads beyond refund.
+        clear_failure_frames(error)
+        raise
     finally:
-        # Retain payloads AND failure frames before attempting retirement. Unknown
-        # cleanup keeps this shell rooted through the original charged token.
+        # OpenAI context cancels/joins roles on exceptions; watchdog cancellation
+        # also reaches any live attempt. Closing guard never grants new work.
         try:
-            owners.payloads.update(source=source, tensors=tensors, expected=expected,
-                                   result=result, response=response, client=client, actual=actual,
-                                   captured=captured, clients=clients, observer=observer,
-                                   records=records, topology=topology, ids=ids,
-                                   acceptance=acceptance, roles=roles, abort=abort, check=check)
-            owners.close()
-        except BaseException as error:
-            owners.failures.append(error)
-            if not owners.retired and not owners.failed:
-                owners.failed = True
-                if owners.reservation is not None and owners.reservation._acquired:
-                    try:
-                        owners.reservation.retain_failed((owners,))
-                    except BaseException as custody_error:
-                        owners.failures.append(custody_error)
-                        _corrected_prompt_cleanup_note(error, custody_error)
-            if primary is None:
-                primary = error
-            else:
-                _corrected_prompt_cleanup_note(primary, error)
+            guard.close()
         finally:
             try:
-                if owners.retired:
-                    from pllm.runtime.delegated_protocol import clear_failure_frames
-
-                    for error in owners.failures:
-                        clear_failure_frames(error)
-                    owners.failures.clear()
-                    captured.clear()
-                    clients.clear()
-                    owners.payloads.clear()
-                    owners.client = owners.topology = None
-                    expected = result = response = client = actual = tensors = source = None
-                    observer = records = topology = ids = acceptance = roles = None
-                    gc.collect()  # Reference retirement, not physical reclamation proof.
-            except BaseException as error:
-                # Payload/frame retirement itself interrupted: fail closed, keep
-                # remaining dependencies and original token, never refund unknown.
-                owners.failed, owners.retired = True, False
-                owners.failures.append(error)
-                try:
-                    allowance.retain_failed((owners,))
-                except BaseException as custody_error:
-                    owners.failures.append(custody_error)
-                    _corrected_prompt_cleanup_note(error, custody_error)
-                if primary is None:
-                    primary = error
-                else:
-                    _corrected_prompt_cleanup_note(primary, error)
+                captured.clear()
+                clients.clear()
+                expected = result = response = client = actual = tensors = source = None
+                gc.collect()  # Drop references; not proof of physical reclamation.
             finally:
-                try:
-                    scope.__exit__(type(primary) if primary else None, primary,
-                                   primary.__traceback__ if primary else None)
-                except BaseException as error:
-                    if primary is None:
-                        primary = error
-                    else:
-                        _corrected_prompt_cleanup_note(primary, error)
-    if primary is not None:
-        raise primary.with_traceback(primary.__traceback__)
-    assert owners.retired and not owners.failed
+                owners.close()
     assert allowance._exited
-    for key, value in properties.items():
-        record_property(key, value)
+    check()
     record_property("maximum_swap_growth_bytes", guard.maximum_swap_growth_bytes)

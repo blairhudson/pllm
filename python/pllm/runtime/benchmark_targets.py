@@ -297,8 +297,10 @@ def _artifacts(p, m):
 
 def execute_target(target, m):
     p = target.to_spec()["parameters"]
-    if m.inputs and target.kind not in {"response", "operator"}:
+    if m.inputs and target.kind not in {"response", "operator", "forward"}:
         raise TargetUnavailable("private_inputs_not_supported_for_target")
+    if target.kind == "forward":
+        return _forward(p, m)
     if target.kind in {"stage", "preparation"}:
         if target.kind == "preparation" and "batch" in p:
             from .benchmark_preparation_batch import execute_batch
@@ -358,3 +360,114 @@ def execute_target(target, m):
     m.oracle = {"kind": "native_semantic_schedule", "outcome": "passed", "checked_values": len(context[3])}
     m.comparison.update(workload_digest=digest(context[0].budget.to_spec()), output_digest=context[2].digest,
                         measurement_digest=digest({"scope": "geometry_only"}))
+
+
+def _forward(p, m):
+    """One ordinary compiled source owner, shared by all bounded attempts."""
+    from pllm._benchmark_contract import canonical
+    from pllm.configuration import Experiment
+    from .forward_inputs import parse_forward_inputs, inspect_forward_inputs
+    from .benchmark_memory import BenchmarkMemoryError, forward_owner_memory, forward_runtime_memory_bytes
+
+    # Repeat the bounded production input checks in the worker, before compiling
+    # a source or allocating snapshots. No tokenizer/generation path is involved.
+    inputs = parse_forward_inputs(canonical(m.inputs))
+    declared = p["model"]
+    experiment = Experiment.from_spec(declared["experiment"]).with_params(pipeline__profile=declared["profile"])
+    sequence = inspect_forward_inputs(inputs, maximum=experiment.budget.max_input_tokens,
+        domains={name: 1 << 63 for name in ("tokens", "positions", "segments")})
+    attempts = m.sampling.warmups + m.sampling.repetitions
+    if attempts > experiment.budget.requests:
+        raise TargetUnavailable("forward_request_budget", status="blocked")
+    # Reserve a whole conservative host envelope BEFORE source materialization.
+    # The reduced runtime envelope also covers snapshot overlap, bounded metadata
+    # and results retained outside timing; it cannot borrow the process reserve.
+    try:
+        available = forward_runtime_memory_bytes(m.sampling.memory_bytes)
+    except BenchmarkMemoryError as exc:
+        raise TargetUnavailable("memory_limit", status="blocked") from exc
+    m.admit(m.sampling.memory_bytes)
+    m.admission["scope"] = "conservative_forward_envelope_reservation"
+    wall, cpu = time.perf_counter(), time.process_time()
+    compiled = experiment.compile_forward(memory_bytes=available)
+    m.details["compile_import"] = {"wall_seconds": time.perf_counter() - wall,
+                                  "cpu_seconds": time.process_time() - cpu}
+    with compiled:
+        identities = dict(compiled.identities)
+        execution_metadata = dict(compiled.execution_metadata)
+        if (set(execution_metadata) != {"backend", "requested_compute_threads", "effective_compute_threads", "thread_policy"}
+                or execution_metadata["backend"] != "numpy_einsum_unoptimized_f32_v1"
+                or execution_metadata["thread_policy"] != "serial_compute_within_requested_budget"
+                or type(execution_metadata["requested_compute_threads"]) is not int
+                or execution_metadata["requested_compute_threads"] < 1
+                or type(execution_metadata["effective_compute_threads"]) is not int
+                or execution_metadata["effective_compute_threads"] != 1):
+            raise TargetUnavailable("forward_execution_metadata_invalid", status="failed")
+        plan = json.loads(compiled.contract.plan_bytes())
+        quote = json.loads(compiled.contract.quote(experiment.budget.max_input_tokens))
+        price = forward_owner_memory(compiled.lifetime_reservation)
+        price["native_quote"] = quote
+        # Includes all saved requests, not merely this worker's sampled calls.
+        # Runtime admission remains independent; this is ordinary host accounting.
+        m.admit(price["required_bytes"])
+        m.details.update(plan_digest=identities["plan_digest"],
+            schedule_digest=identities["schedule_digest"], binding_digest=identities["binding_digest"],
+            identities=identities, output_contract=plan["output_contract"], sequence=sequence,
+            resource_quote=price, execution_metadata=execution_metadata,
+            component_ids=sorted({c.component for c in experiment.pipeline.components.values()}),
+            model={"id": str(experiment.pipeline.model.model_id or experiment.pipeline.model.source),
+                "checkpoint_digest": identities["checkpoint_digest"],
+                "source_lock_digest": identities["source_lock_digest"]})
+        m.fixture = {"kind": "checkpoint", "digest": identities["source_lock_digest"],
+                     "metadata": {"numeric": "source_float32", "public_client_local": True}}
+        all_results = []
+        m.details.update(attempted_requests=0, completed_requests=0,
+            visible_key_count=sequence if inputs.attention_mask is None else int(np.count_nonzero(inputs.attention_mask)))
+
+        def execute(_):
+            m.details["attempted_requests"] += 1
+            result = compiled.forward(inputs)
+            all_results.append(result)
+            m.details["completed_requests"] += 1
+            return result
+
+        m.run(execute)
+        m.details["target_peak_rss_bytes"] = peak_rss()
+        m.details["target_cpu_from_birth_seconds"] = time.process_time()
+        expected = {name: [sequence if dimension == "sequence" else dimension
+                          for dimension in spec["tensor"]["shape"]]
+                    for name, spec in plan["outputs"].items()}
+        commitments, descriptions, checked = [], None, 0
+        for result in all_results:
+            if dict(result.identities) != identities:
+                raise TargetUnavailable("forward_result_binding_failed", status="failed")
+            if set(result.outputs) != set(expected):
+                raise TargetUnavailable("forward_output_contract_failed", status="failed")
+            description = {}
+            for name, array in sorted(result.outputs.items()):
+                if (array.dtype != np.dtype(np.float32) or list(array.shape) != expected[name]
+                        or array.flags.writeable or not np.all(np.isfinite(array))):
+                    raise TargetUnavailable("forward_output_contract_failed", status="failed")
+                shape = list(array.shape)
+                description[name] = {"shape": shape, "dtype": "F32", "nbytes": int(array.nbytes),
+                    "content_commitment": m.commitment({"shape": shape, "dtype": "F32",
+                        "little_endian_content": array.astype("<f4", copy=False).tobytes().hex()})}
+                checked += array.size
+            commitments.append(m.commitment(description))
+            descriptions = description
+        if len(set(commitments)) != 1:
+            raise TargetUnavailable("forward_output_not_repeatable", status="failed")
+        m.details.update(outputs=descriptions, attempted_requests=attempts,
+                         completed_requests=len(all_results), stateless=True,
+                         privacy_scope="public_client_local_no_protocol_privacy")
+        m.oracle = {"kind": "forward_output_contract_finite_checks_not_numeric_oracle",
+                    "outcome": "passed", "checked_values": checked}
+        m.comparison.update(source_digest=identities["source_lock_digest"],
+            numeric_digest=identities["numeric_digest"],
+            privacy_digest=digest({"scope": "public_client_local_no_protocol_privacy"}),
+            state_digest=digest({"state": "stateless"}),
+            workload_digest=digest({"budget": experiment.budget.to_spec(), "sequence": sequence,
+                "output_contract": plan["output_contract"]}), output_digest=commitments[0],
+            measurement_digest=digest({"scope": "complete_forward_excluding_compile_import",
+                "validation": "outside_timing", "output_contract": plan["output_contract"],
+                "execution_metadata": execution_metadata}))

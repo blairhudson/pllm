@@ -17,6 +17,128 @@ from pllm.runtime import benchmark_memory as memory, benchmark_resources, dashbo
 SECRET = "private-prompt-token-credential-/tensor/path"
 
 
+def request_context(role="worker_b", status=503):
+    return {"stage": "transport", "role": role, "code": "worker_http_rejected", "http_status": status}
+
+
+COUNT_CONTEXTS = [
+    {"stage": "input_count", "role": "client", "code": code, "http_status": None}
+    for code in ("count_owner_busy", "input_count_failed")
+]
+
+
+@pytest.mark.parametrize("context", COUNT_CONTEXTS)
+def test_input_count_context_accepts_only_fixed_local_combinations(context):
+    assert diagnostics.sanitize_request_failure_context(context) == context
+    for changes in ({"stage": "transport"}, {"stage": "prepare_prompt"},
+                    {"role": "worker_a"}, {"http_status": 409}, {"http_status": 500},
+                    {"code": "gkm_stage_failed"}, {"code": "worker_http_rejected"},
+                    {"code": SECRET}, {"body": SECRET}):
+        assert diagnostics.sanitize_request_failure_context({**context, **changes}) is None
+
+
+@pytest.mark.parametrize("changes", [
+    {"stage": SECRET}, {"role": SECRET}, {"code": SECRET}, {"http_status": True},
+    {"http_status": 99}, {"http_status": 600}, {"http_status": "503"},
+    {"http_status": 503.0}, {"http_status": None}, {"role": "client"},
+    {"stage": "accept_result"}, {"body": SECRET},
+])
+def test_request_failure_context_fails_closed(changes):
+    from pllm.runtime.client import ProtocolError
+
+    context = {**request_context(), **changes}
+    assert diagnostics.sanitize_request_failure_context(context) is None
+    error = ProtocolError(SECRET, body={"secret": SECRET})
+    error.annotate_request_failure(context)
+    assert error.request_failure_context is None
+    safe = diagnostics.sanitize_failure_diagnostics({
+        "schema_version": diagnostics.SCHEMA, "request_failure_context": context})
+    assert "request_failure_context" not in safe
+    assert SECRET not in json.dumps(safe)
+
+
+def test_request_context_exact_builtins_and_nonthrowing_annotation(monkeypatch):
+    from pllm.runtime.client import ProtocolError
+
+    class DictSubclass(dict):
+        pass
+
+    class HostileKey:
+        def __hash__(self):
+            return hash("stage")
+
+        def __eq__(self, other):
+            raise AssertionError("unknown key must not be compared")
+
+    class IntSubclass(int):
+        pass
+
+    class StrSubclass(str):
+        pass
+
+    for bad in (None, [], tuple(request_context().items()), DictSubclass(request_context()),
+                {**request_context(), "http_status": IntSubclass(503)},
+                {**request_context(), "stage": StrSubclass("transport")},
+                {HostileKey(): "transport", "role": "worker_b", "code": "worker_http_rejected", "http_status": 503},
+                {"stage": "transport", "role": "worker_b", "code": "worker_http_rejected"}):
+        assert diagnostics.sanitize_request_failure_context(bad) is None
+    for status in (100, 599):
+        safe = diagnostics.sanitize_request_failure_context(request_context(status=status))
+        assert safe == request_context(status=status)
+    error = ProtocolError(SECRET, body={"private": SECRET})
+    assert error.request_failure_context is None
+    error.annotate_request_failure(request_context())
+    original = error.request_failure_context
+    error.annotate_request_failure({"stage": "accept_result", "role": "client",
+                                    "code": "gkm_stage_failed", "http_status": None})
+    error.annotate_request_failure(COUNT_CONTEXTS[1])
+    assert error.request_failure_context is original
+    assert error.body == {"private": SECRET}
+
+    def unavailable(*args):
+        raise RuntimeError(SECRET)
+
+    monkeypatch.setattr(diagnostics, "sanitize_request_failure_context", unavailable)
+    error.annotate_request_failure(request_context())  # Optional observation cannot throw.
+    assert error.request_failure_context is original
+
+
+def test_request_capture_first_failure_and_unknown_error_fallback():
+    from pllm.runtime.client import ProtocolError
+
+    runtime = minimal_runtime()
+    runtime._benchmark_failure_diagnostics = diagnostics.FailureDiagnostics(runtime)
+    error = ProtocolError(SECRET, body=SECRET)
+    error.annotate_request_failure(request_context())
+    value = diagnostics.capture_failure(runtime, phase="request", error=error)
+    assert value["request_failure_context"] == request_context()
+    assert SECRET not in json.dumps(value)
+    assert diagnostics.capture_failure(runtime, error=ValueError(SECRET)) == value
+    value["request_failure_context"]["role"] = "worker_a"
+    assert runtime._benchmark_failure_diagnostics.capture()["request_failure_context"] == request_context()
+    runtime = minimal_runtime()
+    runtime._benchmark_failure_diagnostics = diagnostics.FailureDiagnostics(runtime)
+    unknown = ValueError(SECRET)
+    unknown.request_failure_context = request_context()
+    first = diagnostics.capture_failure(runtime, error=unknown)
+    assert "request_failure_context" not in first
+    assert diagnostics.capture_failure(runtime, error=error) == first
+    assert diagnostics.capture_failure(minimal_runtime(), error=ValueError(SECRET)) is None
+
+
+def test_outer_collector_merge_preserves_request_context_and_observations():
+    outer = diagnostics.FailureDiagnostics(minimal_runtime()).capture()
+    outer["host"]["pressure"] = "warning"
+    inner = {**outer, "phase": "request", "request_failure_context": request_context(), "body": SECRET}
+    merged = diagnostics.merge_failure_diagnostics(outer, inner)
+    assert merged["host"]["pressure"] == "warning"
+    assert merged["request_failure_context"] == request_context()
+    assert "request_failure_context" not in outer
+    assert SECRET not in json.dumps(merged)
+    assert diagnostics.merge_failure_diagnostics(merged, {
+        **inner, "request_failure_context": request_context("worker_a")}) == merged
+
+
 def rss_snapshot():
     return {"latest_total_bytes": 150, "peak_total_bytes": 180, "sample_age_seconds": .05,
             "sampling_incomplete": False,
@@ -245,18 +367,23 @@ def test_loopback_failure_carries_snapshot_before_handle_cleanup(monkeypatch):
     monkeypatch.setattr(benchmark_cli, "_wait_for_dashboard_listener", lambda *a: None)
     monkeypatch.setattr(benchmark_cli.httpx, "Client", lambda **k: nullcontext(object()))
     def fail(*a):
-        raise benchmark_cli.LoopbackBenchmarkError(SECRET)
+        raise benchmark_cli.LoopbackBenchmarkError(SECRET, failure_diagnostics={
+            "schema_version": diagnostics.SCHEMA, "request_failure_context": request_context()})
     monkeypatch.setattr(benchmark_cli, "_wait_for_ready", fail)
     with pytest.raises(benchmark_cli.LoopbackBenchmarkError) as caught:
         benchmark_cli._run_loopback_benchmark(model="unused", model_id=None, tiny=False,
             prompt=SECRET, max_output_tokens=1, warmups=0, repetitions=1, timeout_seconds=1)
     assert caught.value.failure_diagnostics["phase"] == "dashboard_startup"
+    assert caught.value.failure_diagnostics["request_failure_context"] == request_context()
     assert calls == ["capture", "sampler_stop", "handle_close"]
 
 
-def test_optional_diagnostics_cross_isolation_pipe_without_new_process(monkeypatch):
+@pytest.mark.parametrize("context", [None, request_context(), *COUNT_CONTEXTS])
+def test_optional_diagnostics_cross_isolation_pipe_without_new_process(monkeypatch, context):
     from pllm.runtime import benchmark_isolation as isolation
     value = diagnostics.FailureDiagnostics(minimal_runtime()).capture()
+    if context is not None:
+        value["request_failure_context"] = context
     messages = iter([("failure_diagnostics", value), ("error", "LoopbackBenchmarkError")])
     process = NS(start=lambda: None, join=lambda **k: None, is_alive=lambda: False)
     receive, send = NS(recv=lambda: next(messages), close=lambda: None), NS(close=lambda: None)
@@ -416,9 +543,12 @@ def test_source_breadcrumbs_surround_real_builder_boundaries(monkeypatch, phase)
                      + ["cache_close"])
 
 
-def test_actual_cli_writes_only_bounded_optional_failure_fields(tmp_path, monkeypatch, capsys):
+@pytest.mark.parametrize("context", [None, request_context(), *COUNT_CONTEXTS])
+def test_actual_cli_writes_only_bounded_optional_failure_fields(tmp_path, monkeypatch, capsys, context):
     from pllm.cli import main
     value = diagnostics.FailureDiagnostics(minimal_runtime()).capture()
+    if context is not None:
+        value["request_failure_context"] = context
     def fail(**kwargs):
         raise benchmark_cli.LoopbackBenchmarkError(SECRET, failure_diagnostics=value)
     monkeypatch.setattr(benchmark_cli, "run_loopback_benchmark", fail)
@@ -447,6 +577,62 @@ def test_existing_history_record_still_readable_without_diagnostics():
         assert "diagnostics" not in saved
     finally:
         history.close()
+
+
+@pytest.mark.parametrize("with_collector", [False, True])
+@pytest.mark.parametrize("context", [request_context(), *COUNT_CONTEXTS])
+def test_dashboard_request_context_survives_history_and_artifact(tmp_path, monkeypatch, with_collector, context):
+    from pllm.runtime.client import ProtocolError
+    from pllm.runtime.benchmark_history import BenchmarkHistory
+
+    config = dashboard.DashboardConfig("127.0.0.1", 1, "unused", "unit", 2, backend="native")
+    store = NS(finish_run_window=lambda _: {}, snapshot=lambda: {
+        "services": {"pllm-preparation": {}}, "traffic": {}})
+    runtime = dashboard.DashboardRuntime(config, store)
+    runtime._topology = NS(requires_preparation=False, statuses=[], startup_breadcrumbs={
+        "phase": "ready", "spawned_roles": ["worker_a", "worker_b"],
+        "ready_roles": ["worker_a", "worker_b"]})
+    runtime._active_run = dashboard._RunCapture("context-run", 2, False, 1, {}, 1, 0)
+    runtime._has_started_run = True
+    runtime._state.update(phase="preparing", run_id="context-run", prompt=SECRET)
+    runtime._audit_snapshot = lambda: {}
+    runtime._services_healthy = lambda: True
+    runtime._capture_online_telemetry = lambda: None
+    if with_collector:
+        runtime._benchmark_failure_diagnostics = diagnostics.FailureDiagnostics(runtime)
+    error = ProtocolError(SECRET, 503, {"body": SECRET})
+    error.annotate_request_failure(context)
+    closed = []
+
+    class Stream:
+        def __iter__(self):
+            raise error
+
+        def close(self):
+            closed.append(True)
+
+    runtime._client = NS(tokenizer_scope=nullcontext, responses=NS(create=lambda **kw: Stream()), _core=NS())
+    runtime.history = BenchmarkHistory(":memory:")
+    monkeypatch.setattr(dashboard.time, "sleep", lambda _: None)
+    try:
+        runtime._execute_run("context-run", SECRET, 2)
+        saved = runtime.history.get("context-run")
+        assert saved["status"] == "failed" and saved["failure"]["type"] == "ProtocolError"
+        value = saved["failure"]["diagnostics"]
+        assert value["request_failure_context"] == context
+        if with_collector:
+            assert value["ready_roles"] == ["worker_a", "worker_b"]
+        assert SECRET not in json.dumps(saved)
+        assert error.body == {"body": SECRET} and closed == [True]
+        path = tmp_path / "context-failure.json"
+        output = BenchmarkOutput(path, force=False, configuration={}, experiments=[None])
+        output.start(1)
+        output.failed(benchmark_cli.LoopbackBenchmarkError(SECRET, failure_diagnostics=value))
+        artifact = json.loads(path.read_text())
+        assert artifact["failure"]["diagnostics"]["request_failure_context"] == context
+        assert SECRET not in path.read_text()
+    finally:
+        runtime.history.close()
 
 
 @pytest.mark.parametrize("failure_stage", ["tokenizer_enter", "preparation", "stream", "tokenizer_exit"])

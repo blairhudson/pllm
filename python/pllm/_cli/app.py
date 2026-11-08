@@ -425,6 +425,8 @@ def build_parser() -> _Parser:
         help="prompt text (visible in shell process listings)",
     )
     prompt_source.add_argument("--prompt-file", type=Path, help="read prompt text from this file")
+    benchmark_run.add_argument("--input-file", type=Path,
+                               help="bounded pllm.forward_inputs.v1 JSON for a forward suite")
     benchmark_run.add_argument(
         "--warmup-prompt-file",
         type=Path,
@@ -752,6 +754,28 @@ def _topology(args: argparse.Namespace, output_format: str, no_input: bool, dry_
 
 
 def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry_run: bool) -> None:
+    # Suite dispatch precedes decoder defaults, prompt/tokenizer admission and
+    # serving imports. Python trust is still checked by the ordinary resolver.
+    targets = None
+    if getattr(args, "experiment", None):
+        if args.tiny:
+            raise ResolutionError("BENCHMARK_EXPERIMENT_TINY", "--experiment cannot be combined with --tiny")
+        from pllm._benchmark_contract import BenchmarkSuite
+        from .targets import resolve_target
+
+        targets = [resolve_target(name, factory=args.factory, no_input=no_input,
+            trust_python=args.trust_python, output_format=output_format,
+            allow_benchmark_suite=True) for name in args.experiment]
+        if any(isinstance(target.configuration, BenchmarkSuite) for target in targets):
+            if len(targets) != 1:
+                raise ResolutionError("BENCHMARK_SUITE_TARGETS",
+                    "declare all matched cases in one BenchmarkSuite factory")
+            from pllm.runtime.benchmark_cli import run_suite_factory_cli
+
+            run_suite_factory_cli(targets[0].configuration, args, output_format, dry_run)
+            return
+    if getattr(args, "input_file", None) is not None:
+        raise ResolutionError("BENCHMARK_FORWARD_INPUTS", "--input-file requires a forward BenchmarkSuite")
     selection = _network_selection(args, gateway=False)
     from pllm.runtime.dashboard import _sampling_choice, _validate_request_temperature
 
@@ -786,34 +810,7 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
     if getattr(args, "experiment", None):
         from pllm.configuration import Experiment
 
-        from .targets import resolve_target
-
-        if args.tiny:
-            raise ResolutionError(
-                "BENCHMARK_EXPERIMENT_TINY", "--experiment cannot be combined with --tiny"
-            )
-        targets = [
-            resolve_target(
-                target_name,
-                factory=args.factory,
-                no_input=no_input,
-                trust_python=args.trust_python,
-                output_format=output_format,
-                allow_benchmark_suite=True,
-            )
-            for target_name in args.experiment
-        ]
-        from pllm._benchmark_contract import BenchmarkSuite
-
-        if any(isinstance(target.configuration, BenchmarkSuite) for target in targets):
-            if len(targets) != 1:
-                raise ResolutionError(
-                    "BENCHMARK_SUITE_TARGETS", "declare all matched cases in one BenchmarkSuite factory"
-                )
-            from pllm.runtime.benchmark_cli import run_suite_factory_cli
-
-            run_suite_factory_cli(targets[0].configuration, args, output_format, dry_run)
-            return
+        assert targets is not None
         for target_name, target in zip(args.experiment, targets):
             if not isinstance(target.configuration, Experiment):
                 raise ResolutionError(

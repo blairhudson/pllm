@@ -747,6 +747,45 @@ def test_benchmark_polling_reads_nested_dashboard_run_state(monkeypatch) -> None
     ]
 
 
+@pytest.mark.parametrize("record_available", [False, True])
+@pytest.mark.parametrize("with_context", [False, True])
+def test_failed_run_uses_history_context_not_snapshot_message(monkeypatch, record_available, with_context):
+    from pllm.runtime.benchmark_cli import LoopbackBenchmarkError
+    from pllm.runtime.benchmark_failure import SCHEMA
+
+    secret = "secret-prompt-body-credential-/tensor/path"
+    context = {"stage": "transport", "role": "worker_a",
+               "code": "worker_http_rejected", "http_status": 503}
+
+    def respond(request):
+        if request.url.path == "/api/run":
+            return httpx.Response(200, json={"status": "started"})
+        if request.url.path == "/api/snapshot":
+            return httpx.Response(200, json={"run": {
+                "phase": "error", "run_id": "bench-fixed", "active_run": None, "error": secret}})
+        if request.url.path == "/api/runs/bench-fixed":
+            if not record_available:
+                return httpx.Response(404)
+            failure = {"type": "ProtocolError"}
+            if with_context:
+                failure["diagnostics"] = {"schema_version": SCHEMA, "phase": "request",
+                    "request_failure_context": context, "message": secret, "body": secret}
+            return httpx.Response(200, json={"status": "failed", "failure": failure})
+        raise AssertionError(request.url.path)
+
+    monkeypatch.setattr("pllm.runtime.benchmark_cli.secrets.token_hex", lambda _: "fixed")
+    with httpx.Client(transport=httpx.MockTransport(respond), base_url="http://dashboard") as client:
+        with pytest.raises(LoopbackBenchmarkError) as caught:
+            _run_once(client, _RunningProcess(), prompt=secret, max_output_tokens=2, timeout_seconds=1)
+    assert secret not in str(caught.value)
+    assert secret not in json.dumps(caught.value.failure_diagnostics)
+    if record_available and with_context:
+        assert caught.value.failure_diagnostics["request_failure_context"] == context
+        assert str(caught.value) == "benchmark run failed: ProtocolError"
+    else:
+        assert caught.value.failure_diagnostics is None
+
+
 def test_loopback_report_summarizes_records_and_has_no_text_payloads() -> None:
     report = build_loopback_report(
         model_id="Qwen/Qwen2.5-0.5B-Instruct",

@@ -336,3 +336,52 @@ def test_existing_default_composition_identities_remain_unchanged() -> None:
         assert component.component == identity
         assert create_component(identity, component.to_spec()["params"]) == component
     assert _pipeline().digest() not in {MaskedLinearCpu(model).digest(), TwoOnlineOffsetCpu(model).digest()}
+
+
+@pytest.mark.parametrize("factory,sharing,requests,input_tokens,output_tokens", [
+    ("experiment", "full", 32, 64, 8),
+    ("seeded", "seeded", 32, 64, 8),
+    ("smoke", "full", 32, 8, 2),
+    ("seeded_smoke", "seeded", 32, 8, 2),
+    ("bounded_response", "full", 1, 32, 2),
+])
+def test_paper_factories_keep_decoder_workload_and_sharing_without_native_admission(
+    monkeypatch, factory, sharing, requests, input_tokens, output_tokens,
+) -> None:
+    from examples.papers import gkm
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("declaration factory attempted native execution admission")
+
+    monkeypatch.setattr(Experiment, "resolve", forbidden)
+    experiment = getattr(gkm, factory)()
+    assert experiment.pipeline.model.to_spec() == {
+        "source": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "local_files_only": True,
+    }
+    assert experiment.budget == ExecutionBudget(requests, input_tokens, output_tokens)
+    assert experiment.pipeline.linear.to_spec()["params"] == {
+        "capacity": "decoder", "sharing": sharing, "generation": "fixed_length_greedy",
+    }
+    restored = Experiment.from_spec(json.loads(experiment.canonical_bytes()))
+    assert restored.canonical_bytes() == experiment.canonical_bytes()
+    contract = resolve_runtime_composition(restored.pipeline)
+    assert contract is not None
+    assert contract.client_runtime == "compiled_gkm_v1"
+    assert contract.delegation_capacity == "decoder"
+    assert contract.sharing == sharing
+    assert contract.verification_window == "request_end"
+    assert contract.prepared_inventory_rows == 0 and not contract.requires_preparation
+
+
+def test_bounded_response_factory_preserves_composition_and_narrows_only_budget() -> None:
+    from examples.papers.gkm import bounded_response, experiment
+
+    baseline, bounded = experiment(), bounded_response()
+    assert bounded.name == "gkm-bounded-response"
+    assert bounded.budget == ExecutionBudget(requests=1, max_input_tokens=32, max_new_tokens=2)
+    assert baseline.budget == ExecutionBudget(requests=32, max_input_tokens=64, max_new_tokens=8)
+    assert bounded.pipeline == baseline.pipeline
+    assert bounded.deployment == baseline.deployment
+    assert bounded.with_params(name=baseline.name, budget=baseline.budget) == baseline

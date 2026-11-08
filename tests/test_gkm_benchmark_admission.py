@@ -343,3 +343,33 @@ def test_local_gateway_passes_exact_experiment_without_ordinary_client_options(e
                                          api_key="test-local-key"))
     assert calls["gateway"] == {"local_api_key": "test-local-key", "timeout": 300}
     assert calls["served"] is app
+
+
+@pytest.mark.parametrize("sharing", ["full", "seeded"])
+@pytest.mark.parametrize("requests,input_tokens,output_tokens,admitted", [
+    (32, 64, 8, True),
+    (64, 512, 65, True),
+    (1, 513, 1, False),
+    (1, 1, 66, False),
+    (65, 1, 1, False),
+])
+def test_decoder_benchmark_options_keep_saved_envelope_before_source(
+    monkeypatch, sharing, requests, input_tokens, output_tokens, admitted,
+):
+    """Option admission only; accepted metadata is not native qualification."""
+    from examples.papers import gkm
+    from pllm.runtime.benchmark_delegated import admit_options
+
+    forbid_ordinary(monkeypatch)
+    monkeypatch.setattr(Experiment, "resolve", forbidden)
+    monkeypatch.setattr(delegated_source, "admit_source", forbidden)
+    experiment = gkm.experiment(budget=ExecutionBudget(
+        requests=requests, max_input_tokens=input_tokens, max_new_tokens=output_tokens,
+    )).with_params(pipeline__linear__sharing=sharing)
+    # A one-token measurement must neither shrink the saved decoder envelope
+    # into capsule bounds nor hide an over-limit saved budget.
+    if admitted:
+        admit_options(experiment, backend="native", output_tokens=1, requests=1)
+    else:
+        with pytest.raises(ValueError, match="saved source/workload envelope"):
+            admit_options(experiment, backend="native", output_tokens=1, requests=1)

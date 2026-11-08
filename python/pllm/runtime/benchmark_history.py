@@ -205,8 +205,12 @@ class BenchmarkRun:
     process_metrics: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
     failure_type: str | None = None
     output_delivery: str = "incremental"
+    failure_diagnostics: dict | None = None
 
     def __post_init__(self) -> None:
+        from .benchmark_failure import sanitize_failure_diagnostics
+
+        object.__setattr__(self, "failure_diagnostics", sanitize_failure_diagnostics(self.failure_diagnostics))
         if self.output_delivery not in {"incremental", "buffered_until_verified", "buffered_final_ids"}:
             raise ValueError("unsupported output delivery contract")
         if not _SAFE_ID.fullmatch(self.run_id):
@@ -382,6 +386,12 @@ class BenchmarkRun:
             },
             "failure": {"type": self.failure_type} if self.failure_type else None,
         }
+        if self.failure_type:
+            from .benchmark_failure import sanitize_failure_diagnostics
+
+            diagnostics = sanitize_failure_diagnostics(self.failure_diagnostics)
+            if diagnostics is not None:
+                record["failure"]["diagnostics"] = diagnostics
         if buffered:
             from .benchmark_delegated import TPS_UNAVAILABLE, REPLICATED_TPS_UNAVAILABLE
 

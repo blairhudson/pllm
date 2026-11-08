@@ -35,9 +35,14 @@ def _worker(connection, options):
 
 
 def run_isolated_loopback_benchmark(**options):
-    from .benchmark_cli import LoopbackBenchmarkError
     progress = options.pop("progress", None)
     experiment = options.pop("experiment", None)
+    if experiment is not None:
+        from pllm._decoder_admission import require_decoder_experiment
+
+        require_decoder_experiment(experiment)
+    from .benchmark_cli import LoopbackBenchmarkError
+
     options["experiment_record"] = None if experiment is None else (experiment.to_spec(), experiment.pipeline.profile)
     for key in ("wan", "docker_network"):
         if options.get(key) is not None:

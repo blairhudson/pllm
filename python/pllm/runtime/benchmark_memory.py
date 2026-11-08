@@ -160,6 +160,98 @@ def _slack(value: int, percent: int = 25) -> int:
     return (value * (100 + _memory_margin(percent)) + 99) // 100
 
 
+def forward_runtime_memory_bytes(memory_bytes):
+    """Leave ordinary process/protocol and post-timing commitment headroom.
+
+    The production factory owns ALL saved requests, Python/FFI metadata and
+    source/import lifetimes. Never divide that lifetime budget by sampled calls.
+    This conservative allowance is not a process RSS or allocator ceiling.
+    """
+    memory_bytes = _memory_budget(memory_bytes)
+    overhead = _PROCESS_BYTES + 64 * MiB
+    if memory_bytes is None or memory_bytes <= overhead:
+        raise BenchmarkMemoryError("forward benchmark budget cannot cover ordinary process overhead")
+    available = (memory_bytes - overhead) // 3
+    if available <= 0:
+        raise BenchmarkMemoryError("forward benchmark has no runtime byte allowance")
+    return available
+
+
+def forward_owner_memory(lifetime_reservation):
+    """Add only benchmark owners to the actual production lifetime reservation."""
+    reservation = dict(lifetime_reservation)
+    fields = {"requests", "max_sequence", "output_bytes_per_result", "result_metadata_bytes_per_result",
+              "max_call_bytes", "import_peak_bytes", "required_bytes", "admission_bytes"}
+    if (not fields <= reservation.keys()
+            or any(type(reservation[key]) is not int or reservation[key] <= 0 for key in fields)
+            or reservation["admission_bytes"] < reservation["required_bytes"]):
+        raise BenchmarkMemoryError("invalid production forward lifetime reservation")
+    owners = {"production_lifetime_with_margin": reservation["admission_bytes"],
+        "ordinary_process_runtime": _PROCESS_BYTES,
+        "bounded_json_and_complete_worker_envelope": 64 * MiB,
+        "validation_and_content_commitment_scratch": 8 * reservation["output_bytes_per_result"],
+        "benchmark_result_references": 256 * reservation["requests"]}
+    return {"scope": "conservative_forward_accounted_owners_not_RSS_or_allocator_cap",
+        "owners": owners, "required_bytes": sum(owners.values()),
+        "lifetime_reservation": reservation,
+        "native_quote_scope": "logical_payload_not_process_RSS"}
+
+
+def _forward_memory(experiment, *, memory_budget_bytes, backend, enforced_wan):
+    """Serialize the production metadata description, never an executable owner."""
+    from collections.abc import Mapping
+    from pllm._benchmark_contract import Sampling
+    from .forward_binding import ForwardBindingError, describe_forward_source
+
+    if backend not in {"native", "auto"} or enforced_wan:
+        raise BenchmarkMemoryError("public local forward preflight requires native CPU without WAN")
+    limit = _memory_budget(memory_budget_bytes) or Sampling().memory_bytes
+    runtime_limit = forward_runtime_memory_bytes(limit)
+    host = host_memory()
+    if host.pressure in {"warning", "critical"} or host.available <= host.reserve:
+        raise BenchmarkMemoryError("host has no safe headroom for forward metadata inspection")
+    # Same ordinary whole-envelope host reservation as the isolated worker,
+    # before production resolution/hash/snapshot/header/graph inspection.
+    headroom = max(0, host.available - host.reserve)
+    if limit > headroom:
+        raise BenchmarkMemoryError("forward benchmark envelope exceeds safe host headroom")
+    try:
+        description = describe_forward_source(experiment, memory_bytes=runtime_limit)
+    except (ForwardBindingError, ValueError) as exc:
+        raise BenchmarkMemoryError("production forward metadata preflight rejected") from exc
+
+    def plain(value):
+        if isinstance(value, Mapping):
+            return {key: plain(item) for key, item in value.items()}
+        if isinstance(value, (tuple, list)):
+            return [plain(item) for item in value]
+        return value
+
+    description = plain(description)
+    if (description["schema_version"] != "pllm.forward_source_description.v1"
+            or description["execution_admitted"] is not False
+            or description["numerical_finite_validated"] is not False):
+        raise BenchmarkMemoryError("production forward preflight is not a metadata-only description")
+    price = forward_owner_memory(description["lifetime_reservation"])
+    after = host_memory()
+    headroom = max(0, after.available - after.reserve)
+    admitted = (price["required_bytes"] <= min(limit, headroom)
+                and after.pressure not in {"warning", "critical"})
+    return {"schema": "pllm.benchmark_memory.v1", "metadata_only": True,
+        "admitted": admitted, "host_reservation_admitted": admitted,
+        "execution_admitted": False, "numerical_finite_validated": False,
+        "performance_measured": False, "requested_backend": backend,
+        "identity_scope": "authenticated_metadata_description_not_executable_binding",
+        "selected_backend": "native" if admitted else None, "enforced_wan": False,
+        "host": asdict(after) | {"reserve_bytes": after.reserve,
+            "admission_budget_bytes": min(limit, headroom)},
+        "memory_budget_bytes": limit, "runtime_memory_bytes": runtime_limit,
+        "forward_source": description, "estimate": price,
+        "limitations": ["Metadata-only source/plan description; not execution admission or finite-value validation.",
+            "Native storage, Python/FFI and all-request lifetime accounting plus ordinary benchmark overhead are not exact RSS or an allocator ceiling.",
+            "Hashing and private disk snapshots may read checkpoint bytes; no F32 coefficient materialization or numerical scan occurs."]}
+
+
 def _freivalds_memory(native, stages, *, rows, failure_bits, stage_window):
     """Price native u32 projections, their owners, and bounded Python/FFI copies.
 
@@ -681,6 +773,32 @@ def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound,
     }
 
 
+def _semantic_local_allocation(requirements, *, source_item_sizes=None):
+    """Metadata-only upper bounds, never generic SDK allocation admission.
+
+    Requirements are keyed by source tensor identity, so repeated semantic uses
+    retain one bytes owner. Metadata cannot prove byte-sharing across distinct
+    source identities; those retain the conservative separate-owner estimate.
+    """
+    from .bundle_storage import CHUNK_BYTES, f32_array_nbytes
+
+    sizes = {key: f32_array_nbytes(shape) for key, shape in requirements.items()}
+    retained = sum(sizes.values())
+    source = sum((source_item_sizes or {}).get(key, 4) * (size // 4)
+                 for key, size in sizes.items())
+    largest = max(sizes.values(), default=0)
+    # Producer source and F32 conversion can coexist; serializing one tensor
+    # additionally owns bytes. Transport/document copies are separate lifetimes.
+    producer = source + retained + largest
+    return {"retained_bytes": retained,
+            "producer_conversion_serialization_bytes": producer,
+            "transport_import_overlap_bytes": 2 * retained,
+            "binding_chunk_scratch_bytes": min(largest // 4, CHUNK_BYTES // 4),
+            "binding_control_bytes": sum(1024 + 8 * len(shape) + len(key.encode("utf-8"))
+                                         for key, shape in requirements.items()),
+            "extra_snapshot_copy_bytes": 0}
+
+
 def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
                          inventory_rows=64, cache_bytes=0, cache_bound_tokens=None,
                          checkpoint_bytes=0, store=None, memory_safety_margin_percent=25):
@@ -720,13 +838,18 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
         raise BenchmarkMemoryError("allocation plan and compiled workload bounds differ")
     stages = scheduled_stage_specs(plan, pipeline)
     from .semantic_tensors import required_client_tensors, preflight_semantic_checkpoint
-    local_tensors = 4 * sum(math.prod(shape) for shape in required_client_tensors(plan).values())
+    local_requirements = required_client_tensors(plan)
+    local_tensors = 4 * sum(math.prod(shape) for shape in local_requirements.values())
+    source_item_sizes = None
     if store is not None:
         preflight_semantic_checkpoint(plan, store)
+        source_item_sizes = {key: {"F16": 2, "BF16": 2, "F32": 4}[store.tensor_dtype(key).upper()]
+                             for key in local_requirements}
         for stage in stages:
             if any(store.tensor_dtype(key).upper() not in {"F16", "BF16", "F32", "F64"}
                    for key in stage.weight_keys):
                 raise BenchmarkMemoryError("packed checkpoint loading has no admitted allocation estimate")
+    local_allocation = _semantic_local_allocation(local_requirements, source_item_sizes=source_item_sizes)
     roles = [role.id for role in graph_for_runtime(options).roles if role.id != "client"]
     ownership: dict[str, Any] = dict(client_prefix_layers=options.client_prefix_layers,
                      client_linear_roles=options.client_linear_roles,
@@ -763,7 +886,10 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
     # include two copies, page indices/row bounds and bounded I/O/kernel tiles.
     paged_indices = sum(256 + 128 * math.ceil(s.in_features * s.out_features / MiB)
                         + 8 * max(s.in_features, s.out_features) for s in client_stages) if paged else 0
-    bundle_work = 2 * metadata + paged_indices + 16 * MiB if paged else 6 * bundle
+    # Local bytes are shared by decoded document, ndarray and binding; price
+    # that retained owner once. Separate transport overlap is added below.
+    bundle_work = ((2 * (metadata - local_tensors) + paged_indices + 16 * MiB)
+                   if paged else 6 * (bundle - local_tensors)) + local_tensors
     weight_snapshot_disk = boundary + local_weights if paged else 0
     paged_disk = weight_snapshot_disk  # delivery and kernels retain the same immutable file
     if paged:
@@ -778,6 +904,7 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
     quantization = 28 * chunk_elements
     validation = 4 * min(largest, max(WEIGHT_CHUNK_ELEMENTS, max(s.in_features for s in stages)))
     loading = max(quantization, validation, largest * 2)
+    loading = max(loading, local_allocation["producer_conversion_serialization_bytes"])
     # A supplied Docker image can predate the single-snapshot loader. Keep its
     # legacy upper bound and hard limits; host-native savings cannot price it down.
     legacy_quantization = max(28 * (s.in_features * s.out_features
@@ -904,7 +1031,9 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
         # Native delivery streams immutable weight views and retains only copied
         # metadata plus bounded compression/batch frames. Existing images may
         # still pack/unpack full bundles and cache copied artifact objects.
-        delivery = 2 * metadata + 8 * MiB if role != "preparation" else 0
+        delivery = (2 * metadata + 8 * MiB
+                    + local_allocation["producer_conversion_serialization_bytes"]
+                    if role != "preparation" else 0)
         if private_boundary and role == "inference":
             delivery += (boundary_allocation["publisher_table_export_bytes"]
                          + boundary_allocation["publisher_descriptor_work_bytes"])
@@ -920,6 +1049,7 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
         role_loading[role] = max(
             max(quantization, validation, 2 * s.in_features * s.out_features) if s.id in retained
             else s.in_features * s.out_features + max(quantization, validation) for s in stages)
+        role_loading[role] = max(role_loading[role], local_allocation["producer_conversion_serialization_bytes"])
         role_engine = role_weights[role] + metadata + _PROCESS_BYTES + nonlinear_worker + cache_work
         if role == "preparation" and paged_preparation:
             page_indices = sum(256 + 128 * math.ceil(s.in_features * s.out_features / MiB)
@@ -946,6 +1076,9 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
     client = _PROCESS_BYTES + bundle_work + masks + verification + tensors + cache_bytes + gpu_client + public_artifact_work + nonlinear_client
     client += inflight_owner + inflight_copy_work
     client += decode_owner
+    client += (local_allocation["transport_import_overlap_bytes"]
+               + local_allocation["binding_chunk_scratch_bytes"]
+               + local_allocation["binding_control_bytes"])
     if boundary_allocation is not None:
         client += boundary_allocation["client_work_bytes"]
     if not roles:
@@ -996,7 +1129,8 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
              "provider_artifact_cache_work_bytes": {role: ARTIFACT_CACHE_WORK_BYTES for role in artifact_cache_roles},
             "legacy_client_mask_bytes": legacy_masks, "client_mask_cursor_bytes": mask_cursors,
             "verifier_bytes": verification, "legacy_verifier_bytes": legacy_verification,
-            "client_tensor_work_bytes": tensors,
+             "client_tensor_work_bytes": tensors,
+             "semantic_local_allocation": local_allocation,
              "client_live_tensor_bytes": concurrent_requests * workspace["working_bytes"],
              "client_rotary_coefficient_bytes": concurrent_requests * workspace["rotary_coefficient_bytes"],
              "client_state_work_bytes": concurrent_requests * workspace["state_bytes"],
@@ -1109,9 +1243,25 @@ def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, in
     owns its prior import reservation, setup measurements and lifetime; a JSON
     price cannot replace it. Omitting it preserves metadata-only preflight.
     """
-    from pllm.configuration import Experiment, Model, Pipeline
+    from pllm.configuration import Experiment, ForwardBudget, Model, Pipeline
     from pllm.profiles import MaskedLinearCpu, resolve_runtime_composition
 
+    if isinstance(model, Experiment) and isinstance(model.budget, ForwardBudget):
+        if (max_input_tokens not in (None, model.budget.max_input_tokens)
+                or max_output_tokens is not None or inventory_rows is not None
+                or cache_bytes != 0 or cache_bound_tokens is not None or fss_imported is not None
+                or _memory_margin(memory_safety_margin_percent) != 25):
+            raise BenchmarkMemoryError("forward metadata preflight cannot override the saved envelope or use decoder options")
+        return _forward_memory(model, memory_budget_bytes=memory_budget_bytes,
+                               backend=backend, enforced_wan=enforced_wan)
+    # This is the legacy decoder estimator. A production forward metadata-only
+    # branch belongs above these guards, never inside decoder geometry pricing.
+    if isinstance(model, Experiment):
+        from pllm._decoder_admission import require_decoder_experiment
+        require_decoder_experiment(model)
+    elif isinstance(model, Pipeline):
+        from pllm._decoder_admission import require_decoder_pipeline
+        require_decoder_pipeline(model)
     _memory_margin(memory_safety_margin_percent)
     initial = host_memory()
     if initial.pressure in {"warning", "critical"}:

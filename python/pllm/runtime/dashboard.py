@@ -1091,15 +1091,38 @@ class DashboardRuntime:
 
     def _execute_run(self, run_id: str, prompt: str | list[dict[str, str]], max_output_tokens: int) -> None:
         assert self._client is not None
-        # One worker owns setup through stream closure, including failed admission.
+        capture = self._active_run
+        if capture is None or capture.run_id != run_id:
+            return
+        # Counting owns and retires its own tokenizer before execution borrows one.
+        # One worker still owns admission through stream closure.
+        preflight_complete = False
         try:
+            admission = getattr(self, "memory_preflight", None)
+            if admission is not None:
+                from .client import ProtocolError
+
+                try:
+                    count = self._client._core._response_input_tokens(self.config.model_id, prompt)
+                except ProtocolError as exc:
+                    exc.annotate_request_failure({"stage": "input_count", "role": "client",
+                                                 "code": "input_count_failed", "http_status": None})
+                    raise
+                if count > admission["estimate"]["max_input_tokens"]:
+                    raise ValueError("input exceeds the memory-admitted workload")
+            preflight_complete = True
             with self._client.tokenizer_scope():
                 self._execute_scoped_run(run_id, prompt, max_output_tokens)
         except Exception as exc:
             from .benchmark_failure import capture_failure
-            capture_failure(self, phase="request")
+            capture_failure(self, phase="request", error=exc)
             capture = self._active_run
             if capture is not None and capture.run_id == run_id:
+                if not preflight_complete:
+                    if capture.preparation_finished_at_ns is None:
+                        capture.preparation_finished_at_ns = time.time_ns()
+                    capture.finished_at_ns = time.time_ns()
+                    capture.finished_monotonic_ns = time.monotonic_ns()
                 self._finish_run(capture, "failed", exc)
 
     def _execute_scoped_run(self, run_id: str, prompt: str | list[dict[str, str]], max_output_tokens: int) -> None:
@@ -1108,11 +1131,6 @@ class DashboardRuntime:
         if capture is None or capture.run_id != run_id:
             return
         try:
-            admission = getattr(self, "memory_preflight", None)
-            if admission is not None:
-                count = self._client._core._response_input_tokens(self.config.model_id, prompt)
-                if count > admission["estimate"]["max_input_tokens"]:
-                    raise ValueError("input exceeds the memory-admitted workload")
             if self._topology is not None and self._topology.requires_preparation and not getattr(self, "_fss", False):
                 capture.preparation_started_at_ns = time.time_ns()
                 capture.preparation_started_monotonic_ns = time.monotonic_ns()
@@ -1178,7 +1196,7 @@ class DashboardRuntime:
                 )
         except Exception as exc:
             from .benchmark_failure import capture_failure
-            capture_failure(self, phase="request")
+            capture_failure(self, phase="request", error=exc)
             if capture.preparation_finished_at_ns is None:
                 capture.preparation_finished_at_ns = time.time_ns()
             capture.finished_at_ns = time.time_ns()
@@ -1329,7 +1347,7 @@ class DashboardRuntime:
                 raise _IncompleteResponseError("response stream ended before a terminal response")
         except Exception as exc:
             from .benchmark_failure import capture_failure
-            capture_failure(self, phase="request")
+            capture_failure(self, phase="request", error=exc)
             finished_at_ns = time.time_ns()
             if capture is None:
                 self._finish_legacy_run(finished_at_ns, exc)
@@ -1435,6 +1453,10 @@ class DashboardRuntime:
         status: str,
         error: Exception | None,
     ) -> None:
+        from .benchmark_failure import capture_failure
+
+        failure_diagnostics = (capture_failure(self, phase="request", error=error)
+                               if error is not None else None)
         if capture.finished_at_ns is None:
             capture.finished_at_ns = time.time_ns()
         if capture.finished_monotonic_ns is None:
@@ -1602,6 +1624,7 @@ class DashboardRuntime:
                 privacy_delta=privacy_delta,
                 process_metrics=capture.process_metrics,
                 failure_type=type(error).__name__ if error is not None else None,
+                failure_diagnostics=failure_diagnostics,
                 output_delivery=self._state.get("output_delivery", "incremental"),
             )
             if self.history is not None:

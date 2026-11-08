@@ -57,6 +57,8 @@ class Measurement:
                 and target.to_spec()["parameters"].get("state_audit") is True):
             self.comparison["workload_digest"] = self.commitment({
                 "target_workload": self.comparison["workload_digest"], "inputs": self.inputs})
+            if target.kind == "forward":
+                self.details.setdefault("identities", {})["workload_digest"] = self.comparison["workload_digest"]
             return
         from pllm._benchmark_workload import (
             PRIVATE_INPUT_SCHEMA, binding_digest, measurement_binding, workload_binding,
@@ -148,10 +150,23 @@ def main():
         if len(raw) > 16 << 20:
             raise ValueError("benchmark input exceeds 16 MiB")
         request = json.loads(raw)
+        if isinstance(request, dict) and request.get("target", {}).get("kind") == "forward":
+            # Do not let envelope decoding erase duplicate private input fields
+            # before the production forward validator sees the values.
+            from pllm.runtime.forward_inputs import _constant, _object
+            request = json.loads(raw, object_pairs_hook=_object, parse_constant=_constant)
         if request["protocol"] != PROTOCOL:
             raise ValueError("unsupported worker protocol")
         target = BenchmarkTarget.from_spec(request["target"])
         m = Measurement(request)
+        if target.kind == "forward":
+            m.limitations = [
+                "Public client-local stateless source-FP32 forward; no protocol privacy claim.",
+                "Output contract and finite-value checks are not an independent numeric oracle or trained-quality evidence.",
+                "Complete-forward latency excludes source compilation/import; process CPU and lifetime RSS include setup.",
+                "Requested CPU threads bound per-forward compute only; this backend reports serial compute, not multicore use or process-wide thread enforcement. No comparative performance claim.",
+                "Native quotes describe logical storage and declared scratch plus bounded overhead, not exact RSS or zero internal iterator allocation; backend identity assumes the ordinary recorded NumPy build.",
+            ]
         status, failure = "completed", None
         try:
             if target.kind == "runtime":
@@ -172,8 +187,9 @@ def main():
         import statistics
         timings = m.details.get("timings", {})
         role = "preparation" if target.kind == "preparation" or target.kind == "runtime" and target.to_spec()["parameters"]["role"] == "preparation" else "client"
+        latency_scope = {"scope": "complete_forward_excluding_compile_import"} if target.kind == "forward" else {}
         m.metric("target.latency", statistics.median(timings["wall_seconds"]) if timings.get("wall_seconds") else None,
-                 role=role, count=len(timings.get("wall_seconds", [])))
+                 role=role, count=len(timings.get("wall_seconds", [])), **latency_scope)
         m.metric("target.cpu", statistics.median(timings["cpu_seconds"]) if timings.get("cpu_seconds") else None,
                  kind="cpu", role=role, count=len(timings.get("cpu_seconds", [])),
                  owners=m.details.get("target_cpu_owners"))

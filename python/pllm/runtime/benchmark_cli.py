@@ -29,6 +29,64 @@ if TYPE_CHECKING:
 REPORT_SCHEMA = "pllm.loopback_benchmark.v1"
 
 
+def _forward_suite_inputs(suite, args):
+    """Keep private JSON out of public suite declarations and dry-run output."""
+    from pllm._cli.errors import LocalIOError, ResolutionError
+    from .forward_inputs import read_forward_inputs, inspect_forward_inputs
+
+    path = getattr(args, "input_file", None)
+    if path is None:
+        raise ResolutionError("BENCHMARK_FORWARD_INPUTS", "forward suites require --input-file")
+    try:
+        value = read_forward_inputs(path.expanduser())
+        for case in suite.cases:
+            maximum = case.target.to_spec()["parameters"]["model"]["experiment"]["budget"]["max_input_tokens"]
+            inspect_forward_inputs(value, maximum=maximum,
+                domains={name: 1 << 63 for name in ("tokens", "positions", "segments")})
+    except OSError as exc:
+        raise LocalIOError("BENCHMARK_INPUT_READ", "cannot read forward input file") from exc
+    except (ValueError, TypeError, RecursionError) as exc:
+        raise ResolutionError("BENCHMARK_FORWARD_INPUTS", "invalid bounded forward input file") from exc
+    private = {"schema_version": "pllm.forward_inputs.v1", "tokens": value.tokens}
+    private.update({name: getattr(value, name) for name in ("positions", "segments", "attention_mask")
+                    if getattr(value, name) is not None})
+    return {case.name: private for case in suite.cases}
+
+
+def _forward_suite_preflight(suite, args, output_format, output):
+    from pllm.configuration import Experiment
+    from pllm._cli.errors import LocalIOError, ResolutionError
+    from pllm._cli.output import emit_machine
+    from .benchmark_memory import BenchmarkMemoryError, benchmark_memory
+
+    reports = {}
+    for case in suite.cases:
+        model = case.target.to_spec()["parameters"]["model"]
+        experiment = Experiment.from_spec(model["experiment"]).with_params(pipeline__profile=model["profile"])
+        try:
+            reports[case.name] = benchmark_memory(experiment,
+                memory_budget_bytes=suite.sampling.memory_bytes)
+        except BenchmarkMemoryError as exc:
+            raise ResolutionError("BENCHMARK_FORWARD_PREFLIGHT", str(exc)) from exc
+    data = {"preflight_only": True, "execution_admitted": False,
+        "numerical_finite_validated": False, "performance_measured": False,
+        "suite": suite.to_spec(), "memory": reports}
+    if output is not None:
+        try:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            with output.open("w" if args.force else "x", encoding="utf-8") as sink:
+                json.dump(data, sink, sort_keys=True, allow_nan=False)
+                sink.write("\n")
+        except OSError as exc:
+            raise LocalIOError("OUTPUT_WRITE", "cannot write forward preflight report") from exc
+    if output_format == "human":
+        for name, report in reports.items():
+            print(f"{name}: descriptive host reservation {'admitted' if report['admitted'] else 'blocked'}; "
+                  "no coefficient materialization, finite validation, execution admission, or performance measurement")
+    else:
+        emit_machine("benchmark.run", data, output_format)
+
+
 def run_suite_factory_cli(suite: BenchmarkSuite, args: Namespace, output_format: str, dry_run: bool) -> None:
     """Dispatch a declared suite intact to the ordinary isolated suite engine.
 
@@ -52,6 +110,9 @@ def run_suite_factory_cli(suite: BenchmarkSuite, args: Namespace, output_format:
         raise TypeError("suite factory must produce a BenchmarkSuite")
     parameters = [case.target.to_spec()["parameters"] for case in suite.cases]
     responses = all(case.target.kind == "response" for case in suite.cases)
+    forwards = all(case.target.kind == "forward" for case in suite.cases)
+    if any(case.target.kind == "forward" for case in suite.cases) and not forwards:
+        raise ResolutionError("BENCHMARK_SUITE_INPUTS", "CLI forward suites must contain only forward targets")
     explicit = set(getattr(args, "benchmark_explicit_options", ()))
     common = {"warmups": suite.sampling.warmups, "repetitions": suite.sampling.repetitions,
               "timeout": suite.sampling.timeout_seconds}
@@ -61,13 +122,19 @@ def run_suite_factory_cli(suite: BenchmarkSuite, args: Namespace, output_format:
             values = [p[field]["max_output_tokens"] if field == "scenario" else p.get(field) for p in parameters]
             if all(value == values[0] for value in values):
                 common[option] = values[0]
-    allowed = {"output", "prompt", "prompt_file"}
+    allowed = {"output", "input_file"} if forwards else {"output", "prompt", "prompt_file"}
+    if forwards:
+        allowed.add("preflight_only")
     conflicts = explicit - allowed - common.keys()
     conflicts.update(key for key in explicit & common.keys() if getattr(args, key) != common[key])
     conflicts.update(key for key in (
         "compare_feasible", "capture_output_digest", "compare_kernels", "isolate_candidates",
-        "docker", "preflight_only", "wan", "wan_estimate", "show_dashboard", "wan_party",
+        "docker", "wan", "wan_estimate", "show_dashboard", "wan_party", "tiny",
     ) if getattr(args, key, None))
+    if not forwards and getattr(args, "preflight_only", False):
+        conflicts.add("preflight_only")
+    if not forwards and getattr(args, "input_file", None) is not None:
+        conflicts.add("input_file")
     if getattr(args, "benchmark_model_override", False):
         conflicts.add("model")
     if not responses and explicit & {"prompt", "prompt_file"}:
@@ -90,6 +157,8 @@ def run_suite_factory_cli(suite: BenchmarkSuite, args: Namespace, output_format:
         except (ValueError, UnicodeError) as exc:
             raise ResolutionError("BENCHMARK_PROMPT", "suite prompt must contain 1 to 16384 UTF-8 bytes") from exc
         inputs = {case.name: {"prompt": prompt} for case in suite.cases}
+    if forwards:
+        inputs = _forward_suite_inputs(suite, args)
     output = args.output.expanduser() if args.output is not None else None
     if output is not None and output.exists() and not args.force:
         raise LocalIOError("OUTPUT_EXISTS", f"output already exists; use --force to replace it: {output}")
@@ -100,6 +169,9 @@ def run_suite_factory_cli(suite: BenchmarkSuite, args: Namespace, output_format:
             print(f"Would run {len(suite.cases)} suite cases in one isolated cohort")
         else:
             emit_machine("benchmark.run", data, output_format)
+        return
+    if forwards and getattr(args, "preflight_only", False):
+        _forward_suite_preflight(suite, args, output_format, output)
         return
     try:
         if output is not None and args.force:
@@ -1083,12 +1155,19 @@ def _run_once(
         except (httpx.HTTPError, ValueError) as exc:
             if run.get("phase") == "error" or run.get("error"):
                 raise LoopbackBenchmarkError(
-                    str(run.get("error") or "benchmark execution failed")
+                    "benchmark execution failed"
                 ) from exc
             raise LoopbackBenchmarkError("benchmark record could not be read") from exc
         if record.get("status") != "completed":
-            failure = record.get("failure", {}).get("type") or "unknown failure"
-            raise LoopbackBenchmarkError(f"benchmark run failed: {failure}")
+            from .benchmark_history import _SAFE_FAILURE
+
+            failure_record = record.get("failure")
+            failure_record = failure_record if type(failure_record) is dict else {}
+            failure = failure_record.get("type")
+            if type(failure) is not str or not _SAFE_FAILURE.fullmatch(failure):
+                failure = "unknown failure"
+            raise LoopbackBenchmarkError(f"benchmark run failed: {failure}",
+                failure_diagnostics=failure_record.get("diagnostics"))
         if time.monotonic() >= deadline:
             break
         # Ephemeral metadata stays outside the immutable history schema. Text-free.
@@ -1415,13 +1494,20 @@ def _run_loopback_benchmark(
         raise LoopbackBenchmarkError("benchmark interrupted",
             failure_diagnostics=capture_failure(dashboard_app.state.dashboard_runtime)) from exc
     except LoopbackBenchmarkError as exc:
+        from .benchmark_failure import merge_failure_diagnostics
+
         diagnostic = handle.diagnostic()
         suffix = f"\n{diagnostic}" if diagnostic else ""
         raise LoopbackBenchmarkError(f"{exc}{suffix}",
-            failure_diagnostics=capture_failure(dashboard_app.state.dashboard_runtime)) from exc
+            failure_diagnostics=merge_failure_diagnostics(
+                capture_failure(dashboard_app.state.dashboard_runtime), exc.failure_diagnostics)) from exc
     except BaseException as exc:
+        from .benchmark_failure import merge_failure_diagnostics
+
         # Preserve existing failure type/message, adding only the bounded record.
-        exc.failure_diagnostics = capture_failure(dashboard_app.state.dashboard_runtime)
+        exc.failure_diagnostics = merge_failure_diagnostics(
+            capture_failure(dashboard_app.state.dashboard_runtime, error=exc),
+            getattr(exc, "failure_diagnostics", None))
         raise
     finally:
         # Final privacy/runtime checks intentionally remain after ordinary teardown.
@@ -1593,6 +1679,9 @@ def run_loopback_benchmark(
     memory_safety_margin_percent: int = 25,
 ) -> dict[str, Any]:
     """Run ordinary loopback roles; None preserves SDK sampling, 0 requests greedy."""
+    if experiment is not None:
+        from pllm._decoder_admission import require_decoder_experiment
+        require_decoder_experiment(experiment)
     validate_benchmark_timeout(timeout_seconds, experiment=experiment)
     with _DASHBOARD_LOCK:
         # Retired dashboards can retain native arrays through Python cycles.

@@ -93,7 +93,10 @@ def lane(monkeypatch, tmp_path):
     experiment = NS(name="test-only", budget=NS(max_input_tokens=8),
         pipeline=NS(components={"kernels": NS(params={"threads": 1}, component="pllm/cpu")},
                     digest=lambda: "b" * 64), configuration_digest=lambda: "a" * 64)
-    source = NS(contract={"vocabulary": 3, "numeric_profile": NUMERIC, "local_numeric_profile": LOCAL},
+    source = NS(model=NS(source="fixture", to_spec=lambda: {"kind": "test", "source": "fixture"}),
+        config_source_bytes=b'{"vocab_size":3}', source_lock_digest=pins[1],
+        contract={"vocabulary": 3, "numeric_profile": NUMERIC, "local_numeric_profile": LOCAL,
+                  "decode_steps": 1},
         tokenizer=lambda: NS(encode=lambda *args, **kwargs: (0,)),
         tokenizer_descriptor={"add_bos_token": False})
     guard = NS(start=Mock(), close=Mock(), check=Mock())

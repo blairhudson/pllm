@@ -185,7 +185,7 @@ class BenchmarkTarget:
 
     def __init__(self, kind: str, parameters: Mapping[str, Any]):
         choice(kind, {"runtime", "geometry", "artifacts", "stage", "preparation",
-                      "operator", "state", "response", "projection"}, "benchmark target")
+                      "operator", "state", "response", "projection", "forward"}, "benchmark target")
         if not isinstance(parameters, Mapping):
             raise TypeError("target parameters must be a mapping")
         document = {"schema": "pllm.benchmark_target.v1", "kind": kind,
@@ -393,6 +393,11 @@ class BenchmarkTarget:
         return cls("response", parameters)
 
     @classmethod
+    def forward(cls, experiment):
+        """Complete stateless source-FP32 forward; inputs arrive at execution."""
+        return cls("forward", {"model": _model(experiment, None)})
+
+    @classmethod
     def projection(cls, experiment, *, construction, parameters, config=None):
         return cls("projection", {"model": _model(experiment, config),
             "construction": construction, "assumptions": dict(parameters)})
@@ -402,7 +407,7 @@ def _validate_target(document):
     kind, p = document["kind"], document["parameters"]
     stage = {"model", "role", "layer", "rows", "weights", "seed", "kernel", "storage"}
     fields = {
-        "runtime": {"role"}, "geometry": {"model"},
+        "runtime": {"role"}, "geometry": {"model"}, "forward": {"model"},
         "stage": stage | {"phase", "execution"},
         "preparation": stage | {"chunk_rows"},
         "artifacts": {"model", "role", "layer", "weights", "seed", "storage", "operation"},
@@ -443,6 +448,11 @@ def _validate_target(document):
             raise ValueError("invalid target model declaration")
         from pllm.configuration import Experiment
         _model(Experiment.from_spec(m["experiment"]).with_params(pipeline__profile=m["profile"]), m["config"])
+        forward = m["experiment"].get("schema") == "pllm.experiment.forward.v1"
+        if (kind == "forward") != forward:
+            raise ValueError("forward experiments require a forward benchmark target")
+        if kind == "forward" and m["config"] is not None:
+            raise ValueError("forward targets require source configuration; overrides are not allowed")
     if kind == "runtime":
         choice(p["role"], {"python", "sdk", "numpy", "transport", "native", "client", "prepared_client", "preparation"}, "runtime role")
     if kind in {"stage", "preparation", "artifacts"}:
