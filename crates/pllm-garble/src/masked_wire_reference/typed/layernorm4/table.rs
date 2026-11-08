@@ -1,5 +1,6 @@
 //! Fixed PAPER inverse table, certified before hashing or native issuance.
 use super::*;
+use crate::shared_allocation::ReserveErrorMap;
 
 #[cfg_attr(not(test), allow(dead_code))] // Private fixed table only issued by qualification until parent completion.
 pub(super) const ENTRIES: usize = 8192;
@@ -26,8 +27,119 @@ impl<C: AllocationContext> CertifiedTableFor<C> {
         self.lease.budget.budget()
     }
 }
+struct SquareWitness<'d> {
+    d: &'d u128,
+}
+impl SquareWitness<'_> {
+    fn checked(&self, a: u128) -> Result<u128, Error> {
+        let first = a.checked_mul(a);
+        let product = match first {
+            Some(v) => v.checked_mul(*self.d),
+            None => None,
+        };
+        product.ok_or(Error::Resource)
+    }
+}
+
+type AddChecked = fn(usize, usize) -> Result<usize, Error>;
+fn add_checked(a: usize, b: usize) -> Result<usize, Error> {
+    a.checked_add(b).ok_or(Error::Resource)
+}
+
+// Logical source/move inventories only: no extra runtime record initialization,
+// closure-layout equivalence, stack-slot reuse or destination/overlap proof.
 #[allow(dead_code)]
-struct Controls<C: AllocationContext> {
+struct SquareFrame {
+    argument: u128,
+    first: Option<u128>,
+    extracted: u128,
+    product: Option<u128>,
+    mapped: Result<u128, Error>,
+}
+#[allow(dead_code)]
+struct AddFrame {
+    a: usize,
+    b: usize,
+    option: Option<usize>,
+    returned: Result<usize, Error>,
+}
+#[allow(dead_code)]
+struct CoreQuoteFrame {
+    payload_option: Option<usize>,
+    payload_result: Result<usize, Error>,
+    terms: [usize; 5],
+    iterator: std::array::IntoIter<usize, 5>,
+    callback: AddChecked,
+    accumulator: usize,
+    item: usize,
+    callback_frame: AddFrame,
+    returned: Result<usize, Error>,
+}
+#[allow(dead_code)]
+struct CoreNamedControls<'d> {
+    square: SquareWitness<'d>,
+    lower: SquareFrame,
+    upper: SquareFrame,
+    quote: CoreQuoteFrame,
+}
+type ReserveResult = Result<(), std::collections::TryReserveError>;
+type AllocationResult = Result<Vec<u64>, Error>;
+#[allow(dead_code)]
+struct AllocationControls {
+    capacity: usize,
+    permission: Result<(), Error>,
+    reserved: ReserveResult,
+    mapper: ReserveErrorMap,
+    mapped: Result<(), Error>,
+    exact_capacity_argument: usize,
+    observed_capacity: usize,
+    returned: AllocationResult,
+}
+#[allow(dead_code)]
+struct DenominatorControls {
+    m: usize,
+    e: usize,
+    shifted: Option<u128>,
+    returned: Result<u128, Error>,
+}
+#[allow(dead_code)]
+struct EntryFormals {
+    m: usize,
+    e: usize,
+}
+#[allow(dead_code)]
+struct CertifyFormals {
+    value: u64,
+    d: u128,
+}
+#[allow(dead_code)]
+struct ValueHashControls<'v> {
+    iterator: core::slice::Iter<'v, u64>,
+}
+#[allow(dead_code)]
+struct FillControls {
+    outer: core::ops::Range<usize>,
+    inner: core::ops::Range<usize>,
+    m: usize,
+    e: usize,
+    entry_result: Result<u64, Error>,
+}
+#[allow(dead_code)]
+struct SearchControls {
+    iterator: core::ops::Range<i32>,
+    denominator: u128,
+    quotient: u128,
+    low: u64,
+    high: u64,
+    middle: u64,
+    certificate_result: Result<(), Error>,
+}
+
+// LN4 subset only, not the deferred shared CoreControls/Premises/pair/facade.
+// Independent lifetimes describe certificate and value-iterator activations;
+// no self-referential runtime Controls value is constructed.
+#[allow(dead_code)]
+struct Controls<'d, 'v, C: AllocationContext> {
     value: Option<CertifiedTableFor<C>>,
     result: Result<CertifiedTableFor<C>, Error>,
     words: [u128; 8],
@@ -36,20 +148,29 @@ struct Controls<C: AllocationContext> {
     vector: Vec<u64>,
     digest: sha2::digest::Output<Sha256>,
     lease: Option<LeaseFor<C>>,
+    named: CoreNamedControls<'d>,
+    allocation: AllocationControls,
+    denominator_call: DenominatorControls,
+    entry_formals: EntryFormals,
+    certify_formals: CertifyFormals,
+    value_hash: ValueHashControls<'v>,
+    fill: FillControls,
+    search: SearchControls,
+    constructed_capacity: usize,
 }
 /// Table-only admission, counted ONCE. Source/Arc/parent/native evaluator
 /// tables remain additional charges in the owning region's aggregate.
 #[cfg_attr(not(test), allow(dead_code))] // Table-only quote pending full parent aggregate.
 pub(super) fn reservation_bytes<C: AllocationContext>() -> Result<usize, Error> {
-    [
+    let terms = [
         8usize.checked_mul(ENTRIES).ok_or(Error::Resource)?,
         64,
         size_of::<CertifiedTableFor<C>>(),
-        size_of::<Controls<C>>(),
+        size_of::<Controls<'_, '_, C>>(),
         C::TRANSIENT_LINK_BYTES,
-    ]
-    .into_iter()
-    .try_fold(0usize, |a, b| a.checked_add(b).ok_or(Error::Resource))
+    ];
+    let add: AddChecked = add_checked;
+    terms.into_iter().try_fold(0usize, add)
 }
 
 #[derive(Clone, Copy)]
@@ -95,12 +216,10 @@ fn denominator(m: usize, e: usize) -> Result<u128, Error> {
 
 #[cfg_attr(not(test), allow(dead_code))] // Certificate checks actual owned entries before native issuance.
 fn certify(value: u64, d: u128) -> Result<(), Error> {
-    let square = |a: u128| {
-        a.checked_mul(a)
-            .and_then(|v| v.checked_mul(d))
-            .ok_or(Error::Resource)
-    };
-    if square(value as u128)? > NUMERATOR || square(value as u128 + 1)? <= NUMERATOR {
+    let square = SquareWitness { d: &d };
+    if square.checked(value as u128)? > NUMERATOR
+        || square.checked(value as u128 + 1)? <= NUMERATOR
+    {
         return Err(Error::Domain);
     }
     Ok(())
@@ -159,8 +278,39 @@ pub(super) fn construct<C: AllocationContext>(
 }
 
 #[cfg(test)]
+mod layout_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn named_square_preserves_overflow_and_refusal_prefixes() {
+        let zero = 0;
+        let square = SquareWitness { d: &zero };
+        // First overflow must not be hidden by the zero second operand.
+        assert!(matches!(square.checked(u128::MAX), Err(Error::Resource)));
+        assert_eq!(square.checked(1).unwrap(), 0);
+        let maximum = u128::MAX;
+        let square = SquareWitness { d: &maximum };
+        assert_eq!(square.checked(1).unwrap(), maximum);
+        assert!(matches!(square.checked(2), Err(Error::Resource)));
+        // Lower predicate refuses before the upper multiplication would overflow.
+        assert!(matches!(certify(1, maximum), Err(Error::Domain)));
+        assert!(matches!(certify(2, maximum), Err(Error::Resource)));
+        assert!(matches!(certify(0, 0), Err(Error::Domain)));
+        assert!(certify(0, maximum).is_ok());
+        assert!(matches!(denominator(128, 0), Err(Error::Domain)));
+        assert!(matches!(denominator(0, 64), Err(Error::Domain)));
+    }
+
+    #[test]
+    fn named_add_checked_preserves_resource_overflow() {
+        let add: AddChecked = add_checked;
+        assert_eq!(add(usize::MAX, 0).unwrap(), usize::MAX);
+        assert!(matches!(add(usize::MAX, 1), Err(Error::Resource)));
+    }
+
     // Independent restoring square-root algorithm, NOT the production search.
     fn reference(mut n: u128) -> u128 {
         let mut bit = 1u128 << 126;
