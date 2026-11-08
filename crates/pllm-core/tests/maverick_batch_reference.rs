@@ -298,6 +298,39 @@ fn exact_noise_support_sampler_and_rejection_domain_are_checked() {
 }
 
 #[test]
+fn bounded_draw_accepts_exactly_draw_32_but_refuses_draw_33() {
+    let mut words = [u32::MAX; 33];
+    words[31] = u32::MAX - 1;
+    assert_eq!(testing::bounded_draw(5, &words).unwrap(), 4);
+    words[31] = u32::MAX;
+    words[32] = u32::MAX - 1;
+    expect_error(testing::bounded_draw(5, &words), Error::Randomness);
+    expect_error(testing::bounded_draw(5, &words[..32]), Error::Randomness);
+}
+
+#[test]
+fn bounded_draw_preserves_ceiling_boundary_and_handles_zero_one_and_exhaustion() {
+    // For upper = u32::MAX, the ceiling is exactly u32::MAX.
+    assert_eq!(
+        testing::bounded_draw(u32::MAX, &[u32::MAX - 1]).unwrap(),
+        u32::MAX - 1
+    );
+    assert_eq!(testing::bounded_draw(u32::MAX, &[u32::MAX, 7]).unwrap(), 7);
+    expect_error(
+        testing::bounded_draw(u32::MAX, &[u32::MAX]),
+        Error::Randomness,
+    );
+    expect_error(testing::bounded_draw(0, &[]), Error::Shape);
+    expect_error(testing::bounded_draw(0, &[0]), Error::Shape);
+    for word in [0, 1, u32::MAX] {
+        assert_eq!(testing::bounded_draw(1, &[word]).unwrap(), 0);
+    }
+    expect_error(testing::bounded_draw(1, &[]), Error::Randomness);
+    expect_error(testing::bounded_draw(5, &[]), Error::Randomness);
+    expect_error(testing::bounded_draw(5, &[u32::MAX; 31]), Error::Randomness);
+}
+
+#[test]
 fn forged_original_outputs_fail_in_protocol3_and_protocol2() {
     let fixture = Fixture::new();
     let (mut client, mut server) = fixture.roles().unwrap();
