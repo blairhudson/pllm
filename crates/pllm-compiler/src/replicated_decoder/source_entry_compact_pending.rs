@@ -118,6 +118,15 @@ pub(in crate::replicated_decoder::program) fn test_root(
 }
 
 #[cfg(test)]
+pub(in crate::replicated_decoder::program) fn test_retained_baseline() -> usize {
+    OwnedBudget::resources()
+        .unwrap()
+        .initial_reserved_bytes
+        .checked_add(super::source_union_quote().unwrap())
+        .unwrap()
+}
+
+#[cfg(test)]
 pub(in crate::replicated_decoder::program) fn test_controller_identity(
     entry: &SourceRequestImport,
 ) -> (usize, usize) {

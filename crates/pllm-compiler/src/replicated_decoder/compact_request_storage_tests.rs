@@ -774,7 +774,7 @@ fn source_handles_payload_and_failed_issuance_retire_before_original_charges() {
     use super::super::source_entry::compact_pending::{self, handles};
     let (entry, _) = importer(4);
     let root = compact_pending::test_root(&entry);
-    let baseline = OwnedBudget::resources().unwrap().initial_reserved_bytes;
+    let baseline = compact_pending::test_retained_baseline();
     handles::assert_payload_before_guard(entry, &root, baseline);
     let (entry, _) = importer(4);
     let root = compact_pending::test_root(&entry);
