@@ -13,7 +13,9 @@
 ///     defaults { label => "label": Text = existing; }
 ///     fields { value: named(label); } }
 /// EMIT!();
+/// # fn main() {
 /// let _: Fixture = serde_json::from_str("{}").unwrap();
+/// # }
 /// ```
 /// Unknown named default:
 /// ```compile_fail
@@ -22,6 +24,8 @@
 /// config_schema! { $; emit EMIT; derives config; struct Fixture; field_ids Field;
 ///     defaults {} fields { value: named(missing); } }
 /// EMIT!();
+/// # fn main() {
+/// # }
 /// ```
 /// One default declaration (positive counterpart):
 /// ```
@@ -32,9 +36,11 @@
 ///     defaults { label => "label": Text = existing; }
 ///     fields { value: named(label); } }
 /// EMIT!();
+/// # fn main() {
+/// # }
 /// ```
 /// Duplicate default name:
-/// ```compile_fail
+/// ```compile_fail,E0428
 /// # use serde::{Deserialize, Serialize};
 /// # include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/config_schema.rs"));
 /// fn label() -> String { String::new() }
@@ -42,6 +48,8 @@
 ///     defaults { label => "label": Text = existing; label => "label": Text = existing; }
 ///     fields { value: named(label); } }
 /// EMIT!();
+/// # fn main() {
+/// # }
 /// ```
 /// Separate parent emitter names (positive counterpart):
 /// ```
@@ -53,9 +61,11 @@
 ///     emit SECOND; derives config; struct Second; field_ids SecondField;
 ///     defaults {} fields { value: required(U64); } }
 /// FIRST!(); SECOND!();
+/// # fn main() {
+/// # }
 /// ```
 /// Duplicate parent emitter name:
-/// ```compile_fail
+/// ```compile_fail,E0428
 /// # use serde::{Deserialize, Serialize};
 /// # include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/config_schema.rs"));
 /// config_schema! { $;
@@ -64,6 +74,8 @@
 ///     emit EMIT; derives config; struct Second; field_ids SecondField;
 ///     defaults {} fields { value: required(U64); } }
 /// EMIT!();
+/// # fn main() {
+/// # }
 /// ```
 /// Matching identifier/path (positive counterpart):
 /// ```
@@ -75,9 +87,11 @@
 ///     defaults { label => "label": Text = existing; }
 ///     fields { value: named(label); } }
 /// EMIT!();
+/// # fn main() {
+/// # }
 /// ```
 /// Mismatched path, with BOTH functions available (not a missing-function test):
-/// ```compile_fail
+/// ```compile_fail,E0080
 /// # use serde::{Deserialize, Serialize};
 /// # include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/config_schema.rs"));
 /// fn label() -> String { String::new() }
@@ -86,6 +100,8 @@
 ///     defaults { label => "other": Text = existing; }
 ///     fields { value: named(label); } }
 /// EMIT!();
+/// # fn main() {
+/// # }
 /// ```
 /// Supported optional policy (positive counterpart):
 /// ```
@@ -94,6 +110,8 @@
 /// config_schema! { $; emit EMIT; derives config; struct Fixture; field_ids Field;
 ///     defaults {} fields { value: optional(U64, implicit, keep); } }
 /// EMIT!();
+/// # fn main() {
+/// # }
 /// ```
 /// Unsupported optional kind:
 /// ```compile_fail
@@ -102,6 +120,8 @@
 /// config_schema! { $; emit EMIT; derives config; struct Fixture; field_ids Field;
 ///     defaults {} fields { value: optional(Text, implicit, keep); } }
 /// EMIT!();
+/// # fn main() {
+/// # }
 /// ```
 /// Existing public field access and types (external-crate visibility):
 /// ```
@@ -155,9 +175,9 @@ macro_rules! config_schema {
                 }
             )*
         };
-        // This lookup is a parent item, not trapped in the check-only block.
-        // It is replaced by the resolved zero-argument emitter on completion.
-        macro_rules! $e {
+        // Lookup uses the struct identifier in the separate macro namespace.
+        // The resolved zero-argument emitter retains its own identifier $e.
+        macro_rules! $s {
             $(
                 (@lookup $default; $d($d rest:tt)*) => {
                     config_schema! { @named $kind $default $path existing $d($d rest)* }
@@ -221,7 +241,7 @@ macro_rules! config_schema {
             ($d dollar:tt; [$d($d out:tt)*] [$d($d ids:ident)*] [
                 $d fv:vis $d name:ident : named($d key:ident); $d($d todo:tt)*
             ]) => {
-                $e! { @lookup $d key; [$d dollar $f
+                $s! { @lookup $d key; [$d dollar $f
                     [$d($d out)*] [$d($d ids)*] [$d($d todo)*] [$d fv $d name]] }
             };
             ($d($d rest:tt)*) => {
