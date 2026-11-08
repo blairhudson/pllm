@@ -339,6 +339,7 @@ fn legacy_rsqrt_identity_matches_independent_pre_b2_recipe() {
     for (rows, width, input, gamma) in [
         (1, 4, Interval::new(-262144, 262144).unwrap(), vec![262144; 4]),
         (2, 3, Interval::new(-40960, 40960).unwrap(), vec![262144, -131072, 0]),
+        (1, 2, Interval::new(-40960, 40960).unwrap(), vec![262144; 2]),
     ] {
         let oracle = pre_b2_ordinary_rms(rows, width, input, &gamma,
             |b, x, d| pre_b2_rsqrt(b, x, d).map(|(inverse, _)| inverse)).unwrap();
@@ -348,6 +349,14 @@ fn legacy_rsqrt_identity_matches_independent_pre_b2_recipe() {
         let refined = pre_b2_ordinary_rms(rows, width, input, &gamma,
             |b, x, d| rsqrt_ranged::<_, true>(b, x, d, false)).unwrap();
         assert_same_arithmetic_schedule(&oracle, &refined);
+        if rows == 1 && width == 2 && input == Interval::new(-40960, 40960).unwrap()
+            && gamma == vec![262144; 2]
+        {
+            let historical = oracle.output_bounds();
+            let explicit_true = refined.output_bounds();
+            println!("legacy_rsqrt_compiler_private_fixture_output_interval: historical=[{}, {}] explicit_true=[{}, {}]",
+                historical.lower(), historical.upper(), explicit_true.lower(), explicit_true.upper());
+        }
         // Same pre-repair diagnostic as above; no claim of preserved default.
         let public = Program::rms_norm(rows, width, input, &gamma).unwrap();
         assert_pre_b2_identity(&public, &refined);
