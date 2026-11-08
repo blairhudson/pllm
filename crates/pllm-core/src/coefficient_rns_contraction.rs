@@ -59,6 +59,17 @@ macro_rules! event_fields {
 }
 
 impl Work {
+    fn add_scaled_ntt(&mut self, mut other: LogicalOperations, count: u64) -> Result<(), Error> {
+        macro_rules! scale {
+            ($left:expr, $right:expr; $($field:ident),*) => {
+                $( $left.$field = $left.$field.checked_mul($right)
+                    .ok_or(Error::ArithmeticCapacity)?; )*
+            };
+        }
+        event_fields!(scale, other, count);
+        self.add_ntt(other)
+    }
+
     fn add_ntt(&mut self, other: LogicalOperations) -> Result<(), Error> {
         macro_rules! add {
             ($left:expr, $right:expr; $($field:ident),*) => {
@@ -1047,10 +1058,16 @@ mod tests;
 #[path = "coefficient_rns_contraction/galois_tests.rs"]
 mod galois_tests;
 
-// Unadopted public arithmetic prerequisite; no production executor calls it.
+// Shared unadopted public trace arithmetic; no protected/backend activation.
 #[allow(dead_code)]
 #[path = "coefficient_rns_contraction/olt_trace.rs"]
 mod olt_trace;
+
+#[path = "coefficient_rns_contraction/olt.rs"]
+mod olt;
+pub use olt::{Olt, OltCensus, OltLhsSpectra, OltStorage, OltWork};
+pub use olt_trace::{SwitchBinding as OltSwitchBinding, TraceError as OltError,
+    TraceWork as OltTraceWork};
 
 #[cfg(test)]
 #[path = "coefficient_rns_contraction/olt_trace_tests.rs"]

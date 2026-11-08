@@ -21,7 +21,7 @@ use super::*;
 use crate::coefficient_layout::schedule::{InterleaveSchedule, InterleaveStep};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum TraceError {
+pub enum TraceError {
     Geometry(LayoutError),
     Galois(GaloisError),
     Context,
@@ -32,9 +32,10 @@ pub(super) enum TraceError {
     WorkLimit,
 }
 
-/// One immutable binding for EACH scheduled call, in schedule order. Repeated
-/// exponents may borrow the same original row slice. No owned or mutable token.
-pub(super) struct SwitchBinding<'a> {
+/// TracePlan takes one binding for EACH scheduled call, in schedule order.
+/// Olt instead takes an exact unique-exponent inventory, in arbitrary order.
+/// Repeated references may borrow the same original slice. No owned/mutable token.
+pub struct SwitchBinding<'a> {
     pub exponent: u64,
     pub rows: RowSpectra<'a>,
 }
@@ -55,7 +56,7 @@ pub(super) struct TraceStorage {
     pub total_bytes: usize,
     pub switches: usize,
     pub padded: usize,
-    lanes: usize,
+    pub(super) lanes: usize,
 }
 
 /// Fieldwise nested quote: Galois fields retain EXACT parent order/semantics;
@@ -64,9 +65,10 @@ pub(super) struct TraceStorage {
 /// `control` bounds wrapper query/preflight, descriptor comparisons, fit visits,
 /// checked arithmetic/adapters, dispatches, loop polls, slices and Result tags;
 /// `indices` separately bounds wrapper indexing (not NTT-internal indexing).
+/// The same mode-independent bound covers positional and unique OLT bindings.
 /// Both are logical conservative envelopes, not instruction/time tariffs.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) struct TraceWork {
+pub struct TraceWork {
     pub switches: u64,
     pub galois: [u64; 92],
     pub forwards: [u64; 10],
@@ -145,6 +147,107 @@ pub(super) fn usize_sum(a: usize, b: usize) -> Result<usize, TraceError> {
     a.checked_add(b).ok_or(TraceError::Capacity)
 }
 
+// SOURCE boundary: explicit calls, predicates/routing, selected loop polls,
+// tags, adapters, ?, checked arithmetic, slice partitions and Ok. Control and
+// index arithmetic are separate; private std/compiler/SSA work, casts and
+// implicit bounds checks are excluded. Constructor/geometry work outside apply
+// is excluded. These are finite logical bounds, never physical work claims.
+//
+// Query ownership (local excludes named child bodies AND their entry events):
+// owner                  local          reached Trace / OLT
+// NTT operations         9              61 / 99
+// add_ntt                32             30 / 52
+// add_scaled_ntt         31              0 / 6
+// composition_storage    63              1 / 1
+// galois_storage         33              1 / 1
+// contraction_work      95              2 / 3
+// extra_work           283              2 / 3
+// galois_work          285              2 / 3
+// TraceStorage          68              3 / 7
+// galois_fields        100              1 / 2
+// TraceWork TW0       1246              1 / 2
+// OltStorage            58              0 / 2
+// OltCensus          7R+34              0 / 1
+// OltWork OW0          178              0 / 1
+// TW0/OW0 exclude the replaced control/index formulas. Query body baselines
+// 4481 and 8322+7E include their own entries; external callers already own 5/9
+// entries. Thus Qtrace=4476, Qolt=8313+7E, Qextra=3837+7E.
+// Query indices: trace 72; incremental outer 91+E. R=E: apply checks rows.len
+// before census. Extra unique_exponent BODY: 23E control, 3E indices; its entry
+// and ? are already owned by inventory.
+//
+// N=degree,K=count,P=padded,C=switches,M=P-1,T=C-M,E=log2(stride).
+// Sall(x,N)=3+4(x+1)+x(4N+5); Sany(x,N)=3+4(x+1)+x(5N+8).
+// Inventory(E)=2+2(E+1)+E(7E+12).
+// Shared preflight = 4+2918+203+Sall(6K,N)+2+Inventory(E)+272C
+//                  +C*Sall(24,N)+C(5E+8).
+// Only preflight lookup is in that last term. Direct trace conservatively owns
+// unique inventory too; input scan is retained even for OLT's None.
+// Fixed 2918 includes descriptor+fits+drop construction 1636: three constructors
+// at 537, caller 5 each, boundary 10; inverse iteration cap 128.
+// Fits field source counts: Trace 1258, Olt 1305, Work 23;
+// descriptor comparisons 3*66+2=200.
+// Trace execution X=79+15E+63K+42KN+2T+58M+96MN+127C+5CE+36CN,
+// including execution unique lookup 10C+5CE (not duplicated in preflight).
+// Add preflight caller/loop 4C+12, two cursor bodies 60+32T+38M,
+// Qtrace and unique BODY 23E to obtain:
+// Base=7765+52E+7E²+117K+66KN+634C+132CN+10CE+34T+96M+96MN.
+// Payload indices=18KN+84MN+36CN+36K+72C+6M+3T;
+// schedule delta=2(3T+P+1+4M+E), plus 2C+query72+unique3E gives
+// 74+5E+2P+36K+18KN+74C+36CN+14M+84MN+9T.
+// Cursor transition division contributes one even for P=1,C=0.
+//
+// Self-inclusive source skeleton: each ordinary term <=13 events (four count
+// conversions conservatively, bump entry, two checked/ok_or/? triples, Ok,
+// caller ?). Fixed joint cost 18: entry/caller ? 2, two narrowing triples 6,
+// final Ok 1, self-allowance constant bump 9. Trace has 11 control+10 index
+// terms, two checked subtractions (6), five checked products (15), caller
+// trailing_zeros+conversion (2): 13*21+18+6+15+2=314. Saved unreached return
+// events cover prefix error closure. Both u64 narrowings precede publication.
+pub(super) fn bump(total: &mut u128, count: u128, weight: u128) -> Result<(), TraceError> {
+    *total = total.checked_add(count.checked_mul(weight).ok_or(TraceError::Capacity)?)
+        .ok_or(TraceError::Capacity)?;
+    Ok(())
+}
+
+fn trace_bounds(c: u64, p: u64, k: u64, n: u64, e: u128) -> Result<(u64, u64), TraceError> {
+    let (c, p, k, n) = (c as u128, p as u128, k as u128, n as u128);
+    let m = p.checked_sub(1).ok_or(TraceError::Capacity)?;
+    let t = c.checked_sub(m).ok_or(TraceError::Capacity)?;
+    let ee = e.checked_mul(e).ok_or(TraceError::Capacity)?;
+    let kn = k.checked_mul(n).ok_or(TraceError::Capacity)?;
+    let cn = c.checked_mul(n).ok_or(TraceError::Capacity)?;
+    let ce = c.checked_mul(e).ok_or(TraceError::Capacity)?;
+    let mn = m.checked_mul(n).ok_or(TraceError::Capacity)?;
+    let mut control = 0;
+    bump(&mut control, 1, 7765)?;
+    bump(&mut control, e, 52)?;
+    bump(&mut control, ee, 7)?;
+    bump(&mut control, k, 117)?;
+    bump(&mut control, kn, 66)?;
+    bump(&mut control, c, 634)?;
+    bump(&mut control, cn, 132)?;
+    bump(&mut control, ce, 10)?;
+    bump(&mut control, t, 34)?;
+    bump(&mut control, m, 96)?;
+    bump(&mut control, mn, 96)?;
+    let mut indices = 0;
+    bump(&mut indices, 1, 74)?;
+    bump(&mut indices, e, 5)?;
+    bump(&mut indices, p, 2)?;
+    bump(&mut indices, k, 36)?;
+    bump(&mut indices, kn, 18)?;
+    bump(&mut indices, c, 74)?;
+    bump(&mut indices, cn, 36)?;
+    bump(&mut indices, m, 14)?;
+    bump(&mut indices, mn, 84)?;
+    bump(&mut indices, t, 9)?;
+    bump(&mut control, 1, 314)?;
+    let control = u64::try_from(control).map_err(|_| TraceError::Capacity)?;
+    let indices = u64::try_from(indices).map_err(|_| TraceError::Capacity)?;
+    Ok((control, indices))
+}
+
 pub(super) struct TracePlan<'a> {
     contraction: &'a RnsContraction<'a>,
     schedule: InterleaveSchedule,
@@ -159,6 +262,18 @@ impl<'a> TracePlan<'a> {
         let schedule = InterleaveSchedule::bounded(contraction.degree(), stride, count, 8192)
             .map_err(TraceError::Geometry)?;
         Ok(Self { contraction, schedule, count, stride })
+    }
+
+    pub(super) fn unique_exponent_count(&self) -> usize {
+        self.stride.trailing_zeros() as usize
+    }
+
+    pub(super) fn unique_exponent(&self, level: usize) -> Result<u64, TraceError> {
+        if level >= self.unique_exponent_count() { return Err(TraceError::Exponent); }
+        let shift = u32::try_from(level).map_err(|_| TraceError::Capacity)?;
+        let divisor = 1_usize.checked_shl(shift).ok_or(TraceError::Capacity)?;
+        let quotient = self.contraction.degree().checked_div(divisor).ok_or(TraceError::Capacity)?;
+        u64::try_from(usize_sum(quotient, 1)?).map_err(|_| TraceError::Capacity)
     }
 
     pub fn storage(&self) -> Result<TraceStorage, TraceError> {
@@ -183,11 +298,8 @@ impl<'a> TracePlan<'a> {
     /// fieldwise sums checked. No caller ceiling is refreshed by an inner call.
     /// Query before entry is outside operation; entry's repeated queries fit
     /// wrapper control below. Nested scans/constructors remain in C*GaloisWork.
-    /// Control <=65536*(C+p+k+1)+256*N*(C+k+p+1): each switch has <2048
-    /// wrapper query/fit/descriptor/dispatch events and <128 per-coefficient
-    /// events; remaining factors cover normalization, full preflight scans,
-    /// iteration/index/slice machinery and quote arithmetic. Generous margins
-    /// deliberately avoid a claim of minimal or exact hardware work.
+    /// Finite mode-independent wrapper bounds and source ownership are derived
+    /// above trace_bounds; its own checked evaluation is included in control.
     pub fn work(&self) -> Result<TraceWork, TraceError> {
         let st = self.storage()?;
         let c = u64::try_from(st.switches).map_err(|_| TraceError::Capacity)?;
@@ -215,9 +327,8 @@ impl<'a> TracePlan<'a> {
                 times(3, u64::from(self.stride.trailing_zeros()))?)?,
             ..LogicalOperations::default()
         });
-        let units = add(add(c, p)?, add(k, 1)?)?;
-        let control = add(times(65536, units)?, times(times(256, n)?, units)?)?;
-        let indices = times(times(256, n)?, units)?;
+        let (control, indices) = trace_bounds(c, p, k, n,
+            u128::from(self.stride.trailing_zeros()))?;
         let construction = g.composition.extra.construction;
         let preflight_construction = [construction.checks, construction.descriptor_stores,
             construction.euclid_iterations, construction.signed_divisions,
@@ -236,21 +347,47 @@ impl<'a> TracePlan<'a> {
         output: &mut [u64], scratch: &mut [u64], ceiling: TraceWork)
         -> Result<(), TraceError>
     {
+        let values = input.values;
+        self.preflight(Some(input), bindings, false, output.len(), scratch.len(), ceiling)?;
+        self.execute_populated(Some(values), bindings, false, output, scratch);
+        Ok(())
+    }
+
+    /// Shared refusal boundary. `None` means the composition owner validates its
+    /// spectral inputs and will populate canonical coefficient lanes itself.
+    /// Unique bindings are an exact inventory, independent of schedule repeats.
+    pub(super) fn preflight(&self, input: Option<Coefficients<'_>>,
+        bindings: &[SwitchBinding<'_>], unique: bool, output_len: usize,
+        scratch_len: usize, ceiling: TraceWork) -> Result<(), TraceError>
+    {
         let st = self.storage()?;
         let work = self.work()?;
         let plan = self.contraction;
-        let gwork = plan.galois_work().map_err(TraceError::Galois)?;
         let gst = plan.galois_storage().map_err(TraceError::Galois)?;
-        if input.contexts != plan.sources { return Err(TraceError::Context); }
-        if input.values.len() != st.input_words || bindings.len() != st.switches
-            || output.len() < st.output_words || scratch.len() < st.scratch_words
+        if let Some(ref input) = input {
+            if input.contexts != plan.sources { return Err(TraceError::Context); }
+            if input.values.len() != st.input_words { return Err(TraceError::Length); }
+        }
+        let expected = if unique { self.unique_exponent_count() } else { st.switches };
+        if bindings.len() != expected
+            || output_len < st.output_words || scratch_len < st.scratch_words
         { return Err(TraceError::Length); }
         if !work.fits(&ceiling) { return Err(TraceError::WorkLimit); }
         let n = plan.degree();
         let mut invalid = false;
-        for (poly, coefficients) in input.values.chunks_exact(n).enumerate() {
-            let q = plan.sources[poly % 3].ring().modulus();
-            for &value in coefficients { invalid |= value >= q; }
+        if let Some(input) = input {
+            for (poly, coefficients) in input.values.chunks_exact(n).enumerate() {
+                let q = plan.sources[poly % 3].ring().modulus();
+                for &value in coefficients { invalid |= value >= q; }
+            }
+        }
+        if unique {
+            for level in 0..expected {
+                let exponent = self.unique_exponent(level)?;
+                if bindings.iter().filter(|binding| binding.exponent == exponent).count() != 1 {
+                    return Err(TraceError::Exponent);
+                }
+            }
         }
         let mut call = 0;
         for step in self.schedule.steps() {
@@ -258,7 +395,10 @@ impl<'a> TracePlan<'a> {
                 InterleaveStep::Trace { element, .. } | InterleaveStep::Merge { element, .. } => element,
                 _ => continue,
             };
-            let binding = &bindings[call];
+            let binding = if unique {
+                bindings.iter().find(|binding| binding.exponent == exponent as u64)
+                    .expect("exact unique exponent inventory checked above")
+            } else { &bindings[call] };
             if binding.exponent != exponent as u64 { return Err(TraceError::Exponent); }
             if binding.rows.contexts != plan.targets { return Err(TraceError::Context); }
             if binding.rows.values.len() != gst.row_words { return Err(TraceError::Length); }
@@ -276,6 +416,19 @@ impl<'a> TracePlan<'a> {
                 .map_err(|error| TraceError::Galois(GaloisError::Composition(
                     CompositionError::DropConstruction { limb, error })))?;
         }
+        Ok(())
+    }
+
+    /// Only after shared preflight and caller canonical-lane construction.
+    /// No returned errors after stores. The same immutable contexts/rows and
+    /// exact subquotes discharge nested deterministic refusal paths.
+    pub(super) fn execute_populated(&self, input: Option<&[u64]>,
+        bindings: &[SwitchBinding<'_>], unique: bool, output: &mut [u64], scratch: &mut [u64])
+    {
+        let st = self.storage().expect("preflight checked trace storage");
+        let plan = self.contraction;
+        let gwork = plan.galois_work().expect("preflight checked Galois quote");
+        let n = plan.degree();
         let width = st.output_words;
         let (lanes, temporary) = scratch[..st.scratch_words].split_at_mut(st.lanes);
         let (difference, temporary) = temporary.split_at_mut(width);
@@ -285,7 +438,7 @@ impl<'a> TracePlan<'a> {
         for step in self.schedule.steps() {
             let lane = match step {
                 InterleaveStep::Normalize { divisor, .. } => {
-                    lanes.fill(0);
+                    if input.is_some() { lanes.fill(0); }
                     for limb in 0..3 {
                         let q = plan.sources[limb].ring().modulus();
                         let mut inverse = 1;
@@ -293,7 +446,10 @@ impl<'a> TracePlan<'a> {
                         for lane in 0..self.count {
                             for component in 0..2 {
                                 let at = lane * width + (component * 3 + limb) * n;
-                                for j in 0..n { lanes[at + j] = mul(input.values[at + j], inverse, q); }
+                                for j in 0..n {
+                                    let value = input.map_or(lanes[at + j], |values| values[at + j]);
+                                    lanes[at + j] = mul(value, inverse, q);
+                                }
                             }
                         }
                     }
@@ -329,7 +485,14 @@ impl<'a> TracePlan<'a> {
                     &mut spectra[poly * n..(poly + 1) * n])
                     .expect("whole trace preflight and canonical transitions validate forward NTT");
             }
-            let binding = &bindings[call];
+            let binding = if unique {
+                let exponent = match step {
+                    InterleaveStep::Trace { element, .. } | InterleaveStep::Merge { element, .. } => element as u64,
+                    _ => unreachable!("only switches reach dispatch"),
+                };
+                bindings.iter().find(|binding| binding.exponent == exponent)
+                    .expect("preflight checked exact unique exponent inventory")
+            } else { &bindings[call] };
             // Local quote is a fixed subquote of the admitted C-fold total,
             // never a refreshed caller allowance. Exactly C calls execute.
             plan.galois_contract_drop_into(ComponentSpectra { contexts: plan.sources, values: spectra },
@@ -346,6 +509,5 @@ impl<'a> TracePlan<'a> {
             }
             call += 1;
         }
-        Ok(())
     }
 }

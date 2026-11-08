@@ -14,6 +14,11 @@ use crate::coefficient_layout::{CoefficientRing, DegreeBound};
 use crate::coefficient_layout::schedule::{InterleaveSchedule, InterleaveStep};
 use num_bigint::BigInt;
 
+// Child tests reuse the private independent DFT/BigInt CRT/tree fixtures, not
+// production arithmetic, and do not widen a test fixture into a public API.
+#[path = "olt_tests.rs"]
+mod olt_tests;
+
 fn residue(value: BigInt, q: u64) -> u64 {
     let modulus = BigInt::from(q);
     (((value % &modulus) + &modulus) % &modulus).to_u64_digits()
@@ -1025,6 +1030,18 @@ fn cumulative_quote_pins_forward_transitions_and_nested_repeated_scans() {
         let p = count.next_power_of_two();
         let c = (p*((stride/p).trailing_zeros() as usize)+p-1) as u64;
         let n = n as u64;
+        let e = u64::from(stride.trailing_zeros());
+        let k = count as u64;
+        let m = p as u64 - 1;
+        let t = c - m;
+        assert_eq!(work.control, 7765+52*e+7*e*e+117*k+66*k*n
+            +634*c+132*c*n+10*c*e+34*t+96*m+96*m*n+314);
+        assert_eq!(work.indices, 74+5*e+2*p as u64+36*k+18*k*n
+            +74*c+36*c*n+14*m+84*m*n+9*t);
+        if n == 1 {
+            assert_eq!((c, p, k, e), (0, 1, 1, 0));
+            assert_eq!((work.control, work.indices), (8262, 130));
+        }
         let butterflies = (n/2)*u64::from(n.trailing_zeros());
         let transforms = 6*c;
         assert_eq!(work.switches, c);
@@ -1088,6 +1105,12 @@ fn checked_quote_capacity_and_source_sized_geometry_without_execution() {
     assert_eq!(super::olt_trace::add(u64::MAX, 1), Err(TraceError::Capacity));
     assert_eq!(super::olt_trace::usize_words(usize::MAX, 2), Err(TraceError::Capacity));
     assert_eq!(super::olt_trace::usize_sum(usize::MAX, 1), Err(TraceError::Capacity));
+    let mut total = 0;
+    assert_eq!(super::olt_trace::bump(&mut total, u128::MAX, 2), Err(TraceError::Capacity));
+    assert_eq!(total, 0);
+    total = u128::MAX;
+    assert_eq!(super::olt_trace::bump(&mut total, 1, 1), Err(TraceError::Capacity));
+    assert_eq!(total, u128::MAX);
     let schedule = InterleaveSchedule::bounded(8192, 64, 6, 8192).unwrap();
     let exponents: Vec<_> = schedule.steps().filter_map(|step| match step {
         InterleaveStep::Trace { element, .. } | InterleaveStep::Merge { element, .. } => Some(element),
@@ -1097,6 +1120,33 @@ fn checked_quote_capacity_and_source_sized_geometry_without_execution() {
     assert_eq!(&exponents[..24], &[1025, 513, 257].repeat(8));
     assert_eq!(&exponents[24..], &[2049, 2049, 2049, 2049, 4097, 4097, 8193]);
     assert_eq!(881usize*8192*8, 57_737_216);
+}
+
+#[test]
+fn scalar_no_switch_fixed_wrapper_costs_one_short_preserve_full_buffers() {
+    let f = Fixture::new(1, 1, 1, [17, 97, 113, 193], 1, true);
+    let contraction = RnsContraction::new(&f.sources, &f.targets).unwrap();
+    let plan = TracePlan::new(&contraction, 1, 1).unwrap();
+    let st = plan.storage().unwrap();
+    let work = plan.work().unwrap();
+    assert_eq!((st.switches, st.padded), (0, 1));
+    // Independently: 7765+117+66+314; 74+2+36+18.
+    assert_eq!((work.control, work.indices), (8262, 130));
+    let mut control_short = work;
+    control_short.control -= 1;
+    let mut indices_short = work;
+    indices_short.indices -= 1;
+    for ceiling in [control_short, indices_short] {
+        let mut out = vec![987; st.output_words+7];
+        let mut scratch = vec![654; st.scratch_words+9];
+        let original_out = out.clone();
+        let original_scratch = scratch.clone();
+        assert_eq!(plan.apply(Coefficients { contexts: &f.sources, values: &f.input },
+            &[], &mut out, &mut scratch, ceiling), Err(TraceError::WorkLimit));
+        assert_eq!(out, original_out);
+        assert_eq!(scratch, original_scratch);
+    }
+    assert_eq!(actual(&f, 1, 1), f.input);
 }
 
 #[test]
