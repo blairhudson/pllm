@@ -460,7 +460,7 @@ fn admission_ledger_distinguishes_guard_bytes_nodes_and_values() {
     assert!(ledger.contains("limit: Some(\"program_bytes\")"));
     assert!(ledger.contains(&format!(
         "requested_bytes: Some({})",
-        MAX_PROGRAM_BYTES + 128
+        MAX_PROGRAM_BYTES + 64
     )));
 
     let mut b = Builder::default();

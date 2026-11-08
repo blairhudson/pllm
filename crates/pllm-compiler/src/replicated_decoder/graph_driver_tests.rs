@@ -585,7 +585,7 @@ fn expanded_rms_guard_budget_failure_precedes_native_rows_and_keeps_original_cap
     ));
     assert_same_schedule(&actual, &expected);
     assert_eq!(actual.admission_stage, "checked_range_view_metadata");
-    assert_eq!(actual.requested_bytes, Some(MAX_PROGRAM_BYTES + 128));
+    assert_eq!(actual.requested_bytes, Some(MAX_PROGRAM_BYTES + 64));
     assert!(actual.tensors.is_empty());
     assert!(actual.validity.is_none());
     assert_eq!(site.step, Some(0));
