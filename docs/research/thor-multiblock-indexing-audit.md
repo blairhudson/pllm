@@ -468,7 +468,8 @@ with paper §7.2.2 p.12's MRPC microbenchmark range `[-44.19,50.25]` and
 `(delta0,delta1,delta2)=(11.805,2,4)`. Source `he_inv` computes relaxation from
 its bound state (`softmax.py:122–160`); it does not merely execute Appendix C's
 printed literal factor sequence. Full softmax scale/denominator reconciliation
-is outside the small polynomial experiment below.
+was a source gap in this earlier audit and remains outside the small polynomial
+experiment below; the recovered subsection below narrows that gap, not HE qualification.
 
 #### Recovered LayerNorm payload algebra and inverse-square-root proof gaps
 
@@ -664,6 +665,38 @@ completed; no source-model variance coverage, CKKS, security or runtime accuracy
 qualification follows. The symbolic initial-coverage shortfall below remains
 relevant and is not erased by this conditional proof.
 
+**Premise owners and failure boundaries (source versus mathematics).**
+Read-only code inspection identifies existing producer **S** =
+[`scripts/thor_scalar_certificate_experiment.py`](../../scripts/thor_scalar_certificate_experiment.py)
+and independent test transcription/oracles **T** =
+[`tests/test_thor_scalar_certificate_experiment.py`](../../tests/test_thor_scalar_certificate_experiment.py).
+Sites below describe code ownership, not executed checks; runtime **UNRUN**.
+S transcribes the pinned source above; T independently transcribes/checks those
+specific scalar expressions, not arbitrary `Trace` provenance.
+
+| Required premise / boundary | Existing owner and inspection site | Failure meaning |
+| --- | --- | --- |
+| Pinned profiles, literal types, `n=768`, evaluation grouping and rounded mask/addend | S: `PIN`, `PROFILES`, `N`, `source_trace` (24–26, 115–130); T: `test_fixed_profile_values_literal_types_and_dimension`, source oracle (41–51, 220–232) | Changed source attachment needs rechecking; exact decimal cancellation cannot substitute. |
+| Actual finite floating states; NaN refused **before comparison** | S: `float_ratio`, `source_trace` (43–52, 133–138, 155–162); T: nonfinite/root/arithmetic/post-state refusal tests (132–140, 280–332) | Nonfinite state is refusal, never convergence. |
+| `roots[1]`: **UNSORTED second returned root** | S: `source_trace` (144–150); T: independent `np.roots` call and returned-pair/index checks (236–244) | Stored roots/index alone do not prove source root selection. |
+| Scalar state chain and literal `en` update; both payload updates use old `A` | S: `source_trace` (143–167), `exact_step` (229–235), `direct_enclosure` (250–258); T: source oracle (245–254), old-`A` oracle (73–81) | A disconnected chain, regrouped scalar update or sequential new-`A` update loses the stated correspondence. |
+| Actual `1-.001` stop operand and finite termination | S: `source_trace` (126–142), `analyze` (344–346); T: stop/terminal oracle (231–257), safety and overshoot tests (180–189, 270–278) | `completed` alone is not proof; unfinished/safety-limited execution cannot certify convergence. |
+| Independently authenticated source `Trace` provenance | S: mutable `Step`/`Trace` (77–101); T: independent source oracle (212–268), separate synthetic fixtures (22–37) | Arbitrary mutable traces are **not authenticated** by stored values, `root_index`, `completed`, `check_sufficient` or `analyze`; mathematical checks cannot establish provenance. |
+| Positive actual rounded domain `D`, not ideal cancellation | S: `domain`, `direct_enclosure` (176–180, 245–247); T: independent rounded-domain oracle (258–263), nonpositive-domain tests (142–150) | Nonpositive `D` invalidates this inverse-root route; assumed variance endpoints are not actual-model domain coverage. |
+| Separately rounded `p`, `q`; positive `P=product(q/p^2)`, **not assumed 1** | S: coefficient capture (151–167), `exact_step`/`direct_enclosure` (229–258); T: independent coefficient ratios (246–249), `q!=p^2` oracle (73–81) | Dropping product drift or admitting undefined/nonpositive coefficients breaks the square-identity bound. |
+| Sign of `rho`; zero is nonnegative, not strictly positive | S: `direct_enclosure` (253–270); T: signed fallback and zero-factor tests (152–167) | Square enclosure alone cannot select the positive branch; signed-`R` fallback retains sign uncertainty. |
+| Optional sufficient theorem versus direct fallback | S: `check_sufficient`, `analyze` (273–360); T: failed-maximum and all-premises tests (83–123) | Failed sufficient premise leaves that theorem unproved; direct enclosure remains mathematically valid under its own premises, but cannot repair source correspondence. |
+| Conditional tolerance criterion and result scope | S: `analyze`/status sites (259–270, 344–359); T: enclosure/status oracles (83–123, 152–167) | `CERTIFIED_BOUND` denotes an ideal-scalar enclosure only, not application acceptance, actual-model domain, encrypted-error or BERT qualification. |
+
+**Adoption DEFERRED.** Only **if ever adopted**, `tau=13/500` would require
+`A_m/P_m subset [237169/250000,263169/250000]` together with `rho_m>=0`
+for the square-identity route. Failure to establish this criterion means
+**unproved**, not an actual violation. No execution, recurrence reproof, new
+evidence or tolerance adoption is claimed here. D61 remains source-only;
+existing HOLD and caps remain unchanged. Independent Astra review: PASS for this
+premise-owner/failure-boundary table only; source inspection remains read-only,
+runtime UNRUN, with no broader qualification.
+
 **Inverse-square-root caveat 2 — initial interval coverage.** Under the preceding
 FF gain-two/half-mask cancellation (`t=1`), treating source decimals as exact
 symbolic rationals gives
@@ -767,6 +800,68 @@ before protected execution; physical length 128 alone does not erase `k`.
 This is a source dataflow observation, not a deployed privacy-attack claim or
 evidence that the project declares actual `k` public. Existing coefficient,
 epsilon, helper-profile and evaluated-context qualifications remain unchanged.
+
+#### Recovered softmax and inverse contracts; source attachment limits
+
+This documentation-only recovery records facts independently reviewed by Astra
+(`ses_e7a173877ffedxSMdXVBItS2A`), pinned to
+`crypto-starlab/THOR@b513c06aaabccc04b560721e35e9a98008428c25`:
+`src/thor/nonlinear/softmax.py`, `src/thor/nonlinear/polynomial.py`,
+`src/thor/bert.py` and `forward.ipynb`. No execution or source adoption occurred
+in this update; prior missing-source claims below are historical, not new gaps.
+
+The softmax helper reverses each 16-entry literal coefficient list before the
+increasing-power polynomial evaluator. With that effective polynomial `P_a`,
+the initial exponential surrogate is `E_a(u)=P_a(u-m/d)^2` (`n=2`). Profiles:
+
+| Helper | `m` | `d` | `l` | Initial inverse epsilon | Updates |
+| --- | --- | --- | --- | --- | --- |
+| `he_softmax1` | `(-27.2493+21.72692)/2` | 32 | 2 | `2^-11` | One final update |
+| `he_softmax2` | 0 | 64 | 4 | `2^-18` | One ordinary, then one final update |
+
+BERT selects profile 2 only at zero-based layer 2. Notebook plotting uses nominal
+`u=s/d`; this is not proof of upstream score scaling or encoded payload identity.
+
+For inverse input `D`, initialize `A=1`, `B=D`, `delta=1`, `e=eps`.
+Each iteration sets `k=2/(1+e)` and uses the **old** `B` in both products:
+`A'=A*(2*delta/k-B)`, `B'=B*(2*delta/k-B)`,
+`delta'=delta^2/k^2`, `e'=k*e*(2-k*e)`.
+The helper returns raw `A`, not normalized `A/delta`. Initial and ordinary
+inversions use `alpha=0.01`; final inversion uses `alpha=0.001` (correcting the
+earlier review's initial-`0.001` statement). Subsequent inversions receive
+`eps=e_previous/256`; their state is not the initial epsilon reused unchanged.
+
+Only under **explicit ideal-real row-scaling assumptions**, let `p` be the token
+mask and start `v0=p*E`. With `A,delta` from the preceding inversion, each update
+is `v <- [2*max(floor(1/(2*delta)),1)*v*p*A]^2`, followed by reinversion of the
+updated row sum. Final factor is `2*(floor(1/(2*delta))+1)*v*A`, using that final
+inverse state. Thus active-lane `E^2` / `E^4` ratios describe the respective
+profiles only where shared factors are defined and nonzero; preceding row
+moments still affect the state. The earlier single-pass model `p*E*R(sum)` is
+not a valid attachment to this source path. Source floating division and integer
+conversion are not identical to exact-real floor arithmetic. Branch-specific
+levels, conjugation, bootstrap behavior and `1/1.2` scaling cannot be erased by
+this conditional algebra; no float/engine equivalence is established.
+
+The reviewed two-active-lane nominal-score case `{0,1}` yields initial sums
+`D<9.68e-6<2^-11` for profile 1 and `D<2e-8<2^-18` for profile 2, **outside**
+the inverse's claimed `[eps,1]` domain. All-zero support gives `D=0`, also outside.
+These are domain constraints, not in-domain approximation counterexamples or
+mapped floating-point/engine failures. No out-of-domain behavior is adopted.
+
+The sparse-support collision `{0}` versus `{127}` is attached to the pinned
+class method `ThorDataEncryptor.encode_attention_mask` (`data.py:69–88`):
+distinct same-count masks produce identical pre-encoding messages. Notebook
+cells 3/15/18 identify the import, receiver and instance call, not cell 17's
+standalone helper. Runtime package re-export resolution and evaluated execution
+remain independently uninspected; this is not encoded-object equality or HE
+behavior. Plaintext Torch dtype, additive sentinel, revision and all-masked
+convention remain unbound: finite sentinels, infinity and underflow need not
+have identical semantics.
+
+Approval remains required before any new oracle, scale/refresh change,
+out-of-domain policy, numerical profile, clear-softmax replacement or engine
+activation. Recovery does not close evaluated-run identity or HE numeric gates.
 
 ### Ordered HE-prime source: recovered artifact cache, evaluated binding missing
 
@@ -1098,3 +1193,144 @@ The observed nine-test parent run passed; its ordinary log is
 references, the declared grids/literals, binary64 Stockmeyer grouping,
 nonfinite/zero-reference handling and evaluation/time/memory/output limits.
 They do not certify either diagnostic baseline or qualify encrypted execution.
+
+## Source-to-codec RHS attachment and remaining gain obligation
+
+**Conditional ideal-slot derivation, not CKKS qualification.** This D61
+source-contract addendum narrows historical source gaps above without changing
+their approved scope. All upstream citations pin `crypto-starlab/THOR` commit
+`b513c06aaabccc04b560721e35e9a98008428c25`; it remains a specification/oracle
+input only, not an adopted numerical profile, backend or runtime dependency.
+
+### Producer, support selection and real shared RHS
+
+[Softmax wrappers and producer][rhs-softmax] select `he_softmax1` for eleven
+default layers: `(n,l)=(2,2)`, bounds `[-27.2493,21.72692]`, epsilon `2^-11`,
+`output_alpha=0.01`. Only zero-based layer 2 selects `he_softmax2`, with
+`(n,l)=(2,4)`, bounds `[-70,70]`, epsilon `2^-18`, `output_alpha=0.01`.
+These are alternatives, not consecutive stages. Each `he_exp1/2` evaluates its
+reversed real 16-coefficient polynomial and then squares once (`n=2`).
+The `l=2` path has zero nonfinal inverse updates; `l=4` has one, despite the
+source's fixed zero-iteration comment. Each has one final update. Metadata and
+levels control bootstrap branches; no fixed branch schedule is established.
+
+Both final updates multiply the inverse by the flat 2,048-entry numeric mask
+`([1]*12+[0]*4)*128`; the initial inverse mask has 32,768 entries.
+The [THOR subclass][rhs-subclass] overrides neither `cm_mult` nor `mc_mult`.
+Inherited [`cm_mult`, lines 3505–3509][rhs-message] delegates to `mc_mult`;
+lines 3455–3461 compute `np.array(m)*sqrt(deviations[ct.level_calc+1])`
+and call `self.encode(m,15)`. [`encode`, lines 957–968][rhs-padding] defaults
+to `padding=True`; `padding`, lines 945–954, uses `np.pad` with zero suffix
+to `num_slots`. Thus, for the flat numeric mask and 32,768-slot premise,
+only the leading 2,048-slot block is selected: **no message-slot tiling**.
+The subsequent `tile_unsigned` at line 3463 acts after encoding, expanding
+polynomial coefficients across RNS modulus channels, not repeating message slots.
+Before rounding and rescale, its ideal plaintext coefficient gain is
+`Delta*d_15*sqrt(d_(t+1))` for `t=ct.level_calc`; this does not certify amplitude.
+Nested-list inputs are outside this padding argument.
+
+For `B=2048`, let `N=32768` denote message slots here (not ring degree),
+`R=R_B`, and `T=sum_(a=0)^15 R^a`. Since `R^16=I`, `R*T=T` by reindexing.
+Let `w_ij` be the final pre-copy product for `0<=i<4`, `0<=j<16`.
+The producer's rotsum and conjugate extraction give exactly, under ideal slots,
+
+```text
+P_(16*i+j)    = T*w_ij + conj(T*w_ij)     = 2*Re(T*w_ij)
+P_(64+16*i+j) = i*(conj(T*w_ij)-T*w_ij)   = 2*Im(T*w_ij).
+```
+
+Consequently all 128 returned ideal messages are real and 2,048-periodic,
+even when `w_ij` is complex. The padding proof attaches structural block
+selection to this copying argument; neither establishes correct amplitudes.
+The actual attention mask has zero head holes `12..15`. Under intended support,
+ideal masking, block rotations and extraction preserve those holes; neither
+stored CKKS plaintexts nor encrypted operations are asserted exactly error-free.
+
+In [context multiplication][rhs-bert], the same `P_n` multiplies both components
+of each packed value pair `v_i+i*v_(i+2)`. For real `a,b,P_n`,
+`i*conj((a+i*b)*P_n)=(b+i*a)*P_n`; different `P_n` need **not** be equal.
+This closes the earlier REAL/SHARED RHS premise in the conditional ideal model.
+For RHS `r+i*epsilon` and packed `z`, actual minus intended swapped product is
+`i*conj(z*(r+i*epsilon))-i*conj(z)*(r+i*epsilon)=2*epsilon*conj(z)`.
+That is an algebraic swap defect, not a privacy-attack claim or CKKS error bound.
+
+### Actual caller gains are still conditional
+
+`ThorBertAttention.forward` calls scores with `bootstrap=False`, `scale=1`,
+`rescale=False`. The score helper extracts `2*Re`/`2*Im`; its caller repacks,
+bootstraps and performs a **second unhalved extraction**. Context uses defaults
+`scale=1`, `complex=True`, `rescale=False`, returns complex ciphertexts, and
+the caller bootstraps those outputs. A payload-identity bootstrap is a premise,
+not a recovered guarantee; the reached bootstrap body is PyArmor-opaque.
+No reverse engineering or execution is authorized to fill that boundary.
+
+[`ThorModelEncoder.encode_att`][rhs-encoder] explicitly sets Q/V weight and bias
+scale to 1 and K weight and bias scale to `kappa=1/1024` at layer 2, otherwise
+`1/512`; `_encode_w_qkv`'s unused default `1/256` is not the caller contract.
+Only **if all projection, helper, mask-gain and normalization contracts hold**
+does the nominal score input reduce to `4*kappa*Q*K^T`. This is not an
+unconditional score identity or a whole-model probability claim.
+
+Literal `scale_pt` acts on **zero diagonal only**. Scores halve it only when
+`bootstrap=True`; context halves it only when `complex=False` and still returns
+complex outputs. Neither flag uniformly scales the complete routed product.
+Mask flags equal to 1 alone cannot prove exact dense equality; any earlier
+nominal `(4,4)` / `(1,1)` gain pairs remain conditional, not qualified gains.
+
+### First missing quantitative contract: mask/complement gain
+
+[`ThorLinearEvaluator.pre_encode_masks`][rhs-linear] encodes shared masks at
+level 15. Zero-diagonal `scale_pt` is encoded at the current operand level
+in each score/context helper. Runtime level alignment does not re-encode masks.
+For nominal `scale_bits=41`, put `Delta=K=2^41` and `d_L=deviations[L]`.
+Writing `F` for the source forward-normalized encoding transform, the ideal
+coefficient expression is `Delta*d_L*F(m)`, plus encoding/rounding residuals.
+Thus unit-mask gain is `e=K*d_15`, while zero-diagonal gains are separately
+`e0,s=K*d_(L_s)` and `e0,c=K*d_(L_c)` at actual score/context levels.
+By contrast, `mult_int_scalar_triplet` multiplies by integer `K`, not an
+encoded one. [Rescale][rhs-rescale] divides by the actual removed odd prime
+`q_L`, with rounding, not nominal `K`; channel alignment remains a premise.
+
+The engine's [`make_adjustments_and_corrections`][rhs-deviations] computes
+`d_0=1`, `d_(r+1)=d_r^2*(B_r/q_r)^2`, `B_r=2^round(log2(q_r))`.
+Actual NumPy float64 evaluation, calibration and cached/loaded context matter.
+In particular `d_15` depends on fifteen preceding 59-bit bootstrap primes or
+the loaded context. Neither exact `e=K` nor closeness is established here.
+Exact-rational non-equality would not prove a stored-float mismatch.
+
+For sum `S` of explicit masks, complement algebra is
+`K-e*S=e*(1-S)+(K-e)`. The last term is a **routing residual** which can remain
+where the intended complement is zero, not a uniform whole-product scale or
+confidentiality leak. Conditional on ideal encoding and arithmetic before the
+common final rescale, define `D` as the intended routed product and `P_0` as its
+zero-diagonal contribution. For each nonzero diagonal `l`, `P_l` is the complete
+per-diagonal product tuple across all source ciphertexts; `T_l` sums the actual
+complement-column routes, including delayed rotation and component swap.
+For the 63 score or 127 context nonzero diagonals, with the appropriate separate
+`e0`, the decomposition is
+
+```text
+Z = e*D + (e0-e)*P_0 + (K-e)*sum_(l>0) T_l(P_l).
+```
+
+No isometry, operator norm or routing multiplicity bound for `T_l` is assumed.
+If `|log(d_15)|<=A`, `A>=0`, then `|K-e|<=K*expm1(A)`; zero-diagonal mismatch
+needs its own bound, as do encoding residuals. Required next proof inputs are
+actual primes/stored deviations, current levels, channel alignment, rounding,
+noise, true-`q_L` rescale, downstream normalization and bootstrap gain/error.
+
+**CLOSED under stated ideals:** real/periodic RHS, shared paired operand and
+flat-mask leading-block support selection. **OPEN:** amplitude/gain and all
+error contracts, evaluated keys/context, authentication, CKKS/security,
+funding/admission and execution. No new numerics, backend adoption, D25 extension,
+Native causal claim or implementation change follows; existing HOLD remains.
+
+[rhs-softmax]: https://github.com/crypto-starlab/THOR/blob/b513c06aaabccc04b560721e35e9a98008428c25/src/thor/nonlinear/softmax.py#L7-L119
+[rhs-subclass]: https://github.com/crypto-starlab/THOR/blob/b513c06aaabccc04b560721e35e9a98008428c25/src/thor/ckks.py#L1-L320
+[rhs-message]: https://github.com/crypto-starlab/THOR/blob/b513c06aaabccc04b560721e35e9a98008428c25/liberate/src/liberate/fhe/ckks_engine.py#L3455-L3509
+[rhs-padding]: https://github.com/crypto-starlab/THOR/blob/b513c06aaabccc04b560721e35e9a98008428c25/liberate/src/liberate/fhe/ckks_engine.py#L945-L968
+[rhs-bert]: https://github.com/crypto-starlab/THOR/blob/b513c06aaabccc04b560721e35e9a98008428c25/src/thor/bert.py#L112-L610
+[rhs-encoder]: https://github.com/crypto-starlab/THOR/blob/b513c06aaabccc04b560721e35e9a98008428c25/src/thor/model_encoder.py#L33-L45
+[rhs-linear]: https://github.com/crypto-starlab/THOR/blob/b513c06aaabccc04b560721e35e9a98008428c25/src/thor/linear.py#L225-L320
+[rhs-rescale]: https://github.com/crypto-starlab/THOR/blob/b513c06aaabccc04b560721e35e9a98008428c25/liberate/src/liberate/fhe/ckks_engine.py#L1957-L2024
+[rhs-deviations]: https://github.com/crypto-starlab/THOR/blob/b513c06aaabccc04b560721e35e9a98008428c25/liberate/src/liberate/fhe/ckks_engine.py#L363-L375

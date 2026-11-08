@@ -418,6 +418,711 @@ complete-program work, full-checkpoint hidden-state correctness, source-model
 quality and matched response costs remain open. Protected runtime range-check
 acceptance would require a separate contract; this slice does not select it.
 
+### Conditional FFN row-energy theorem—inactive
+
+This is a conditional numerical theorem, not an activated certificate or an
+admission result. Astra's theorem was independently reviewed by
+`ses_e73031d70ffeuG3zuFUrz6tEOw`: the conditional numerical proof is
+**SOURCE-CLEAR**, with no formula mismatch. Actual numerical admission,
+certificate activation, publication, funding and a 24-layer fit remain
+unestablished. No numerical caps or profile changes are adopted here; the
+historical results above and Native **HOLD** remain unchanged.
+
+**Inputs and source boundary.** Set `Q = 262144`, let `E(x) = sum_i x_i²`
+for encoded integers, and write `c(t) = ceil(sqrt(t))`. A seed `(B,M)` means
+`E(x) <= B` and `|x_i| <= M` for one complete, correctly ordered row. The
+actual normalized `post_norm` row has seed `(Bx,Mx)`, while the original
+`attention_residual` has the **distinct** seed `(Br,Mr)`. The
+[model graph](../../crates/pllm-models/src/lib.rs#L2027-L2092) feeds the former
+to gate/up projections and adds the latter after the down projection; they must
+not be substituted for one another. For a width-`n` row, `n*M²` is a valid
+coordinate-derived energy seed; a sharper seed is optional but needs its own
+authorized provenance.
+
+#### Conditional seed provenance from existing owners
+
+Existing owners already supply conditional seed authority; no new statistics
+map or witness is needed. [Normalization ownership](../../crates/pllm-compiler/src/replicated_decoder/compact_norm.rs)
+retains original gamma, checks complete ordered rows and publishes actual native
+output bounds. [Compact lowering](../../crates/pllm-compiler/src/replicated_decoder/compact_lowering.rs)
+requires native `GeneralOutputRowSquared`, and
+[retained validity](../../crates/pllm-compiler/src/replicated_decoder/compact_validity.rs)
+exposes authentic `output_energy`. Thus set `Bx = Bnorm` from that retained
+factory bound and `Mx = max(unsigned_abs(lo), unsigned_abs(hi))` from its actual
+published output interval—not the input guard cap. No optional integer square
+root, new tightening or multiplication is needed to form this normalized seed.
+
+This authority concerns the [exact rounded RMS recipe](../../crates/pllm-core/src/puma/tensor_numeric.rs):
+float32 mean coefficient, integer-one epsilon and the actual selected polynomial
+inverse, not ideal inverse square root, unit energy or guessed model gamma.
+Preceding arithmetic must already be admitted before energy refinement. Validity
+checks common input bounds and energy across every guarded row; invalid lanes
+become zero, while valid lanes continue unchanged after sticky validity is false.
+General `Bnorm` may conservatively cover fallback paths without sticky success.
+
+The distinct original `Op::ResidualAdd` owner is
+`PublishedKind::Binary { product: false }`: it retains the original output
+interval, equal logical shape and `Products` mapping with ordered 128-lane tiles. Retained validity
+also exposes its authentic binary `row_energy`. Take `Mr` from that **original**
+published interval and `Br = n*Mr²`, checked, or an already genuine general-row
+bound. Later guarded/normalized output cannot replace this residual seed.
+Here `n` is semantic last-axis width from the complete actual ordered row binding,
+not a caller label. Squared magnitudes from `i64` endpoints fit `u128`;
+`n*M²` and every later evaluated theorem operation must still be checked to fit.
+
+Both seeds are available only after successful outer `lower_next`, including
+`retire_phase` and `EmissionAttempt` commit, while the original context is open.
+Inner emit/push, `validate_view` or `!failed` alone is insufficient.
+These are authority preconditions, not checks enforced by `row_energy_for`:
+its RMSNorm/Binary arms return retained fields without independently authenticating
+context, owner, ordered-row binding or completed outer publication. This closes
+seed provenance conditionally, not actual trained-value or factory admission,
+downstream FFN publication, work funding, activation or native proof. Original
+source `R`/`S` import authentication remains a separate closed boundary.
+
+#### Projection and propagation bounds
+
+For each genuine original, non-transposed matrix `w` with output rows `j`, use
+`R = max_j sum_i w_ji²`, `S = sum_j (sum_i |w_ji|)²`, and post-rescale bias
+absolute maximum `J` (zero when absent). These are the existing source statistics,
+not a new map: the [source scan](../../crates/pllm-compiler/src/replicated_decoder/source.rs#L526-L589)
+derives `R` and `S` from encoded original rows, and the existing importer
+authenticates them. Transposition, incomplete rows, reordering, duplication or
+mixed owners cannot inherit this proof without a separate justification.
+
+Write `T(z)` for either `floor(z/Q)` or `ceil(z/Q)`, including signed `z`;
+it is exact when `Q` divides `z`. Every raw interval sent to a rescale must
+independently satisfy `-2^62 <= lo <= hi < 2^62`, as required by
+[`rescaled_bounds`](../../crates/pllm-core/src/puma/arithmetic.rs#L135-L145).
+The complete dot is accumulated before its **one** rescale, never rounded per
+chunk: see the [public product](../../crates/pllm-compiler/src/replicated_decoder/program.rs#L1666-L1705)
+and [complete-dot chunk path](../../crates/pllm-compiler/src/replicated_decoder/program.rs#L1816-L1848).
+Bias is added only afterward, as the [projection driver](../../crates/pllm-compiler/src/replicated_decoder/graph_driver.rs#L350-L365)
+and its [bias implementation](../../crates/pllm-compiler/src/replicated_decoder/graph_driver.rs#L625-L633)
+confirm.
+
+**Projection lemma.** For `m` outputs and an independently valid postbias
+coordinate magnitude `Y`, define
+
+```text
+F = min(m*R, S)
+D = min(M²*S, B*F)
+P_m(B,M,R,S,J,Y) = min(m*Y²,
+    [ceil(c(D)/Q) + c(m) + c(m*J²)]²).
+```
+
+Indeed, the raw dot vector `q` satisfies `sum_j q_j² <= M²*S` by rowwise
+absolute sums. Cauchy–Schwarz gives `sum_j q_j² <= B*sum_ji w_ji²`;
+the squared Frobenius norm is at most both `m*R` and `S`. Thus `E(q) <= D`.
+After division by `Q`, each stochastic rounding error has magnitude less than
+one, so its row radius is at most `c(m)`. The post-rescale bias radius is at
+most `c(m*J²)`. The triangle inequality, upward integer roots and the independent
+coordinate cap give `P_m`. The checked symbolic implementation is
+[`RowEnergyWorkspace::projection`](../../crates/pllm-compiler/src/replicated_decoder/row_energy.rs#L53-L123).
+Apply it separately to obtain
+
+```text
+Eg = P_m(Bx,Mx,Rg,Sg,Jg,Yg)
+Eu = P_m(Bx,Mx,Ru,Su,Ju,Yu).
+```
+
+**Guards and selected SiLU.** A lane guard `G_L` keeps `x_i` exactly when
+`|x_i| <= L` and replaces only invalid lanes with zero. Valid lanes remain
+unchanged even if prior sticky validity is false. Hence `E(G_L(x)) <= E(x)`;
+the [range lowering](../../crates/pllm-compiler/src/replicated_decoder/ranges.rs#L65-L121)
+reduces validity separately into the sticky bit. Arithmetic failure instead
+refuses or cancels execution; it is not a zero-valued continuation.
+
+The [guarded activation recipe](../../crates/pllm-core/src/puma/activation_work.rs#L119-L210)
+selects zero below `-8Q`, the low polynomial on `[-8Q,-4Q)`, the high polynomial
+on `[-4Q,4Q]`, and the original gate `g` above `4Q`. It evaluates both
+polynomials on the guarded input and powers
+
+```text
+z = g * indicator[-8Q,4Q](g)
+p2 = T(z²), p4 = T(p2²), p6 = T(p2*p4)
+low  = -80413 + T(-21489*z) + T(-1453*p2)
+high =   2229 + T(131072*z) + T(59806*p2)
+              + T(-2913*p4) + T(71*p6).
+```
+
+Each coefficient product has its own rescale. On the selected low domain,
+`|z| <= 8Q`, `p2 <= 64Q`, and the absolute output is at most
+`80413 + 21489*8 + 1453*64 = 345317`. On the selected high domain,
+`|z| <= 4Q`, `p2 <= 16Q`, `p4 <= 256Q`, `p6 <= 4096Q`, giving
+`2229 + 131072*4 + 59806*16 + 2913*256 + 71*4096 = 2519957 = C`.
+These integer upper bounds cover every rounding choice because the corresponding
+extremal products are divisible by `Q`. Branchwise, the selected result `a_i`
+therefore satisfies `a_i² <= g_i² + C²`, including the identity and zero tails.
+For an independently valid selected-output cap `A`,
+
+```text
+Ea = min(Eg + m*C², m*A²).
+```
+
+In particular, the cap must include `SiLU(0) = 2229`. The selected bound `C`
+is **not** an eager-intermediate bound: the eager input can reach `|z| = 8Q`,
+so `p2 <= 64Q`, `p4 <= 4096Q`, `p6 <= 262144Q`, and the raw `p2*p4`
+can reach `2^54`. Every eagerly evaluated polynomial, selection and affine
+intermediate still needs its own interval admission, even when later discarded.
+
+**Paired product, down projection and residual.** For the actual ordered lane
+pairing of selected SiLU `a` and up projection `u`, each of
+`A²*Eu`, `Yu²*Ea` and `Ea*Eu` bounds `sum_i a_i²*u_i²`: the first two use
+coordinate caps, and the third follows by retaining the diagonal terms in the
+product of the two nonnegative sums. No independence or energy-spreading
+assumption, and no division by width, is permitted. With an independently valid
+post-product magnitude `H`, the same rounding-radius argument gives
+
+```text
+K = min(A²*Eu, Yu²*Ea, Ea*Eu)
+Eh = min(m*H², [ceil(c(K)/Q) + c(m)]²)
+Ed = P_n(Eh,H,Rd,Sd,Jd,Yd)
+Ev = min(n*V², [c(Br) + c(Ed)]²)
+Ein = min(Ev, n*L²).
+```
+
+Here `n` is the down/residual width, `V` is an independently valid magnitude
+of the actual residual sum, and `L` is the next RMSNorm guard cap. The residual
+triangle inequality uses the original `Br`, not `Bx`; the final guard can only
+reduce energy. These are the activation, product and residual inequalities in
+[`RowEnergyWorkspace`](../../crates/pllm-compiler/src/replicated_decoder/row_energy.rs#L89-L123),
+not authority to publish a certificate.
+
+**Unclosed arithmetic obligations.** Every evaluated checked-`u128`
+intermediate must be at most `U = 2^128-1`, including alternatives discarded
+by `min`. This includes, for every projection, `m*R`, `M²`, `M²*S`, `B*F`,
+`J²`, `m*J²`, `Y²`, `m*Y²`, both radius additions and the radius square;
+for activation, `C²`, `m*C²`, `Eg+m*C²`, `A²`, `m*A²`; for the paired product,
+`A²`, `A²*Eu`, `Yu²`, `Yu²*Ea`, `Ea*Eu`, `H²`, `m*H²`, its radius addition
+and square; and for the residual/guard, `c(Br)+c(Ed)`, its square, `V²`,
+`n*V²`, `L²` and `n*L²`. Root/ceiling helpers and all other evaluated proof
+arithmetic must likewise remain representable; a small final minimum does not
+excuse overflow along another evaluated path.
+
+RMSNorm timing is source-confirmed: the
+[shared normalization recipe](../../crates/pllm-core/src/puma/tensor_numeric.rs#L839-L871)
+first intersects the coordinate interval using energy, **before** squaring,
+then constructs the ordinary square and row sum **before** refining their energy
+bound. Using the conservative symmetric envelope `[-t,t]`, where
+`t = min(floor(sqrt(Ein)), L)`, sufficient bounds for these early admission
+checks are
+
+```text
+t² < 2^62
+n*ceil(t²/Q) <= 2^63-1
+Smax = min(n*ceil(t²/Q), floor((Ein + n*(Q-1))/Q))
+cn = trunc0((1.0_f32 / (n as f32)) * (Q as f32)) > 0
+cn*Smax < 2^62
+Sq = sum_i T(x_i²)
+d = T(cn*Sq) + epsilon
+0 < dmin <= d <= dmax < 2^35.
+```
+
+The energy numerator `Ein+n*(Q-1)` and its constituent products/addition must
+be checked, as must the other evaluated bound arithmetic. The
+[mean coefficient](../../crates/pllm-core/src/puma/tensor_numeric.rs#L945-L950)
+uses the source's float32 reciprocal/multiply conversion, not an exact rational
+replacement; `epsilon` remains the existing integer-one RMSNorm epsilon.
+Every remaining rsqrt, normalized-product and gamma-product interval must
+independently satisfy the signed raw rescale domain, and every affine/selection
+intermediate must fit signed `i64`. The displayed inequalities are unclosed
+obligations for actual authorized seeds, not premises supplied by an assumed
+successful request. No trained constants or trained certificates are claimed.
+
+This theorem establishes only conditional energy arithmetic. It supplies no
+authenticated publication of postbias `Products`, quote-entry funding,
+production wiring, native qualification or trained-model usefulness. Integration
+still lacks actual model-specific numerical seed success, not reusable seed
+authority. Postbias `Products` consumption and complete publication remain open;
+neither relabeling `Products` as `Dense` nor removing bias's intentional row-energy
+clearing establishes provenance or funding. Existing bias row-energy clearing
+must remain intact pending approved mapping-aware publication. Integration
+still requires separate approval and funding, with the existing source-retirement
+boundary preserved. It does not establish complete-model admission or change
+Native **HOLD**.
+
+### Prospective compact quote-entry boundary
+
+This is shared compiler design, not PUMA-specific runtime architecture or an
+implemented type change. Proposed private `Hold<'ctx,'src>` contains only
+`context: &'ctx EmissionContext<'src>` and `controls: usize`;
+`Frame` contains `hold`, `error: Option<Error>` and `ready: bool`. Neither owns
+a reservation nor binds graph/op/input. Proposed private `Entry<'e,'g,'s>` is
+`{ graph: &'e CompactGraph<'g,'s>, op: &'e ModelOperation,
+input: &'e PublishedView, logical: ViewShape }`. Context is a copied external
+`EmissionContext` reference; Hold/Frame confer no reservation authority.
+Frame/Entry live only in the admitted contraction branch at **both**
+`lower_next_inner` call sites (`4655–4662`, `4718–4719`), through consumer return,
+not publication; no outer `Option<Frame>`. `lower_contraction` takes `&self`, so
+shared Entry borrows may survive that call but end before outer graph mutation
+or publication. If the consumer becomes `&mut self`, those borrows must end first.
+The existing `None` path, pre-arm validation/admission, outer `lower_next` wrapper
+attempt and nested admission attempts remain unchanged; one proposed baseline
+call applies only to this new stage, not the whole route.
+
+Private straight-line initialize/check/admit/consume runs once with unchanged
+arguments, without callback/reentry: initialize `ready=false`, `controls=0`,
+`error=None`; check identity and zero control cell; obtain type-only selected
+layout plus existing extras/conditional bias; compute baseline and call existing
+`admit_local(baseline + controls)`; immediately recheck zero and install once;
+consume, constructing `ContractionView::new(input.clone(), ...)` without requoting;
+reset the existing `ContractionControls` guard, then end the arm. Refusal keeps
+`ready=false`. The original caller `input.clone()` remains baseline. Baseline
+includes installed controls exactly once; the conservative sum is **not
+admission-neutral** and may refuse formerly valid requests. Exact selected static
+layouts are not adopted. Current guard reset at consumer return does not extend
+through outer publication, successful `retire_phase` or cleanup; those remain
+separate funding/publication obligations. See
+[contraction entry](../../crates/pllm-compiler/src/replicated_decoder/compact_lowering.rs#L2703-L2709)
+and [outer publication](../../crates/pllm-compiler/src/replicated_decoder/compact_lowering.rs#L4866-L4897).
+
+Production `contraction_control` still constructs `S::tokens`, inferring its
+actual type for shared `size_of::<I>()` arithmetic. Its anonymous-closure compact
+RPIT cannot support this proposed prequote. Approved source/test prerequisites
+preserve that iterator; named `CompactTokens`, factory and prospective helper stay
+`#[cfg(test)]`, not authority. No closure/function-pointer shortcut is assumed.
+Layout compatibility requires authorized execution/review and is target/compiler-
+specific, not portable proof; production iterator adoption remains unauthorized.
+
+Provisional **entry-only** schema: let `R = size_of::<Entry>() + size_of::<Frame>()`;
+the branch envelope is `caller_live + R + max(A, B, C + layout_body,
+D + admission_body, E + consumer_body, refusal + cleanup_body)`. R is present
+in every branch. A–E represent only incremental, actually simultaneous staging,
+parameters and results, not independent maxima or already embedded fields.
+A is initialization, B checks, C quotation, D admission, E installation/consumption.
+Separate construction moves need an actual source census. Existing baseline
+already includes four `PublishedOp` slots and installed controls: reconcile those
+before claiming a disjoint baseline. This is not funded whole-entry/request proof.
+For that envelope, maximize **whole simultaneous branch sums**, including retained
+baseline and disjoint issuer/caller/entry/callee/publication/cleanup terms; do not
+combine independent maxima or take duplicate credits.
+
+The root guard chain is `Pending.controller -> consume_compact -> emit ->
+EmissionScope::new -> EmissionContext.guard -> OwnedEmission.guard`. Only after
+authority/census approval could the existing quote be enlarged before factories;
+no new guard/ledger/ticket/map is proposed. Current pending quote is exactly
+`3 * size_of::<Pending>() + size_of::<SourceRequestImport>() +
+size_of::<Result<SourceRequestImport, Error>>() +
+size_of::<Result<SourceRequestProgram, Error>>()`. `consume_compact`'s
+`max(old, context_bytes + metadata_controls)` capacity is not additive pending/
+context overlap proof; direct-storage ingress also needs coverage. Preserve the
+controller, retained floor and payload-before-charge-drop order. Field order alone
+does not prove the complete envelope. See
+[source entry](../../crates/pllm-compiler/src/replicated_decoder/source_entry.rs#L828-L838).
+
+Metadata work must debit the retained original ledger through
+[`OriginalSourcePlan::prepay_compiler_metadata`](../../crates/pllm-compiler/src/original_source.rs#L739-L786),
+not `EmissionContext.work` protocol/AES accounting. The `shared_allocation` counter
+root is created at `source_entry.rs:833` and reserved at lines 836–838, distinct from
+`OriginalSourcePlan` becoming available at line 938. Its first explicit metadata DTO
+debit at lines 964–969 follows JSON/config/policy/quote work. Neither setup is funded
+by that later debit, nor is either an established unpaid exception.
+
+The ten source audits establish the following boundaries, not broader proof.
+Source-level counts describe operations or visits, not adopted tariffs, CPU cost,
+physical-stack bounds or whole-entry funding.
+
+| Boundary | Source-established | Still open |
+| --- | --- | --- |
+| Driver quote | Both computed layouts use 14 checked projection operations plus 22 lookup operations: 36 on success; refusal follows an ordered prefix `j`. Production constructs `S::tokens` once and calls `Iterator::next` zero times. | Factory/body cost; retained `I` plus a separate bridge-reference parameter versus embedded `2 * size_of::<I>()`. This is not a type-only production path. |
+| Metadata debit | Direct primitive prepayment has six capacity-helper additions, with prefix refusal. Early failure leaves state unchanged; overflow/limit failure after burning is sticky. Successful debits, including zero, reset only this call's temporary burn; previously burned ledgers reject. | Bootstrap and repeated zero/burned prefixes; no enforced entry fee, attempt count or one-shot invocation. |
+| Baseline/attributes | Import/norm/op/nested-resource scans repeat; native prefix-resource visits can be quadratic. The bias consumer scans the source prefix, `L` indices and `ceil(L/128)` chunks. | Complete visits, helpers and refusal work; the factory bounds and pre-JSON root-prefix limits below do not establish funding. |
+| Ingress/handoff | A moved-from, empty `SourceRequestImport` still embeds `Pending` capacity. History overlaps a second graph; the returned result overlaps registry/catalog/origin. Direct ingress bypasses `InputReceiver`; the original payload lease transfers. | Assembly/move/catalog coverage and factory/feed/drop costs; a maximum alone is not additive overlap coverage. |
+| Context/consumer | The actual `EmissionContext` is involved. Phase admission creates an attempt; local admission only checks capacity. Phase retirement has no metadata debit; the consumer guard resets on return. | Initial descriptor/origin/registry scans versus the declared `N` debit; nested/conversion/native/refusal work and attempt drops. |
+| Caller/publication | Contraction arms retain input through consumption. Publication moves input/kind/prepared and clones two outputs. The outer result lives through retirement; retirement errors bypass diagnostics/commit. | Live-slot/transfer/drop sums and diagnostic/publication/cleanup funding; count embedded fields and the existing four-`PublishedOp` allowance once. |
+
+Here `Value` attributes use `BTreeMap`; the four-byte bias query bounds comparison
+prefix length, not comparison count. Arbitrary unused keys are a semantic-validation
+counterexample, not proof that the authorized factory route is unbounded:
+`OriginalSourcePlan` invokes the registered factory, not a caller-supplied plan.
+No silent attribute limit is introduced.
+
+Next gates are evidence-backed accounting for finite events, tariffs, invocation and bootstrap, plus
+complete whole-branch sums reconciled with baseline and controls. Remaining owners
+include caller/callee, refusal, publication and drop. The logical tariff remains
+**UNADOPTED**; selected totals do not prove workspace/funding equivalence. No new
+wrapper/root funding, production iterator adoption, energy integration, authoring
+or execution is authorized. Propagation stays unchanged. The layout prerequisite
+tests remain **UNRUN**; Native **HOLD** remains unchanged.
+
+#### Current authenticated, untransformed factory: source bounds
+
+These bounds cover only the current authenticated, untransformed factory route:
+[`source_entry` 929–938](../../crates/pllm-compiler/src/replicated_decoder/source_entry.rs#L929-L938)
+through [`original_source` 1225–1258](../../crates/pllm-compiler/src/original_source.rs#L1225-L1258),
+[`source_work`](../../crates/pllm-models/src/source_work.rs) and `ConfigLowererQuote`.
+[`source_mappings`](../../crates/pllm-models/src/source_mappings.rs#L383-L457) admits
+qwen2/qwen3/llama. For `L` layers, the shared graph has `28L + 6` operations per
+phase, plus `2L` Qwen3 QK-norm operations: both phases are bounded by `O = 2(30L + 6)`.
+Per operation, attribute roots have at most 9 entries, total keys at most 14,
+values including the root at most 15, depth at most 2 edges, and no arrays.
+Literal keys have at most 32 bytes; non-epsilon strings have at most 64 bytes.
+There are at most `8L + 2` epsilon copies; let `E = max(original raw config bytes, 1024)`.
+Conservative totals are `15O` values, `14O` keys, `448O` key bytes,
+`896O + (8L + 2)E` string bytes and `29O` complete key/value visits.
+These are payload/event counts, not helper tariffs.
+
+On refusal, `source_descriptor` copies four subtrees before validation. From a
+source with `N` values, the new descriptor alone has at most `N + 2` values;
+copied text is bounded against the original config plus fixed literals. This
+excludes live config/source, serialization and error overlap. The arbitrary
+semantic-attributes counterexample above is not an authenticated-route escape.
+Future mapping changes require revisiting these bounds. Separately authored
+`original_source_tests` regression cases remain **UNRUN**; they do not establish
+a universal bound or a passing result.
+
+#### Compact lowering: parameterized collection-visit bounds
+
+This metric counts source-level **reached collection positions** in the named
+loops/iterators, including positions rejected by predicates. Capacity reads,
+key comparisons, numeric/scalar/index reads and library callbacks are separate;
+this is not full work, CPU/runtime/security cost, full-fit proof or funding.
+Let independent `P = ops.len()`, `I = imports.nodes.len()` and
+`U = imports.public_norms.len()`. On the current authenticated, **untransformed**
+genuine-graph route, `P <= n_prefill <= 30L + 6 <= O = 2(30L + 6)` (`L`: layers).
+Count descriptors, not successfully returned publications: postappend failure
+can leave `P = cursor + 1`. Construction
+[explicitly rejects capacity mismatch](../../crates/pllm-compiler/src/replicated_decoder/compact_lowering.rs#L3388-L3391).
+Never substitute this `P` bound for imports, sources, nested rows, history,
+physical nodes or native capacities.
+
+Leaf composition, conditional on reaching each complete successful helper:
+
+| Leaf | Reached positions and separate queries |
+| --- | --- |
+| [Native resources](../../crates/pllm-core/src/puma/tensor.rs#L579-L670) | `C_native(n) = 2 + n + n(n+1)/2 <= 18722` when `n <= 192`: two affine-table descriptors, `n` outer steps, triangular predicate positions. No affine-element traversal; table capacities remain independent. |
+| [Imports](../../crates/pllm-compiler/src/replicated_decoder/compact_lowering.rs#L3213-L3251) | `I + 4 + U`: nodes, four fixed reserve entries, public norms. Capacity reads and norm metadata queries remain separate. |
+| [CheckedRows](../../crates/pllm-compiler/src/replicated_decoder/compact_validity.rs#L311-L330) | `R` runs plus `2R` option positions; `p <= 2R` owned-program resource calls. Repeated Arc identities are not memoized. |
+| [Prepared map](../../crates/pllm-compiler/src/replicated_decoder/prepared_tensor_map.rs#L613-L622) | `m = 1 + tail_present <= 2` program visits and `m` resource queries; baseline adds only a fixed scalar size to that template sum. |
+
+For **one** [`CompactGraph::baseline`](../../crates/pllm-compiler/src/replicated_decoder/compact_lowering.rs#L3436-L3511),
+order is imports first, cached frontier/control bytes and graph capacities next,
+then `P` descriptor positions, with these per-descriptor branches:
+
+| Branch | Actual nested traversal/query |
+| --- | --- |
+| AttentionValues / AttentionScores | Two capacity reads each; no element traversal. |
+| AttentionSoftmax | Cached retained bytes only; no row traversal or resource query. |
+| AttentionScale | Every chunk: resource query; one capacity read plus layout arithmetic. |
+| Rotary | Every native row: resource query; one capacity read. |
+| Prepared map | Only `MapStorage::Owned`: `m` program visits/queries. |
+| RMSNorm | Owned main program resource query; checked rows independently traversed, regardless of main-program ownership. |
+| Argmax | Every program entry inspected, resource query only for owners; one capacity read. |
+| TokenLookup | Full program and optional tail both inspected, including nonowners; resource query only for owners. |
+
+Last comes a fixed four-`PublishedOp` allowance. No attribute, frontier, replay
+or predecessor scan occurs inside this baseline. With `s_i` scale chunks,
+`r_i` rotary rows, `a_i` argmax entries, `t_i` lookup tail presence, and sums over
+the corresponding reached owners/checked rows, successful visit count is
+
+```text
+B = I + 4 + U + P
+    + sum_scale s_i + sum_rotary r_i + sum_argmax a_i
+    + sum_lookup (1 + t_i) + sum_owned_maps m_i
+    + sum_checked_rows 3R_i + sum_(q in Q) C_native(n_q).
+```
+
+`Q` is a **multiset of actual native resource calls**: scale chunks, rotary rows,
+owned map programs, owned RMS programs, owned checked programs, owned argmax
+programs and owned lookup programs. Thus native part is at most `18722|Q|`
+**only if every queried program satisfies `n_q <= 192`**. Sharing gives no credit.
+Native callbacks, scalar/index reads and numeric operations remain separate,
+not implicitly funded omissions. Capacity reads require independent bounds,
+not inference from visit counts. Refusal follows the ordered reached prefix,
+including work within the failing helper; no later scans are charged as reached.
+
+Call-site composition below counts baseline invocations, **not** complete
+one-contraction cost. Products of call/visit counts here mean addition of actual
+repeated visits, not multiplication of independent byte maxima.
+
+| Reached contraction route | Baseline composition and additional visits |
+| --- | --- |
+| Outer / shared prelude | [`lower_next_inner:4434`](../../crates/pllm-compiler/src/replicated_decoder/compact_lowering.rs#L4434) calls once; [`lower_contraction:2732`](../../crates/pllm-compiler/src/replicated_decoder/compact_lowering.rs#L2704-L2732) is already inside the inner leaf. Never add that shared prelude twice. |
+| Unbiased contraction | Whole route: two baselines with no request/reused map; three with no request/fresh map, or request/either map. Extra preparation at [`3733`](../../crates/pllm-compiler/src/replicated_decoder/compact_lowering.rs#L3733) or [`compact_request_rescale:17`](../../crates/pllm-compiler/src/replicated_decoder/compact_lowering/compact_request_rescale.rs#L17). |
+| Bias, if reached | Adds one baseline at [`2591`](../../crates/pllm-compiler/src/replicated_decoder/compact_lowering.rs#L2546-L2609), plus source prefix (including public-filtered positions), map-owner chain and output/chunk visits described below. |
+| Public `PerToken` lookup | Whole route has three baselines: outer `4434`, shared `2732`, first lookup quote [`1789`](../../crates/pllm-compiler/src/replicated_decoder/compact_lowering.rs#L1718-L1789). Additional lookup visits below are not a full lookup tariff. |
+
+For bias, actual owner-chain indices strictly decrease: at most `P + 1` inspected
+positions, not an extra unbounded predecessor walk. Use `B_out` for output count
+(not layer `L`) and `K = ceil(B_out/128)`: `B_out` output-index positions and
+`K` chunks; `2K` gather, `K` combine and `K` append are **helper-call counts only**.
+Conditional postbias-energy branches repeat source/block queries; do not merge
+those queries into the earlier prefix or treat helpers as constant-work proofs.
+See [bias continuation](../../crates/pllm-compiler/src/replicated_decoder/compact_lowering.rs#L2592-L2702).
+
+For public `PerToken` lookup, `T` compiler iterations are **not**
+`T * ceil(V/128)` vocabulary tiles. Source-prefix scan repeats `T + 2` times; reached positions total `(T + 2)*s`, where `s` counts every source entry through the matching private source, including public-filtered entries.
+full/tail program positions are at most two. Prior searches repeat `2 + a` times
+per width (`a = request_present`), with their actual reached descriptor/program
+prefixes. Eight old native-carrier intern passes are distinct nested traversals,
+not a raw `9T` formula. Current contraction path refuses private first chunk for nonzero admitted token/vocabulary geometry and
+public `Tiled`/`Trie` after shape checks; this says nothing about all runtime profiles.
+See [lookup continuation](../../crates/pllm-compiler/src/replicated_decoder/compact_lowering.rs#L1790-L2542).
+
+Selection uses [`Enumerate<slice::Iter>`](../../crates/pllm-compiler/src/replicated_decoder/graph.rs#L93-L99):
+specialized `.nth(cursor)` indexes, rather than scanning a cursor-length prefix.
+Frontier finish instead traverses actual `op.inputs`. Optional prebound binding
+prefix and shape visits are outside baseline. Inner-failure diagnostics may repeat
+source prefixes; retirement failure skips diagnostics/commit while the original
+uncommitted attempt burns. Collection drop is not priced. See
+[outer lifecycle](../../crates/pllm-compiler/src/replicated_decoder/compact_lowering.rs#L4387-L4897).
+
+**Scoped ROW/COMPLETE/alias collection terms.** Genuine imports have `slot=None`;
+construction starts with empty `ops`, and lowering validates input before assigning
+`slot=ops.len()` and pushing: every parent slot `i < j`. See
+[construction](../../crates/pllm-compiler/src/replicated_decoder/compact_lowering.rs#L3387-L3420)
+and [lowering/publication](../../crates/pllm-compiler/src/replicated_decoder/compact_lowering.rs#L4387-L4897).
+Here locally `L` is initial lanes (not model layers), `w > 0` is row width, and
+`L*` is maximum **reached** ancestor lanes, at most `MAX_VALUES`. Genuine
+CausalMask/CacheSuffix/KvInitialize preserve shape; Feedback preserves lanes and
+input shape. Thus ROW's only `alias_range`, if reached, has count `L`, although
+`L*` can be larger when Reshape bypasses LastToken.
+
+| Query | Reached collection/validation bounds |
+| --- | --- |
+| [ROW (`row_norm`)](../../crates/pllm-compiler/src/replicated_decoder/compact_lowering.rs#L3963-L4003) | At most `P + 1` calls including initial; fallback row iterations at most `floor(L*/w)`; validations at most `P + 1 + floor(L*/w)`; alias descriptors at most `P`, comparison entries at most `L`. Direct import makes exactly one COMPLETE attempt then returns `None`, even with multiple rows. |
+| [Standalone COMPLETE (`complete_row`)](../../crates/pllm-compiler/src/replicated_decoder/compact_lowering.rs#L3911-L3961) | At most two validations, `P` alias descriptors and `w` comparison entries. Alias stripping includes CausalMask; COMPLETE does not directly recurse on CausalMask. |
+| [Alias `A(v,s,n)`](../../crates/pllm-compiler/src/replicated_decoder/compact_lowering.rs#L4007-L4069) | Visited descriptors `a <= P`, initial word-call indicator `u <= 1`, comparison entries `m <= n`; word calls at most `u + 2m`. A failing word call can leave fewer completed comparisons. |
+
+These are actual reached prefixes: failed checks/word calls stop later positions.
+Delegated History comparison and Score arithmetic (`nodes_prefix`/`tile_sum`)
+remain separate bounded noncollection costs. For
+[`ValueLayout::word`](../../crates/pllm-compiler/src/replicated_decoder/compact_lowering/compact_attention_values.rs#L236),
+the `sequence + row % sequence` loop occurs only in the initial word call under
+that mapping; unsupported inverse mapping then returns `None`. Add actual reached
+`z <= 2L* - 1`, not `m*z`. Scalar/numeric/helper/shape-fold costs are not priced.
+Finite ancestry proves neither stack safety nor failed-helper request gating.
+The [alias-order regression](../../crates/pllm-compiler/src/replicated_decoder/compact_norm_tests.rs#L345)
+is **UNRUN**, ordering/certificate retention only, not integration/funding/native proof.
+
+Collisions, norm-block queries, helper bodies, library refusals and cleanup
+remain explicit unclosed costs. These bounds adopt no tariff, limit, guard, map,
+witness or authority. Tests **UNRUN**; Native **HOLD** unchanged. This is bounded
+source-query composition only, not complete contraction or request accounting.
+
+#### Pre-JSON root prefix: source accounting limits
+
+This covers only `source_entry` 828–847: pre-JSON success, not successful `new_inner` return (JSON starts at 848). Let `Q` be the bootstrap bytes quoted by
+`shared_allocation::OwnedBudget::resources()`: Arc backing quote
+`A`, seven named logical transition slots and `size_of::<OwnedBudget>()`, as calculated by
+[`OwnedBudget::resources`](../../crates/pllm-garble/src/shared_allocation.rs#L327-L358).
+Let `G = size_of::<OwnedExternalCharge>()`, `P = pending_controller_bytes`,
+`S = server_controller_bytes`, and `s` be 0 or 1. On success at line 847,
+`usage = peak = Q + P + G + s(S + G) <= MAX_ALLOCATION_BYTES`, with `2 + s`
+strong links and one counter heap allocation. The quote at 804–807 instead uses
+`Q + S + G`; direct-header admission at 190–208 uses
+`Q + P + S + 3 * size_of::<SourceHeaderEntry>() + G`. This named inventory is not
+complete call-frame, `Option`, result or refusal-overlap coverage. Named slots
+are not proof of simultaneous physical storage; this endpoint equation is not
+a whole-branch maximum. Complete sums for root refusal, pending refusal, server
+refusal, success with/without server, and unwind retain symbolic source weights for caller,
+move, result, closure, scalar and unwind terms. Under the **DESIGN ONLY**
+source-occurrence convention (2026-10-31), distinct callee-return, caller-call-result
+and move-source IDs each count once; embedded fields and backing each count once.
+Expanding an envelope replaces, not adds to, its counted slots: a conservative reached-slot
+union, not a physical-stack claim or adopted runtime/funding contract. Injective funding remains open.
+Under the non-adopted retain-all-reached **DESIGN** convention, completed-root envelope `D_root` strictly exceeds `Q` (comparison below).
+
+- Canonical ID = function + source expression/parameter/local/return endpoint + role.
+  An argument/receiver expression counts once, without extra staging; callee parameters,
+  callee return endpoints, caller call-results, extractions and named locals remain distinct.
+- Nested expressions, value-context reads, operator operands and results count separately;
+  place-only paths are not values. Embedded fields/captures count once, not again as slots.
+- A `?` operand aliases its existing result; count one reached success/error extraction
+  and the reached function-return boundary. Compiler residuals, identity conversions and
+  private `Err` construction remain unknown `U`, not invented source IDs.
+- Implicit capture construction remains `U`; an explicit capture-initializer expression
+  has its own source ID. The closure value includes captures once; embedded storage
+  does not add separate field/capture slots.
+- Direct Rust function-item types are ZSTs: optional zero-weight IDs, no owner header.
+  Function pointers are not function items; actual first-class parameters retain their
+  actual types. This does not erase dynamic callbacks or method receivers.
+- Count return endpoints only when reached: no whole `new_inner` `Result<Self, Error>`
+  reserved at entry, and no success return reached at 847. Loop/CAS callbacks reuse
+  occurrence IDs for storage, without bounded-work inference. Smallest current design
+  removes extra argument staging; any retained logical padding needs distinct padding IDs,
+  never source-occurrence IDs. These rules remain **DESIGN ONLY**, not runtime/funding adoption.
+
+At `shared_allocation` 372–375, reservation is not allocation; `allocation()` at 373 is a test-failure hook (production `Ok(())`), not allocator-resource proof.
+Actual root backing allocation occurs inside `Arc::new` at 375; hook success proves no allocator resources.
+**Reference-version qualification (2026-10-31):** the closed census, source IDs and
+citations below describe the **pre-normalization reference**, not current bodies.
+Behavior-preserving private-helper/function-item, server-match and subtotal changes
+leave old `Q` and legacy resource fields unchanged; normalization is source-reviewed,
+not compiled, with tests **UNRUN**. The full modified-prefix census and new logical
+quote remain unclosed; concrete `E`/API is not yet authored, and source accounting
+is not adopted. Native **HOLD** remains unchanged.
+
+Final bounded reconciliation closes only the reference **non-test SOURCE enumeration** under
+the **DESIGN ONLY** convention, not complete-resource accounting or funding.
+Scope: `shared_allocation` (SA) 35–51/101–115/121–132/327–377/398–407 and
+`source_entry` (SE) 549–583/828–847. Remove CHARGE IDs `O402.self_read`,
+`O404.self_read`, `R102.self_read`, `R105.self_read`, `R110.self_read`:
+these are place bases beneath projections/borrows, not value copies. Implicit
+autoderef stays `U`; retain actual receiver/reference IDs, `R105.limit_read`
+and explicit `*next` operand. No fictitious ROOT reads or padding are needed.
+Namespace each callee ID by callsite: root reserve, pending charge, optional server
+charge. Replace the root-reserve opaque envelope with its `Budget::reserve_bytes`
+instance, never both. Caller argument/callee parameter and callee return/caller
+call-result remain distinct; duplicate alias roles merge. Count helper returns
+only when reached, not a return endpoint for every successful `?`;
+`new_inner` success return is not reached at 847.
+`C_src = max_{b in Bprod} sum_{i in ReachedCanonicalIDs(b)} sizeof(type(i))`.
+`Bprod` includes raw-empty, raw-oversize, root/pending/server failure and prefix
+success without/with server, using actual short-circuit/failure prefixes. Fresh
+used-check refusal is unreachable under intact construction. Weights stay symbolic,
+not guessed layouts. Non-test accounting excludes SA113 test accounting;
+no test-configuration census is closed. Callback ID reuse bounds source storage
+only, not CAS retries or work. Count backing once when reached inside `Arc::new`,
+not at reservation or the hook.
+Full obligation remains `max_branch(source sum + once-counted backing + U)`, with
+transitive/library/compiler/ABI/atomic/allocator/unwind/cleanup terms explicit in
+`U`, never set to zero. Bootstrap funding remains **PARTIAL**: no source-only sum
+proves a finite total, reproducible numeric target or actual paid credits. Cleanup,
+early parameter/raw-validation coverage, injective credits, full-resource reserve adequacy,
+runtime adoption and all funding remain open; tests **UNRUN**, Native **HOLD** unchanged.
+
+Under the non-adopted retain-all-reached **DESIGN** convention, define
+`D_root = A + sum(reached ROOT SOURCE weights)`; backing `A` counts once, while `C_src` excludes backing.
+`Q = A + sum(Z1..Z7) + H`: SA337–343 quote the seven types below; SA348 quotes `H`.
+
+| Quote type | Distinct reached ROOT ID (function, SA line, role) |
+| --- | --- |
+| Z1: `Budget` | `from_fresh_budget:365:budget` parameter |
+| Z2: `Result<Budget, Error>` | `new:362:Budget::new` call-result |
+| Z3: `OwnedBudgetResources` | `from_fresh_budget:366:quote` local |
+| Z4: `Result<OwnedBudgetResources, Error>` | `from_fresh_budget:366:resources` call-result |
+| Z5: `Result<OwnedBudget, Error>` | `new:361:return` endpoint |
+| Z6: `Arc<Budget>` | `from_fresh_budget:375:Arc::new` call-result |
+| Z7: `Result<(), Error>` | `from_fresh_budget:372:reserve_bytes` call-result |
+| H: `OwnedBudget` | `from_fresh_budget:374:Self` origin |
+
+All eight IDs are reached at completed `OwnedBudget::new` return, not `new_inner` success at 847.
+Extra disjoint `new:361:limit` parameter has positive `sizeof(usize)`; all remaining weights are nonnegative.
+Therefore `D_root >= Q + sizeof(usize) > Q`, without native queries, guessed layouts, `U` or caller receipts.
+This logical-envelope comparison is not a runtime admission bug, physical undersizing, replacement reserve cost,
+injective funding or current-policy failure. The unpaid bootstrap DESIGN exception is independent; no `Q` or cap changes.
+
+Caller parameters and raw validation at 830–831 precede root construction; later successful server reservation cannot retroactively fund them or receiver copies.
+The approved root-establishment exception alone does not settle these obligations.
+
+Server-guard refusal drops controller then root. Subsequent unwinding drops later
+locals first, then unmoved server guard/controller/root. Root drop subtracts
+`size_of::<OwnedBudget>()`; the last Arc destroys the counter with the remaining
+`Q - size_of::<OwnedBudget>()` numeric baseline, not a surviving reservation leak.
+Source API event counts are finite, but `AtomicUsize::fetch_update` weak-CAS retries
+have no finite bound even for a fresh root. Allocator/abort/OOM behavior supplies
+no resource, time or unwind proof; repeated calls repeat setup/refusals without
+a global attempt cap. The established-root metadata/setup exception in the
+[prepayment contract](../plans/raw-check-prepayment-contract.md#L1045-L1058)
+excludes root construction and cleanup. No actual work owner exists before
+`source_entry:833`. An explicit unpaid root-bootstrap exception **once per fresh
+ingress invocation, ending before JSON**, is approved for **DESIGN ONLY**
+(historical approval, 2026-10-31), not implementation or execution. All cleanup, including refusal/unwind, stays open; aggregate calls are
+unbounded. No new authority, ledger, ticket, map, guard or caps are introduced; the open funding,
+publication/cleanup obligations and Native **HOLD** above remain unchanged.
+
+**Scoped authoring permission (2026-10-31):** source/test authoring for the logical
+pre-JSON bootstrap is authorized after a concrete Astra plan and independent review,
+not execution, runtime activation or adoption. Public `OwnedBudget::reserve_bootstrap`
+and five `bootstrap_extension*` regression tests are authored and independently
+source-reviewed only (Astra46); tests are **UNRUN**, with no compilation or rustfmt.
+The numeric-baseline API delegates to existing `Budget::reserve_bytes`; successful
+calls accumulate, with no API one-shot guarantee, new guard, ledger or refund ticket,
+and no `Q`, cap, layout or atomic changes. Ordinary owned/native guard drops and
+cloned root owners cannot refund `E`; final strong-owner retirement destroys the
+counter, not a reservation surviving externally. Tests cover atomic refusal,
+overflow/exact fit, repeated increments, clone/split/native/guard lifetimes, failed
+builders and synchronous scope drops, not actual async cancellation or native execution.
+
+The corrected zero-padding quote is authored as typed checked constants and
+`source_union_quote`, with `NC = 16`, `NR = 2` and the 61-occurrence resources group.
+The resources group preserves `Layout::extend`'s `(Layout, usize)` return order.
+Independent source review caught two omitted operand reads:
+the `closure_bytes` operand in `FIXED.checked_add(closure_bytes)` and the
+`reference_bytes` operand in `subtotal.checked_add(reference_bytes)` are distinct
+canonical value-context reads, not their bindings. The earlier 29 claim is
+superseded by HFIXED's 31 `usize` SOURCE occurrences, not padding; its other groups
+remain 6 `(usize, usize)`, 8 `Option<usize>`, 10 `Result<usize, NativeError>` and
+4 `NativeError`; independent recount found 6 measurement and 25 compiler occurrences.
+Independent source review cleared bounded authoring of the corrected quote and
+two tests, not full proof, funding or runtime activation. The quote uses actual
+reservation-update closure/reference widths from the public
+`OwnedBudgetResources::reserve_update_layout`, without invoking the callback or
+querying resources again. Four checked runtime operations combine the widths with
+the const-evaluated fixed groups; overflow of constant arithmetic fails const evaluation.
+One unconditional private fresh-ingress call reserves additional `E` on the original root
+after construction, before pending/server charges and JSON. This is source authoring
+only, not runtime activation or executed proof. The conservative self-inclusive
+non-test typed SOURCE union adds no padding, subtracts no `Q` and repeats no Arc
+backing; it is neither a physical peak, exact minimum nor full-funding proof.
+The existing `source_union_quote_matches_typed_manifest_and_adds_to_bootstrap` test
+checks the literal typed manifest and arithmetic/API composition, not census
+exhaustiveness. The existing `source_prefix_length_refusals` test covers guards
+at source level, without JSON-order instrumentation. Existing custody assertions
+now require live usage `> Q + E` and retired usage `== Q + E`.
+Scope remains the unpaid pre-JSON logical reservation only; all builds/tests remain
+**UNRUN**, with no compilation, MSRV check, rustfmt or native-execution permission.
+Compiler/ABI/allocator and opaque `U`,
+work/CAS retries and cleanup are not declared paid or bounded by this logical metric.
+Post-JSON controller custody, cleanup and full-resource funding remain **BLOCKING**;
+Native **HOLD** is unchanged, runtime activation is unauthorized, and no cap increase
+or full-funding claim is authorized.
+
+User-approved bounded SOURCE authoring adds private `cfg(test)` retirement
+observers, paired adapters and one shared `pending_transition` body; two independent
+SOURCE reviews cleared this implementation, not runtime activation or executed proof.
+Ordinary production identity adapters contain no trace storage; all observers are
+`cfg(test)`. Ingress remains intact through fallible preparation, committing afterward.
+One genuine same-counter changed-workload `check_source` Binding refusal regression
+asserts five events after ordinary nonpanicking actual-slot retirement, with
+manifest/directory/original/raw before controller. Restoring early destructuring
+would fail by SOURCE reasoning only; mutation remains **UNRUN**.
+Expanded `None` directory observes its Option slot only, not a pointee or compact proof.
+Existing 31-scalar quote, `E`, pre-JSON reservation, root/ledger/API/caps/charges
+remain unchanged. New post-JSON helper/adapter boundary coverage is **UNPROVED**.
+Test wrappers are outside logical/physical qualification; no full test-build
+resource-funding claim follows. Three inline envelopes remain logical assignments
+for ingress staging, pending assembly/transfer and destination Pending, not complete
+SOURCE, storage, capacity, transitive payload or physical stack-lifetime proof.
+Tests/builds/MSRV/rustfmt/mutation remain **UNRUN**; Native **HOLD** is unchanged.
+Approval covers SOURCE authoring only, not execution or runtime activation.
+Broader compact, pre-scope, escaped-Arc, unwind, cleanup and full funding remain
+**BLOCKING**; unproved storage and opaque `U` remain open.
+
+User76201 explicitly approved two additional bounded local SOURCE/test repairs:
+`consume_compact` retains the remaining Pending through fallible pre-emission
+preparation after moving importer/import charge into ImportStage; EmissionScope
+first stages actual created inputs before its actual controller in PreEmissionScope.
+Both production and private observed entrances share their respective transition
+bodies. Genuine importer(4) prebox Bounds and deliberately contrived undersized
+incoming-controller constructor regressions are authored **UNRUN**. Prebox trace
+marks exactly four payload slots: directory Option(None), original, manifest and
+raw, plus original controller; not five payloads or exact pointee destruction. Importer is
+NOT in this combined trace: ImportStage retains its existing separate drop
+instrumentation. Constructor trace marks the actual CreatedInputs aggregate and
+the same incoming guard, deliberately shrunk to zero, not a natural production
+constructor failure. Fixed per-instance atomic markers observe nonpanicking normal drop
+completion only, not unwind completion; budget counters establish pressure/identity,
+not order. Under existing User41221/76201 SOURCE/test-authoring authority, exact-count
+strengthening is authored **UNRUN**: initial trace counter 1; prebox ordinals are
+a permutation of 1..=5, controller exactly 5, next counter 6; constructor created
+exactly 1, controller exactly 2, next counter 3. Existing explicit order assertions
+remain. Old-order sensitivity is SOURCE reasoning only, not executed mutation.
+Astra21 SOURCE-cleared ownership; Astra30 re-review closed the exact-once finding:
+exact-count strengthening has final bounded **SOURCE-CLEAR** status, **UNRUN**.
+Prior `into_pending` clearance above is unchanged.
+The consume boundary ends before
+`emit`: on emit error, outer owners can still outlive the moved controller.
+Post-handoff, escaped-Arc, source/helper/wrapper STORAGE coverage, work, cleanup,
+opaque U and full funding remain **OPEN/BLOCKING**. No quote/cap/allowance widening,
+bootstrap-31/Q+E, root/controller/ledger/charge/resize/check ordering, error ordering
+or attempt semantics changes are authorized. No execution/build/test/rustfmt,
+syntax validation, native activation or HOLD release is authorized; Native **HOLD**
+is unchanged. Tests/builds/parser/rustfmt/mutation remain **UNRUN**. These bounded
+source edits are frozen; SOURCE clearance grants no execution or broader closure.
+
 ### Explicit checked-range and compact-execution policies
 
 The public-weight component additionally accepts independent `range_policy`,
