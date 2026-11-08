@@ -16,7 +16,6 @@ from pllm.protocols import OpenWeightVerifiableOutsourcing
 from pllm.runtime import delegated_transport as transport
 from pllm.runtime.delegated_source import AdmittedSource
 from pllm.runtime.client import ProtocolError
-from pllm.runtime.responses import normalize_input, prompt_text
 
 from test_delegated_decoder import clear_oracle
 from test_delegated_source import write_source_fixture
@@ -49,6 +48,28 @@ def active_sessions(core):
     return result
 
 
+def declared_single_user_prompt_ids(source_path, prompt):
+    from tokenizers import Tokenizer
+
+    tokenizer_json = json.loads((source_path / "tokenizer.json").read_text(encoding="utf-8"))
+    tokenizer_config = json.loads((source_path / "tokenizer_config.json").read_text(encoding="utf-8"))
+    assert tokenizer_config["add_bos_token"] is False
+    assert "chat_template" not in tokenizer_config
+    assert tokenizer_json["post_processor"] is None
+    assert tokenizer_json["model"]["type"] == "WordLevel"
+    assert tokenizer_json["pre_tokenizer"]["type"] == "Whitespace"
+    assert {name: tokenizer_json["model"]["vocab"][name]
+            for name in ("<bos>", "<eos>", "<unk>", "hello", "world")} == {
+        "<bos>": 0, "<eos>": 1, "<unk>": 2, "hello": 3, "world": 4,
+    }
+    tokenizer = Tokenizer.from_file(str(source_path / "tokenizer.json"))
+    # Independently declared single-user rendering includes the generation
+    # assistant boundary. Source tokenizer supplies IDs; no runtime renderer.
+    assert tokenizer.encode("user: hello world\nassistant:").ids == [2, 2, 3, 4, 2, 2]
+    rendered = f"user: {prompt}\nassistant:"
+    return tuple(tokenizer.encode(rendered).ids)
+
+
 @pytest.mark.parametrize("sharing", ["full", "seeded"])
 def test_sdk_batch_above_scalar_frame_limit_preserves_complete_state(tmp_path, sharing):
     experiment, cfg, arrays = experiment_fixture(
@@ -58,13 +79,15 @@ def test_sdk_batch_above_scalar_frame_limit_preserves_complete_state(tmp_path, s
                           "num_hidden_layers": 1},
     )
     prompt = " ".join(["hello"] * 64)
+    ids = declared_single_user_prompt_ids(tmp_path / "source", prompt)
+    assert ids == tuple([2, 2] + [3] * 64 + [2, 2])
     captured = []
     with OpenAI(experiment=experiment) as client:
         client._core._result_hook = captured.append
         response = client.responses.create(input=prompt, max_output_tokens=2)
         source = client._core._ensure_source()
-        ids = tuple(source.tokenizer().encode(prompt_text(normalize_input(prompt)), add_bos=False))
         assert response.usage.input_tokens == len(ids)
+        assert len(ids) == 68
         assert 64 <= len(ids) <= 72  # Includes the ordinary rendered-message boundary.
         runtime = json.loads(source.runtime_contract(experiment, len(ids), 2))
         descriptors = runtime["batch_execution"]["descriptors"]
@@ -101,6 +124,8 @@ def test_sdk_two_workers_complete_state_oracle_and_retirement(tmp_path, family, 
                                                             capacity, execution, record_property):
     experiment, cfg, arrays = experiment_fixture(tmp_path, family=family, tied=tied, sharing=sharing,
                                                 capacity=capacity, execution=execution)
+    ids = declared_single_user_prompt_ids(tmp_path / "source", "hello world")
+    assert ids == (2, 2, 3, 4, 2, 2)
     captured = []
     with OpenAI(experiment=experiment) as client:
         topology = client._owned_topology
@@ -114,7 +139,6 @@ def test_sdk_two_workers_complete_state_oracle_and_retirement(tmp_path, family, 
         response = client.responses.create(input="hello world", max_output_tokens=3)
         source = client._core._ensure_source()
         assert client._core.list_models()["data"][0]["runtime"]["sharing"] == sharing
-        ids = source.tokenizer().encode(prompt_text(normalize_input("hello world")), add_bos=False)
         assert response.usage.input_tokens == len(ids)
         assert response.usage.output_tokens == 3
         assert response.status == "incomplete"
