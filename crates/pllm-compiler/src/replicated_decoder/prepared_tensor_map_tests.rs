@@ -312,12 +312,33 @@ fn prepared_tensor_map_preparation_exact_one_short_and_preexisting_owner_baselin
 // Its four usize fields/Result are quote controls, not native buffers. Native
 // quotes already include their Program local and Arc publication; only the
 // extra source Factory::make Result bridge is added below.
-fn literal_preparation_slots(callback: usize) -> [usize; 4] {
+#[allow(dead_code)]
+struct LiteralMapInventory {
+    width: usize,
+    remainder: usize,
+    full_quote: tensor::ConstructionQuote,
+    tail_quote: Option<tensor::ConstructionQuote>,
+    assembly: [usize; 4],
+    peak: usize,
+}
+
+#[allow(dead_code)]
+enum LiteralMapWorkWorkspace<'a> {
+    Rescale(&'a mut tensor::SoftmaxWorkWorkspace),
+    GuardedSilu(&'a mut tensor::ActivationWorkWorkspace),
+}
+
+fn literal_preparation_slots(callback: usize, silu: bool) -> [usize; 4] {
     type Iter = std::iter::Chain<
         std::iter::Once<&'static Arc<tensor::Program>>,
         std::option::Iter<'static, Arc<tensor::Program>>,
     >;
-    let common = 2 * callback
+    // Construction return, Result bridge and prepare binding are independent
+    // named source positions, not a physical-stack or allocator claim.
+    let inventory_moves = 2 * size_of::<LiteralMapInventory>()
+        + size_of::<Result<LiteralMapInventory, Error>>();
+    let common = inventory_moves
+        + 2 * callback
         + size_of::<&mut ()>()
         + size_of::<Result<(), Error>>()
         + size_of::<[usize; 4]>()
@@ -333,6 +354,12 @@ fn literal_preparation_slots(callback: usize) -> [usize; 4] {
         + 2 * size_of::<Arc<tensor::Program>>()
         + size_of::<tensor::ConstructionQuote>()
         + size_of::<Result<tensor::Program, Error>>()
+        + if silu {
+            0
+        } else {
+            // Program::rescale return -> Factory::make return bridge.
+            size_of::<Result<tensor::Program, Error>>()
+        }
         + size_of::<Result<Arc<tensor::Program>, Error>>()
         + size_of::<tensor::Resources>()
         + size_of::<Result<tensor::Resources, Error>>();
@@ -384,7 +411,7 @@ fn prepared_factory_literal_phase_inventory_and_owned_callback_captures() {
             Ok(())
         };
         let capture_bytes = size_of_val(&admit);
-        let slots = literal_preparation_slots(capture_bytes);
+        let slots = literal_preparation_slots(capture_bytes, silu);
         let quote = |n| {
             if silu {
                 tensor::Construction::GuardedSilu { lanes: n }
@@ -407,13 +434,16 @@ fn prepared_factory_literal_phase_inventory_and_owned_callback_captures() {
         }
         expected = baseline + expected.max(slots[3] + backing);
         if silu {
-            // Independent literal pre-factory phase. Nine actual WorkBudget
-            // value/receiver/argument positions, three query/arithmetic Result
-            // moves, limit/gate results; four prior/gate positions. Disjoint
-            // from native construction, not a private-callframe/RSS claim.
+            // Independent literal pre-factory phase. Ten actual WorkBudget
+            // value/receiver/argument positions, five query/arithmetic Result
+            // moves, workspace argument/parameter/receiver, limit/gate results.
+            // Four prior/gate positions remain outside the phase maximum.
+            // Disjoint from native construction, not a callframe/RSS claim.
             let workspace = 2 * size_of::<tensor::ActivationWorkWorkspace>()
-                + 9 * size_of::<WorkBudget>()
-                + 3 * size_of::<Result<WorkBudget, Error>>()
+                + 10 * size_of::<WorkBudget>()
+                + 5 * size_of::<Result<WorkBudget, Error>>()
+                + 2 * size_of::<LiteralMapWorkWorkspace<'_>>()
+                + size_of::<&mut LiteralMapWorkWorkspace<'_>>()
                 + size_of::<Result<puma::prss::PrssLimits, Error>>()
                 + size_of::<Result<(), Error>>();
             expected = expected.max(baseline + slots[0] + workspace) + 4 * size_of::<WorkBudget>();
