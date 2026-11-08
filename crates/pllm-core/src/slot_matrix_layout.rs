@@ -16,7 +16,9 @@
 //! the source's H=12,n=128,c=16 payload has 24576 lanes, not 32768. Mapping its
 //! unused backend-slot tail and cyclic rotations remains a backend-layout gate.
 //! Arithmetic is ordinary f64, with no rounding/tolerance or CKKS simulation;
-//! finite inputs may overflow to IEEE infinity. All fallible checks precede writes.
+//! finite inputs may overflow to IEEE infinity in the logical references. Their
+//! fallible checks precede writes. The physical ideal evaluator additionally
+//! rejects nonfinite arithmetic, with documented partial-mutation semantics.
 //!
 //! Algorithm 2 uses the paper-derived full-block routing correction proved in
 //! `docs/research/thor-multiblock-indexing-audit.md`, not an author erratum.
@@ -977,9 +979,9 @@ pub struct PhysicalStage {
     pub op: PhysicalOp,
 }
 
-/// Bounded, model-neutral physical address/schedule description. No evaluator,
-/// allocation, compiler/source authority, or encrypted admission. X is token by
-/// input, W is input by output (paper B=X^T, A=W^T). Both output directions keep
+/// Bounded, model-neutral physical address/schedule description and ideal-slot
+/// evaluator. No allocation, compiler/source authority, or encrypted admission.
+/// X is token by input, W is input by output (paper B=X^T, A=W^T). Both directions keep
 /// virtual H=4 stride, including 8->4; there is no implicit H=2 repacking.
 #[derive(Clone, Copy, Debug)]
 pub struct BlockPcPhysicalPlan {
@@ -1001,6 +1003,68 @@ fn physical_limits(limits: Limits) -> Limits {
         max_buffer_elements: limits.max_buffer_elements.min(2_000_000),
         max_work: limits.max_work.min(100_000_000),
     }
+}
+
+/// Successful-call logical events (an upper bound on short-circuit failure),
+/// NOT CPU instructions, enforced funding, canonical tariffs or cryptographic
+/// work. Existing data fields count fused visits: reads, indexing, arithmetic,
+/// finite-result checks and writes belong to one lane event; initialization and
+/// copying similarly bundle their memory actions. Loop advances and bounded
+/// wrappers are additional events, not a narrowing to fused data visits.
+/// Prior plan/Layout construction stays separate: 64 legacy or 78 scaled
+/// descriptor writes are not executed here and are not counted twice.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PhysicalIdealWork {
+    pub preflight_validation: usize,
+    /// Existing materializers revalidate their operands on EVERY invocation.
+    pub materializer_validation: usize,
+    pub materialization: usize,
+    pub initialization: usize,
+    pub copies: usize,
+    pub weight_products: usize,
+    pub mask_products: usize,
+    pub product_sum_additions: usize,
+    pub subtractions: usize,
+    pub rotations: usize,
+    pub alignment_additions: usize,
+    pub accumulation_additions: usize,
+    pub bias_additions: usize,
+    /// No wipe, deallocation or zeroization: both buffers remain caller-owned.
+    pub retirement: usize,
+    /// Stage dispatch events, distinct from advancing the stage traversal.
+    pub control_visits: usize,
+    /// One successful advance per iteration AND one terminating advance per
+    /// source traversal, including any(), fill() and copy_from_slice().
+    pub loop_control_visits: usize,
+    /// Bounded non-loop scalar checks/setup per invocation, excluding delegated
+    /// wrappers and traversals: evaluator + geometry/helper group + 26 legacy
+    /// or 32 scaled materializers. Finite-scan setup belongs to its wrapper;
+    /// per-lane helpers and ideal_finite belong to fused data visits above.
+    pub wrapper_visits: usize,
+    /// One bounded self-accounting boundary for ideal_work, scale discrimination,
+    /// checked formulas and the aggregate fold INCLUDING its traversal. No
+    /// recursive census of the quote's own computation.
+    pub quote_construction_visits: usize,
+}
+
+impl PhysicalIdealWork {
+    pub fn total(self) -> Result<usize, Error> {
+        let mut total = 0;
+        for count in [self.preflight_validation, self.materializer_validation,
+            self.materialization, self.initialization, self.copies,
+            self.weight_products, self.mask_products, self.product_sum_additions,
+            self.subtractions, self.rotations, self.alignment_additions,
+            self.accumulation_additions, self.bias_additions, self.retirement,
+            self.control_visits, self.loop_control_visits, self.wrapper_visits,
+            self.quote_construction_visits] {
+            total = add(total, count)?;
+        }
+        Ok(total)
+    }
+}
+
+fn ideal_finite(value: f64) -> Result<f64, Error> {
+    if value.is_finite() { Ok(value) } else { Err(Error::NonFinite) }
 }
 
 /// Initially ONLY n=2, c=1, S=4096, block rows 2->4 or 4->2. Logical capacity
@@ -1099,6 +1163,175 @@ impl BlockPcPhysicalPlan {
     pub const ALIGNMENT_MASK_PRODUCTS: usize = 8;
     pub const SIGNED_KEYS: [i32; 6] = [-3, -2, -1, 1, 2, 3];
     pub const KEY_RESIDUES: [usize; 6] = [4093, 4094, 4095, 1, 2, 3];
+
+    /// Two input frames plus six working frames. No heap allocation, hidden
+    /// materialized product batch, or buffer ownership transfer is required.
+    pub const IDEAL_SCRATCH_ELEMENTS: usize = 8 * Self::SLOTS;
+
+    /// Checked inventory for this evaluator, not a numerical/backend profile.
+    /// S=4096, W=input_width*output_width=32, T=live rows, and
+    /// V=2*T*input_width+17*W+2*output_width. Logical fused-event totals:
+    /// legacy 204*S+2*V+274; scaled 216*S+2*V+314. Neither is a physical price.
+    /// This extends the inventory without raising either existing hard ceiling.
+    pub fn ideal_work(self) -> Result<PhysicalIdealWork, Error> {
+        let scaled = matches!(self.stages, PhysicalStages::Scaled78(_));
+        let iw = mul(2, self.input.heads)?;
+        let ow = mul(2, self.out.heads)?;
+        let live = mul(self.input.valid_columns, iw)?;
+        let weights = mul(iw, ow)?;
+        let lanes = Self::SLOTS;
+        let preflight_validation = add(add(live, weights)?, ow)?;
+        let materializer_validation = add(add(live, mul(16, weights)?)?, ow)?;
+        let validation = add(preflight_validation, materializer_validation)?;
+        // Scaled: materializers 34S+4 in 36 loops; arithmetic 58S in 57;
+        // init/copy 12S in 4; finite V in 21; stage traversal 78.
+        // Include every terminating advance, even empty finite scans:
+        // 104S+V+201. Legacy remains 98S+V+181.
+        let loop_control_visits = add(add(mul(if scaled { 104 } else { 98 }, lanes)?,
+            validation)?, if scaled { 201 } else { 181 })?;
+        Ok(PhysicalIdealWork {
+            preflight_validation,
+            materializer_validation,
+            // Input 2S, weights 16S, masks 14S (legacy 8S), bias 2S.
+            materialization: mul(if scaled { 34 } else { 28 }, lanes)?,
+            initialization: mul(10, lanes)?,
+            copies: mul(2, lanes)?, // a=0 mask -> aligned, both output frames
+            weight_products: mul(16, lanes)?,
+            mask_products: mul(if scaled { 14 } else { 8 }, lanes)?,
+            product_sum_additions: mul(8, lanes)?,
+            subtractions: mul(if scaled { 0 } else { 6 }, lanes)?,
+            rotations: mul(12, lanes)?,
+            alignment_additions: mul(6, lanes)?,
+            accumulation_additions: mul(8, lanes)?,
+            bias_additions: mul(2, lanes)?,
+            retirement: 0,
+            control_visits: if scaled { 78 } else { 64 },
+            loop_control_visits,
+            wrapper_visits: add(2, if scaled { 32 } else { 26 })?,
+            quote_construction_visits: 1,
+        })
+    }
+
+    /// Execute legacy or scaled ideal-slot indexing, NOT CKKS/rescale or an adopted author
+    /// numerical profile. X is token-major [2,2*input.heads], weights are
+    /// input-major [2*input.heads,2*out.heads], bias is [2*out.heads]. Output is
+    /// two FULL 4096-slot frames, with the existing virtual H=4 lane stride.
+    /// Only live X rows are operands; inactive rows (even NaN) are ignored.
+    ///
+    /// Geometry, all actual slice lengths (including suffix capacity), aggregate
+    /// checked work and finite operands are checked BEFORE any store. Required
+    /// scratch/output prefixes are initialized; suffixes are always untouched.
+    /// ProductSumBoundary and MaskRescale are ideal identities: dispatch and
+    /// stage advance only, with no arithmetic, copy, finite scan or scale change.
+    /// Two weight products complete before masks/alignment for each (q,a).
+    /// Private constructor coordinates and aggregate dominance justify expects.
+    ///
+    /// Nonfinite arithmetic returns NonFinite and MAY leave partially changed
+    /// scratch/output prefixes. This is not transactional and promises no signed
+    /// zero bit identity. On error OR unwind caller retains both allocations;
+    /// no lexical drop, retirement debit or zeroization is claimed. Work is a
+    /// whole-call ceiling, not a paid continuation ticket; see ideal_work().
+    #[allow(clippy::too_many_arguments)]
+    pub fn evaluate_ideal_into(
+        self, x: &[f64], weights: &[f64], bias: &[f64],
+        scratch: &mut [f64], output: &mut [f64], limits: Limits,
+    ) -> Result<(), Error> {
+        let limits = physical_limits(limits);
+        physical_plan_geometry(self.input, self.out, Self::SLOTS, limits, 0)?;
+        let quote = self.ideal_work()?;
+        let iw = mul(2, self.input.heads)?;
+        let ow = mul(2, self.out.heads)?;
+        let weight_len = mul(iw, ow)?;
+        buffer(x.len(), mul(2, iw)?, limits)?;
+        buffer(weights.len(), weight_len, limits)?;
+        buffer(bias.len(), ow, limits)?;
+        buffer(scratch.len(), Self::IDEAL_SCRATCH_ELEMENTS, limits)?;
+        buffer(output.len(), Self::ELEMENTS, limits)?;
+        work(quote.total()?, limits)?;
+        finite(&x[..mul(self.input.valid_columns, iw)?])?;
+        finite(&weights[..weight_len])?;
+        finite(&bias[..ow])?;
+
+        scratch[..Self::IDEAL_SCRATCH_ELEMENTS].fill(0.0);
+        output[..Self::ELEMENTS].fill(0.0);
+        let (packed, rest) = scratch[..Self::IDEAL_SCRATCH_ELEMENTS].split_at_mut(Self::ELEMENTS);
+        let (plain, rest) = rest.split_at_mut(Self::SLOTS);
+        let (partial, rest) = rest.split_at_mut(Self::SLOTS);
+        let (masked, rest) = rest.split_at_mut(Self::SLOTS);
+        let (remainder, rest) = rest.split_at_mut(Self::SLOTS);
+        let (aligned, rotated) = rest.split_at_mut(Self::SLOTS);
+        // All materializer fallible conditions were proved above. Their actual
+        // repeated validation/materialization scans are included in the quote.
+        self.materialize_input(x, packed, limits).expect("preflight input");
+        for stage in self.stages() {
+            let q = stage.output_frame;
+            let a = stage.displacement;
+            match stage.op {
+                PhysicalOp::WeightProduct { input_frame: j } => {
+                    self.materialize_weight(q, a, j, weights, plain, limits)
+                        .expect("preflight weight");
+                    for s in 0..Self::SLOTS {
+                        let product = ideal_finite(packed[j * Self::SLOTS + s] * plain[s])?;
+                        partial[s] = if j == 0 { product }
+                            else { ideal_finite(partial[s] + product)? };
+                    }
+                }
+                PhysicalOp::ProductSumBoundary => {} // Ideal identity only.
+                PhysicalOp::Mask => {
+                    self.materialize_mask(a, plain, limits).expect("preflight mask");
+                    for s in 0..Self::SLOTS {
+                        masked[s] = ideal_finite(partial[s] * plain[s])?;
+                    }
+                    if a == 0 { aligned.copy_from_slice(masked); }
+                }
+                PhysicalOp::SubtractMasked => {
+                    for s in 0..Self::SLOTS {
+                        remainder[s] = ideal_finite(partial[s] - masked[s])?;
+                    }
+                }
+                PhysicalOp::RotateMasked { shift } => {
+                    for s in 0..Self::SLOTS {
+                        aligned[s] = masked[(s as i32 + shift).rem_euclid(4096) as usize];
+                    }
+                }
+                PhysicalOp::RotateRemainder { shift } => {
+                    for s in 0..Self::SLOTS {
+                        rotated[s] = remainder[(s as i32 + shift).rem_euclid(4096) as usize];
+                    }
+                }
+                PhysicalOp::AddAligned => {
+                    for s in 0..Self::SLOTS {
+                        aligned[s] = ideal_finite(aligned[s] + rotated[s])?;
+                    }
+                }
+                PhysicalOp::Accumulate => {
+                    for s in 0..Self::SLOTS {
+                        let destination = &mut output[q * Self::SLOTS + s];
+                        *destination = ideal_finite(*destination + aligned[s])?;
+                    }
+                }
+                PhysicalOp::SupportMask { branch } => {
+                    self.materialize_branch_mask(a, branch, plain, limits)
+                        .expect("preflight branch mask");
+                    let target = match branch {
+                        PhysicalMaskBranch::Support | PhysicalMaskBranch::Wrap => &mut *masked,
+                        PhysicalMaskBranch::Remainder => &mut *remainder,
+                    };
+                    for s in 0..Self::SLOTS {
+                        target[s] = ideal_finite(partial[s] * plain[s])?;
+                    }
+                    if branch == PhysicalMaskBranch::Support { aligned.copy_from_slice(masked); }
+                }
+                PhysicalOp::MaskRescale { .. } => {} // Ideal identity only.
+            }
+        }
+        // Input's final use is over; reuse its two frames for bias, exactly once.
+        self.materialize_bias(bias, packed, limits).expect("preflight bias");
+        for s in 0..Self::ELEMENTS {
+            output[s] = ideal_finite(output[s] + packed[s])?;
+        }
+        Ok(())
+    }
 
     pub fn scale_status(self) -> PhysicalScaleStatus {
         PhysicalScaleStatus::Unqualified

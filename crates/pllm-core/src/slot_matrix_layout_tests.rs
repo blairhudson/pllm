@@ -1,5 +1,566 @@
 use super::*;
 
+// Production ideal evaluator oracle. Integer numerators stay far below 2^53;
+// division by 256 is exact binary64, so comparisons need NO tolerance. Neither
+// expected contraction nor physical indexing calls a production layout helper,
+// materializer, stage interpreter or decoder. This is NOT a CKKS error oracle.
+fn ideal_batch_expected(
+    iw: usize, ow: usize, tokens: usize, x: &[i64], w: &[i64], b: &[i64],
+) -> Vec<f64> {
+    let mut dense = vec![0_i64; 2 * ow];
+    for t in 0..tokens {
+        for o in 0..ow {
+            dense[t * ow + o] = 16 * b[o];
+            for k in 0..iw { dense[t * ow + o] += x[t * iw + k] * w[k * ow + o]; }
+        }
+    }
+    let mut expected = vec![0.0; 8192];
+    // Independently enumerate token/output-feature coordinates, rather than
+    // calling output_coordinate or inverting a production slot address.
+    for t in 0..tokens {
+        for o in 0..ow {
+            let frame = (o % 2 + 2 - t) % 2;
+            expected[frame * 4096 + 4 * t + o / 2] = dense[t * ow + o] as f64 / 256.0;
+        }
+    }
+    expected
+}
+
+fn ideal_batch_case(iw: usize, ow: usize, tokens: usize, x: &[i64], w: &[i64], b: &[i64]) {
+    for scaled in [false, true] {
+        ideal_batch_case_profile(iw, ow, tokens, x, w, b, scaled);
+    }
+}
+
+fn ideal_batch_case_profile(
+    iw: usize, ow: usize, tokens: usize, x: &[i64], w: &[i64], b: &[i64], scaled: bool,
+) {
+    let (input, out) = physical_layouts(iw, ow, tokens, 1);
+    let plan = if scaled { block_pc_physical_plan_scaled_support(input, out, 4096, LIMITS) }
+        else { block_pc_physical_plan(input, out, 4096, LIMITS) }.unwrap();
+    let mut actual_x: Vec<_> = x.iter().map(|v| *v as f64 / 16.0).collect();
+    actual_x[tokens * iw..].fill(f64::NAN); // Inactive input rows are not operands.
+    let actual_w: Vec<_> = w.iter().map(|v| *v as f64 / 16.0).collect();
+    let actual_b: Vec<_> = b.iter().map(|v| *v as f64 / 16.0).collect();
+    let mut scratch = vec![SENTINEL; 32771];
+    let mut output = vec![SENTINEL; 8195];
+    plan.evaluate_ideal_into(&actual_x, &actual_w, &actual_b, &mut scratch, &mut output, LIMITS).unwrap();
+    assert_eq!(&output[..8192], ideal_batch_expected(iw, ow, tokens, x, w, b));
+    assert!(output[8192..].iter().all(|v| *v == SENTINEL));
+    assert!(scratch[32768..].iter().all(|v| *v == SENTINEL));
+
+    // Independently check final working frames (q=1,a=3), including BOTH signed
+    // full-4096 rotations and their tails. The input area now contains bias.
+    let mut p = vec![0_i64; 4096];
+    let mut m = vec![0_i64; 4096];
+    let mut r = vec![0_i64; 4096];
+    for s in 0..4096 {
+        let t = s / 4;
+        let k = s % 4;
+        let i = (k + 3) % 4;
+        if t < tokens && k < iw / 2 && i < ow / 2 {
+            for parity in 0..2 {
+                let inner = 2 * k + (t + parity) % 2;
+                p[s] += x[t * iw + inner] * w[inner * ow + 2 * i + (t + 1) % 2];
+            }
+        }
+        if s < 8 && k >= 1 { m[s] = p[s]; }
+        r[s] = if scaled { if s < 8 && k == 0 { p[s] } else { 0 } }
+            else { p[s] - m[s] };
+    }
+    for s in 0..4096 {
+        let final_plain = s < 8 && if scaled { s % 4 == 0 } else { s % 4 >= 1 };
+        assert_eq!(scratch[2 * 4096 + s], if final_plain { 1.0 } else { 0.0 });
+        assert_eq!(scratch[3 * 4096 + s], p[s] as f64 / 256.0);
+        assert_eq!(scratch[4 * 4096 + s], m[s] as f64 / 256.0);
+        assert_eq!(scratch[5 * 4096 + s], r[s] as f64 / 256.0);
+        assert_eq!(scratch[6 * 4096 + s], (m[(s + 1) % 4096] + r[(s + 4093) % 4096]) as f64 / 256.0);
+        assert_eq!(scratch[7 * 4096 + s], r[(s + 4093) % 4096] as f64 / 256.0);
+        for q in 0..2 {
+            let t = s / 4;
+            let block = s % 4;
+            let want = if t < tokens && block < ow / 2 { b[2 * block + (t + q) % 2] as f64 / 16.0 }
+                else { 0.0 };
+            assert_eq!(scratch[q * 4096 + s], want);
+        }
+    }
+}
+
+#[test]
+fn ideal_batch_dyadic_dense_and_independent_physical_working_frames() {
+    for (iw, ow) in [(4, 8), (8, 4)] {
+        for tokens in [0, 1, 2] {
+            let x = rect_integers(2 * iw, 7, 33);
+            let w = rect_integers(iw * ow, 11, 33);
+            let b = rect_integers(ow, 13, 33);
+            ideal_batch_case(iw, ow, tokens, &x, &w, &b);
+            ideal_batch_case(iw, ow, tokens, &vec![0; 2 * iw], &vec![0; iw * ow], &b);
+            ideal_batch_case(iw, ow, tokens, &x, &w, &vec![0; ow]);
+        }
+    }
+}
+
+#[test]
+fn ideal_batch_basis_covers_all_displacements_frames_and_alignment() {
+    for (iw, ow) in [(4, 8), (8, 4)] {
+        let w = rect_integers(iw * ow, 11, 33);
+        let b = rect_integers(ow, 13, 33);
+        for tokens in [0, 1, 2] {
+            for t in 0..2 {
+                for inner in 0..iw {
+                    let mut basis = vec![0; 2 * iw];
+                    basis[t * iw + inner] = if inner % 2 == 0 { 16 } else { -16 };
+                    ideal_batch_case(iw, ow, tokens, &basis, &w, &b);
+                }
+            }
+        }
+    }
+}
+
+// Independent source-traversal census, not an invocation of ideal_work/total or
+// a transcription of its aggregate coefficients. Actual stage variants decide
+// which materializer, arithmetic, copy and finite-scan loops execute.
+fn ideal_batch_event_census(plan: BlockPcPhysicalPlan, iw: usize, ow: usize, tokens: usize)
+    -> (PhysicalIdealWork, usize, usize)
+{
+    let slots = 4096;
+    let mut expected = PhysicalIdealWork {
+        preflight_validation: 0, materializer_validation: 0, materialization: 0,
+        initialization: 0, copies: 0, weight_products: 0, mask_products: 0,
+        product_sum_additions: 0, subtractions: 0, rotations: 0,
+        alignment_additions: 0, accumulation_additions: 0, bias_additions: 0,
+        retirement: 0, control_visits: 0, loop_control_visits: 0,
+        wrapper_visits: 0, quote_construction_visits: 1,
+    };
+    let mut materializer_loops = Vec::new();
+    let mut arithmetic_loops = Vec::new();
+    let mut init_copy_loops = vec![8 * slots, 2 * slots]; // Two fill traversals.
+    let mut finite_loops = vec![tokens * iw, iw * ow, ow]; // Preflight any().
+    expected.preflight_validation = finite_loops.iter().sum();
+    expected.initialization = init_copy_loops.iter().sum();
+    let mut wrappers = vec!["evaluate_ideal_into", "physical_plan_geometry + bounded helpers",
+        "materialize_input"];
+    finite_loops.push(tokens * iw); // Input materializer's any().
+    expected.materializer_validation += tokens * iw;
+    materializer_loops.push(2); // Input's OUTER frame traversal.
+    for _frame in 0..2 {
+        materializer_loops.push(slots);
+        expected.materialization += slots;
+    }
+    for stage in plan.stages() {
+        expected.control_visits += 1;
+        match stage.op {
+            PhysicalOp::WeightProduct { input_frame } => {
+                wrappers.push("materialize_weight");
+                finite_loops.push(iw * ow);
+                expected.materializer_validation += iw * ow;
+                materializer_loops.push(slots);
+                expected.materialization += slots;
+                arithmetic_loops.push(slots);
+                expected.weight_products += slots;
+                if input_frame == 1 { expected.product_sum_additions += slots; }
+            }
+            PhysicalOp::ProductSumBoundary => {} // No traversal, no rescale.
+            PhysicalOp::Mask => {
+                wrappers.push("materialize_mask");
+                materializer_loops.push(slots);
+                expected.materialization += slots;
+                arithmetic_loops.push(slots);
+                expected.mask_products += slots;
+                if stage.displacement == 0 {
+                    init_copy_loops.push(slots); // copy_from_slice traversal.
+                    expected.copies += slots;
+                }
+            }
+            PhysicalOp::SubtractMasked => {
+                arithmetic_loops.push(slots);
+                expected.subtractions += slots;
+            }
+            PhysicalOp::RotateMasked { .. } | PhysicalOp::RotateRemainder { .. } => {
+                arithmetic_loops.push(slots);
+                expected.rotations += slots;
+            }
+            PhysicalOp::AddAligned => {
+                arithmetic_loops.push(slots);
+                expected.alignment_additions += slots;
+            }
+            PhysicalOp::Accumulate => {
+                arithmetic_loops.push(slots);
+                expected.accumulation_additions += slots;
+            }
+            PhysicalOp::SupportMask { branch } => {
+                wrappers.push("materialize_branch_mask");
+                materializer_loops.push(slots);
+                expected.materialization += slots;
+                arithmetic_loops.push(slots);
+                expected.mask_products += slots;
+                if branch == PhysicalMaskBranch::Support {
+                    init_copy_loops.push(slots);
+                    expected.copies += slots;
+                }
+            }
+            PhysicalOp::MaskRescale { .. } => {} // Dispatch/advance only.
+        }
+    }
+    wrappers.push("materialize_bias");
+    finite_loops.push(ow);
+    expected.materializer_validation += ow;
+    materializer_loops.push(2); // Bias's OUTER frame traversal.
+    for _frame in 0..2 {
+        materializer_loops.push(slots);
+        expected.materialization += slots;
+    }
+    arithmetic_loops.push(2 * slots); // Final bias-add traversal, not two loops.
+    expected.bias_additions = 2 * slots;
+    let scaled = matches!(plan.stages, PhysicalStages::Scaled78(_));
+    assert_eq!((materializer_loops.len(), arithmetic_loops.len(),
+        init_copy_loops.len(), finite_loops.len()), (if scaled { 36 } else { 30 }, 57, 4, 21));
+    // Every traversal gets its own terminating advance, including zero-length
+    // any() scans. Stage dispatch and successful stage advance are DISTINCT.
+    for lengths in [&materializer_loops, &arithmetic_loops, &init_copy_loops, &finite_loops] {
+        for length in lengths { expected.loop_control_visits += length + 1; }
+    }
+    expected.loop_control_visits += plan.stages().len() + 1;
+    assert_eq!(wrappers.iter().filter(|name| **name == "materialize_weight").count(), 16);
+    assert_eq!(wrappers.iter().filter(|name| **name == "materialize_mask").count(), if scaled { 0 } else { 8 });
+    assert_eq!(wrappers.iter().filter(|name| **name == "materialize_branch_mask").count(), if scaled { 14 } else { 0 });
+    assert_eq!(wrappers.len(), if scaled { 34 } else { 28 });
+    expected.wrapper_visits = wrappers.len();
+    let old_fused: usize = [expected.preflight_validation, expected.materializer_validation,
+        expected.materialization, expected.initialization, expected.copies,
+        expected.weight_products, expected.mask_products, expected.product_sum_additions,
+        expected.subtractions, expected.rotations, expected.alignment_additions,
+        expected.accumulation_additions, expected.bias_additions, expected.retirement,
+        expected.control_visits].iter().sum();
+    let total = old_fused + expected.loop_control_visits + expected.wrapper_visits
+        + expected.quote_construction_visits;
+    (expected, old_fused, total)
+}
+
+#[test]
+fn ideal_batch_event_census_and_aggregate_work_admission() {
+    for (iw, ow) in [(4, 8), (8, 4)] {
+        for tokens in [0, 1, 2] {
+          for scaled in [false, true] {
+            let (input, out) = physical_layouts(iw, ow, tokens, 1);
+            let plan = if scaled { block_pc_physical_plan_scaled_support(input, out, 4096, LIMITS) }
+                else { block_pc_physical_plan(input, out, 4096, LIMITS) }.unwrap();
+            let quote = plan.ideal_work().unwrap();
+            let (expected, old_fused, total) = ideal_batch_event_census(plan, iw, ow, tokens);
+            assert_eq!(quote, expected);
+            let published = if scaled {
+                if iw == 4 { [886170, 886186, 886202] } else { [886154, 886186, 886218] }
+            } else if iw == 4 { [836978, 836994, 837010] }
+                else { [836962, 836994, 837026] };
+            assert_eq!(total, published[tokens]);
+            assert_eq!(quote.total(), Ok(total));
+            assert!(total > 65536); // Existing FFN ticket precheck stays unchanged.
+            assert_ne!(total, BlockPcPhysicalPlan::LOGICAL_REFERENCE_WORK);
+            let mut overflow = quote;
+            overflow.retirement = usize::MAX;
+            assert_eq!(overflow.total(), Err(Error::Overflow));
+            for component in 0..3 {
+                let mut overflow = quote;
+                match component {
+                    0 => overflow.loop_control_visits = usize::MAX,
+                    1 => overflow.wrapper_visits = usize::MAX,
+                    _ => overflow.quote_construction_visits = usize::MAX,
+                }
+                assert_eq!(overflow.total(), Err(Error::Overflow));
+            }
+            let x = vec![1.0; 2 * iw];
+            let w = vec![1.0; 32];
+            let b = vec![1.0; ow];
+            let mut scratch = vec![SENTINEL; 32771];
+            let mut output = vec![SENTINEL; 8195];
+            // ONE aggregate ceiling: there are no per-component meters. The
+            // former fused-only quote must no longer admit this complete call.
+            let obsolete_legacy = block_pc_physical_plan(input, out, 4096, LIMITS)
+                .unwrap().ideal_work().unwrap().total().unwrap();
+            for ceiling in [0, total - 1, old_fused,
+                if scaled { obsolete_legacy } else { old_fused }, 65536,
+                BlockPcPhysicalPlan::LOGICAL_REFERENCE_WORK] {
+                assert_eq!(plan.evaluate_ideal_into(&x, &w, &b, &mut scratch, &mut output,
+                    Limits { max_work: ceiling, ..LIMITS }), Err(Error::WorkLimit));
+                assert!(scratch.iter().all(|v| *v == SENTINEL));
+                assert!(output.iter().all(|v| *v == SENTINEL));
+            }
+            plan.evaluate_ideal_into(&x, &w, &b, &mut scratch, &mut output,
+                Limits { max_work: total, max_buffer_elements: 32771 }).unwrap();
+            assert!(scratch[32768..].iter().all(|v| *v == SENTINEL));
+            assert!(output[8192..].iter().all(|v| *v == SENTINEL));
+        }
+    }
+    }
+}
+
+#[test]
+fn ideal_batch_preflight_all_buffers_finiteness_geometry_both_profiles() {
+    for (iw, ow) in [(4, 8), (8, 4)] {
+      for scaled in [false, true] {
+        let (input, out) = physical_layouts(iw, ow, 2, 1);
+        let plan = if scaled { block_pc_physical_plan_scaled_support(input, out, 4096, LIMITS) }
+            else { block_pc_physical_plan(input, out, 4096, LIMITS) }.unwrap();
+        let x = vec![1.0; 2 * iw];
+        let w = vec![1.0; 32];
+        let b = vec![1.0; ow];
+        let mut scratch = vec![SENTINEL; 32771];
+        let mut output = vec![SENTINEL; 8195];
+        for (xl, wl, bl, sl, ol) in [(2 * iw - 1, 32, ow, 32771, 8195),
+            (2 * iw, 31, ow, 32771, 8195), (2 * iw, 32, ow - 1, 32771, 8195),
+            (2 * iw, 32, ow, 32767, 8195), (2 * iw, 32, ow, 32771, 8191),
+            (0, 0, 0, 0, 0)] {
+            assert_eq!(plan.evaluate_ideal_into(&x[..xl], &w[..wl], &b[..bl],
+                &mut scratch[..sl], &mut output[..ol], LIMITS), Err(Error::Buffer));
+        }
+        for cap in [0, 32767, 32770] {
+            assert_eq!(plan.evaluate_ideal_into(&x, &w, &b, &mut scratch, &mut output,
+                Limits { max_buffer_elements: cap, ..LIMITS }), Err(Error::Buffer));
+        }
+        let oversized = vec![0.0; 32769];
+        for (sx, sw, sb) in [(&oversized[..], &w[..], &b[..]),
+            (&x[..], &oversized[..], &b[..]), (&x[..], &w[..], &oversized[..])] {
+            assert_eq!(plan.evaluate_ideal_into(sx, sw, sb, &mut scratch[..32768], &mut output,
+                Limits { max_buffer_elements: 32768, ..LIMITS }), Err(Error::Buffer));
+        }
+        let mut oversized_output = vec![SENTINEL; 32769];
+        assert_eq!(plan.evaluate_ideal_into(&x, &w, &b, &mut scratch[..32768], &mut oversized_output,
+            Limits { max_buffer_elements: 32768, ..LIMITS }), Err(Error::Buffer));
+        assert!(oversized_output.iter().all(|v| *v == SENTINEL));
+        // Preserve refusal precedence: buffer before aggregate work, aggregate
+        // work before operand finiteness, all before initialization/stores.
+        let mut nonfinite_x = x.clone(); nonfinite_x[0] = f64::NAN;
+        assert_eq!(plan.evaluate_ideal_into(&nonfinite_x, &w[..31], &b, &mut scratch, &mut output,
+            Limits { max_work: 0, ..LIMITS }), Err(Error::Buffer));
+        assert_eq!(plan.evaluate_ideal_into(&nonfinite_x, &w, &b, &mut scratch, &mut output,
+            Limits { max_work: 0, ..LIMITS }), Err(Error::WorkLimit));
+        for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            for operand in 0..3 {
+                let mut bx = x.clone(); let mut bw = w.clone(); let mut bb = b.clone();
+                match operand {
+                    0 => bx[2 * iw - 1] = bad,
+                    1 => bw[31] = bad,
+                    _ => bb[ow - 1] = bad,
+                }
+                assert_eq!(plan.evaluate_ideal_into(&bx, &bw, &bb, &mut scratch, &mut output, LIMITS), Err(Error::NonFinite));
+            }
+        }
+        // Private malformed fixture exercises evaluator's own geometry preflight;
+        // ordinary callers cannot construct or retag such a plan.
+        let (bad_input, _) = physical_layouts(iw, ow, 2, 2);
+        let invalid = BlockPcPhysicalPlan { input: bad_input, ..plan };
+        assert_eq!(invalid.evaluate_ideal_into(&x, &w, &b, &mut scratch, &mut output, LIMITS), Err(Error::Geometry));
+        assert_eq!(invalid.evaluate_ideal_into(&[], &w, &b, &mut scratch, &mut output,
+            Limits { max_work: 0, ..LIMITS }), Err(Error::Geometry));
+        assert!(scratch.iter().all(|v| *v == SENTINEL));
+        assert!(output.iter().all(|v| *v == SENTINEL));
+        // Exact minimum storage works. Operand suffix NaNs are not operands.
+        let mut sx = x.clone(); sx.push(f64::NAN);
+        let mut sw = w.clone(); sw.push(f64::NAN);
+        let mut sb = b.clone(); sb.push(f64::NAN);
+        plan.evaluate_ideal_into(&sx, &sw, &sb, &mut scratch[..32768], &mut output[..8192],
+            Limits { max_buffer_elements: 32768, ..LIMITS }).unwrap();
+        assert!(scratch[32768..].iter().all(|v| *v == SENTINEL));
+        assert!(output[8192..].iter().all(|v| *v == SENTINEL));
+    }
+    }
+}
+
+#[test]
+fn ideal_batch_wrong_signed_rotation_is_detected_by_independent_oracle() {
+    for (iw, ow) in [(4, 8), (8, 4)] {
+        let (input, out) = physical_layouts(iw, ow, 2, 1);
+        for scaled in [false, true] {
+        // Isolate each rotation branch. Remainder's reversed sign sends source
+        // slot 0 to 4095, not slot 1. Wrap's reversed sign sends slot 1 to 2,
+        // not slot 0. Exact values make these negative controls deterministic.
+        for (inner, feature, good_slot, wrong_slot, a, target) in [
+            (0, 2, 1, 4095, 1, PhysicalOp::RotateRemainder { shift: -1 }),
+            (2, 0, 0, 2, 3, PhysicalOp::RotateMasked { shift: 1 }),
+        ] {
+            // Fresh original per witness. Only ONE private descriptor changes;
+            // expected values never follow a modified stage interpreter.
+            let right = if scaled { block_pc_physical_plan_scaled_support(input, out, 4096, LIMITS) }
+                else { block_pc_physical_plan(input, out, 4096, LIMITS) }.unwrap();
+            let mut wrong = right;
+            let stages: &mut [PhysicalStage] = match &mut wrong.stages {
+                PhysicalStages::Legacy64(stages) => stages,
+                PhysicalStages::Scaled78(stages) => stages,
+            };
+            {
+                let stage = stages.iter_mut().find(|stage| stage.output_frame == 0
+                    && stage.displacement == a && stage.op == target).unwrap();
+                stage.op = match target {
+                    PhysicalOp::RotateRemainder { shift } => PhysicalOp::RotateRemainder { shift: -shift },
+                    PhysicalOp::RotateMasked { shift } => PhysicalOp::RotateMasked { shift: -shift },
+                    _ => unreachable!(),
+                };
+            }
+            assert_eq!(right.stages().iter().zip(wrong.stages())
+                .filter(|(original, changed)| original != changed).count(), 1);
+            let mut x = vec![0_i64; 2 * iw]; x[inner] = 16;
+            let mut w = vec![0_i64; iw * ow]; w[inner * ow + feature] = 16;
+            let b = vec![0_i64; ow];
+            let dx: Vec<_> = x.iter().map(|v| *v as f64 / 16.0).collect();
+            let dw: Vec<_> = w.iter().map(|v| *v as f64 / 16.0).collect();
+            let db = vec![0.0; ow];
+            let mut scratch = vec![SENTINEL; 32768];
+            let mut output = vec![SENTINEL; 8192];
+            let mut right_output = vec![SENTINEL; 8192];
+            right.evaluate_ideal_into(&dx, &dw, &db, &mut scratch, &mut right_output, LIMITS).unwrap();
+            wrong.evaluate_ideal_into(&dx, &dw, &db, &mut scratch, &mut output, LIMITS).unwrap();
+            let expected = ideal_batch_expected(iw, ow, 2, &x, &w, &b);
+            assert_ne!(right_output, output); // Establish witness sensitivity first.
+            assert_eq!(right_output, expected); // Complete independent two-frame oracle.
+            assert_eq!(expected[good_slot], 1.0);
+            assert_eq!(expected[wrong_slot], 0.0);
+            assert_eq!(output[wrong_slot], 1.0);
+            assert_ne!(output, expected);
+        }
+        }
+    }
+}
+
+#[test]
+fn ideal_batch_arithmetic_failure_retains_buffers_and_documents_partial_mutation() {
+    for scaled in [false, true] {
+    let (input, out) = physical_layouts(4, 8, 2, 1);
+    let plan = if scaled { block_pc_physical_plan_scaled_support(input, out, 4096, LIMITS) }
+        else { block_pc_physical_plan(input, out, 4096, LIMITS) }.unwrap();
+    let mut scratch = vec![SENTINEL; 32771];
+    let mut output = vec![SENTINEL; 8195];
+    let sp = scratch.as_ptr(); let op = output.as_ptr();
+    assert_eq!(plan.evaluate_ideal_into(&[f64::MAX; 8], &[2.0; 32], &[0.0; 8],
+        &mut scratch, &mut output, LIMITS), Err(Error::NonFinite));
+    assert_eq!((scratch.as_ptr(), output.as_ptr()), (sp, op));
+    assert_eq!((scratch.len(), output.len()), (32771, 8195));
+    assert!(scratch[..8192].iter().any(|v| *v == f64::MAX));
+    assert!(output[..8192].iter().all(|v| *v == 0.0)); // Preflight was NOT an atomic arithmetic guarantee.
+    assert!(scratch[32768..].iter().all(|v| *v == SENTINEL));
+    assert!(output[8192..].iter().all(|v| *v == SENTINEL));
+    // Same allocations remain usable after failure, without new owner/ticket.
+    plan.evaluate_ideal_into(&[1.0; 8], &[1.0; 32], &[1.0; 8], &mut scratch, &mut output, LIMITS).unwrap();
+    assert_eq!(output[0], 5.0);
+    // Each complete partial remains finite; accumulation of four exceeds MAX.
+    assert_eq!(plan.evaluate_ideal_into(&[1.0; 8], &[f64::MAX / 2.0; 32], &[0.0; 8],
+        &mut scratch, &mut output, LIMITS), Err(Error::NonFinite));
+    assert!(output[..8192].iter().any(|v| v.is_finite() && *v > 0.0));
+    assert_eq!((scratch.as_ptr(), output.as_ptr()), (sp, op));
+    assert!(scratch[32768..].iter().all(|v| *v == SENTINEL));
+    assert!(output[8192..].iter().all(|v| *v == SENTINEL));
+    // A late bias overflow leaves the already accumulated nonzero output; no
+    // claim that an error clears operands or provides atomic rollback.
+    assert_eq!(plan.evaluate_ideal_into(&[1.0; 8], &[f64::MAX / 8.0; 32], &[f64::MAX; 8],
+        &mut scratch, &mut output, LIMITS), Err(Error::NonFinite));
+    assert!(output[0].is_finite() && output[0] > 0.0);
+    assert_eq!(scratch[0], f64::MAX);
+    assert_eq!((scratch.as_ptr(), output.as_ptr()), (sp, op));
+    assert!(scratch[32768..].iter().all(|v| *v == SENTINEL));
+    assert!(output[8192..].iter().all(|v| *v == SENTINEL));
+    }
+}
+
+#[test]
+fn ideal_batch_unwind_keeps_caller_allocations_and_suffixes() {
+    for scaled in [false, true] {
+    let (input, out) = physical_layouts(4, 8, 2, 1);
+    let right = if scaled { block_pc_physical_plan_scaled_support(input, out, 4096, LIMITS) }
+        else { block_pc_physical_plan(input, out, 4096, LIMITS) }.unwrap();
+    let mut broken = right;
+    // Inject an impossible private invariant failure to exercise unwinding, not
+    // a public malformed-descriptor API or an ordinary supported input failure.
+    let stages: &mut [PhysicalStage] = match &mut broken.stages {
+        PhysicalStages::Legacy64(stages) => stages, PhysicalStages::Scaled78(stages) => stages,
+    };
+    {
+        stages[0].op = PhysicalOp::WeightProduct { input_frame: 2 };
+    }
+    let mut scratch = vec![SENTINEL; 32771];
+    let mut output = vec![SENTINEL; 8195];
+    let before = (scratch.as_ptr(), scratch.capacity(), output.as_ptr(), output.capacity());
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        broken.evaluate_ideal_into(&[1.0; 8], &[1.0; 32], &[1.0; 8],
+            &mut scratch, &mut output, LIMITS)
+    }));
+    assert!(result.is_err());
+    assert_eq!((scratch.as_ptr(), scratch.capacity(), output.as_ptr(), output.capacity()), before);
+    assert!(scratch[32768..].iter().all(|v| *v == SENTINEL));
+    assert!(output[8192..].iter().all(|v| *v == SENTINEL));
+    // Reuse genuine caller allocations with an unmodified plan after unwind.
+    right.evaluate_ideal_into(&[1.0; 8], &[1.0; 32], &[1.0; 8], &mut scratch, &mut output, LIMITS).unwrap();
+    assert_eq!(output[0], 5.0);
+    }
+}
+
+#[test]
+fn scaled_ideal_remainder_from_wrap_mutation_fails_dense_basis() {
+    for (iw, ow) in [(4, 8), (8, 4)] {
+        let (input, out) = physical_layouts(iw, ow, 2, 1);
+        let right = block_pc_physical_plan_scaled_support(input, out, 4096, LIMITS).unwrap();
+        let mut wrong = right;
+        if let PhysicalStages::Scaled78(stages) = &mut wrong.stages {
+            // (F-M)*(M*P) is identically zero on EVERY slot: disjoint masks.
+            // At a=1 this is remainder's first use, so skipping its product
+            // leaves exactly that forbidden zero branch, without a second
+            // evaluator or a production mutation hook. Wrap stays unchanged.
+            let stage = stages.iter_mut().find(|s| s.output_frame == 0 && s.displacement == 1
+                && matches!(s.op, PhysicalOp::SupportMask { branch: PhysicalMaskBranch::Remainder })).unwrap();
+            stage.op = PhysicalOp::MaskRescale { branch: PhysicalMaskBranch::Remainder };
+        }
+        let mut x = vec![0_i64; 2 * iw]; x[0] = 16;
+        let mut w = vec![0_i64; iw * ow]; w[2] = 16;
+        let b = vec![0_i64; ow];
+        let dx: Vec<_> = x.iter().map(|v| *v as f64 / 16.0).collect();
+        let dw: Vec<_> = w.iter().map(|v| *v as f64 / 16.0).collect();
+        let mut scratch = vec![SENTINEL; 32771];
+        let mut good = vec![SENTINEL; 8195];
+        let mut bad = good.clone();
+        right.evaluate_ideal_into(&dx, &dw, &vec![0.0; ow], &mut scratch, &mut good, LIMITS).unwrap();
+        wrong.evaluate_ideal_into(&dx, &dw, &vec![0.0; ow], &mut scratch, &mut bad, LIMITS).unwrap();
+        let expected = ideal_batch_expected(iw, ow, 2, &x, &w, &b);
+        assert_eq!(&good[..8192], expected);
+        assert_ne!(&bad[..8192], expected);
+        assert_eq!((good[1], bad[1]), (1.0, 0.0));
+        assert!(scratch[32768..].iter().all(|v| *v == SENTINEL));
+        assert!(bad[8192..].iter().all(|v| *v == SENTINEL));
+    }
+}
+
+#[test]
+fn scaled_ideal_global_complement_requires_all_slot_mask_oracle() {
+    for (iw, ow) in [(4, 8), (8, 4)] {
+        let (input, out) = physical_layouts(iw, ow, 2, 1);
+        let plan = block_pc_physical_plan_scaled_support(input, out, 4096, LIMITS).unwrap();
+        for a in 1..4 {
+            let mut mask = vec![SENTINEL; 4099];
+            plan.materialize_branch_mask(a, PhysicalMaskBranch::Remainder, &mut mask, LIMITS).unwrap();
+            let global: Vec<_> = (0..4096).map(|s|
+                if s < 8 && s % 4 >= 4 - a { 0.0 } else { 1.0 }).collect();
+            let expected: Vec<_> = (0..4096).map(|s|
+                if s < 8 && s % 4 < 4 - a { 1.0 } else { 0.0 }).collect();
+            assert_eq!(&mask[..4096], expected);
+            assert_ne!(global, expected);
+            assert_eq!(global.iter().zip(&expected).filter(|(g, e)| g != e).count(), 4088);
+            // P has zero tail: dense contraction alone cannot see global 1-M.
+            for s in 0..4096 {
+                let p = if s < 8 { (s + 1) as f64 } else { 0.0 };
+                assert_eq!(global[s] * p, expected[s] * p);
+            }
+            assert!(mask[4096..].iter().all(|v| *v == SENTINEL));
+        }
+        let mut scratch = vec![SENTINEL; 32771];
+        let mut output = vec![SENTINEL; 8195];
+        plan.evaluate_ideal_into(&vec![1.0; 2 * iw], &[1.0; 32], &vec![0.0; ow],
+            &mut scratch, &mut output, LIMITS).unwrap();
+        // Final plain must expose F-M, including all 4088 zero tail lanes.
+        for s in 0..4096 {
+            assert_eq!(scratch[8192 + s], if s < 8 && s % 4 == 0 { 1.0 } else { 0.0 });
+        }
+        assert!(scratch[32768..].iter().all(|v| *v == SENTINEL));
+        assert!(output[8192..].iter().all(|v| *v == SENTINEL));
+    }
+}
+
 // Proposed physical embedding only. This test interpreter uses exact integer
 // numerators, NOT ciphertexts or a CKKS numerical simulation. Expected values
 // come from separately indexed token-major X, input-major W and output bias;
