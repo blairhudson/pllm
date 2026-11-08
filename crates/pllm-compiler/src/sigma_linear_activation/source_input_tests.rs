@@ -449,6 +449,7 @@ fn source_copy_failure_and_unwind_retire_genuine_original_guards() {
 
 #[test]
 fn source_owned_d22_schedule_matches_independent_normal_facade() {
+    let _serial = crate::sigma_linear_activation::execution::TEST_SERIAL.lock().unwrap();
     fn trace(run: &mut OwnedSigmaExecutionRun) -> (Vec<[usize; 2]>, [EdgeDescriptor; 2]) {
         let mut frames = run.begin(&mut || false).unwrap();
         let mut schedule = Vec::new();
@@ -511,6 +512,7 @@ fn source_owned_d22_schedule_matches_independent_normal_facade() {
 
 #[test]
 fn genuine_source_root_raw_value_guard_survives_d22_frames_and_last_output() {
+    let _serial = crate::sigma_linear_activation::execution::TEST_SERIAL.lock().unwrap();
     let root = OwnedBudget::new(LIMIT).unwrap();
     let baseline = root.budget().used_bytes();
     let (mask, mut run, residue, dealer) = issue(&root);
@@ -556,6 +558,7 @@ fn genuine_source_root_raw_value_guard_survives_d22_frames_and_last_output() {
 
 #[test]
 fn genuine_source_survives_d27_role_split_frames_outputs_and_cancellation() {
+    let _serial = crate::sigma_linear_activation::execution::TEST_SERIAL.lock().unwrap();
     for cancel in [false, true] {
         let root = OwnedBudget::new(LIMIT).unwrap();
         let baseline = root.budget().used_bytes();

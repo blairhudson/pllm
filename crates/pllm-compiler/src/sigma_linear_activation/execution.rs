@@ -1261,7 +1261,7 @@ fn consume_checked_with_input<C: SigmaExecutionContext>(
 }
 
 #[cfg(test)]
-static TEST_SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
+pub(super) static TEST_SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[cfg(test)]
 #[path = "execution_tests.rs"]

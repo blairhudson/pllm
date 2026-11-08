@@ -598,6 +598,7 @@ fn operation(r: SigmaLinearActivationRequest<'_>) -> Operation<'_> {
 
 #[test]
 fn real_owned_facade_source_check_and_d27_split_remain_authoritative() {
+    let _serial = crate::sigma_linear_activation::execution::TEST_SERIAL.lock().unwrap();
     for corrupt in [false, true] {
         let root = OwnedBudget::new(LIMIT).unwrap();
         let reference = plan();
