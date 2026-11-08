@@ -13,46 +13,50 @@ use std::collections::BTreeSet;
 // checked. Each digest covers every field of the complete canonical JSON from
 // snapshot(), not merely the execution digest or selected summary counters.
 // Expectations are literals: never derive them from a freshly compiled graph.
+// 64-bit payload accounting: owned executor headers changed from two Vecs to two
+// Boxes (16 B saved per stored template); guard descriptor allowance changed from
+// 128 to 64 B per checked site. Inverting only payload recovers all old JSON
+// preimages; independent FROZEN numeric identities remain unchanged.
 const EXPECTED: &[(&str, &str)] = &[
     (
         "frozen_qwen2_active_false",
-        "ed9114342828ce061361a9e0cc18ac6c07e063ff0bf89976adc8e6994c652fe1",
+        "2145a0218233e71f97884a0f2dbb0d09908e3c269aa23706d0b60dd90feaf963",
     ),
     (
         "frozen_qwen2_active_true",
-        "8d8b0086d880d6dd5fd159011bd0bb87f0404d2f5c530b23b5db61245b7dc77c",
+        "ecd8091427dece79c4829a3253a69e490ce4643041d24e92e9517640673425d1",
     ),
     (
         "frozen_qwen3_active_false",
-        "e1687c965956604820ac7a74e3b54f2f0bab3dfe550bb9889c0aed177a1f9aa2",
+        "c89f4780ac2b8e26df953ad29fe6b7ccb7f83f21855ed6ff6f8ded2ed22636c5",
     ),
     (
         "frozen_qwen3_active_true",
-        "efcffd9f3e52f68bec0fed18fed192db1de41b1a6ce9e64f2920528ff0a833fa",
+        "03bc195ebc47c7cdd026be1ec01a5588aff1b289f6dcbcd8875dd7c6c06fa4cc",
     ),
     (
         "frozen_llama_active_false",
-        "7a49e2fac21bc632eac0a6d65f27daa2dae5db826b6b8dbc0f85e6d3447a97ec",
+        "ff6d57f6f9dd4eedb1673d8a2878cb2eb1deebbac185e03554fa9686802133d3",
     ),
     (
         "frozen_llama_active_true",
-        "264b850805cf289feaf5f20f0d229a703aedc0e9ae5451fe1c3638921fe8a82d",
+        "2473dff44542994dcfc992e5774bba013f32a78d295d0d4b150e593a623b7878",
     ),
     (
         "public_matrix_nonzero_bias_two_selection",
-        "72c56b2e0ce3b2b3ad8128c755fbd46d1bf4a91010b07498b2c717c87d24e341",
+        "bf6151280ea456ac9db8f31833147a7962a885973d828d269c44cefc34051e99",
     ),
     (
         "binary_mlp_128_plus_1",
-        "c67a3f7e9daa6089d87dbf1a3715f487d7e2bc322b87061b63ca988e6e3ea539",
+        "0e7dc5bcc00667df0cb2948f1ec866c6bf5f8f14a78997f03eb97a03325673b7",
     ),
     (
         "checked_acceptance_masked_two_selection",
-        "e6e90a716c0f93d57c5360ef67ca49370df7597ea0cd50daa5afac9fee2a52f8",
+        "d77bf3071258c8596c9447cb0d057064ec9ffcc43e1bb5d1cdbf1949b3699fab",
     ),
     (
         "public_lookup_loop_128_plus_1",
-        "2906e1a114bb6e35447513606d480230a9a670d7b15293f3188365a388d2cc5a",
+        "a61f4c0b1505439b0e741a263e0a5da0485cc538ca88eef6520b138034db326f",
     ),
 ];
 
@@ -305,8 +309,8 @@ fn expanded_graph_regression_snapshots() {
                 .unwrap_or_else(|| panic!("missing independent frozen graph snapshot: {name}"));
             let serialized = serde_json::to_string(&actual).unwrap();
             let fingerprint = hex(Sha256::digest(serialized.as_bytes()).into());
-            println!("expanded graph snapshot: {name}\n{serialized}");
             if fingerprint != expected.1 {
+                println!("expanded graph snapshot: {name}\n{serialized}");
                 mismatches.push((name, fingerprint, expected.1));
             }
         }
