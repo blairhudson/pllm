@@ -36,3 +36,11 @@ def smoke(model=MODEL):
 
 def seeded_smoke(model=MODEL):
     return smoke(model).with_params(name="gkm-seeded-smoke", pipeline__linear__sharing="seeded")
+
+
+def bounded_response():
+    """Single-request declaration; source admission remains a separate gate."""
+    return experiment().with_params(
+        name="gkm-bounded-response", budget__requests=1,
+        budget__max_input_tokens=32, budget__max_new_tokens=2,
+    )

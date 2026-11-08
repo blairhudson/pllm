@@ -8,6 +8,7 @@ from pllm.configuration import Pipeline
 from pllm.modeling import ModelPlan
 
 from .models import StageSpec
+from .semantic_tensors import lookup_contract, projection_weight_shape
 
 
 def client_owns_linear(
@@ -199,6 +200,7 @@ def _token_lookup_stage(
     ):
         raise ValueError("semantic token lookup does not declare ordered boundary artifacts")
     width = 0
+    cardinality = None
     for op_id, output, weight in zip(op_ids, outputs, weights, strict=True):
         operation = operations.get(op_id)
         if (
@@ -212,6 +214,10 @@ def _token_lookup_stage(
             or operation["attributes"].get("weight") != weight
         ):
             raise ValueError(f"semantic token lookup stage offsets or weights disagree: {op_id}")
+        domain, _, shape = lookup_contract(operation, legacy_vocabulary=vocabulary)
+        if domain != "tokens" or (cardinality is not None and cardinality != shape[0]):
+            raise ValueError("fused token lookup tables must share their declared token domain")
+        cardinality = shape[0]
         width += int(output["stage_width"])
     primary_width = int(outputs[0]["stage_width"])
     if primary_width <= 0 or width < primary_width:
@@ -219,7 +225,7 @@ def _token_lookup_stage(
     return StageSpec(
         id="token_lookup",
         op="embedding",
-        in_features=vocabulary,
+        in_features=cardinality,
         out_features=width,
         weight_keys=tuple(weights),
         transpose_weight=True,
@@ -247,17 +253,31 @@ def _linear_stage(
     else:
         raise ValueError("decoder schedule declares an unsupported stage layout")
     declared_biases = tuple(operations[op_id]["attributes"].get("bias") or "" for op_id in op_ids)
+    input_width = int(operations[inputs[0]]["output_shape"][-1])
+    transpose = _projection_transpose(op_ids, operations, input_width)
     return StageSpec(
         id=stage_id,
         op="linear",
-        in_features=int(operations[inputs[0]]["output_shape"][-1]),
+        in_features=input_width,
         out_features=sum(int(operations[op_id]["output_shape"][-1]) for op_id in op_ids),
         fused_from=semantic_fused_roles(role),
         weight_keys=tuple(step["weight_ids"]),
         bias_keys=declared_biases if any(declared_biases) else (),
         layer_index=layer,
         role=role,
+        transpose_weight=transpose,
     )
+
+
+def _projection_transpose(op_ids, operations, input_width):
+    layouts = set()
+    for op_id in op_ids:
+        operation = operations[op_id]
+        projection_weight_shape(operation, input_width)
+        layouts.add(operation["attributes"].get("weight_layout", "output_input"))
+    if len(layouts) != 1:
+        raise ValueError("fused projections must share one declared checkpoint orientation")
+    return layouts.pop() == "input_output"
 
 
 def scheduled_stage_specs(plan: ModelPlan, composition: Pipeline) -> list[StageSpec]:
@@ -378,14 +398,16 @@ def _scheduled_stage_specs(plan: ModelPlan, composition: Pipeline):
             spec = _token_lookup_stage(step, operations, vocabulary)
         elif role == "lm_head":
             input_id = step["input_ids"][0]
+            input_width = int(operations[input_id]["output_shape"][-1])
             spec = StageSpec(
                 id="lm_head",
                 op="lm_head",
-                in_features=int(operations[input_id]["output_shape"][-1]),
+                in_features=input_width,
                 out_features=int(operations[op_ids[0]]["output_shape"][-1]),
                 weight_keys=weights,
                 bias_keys=declared_biases if any(declared_biases) else (),
                 role=role,
+                transpose_weight=_projection_transpose(op_ids, operations, input_width),
             )
         else:
             spec = _linear_stage(step, operations, role)

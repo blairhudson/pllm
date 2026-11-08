@@ -244,7 +244,13 @@ def test_experiment_requires_seeded_inventory_preparation(monkeypatch):
         preparation_http_client=preparation,
         experiment=baseline_experiment(),
     )
+    closed = []
+
+    def close_bundle():
+        closed.append(True)
+
     bundle = SimpleNamespace(
+        close=close_bundle,
         privacy={
             "mode": "public",
             "protocol": "masked_w4a4",
@@ -270,9 +276,17 @@ def test_experiment_requires_seeded_inventory_preparation(monkeypatch):
     )
     monkeypatch.setattr(core, "_load_client_bundle_record", lambda *_args: (bundle, "0" * 64))
     try:
-        with pytest.raises(ProtocolError, match="commitments do not match"):
+        with pytest.raises(
+            ProtocolError, match="^preparation and inference model commitments do not match$",
+        ):
             core._transformer_state(model)
+        assert closed == []
+        state = core._transformer_states[model]
+        assert state.bundle is bundle
+        assert not state.preparation_verified
+        assert state.prepared_inventory is None
     finally:
         core.close()
         inference.close()
         preparation.close()
+    assert closed == [True]

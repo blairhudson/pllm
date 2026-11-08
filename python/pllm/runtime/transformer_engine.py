@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import hashlib
 import json
 import re
@@ -10,6 +11,7 @@ import secrets
 import threading
 import time
 from dataclasses import dataclass, field, replace
+from functools import partial
 from pathlib import Path
 from typing import Any, cast
 
@@ -20,6 +22,7 @@ from pllm import _native
 
 from .engine import EngineCapabilities
 from .bfv_correlations import BFVCorrelationServer
+from .loaders import ModelLoadError, resolve_hf_source_geometry
 from .models import ModelManifest, StageSpec, gemma4_stage_plan, transformer_stage_plan
 from .native_kernels import MaskedGEMM
 from .preparation_protocol import (
@@ -54,12 +57,39 @@ from .semantic_tensors import (
     required_client_tensors,
 )
 from .semantic_stages import client_owns_linear, provider_owns_linear
+from .client_tensor_contract import (
+    CONTRACT_FIELD, capture_legacy_presence, legacy_source_geometry,
+    legacy_local_requirements, legacy_record_counts, legacy_bundle_record_counts, validate_legacy_manifest,
+    validate_legacy_stages, validate_legacy_runtime,
+)
 from .stage_protocol import MaskedStageRequest, MaskedStageResponse, RingKind, StageCorrelation
 from .tiled_bfv import TiledBFVError, TiledBFVServer, tiled_context_modulus
 
 
 class TransformerEngineError(RuntimeError):
     pass
+
+
+def _populate_semantic_runtime_geometry(
+    config: dict[str, Any], raw_config: dict[str, Any], manifest: ModelManifest,
+) -> None:
+    """Fill runtime-only geometry from source; this grants no capability."""
+    try:
+        geometry = resolve_hf_source_geometry(raw_config)
+    except ModelLoadError as exc:
+        raise TransformerEngineError(f"invalid semantic source geometry: {exc}") from exc
+    for key, expected in geometry.items():
+        if key in config:
+            actual = config[key]
+            if type(actual) is not int or actual <= 0 or actual != expected:
+                raise TransformerEngineError(f"runtime geometry {key!r} disagrees with source")
+        field = "context_length" if key == "max_position_embeddings" else key
+        actual = getattr(manifest, field)
+        if type(actual) is not int or actual <= 0 or actual != expected:
+            raise TransformerEngineError(f"manifest geometry {field!r} disagrees with source")
+    # Validate every field before updating. Never write into raw_config or its
+    # nested text view; native lowering and source snapshots retain exact input.
+    config.update(geometry)
 
 
 # Shared allocation contracts used by benchmark admission. A single exceptionally
@@ -633,10 +663,166 @@ class MaskedTransformerEngine:
         self.public_equalization_digest = public_equalization_digest
         self._public_equalization_profile: PublicEqualizationProfile | None = None
         self.models: dict[str, LoadedTransformer] = {}
+        self._loading_model_ids: set[str] = set()
         self._rng = np.random.default_rng(local_correlation_seed)
         self._rng_lock = threading.Lock()
 
     async def load(self, manifest: ModelManifest) -> None:
+        if manifest.id in self.models:
+            raise TransformerEngineError(f"model {manifest.id!r} is already loaded")
+        if manifest.id in self._loading_model_ids:
+            raise TransformerEngineError(f"model {manifest.id!r} load is already in progress")
+        self._loading_model_ids.add(manifest.id)
+        # Only the explicit legacy branch populates this single pending model.
+        # Failed admission must not depend on unload() finding a published model.
+        pending: list[LoadedTransformer] = []
+        auxiliary = {}
+        mappings = {}
+        try:
+            await self._load_checkpoint(manifest, pending=pending,
+                auxiliary=auxiliary, mappings=mappings)
+        except BaseException as exc:
+            for model in pending:
+                self._cleanup_attempt(exc, "pending model retirement", partial(
+                    self._retire_failed_load, model, primary=exc,
+                    auxiliary=auxiliary, mappings=mappings))
+            raise
+        finally:
+            pending.clear()
+            auxiliary.clear()
+            mappings.clear()
+            self._loading_model_ids.discard(manifest.id)
+
+    @staticmethod
+    def _legacy_note(primary, message) -> None:
+        if primary is not None:
+            try:
+                primary.add_note(message)
+            except BaseException:
+                pass
+
+    @staticmethod
+    def _cleanup_attempt(primary, label, action) -> None:
+        try:
+            action()
+        except BaseException:
+            MaskedTransformerEngine._legacy_note(primary, "legacy load cleanup failed: " + label)
+
+    @staticmethod
+    async def _drain_legacy_worker(callable_):
+        """Drain the actual default-executor future despite repeated task cancels.
+
+        No wrapper Task can confuse task cancellation with worker completion.
+        Return (result, worker_error, first_cancel); the caller adopts successful
+        ownership synchronously before rethrowing the exact primary exception.
+        """
+        context = contextvars.copy_context()
+        future = asyncio.get_running_loop().run_in_executor(None, context.run, callable_)
+        first_cancel = None
+        while True:
+            try:
+                await asyncio.shield(future)
+            except asyncio.CancelledError as exc:
+                if first_cancel is None:
+                    first_cancel = exc
+                if not future.done():
+                    continue
+            except BaseException:
+                # A shield failure from the worker is retrieved below, once.
+                pass
+            break
+        try:
+            return future.result(), None, first_cancel
+        except BaseException as exc:
+            return None, exc, first_cancel
+
+    @staticmethod
+    def _raise_legacy_worker_outcome(worker_error, first_cancel) -> None:
+        if first_cancel is not None:
+            if worker_error is not None and worker_error is not first_cancel:
+                MaskedTransformerEngine._legacy_note(first_cancel,
+                    "legacy load worker failed after cancellation")
+            raise first_cancel
+        if worker_error is not None:
+            raise worker_error
+
+    @staticmethod
+    def _close_array_mappings(arrays, *, mappings=None, primary=None) -> None:
+        # Retain marked owners too: an id cannot be reused during this attempt.
+        mappings = {} if mappings is None else mappings
+        for array in arrays:
+            try:
+                while isinstance(array, np.ndarray):
+                    if isinstance(array, np.memmap):
+                        mapping = array._mmap
+                        if mapping is not None and id(mapping) not in mappings:
+                            mappings[id(mapping)] = mapping
+                            MaskedTransformerEngine._cleanup_attempt(primary,
+                                "array mapping close", mapping.close)
+                    array = array.base
+            except BaseException:
+                MaskedTransformerEngine._legacy_note(primary,
+                    "legacy load cleanup failed: array mapping traversal")
+
+    def _retire_failed_load(self, model: LoadedTransformer, *, rollback=True,
+                            primary=None, auxiliary=None, mappings=None) -> None:
+        """Retire unpublished legacy ownership; cache files remain reusable."""
+        from .bundle_storage import FilePayload
+        mappings = {} if mappings is None else mappings
+        auxiliary = {} if auxiliary is None else auxiliary
+        if rollback:
+            if self.models.get(model.manifest.id) is model:
+                self._cleanup_attempt(primary, "published model rollback",
+                    lambda: self.models.pop(model.manifest.id))
+            for name, registry in (("metal", self._metal_stages),
+                                   ("cache", self._active_cache_entries)):
+                installed = auxiliary.get("installed_" + name)
+                if installed is not None and registry.get(model.manifest.id) is installed:
+                    def rollback_entry():
+                        previous = "previous_" + name
+                        if previous in auxiliary:
+                            registry[model.manifest.id] = auxiliary[previous]
+                        else:
+                            registry.pop(model.manifest.id)
+                    self._cleanup_attempt(primary, name + " registry rollback", rollback_entry)
+        # Metal owners are refcount-owned, not fake-closeable. Drop them before
+        # CPU backing retirement, including cancellation before publication.
+        metal = auxiliary.get("metal")
+        if metal is not None:
+            self._cleanup_attempt(primary, "pending Metal owner retirement", metal.clear)
+        for runtime in model.stages.values():
+            arrays = []
+            for field in ("weight_scales", "bias", "input_equalization"):
+                self._cleanup_attempt(primary, "stage array snapshot",
+                    lambda: arrays.append(getattr(runtime, field)))
+            try:
+                weight = runtime.quantized_weight
+            except BaseException:
+                weight = None
+                self._legacy_note(primary, "legacy load cleanup failed: quantized owner snapshot")
+            if weight is not None:
+                for field in ("values", "scales"):
+                    self._cleanup_attempt(primary, "quantized array snapshot",
+                        lambda: arrays.append(getattr(weight, field)))
+            self._cleanup_attempt(primary, "stage release", runtime.release_weight)
+            self._cleanup_attempt(primary, "stage mappings", partial(self._close_array_mappings,
+                arrays, mappings=mappings, primary=primary))
+            for field in ("quantized_weight", "compiled_weight", "compiled_cache_entry",
+                          "weight_scales", "bias", "input_equalization"):
+                self._cleanup_attempt(primary, "stage ownership detach",
+                    partial(setattr, runtime, field, None))
+        self._cleanup_attempt(primary, "stage container clear", model.stages.clear)
+        self._cleanup_attempt(primary, "local tensor container clear", model.local_tensors.clear)
+        payload = model.tokenizer.get("model")
+        if type(payload) is FilePayload:
+            self._cleanup_attempt(primary, "tokenizer close", payload.close)
+        self._cleanup_attempt(primary, "tokenizer container clear", model.tokenizer.clear)
+        # SafeTensorStore safe_open handles are context-managed; only its tensor
+        # cache is retained. Never clear unrelated engine/global caches.
+        if rollback:
+            self._cleanup_attempt(primary, "source tensor cache clear", model.store.clear_cache)
+
+    async def _load_checkpoint(self, manifest: ModelManifest, *, pending, auxiliary, mappings) -> None:
         if manifest.id in self.models:
             raise TransformerEngineError(f"model {manifest.id!r} is already loaded")
         if self.private_boundary and not manifest.tied_embeddings:
@@ -650,14 +836,70 @@ class MaskedTransformerEngine:
                 "client-owned prefix must leave at least one remote decoder layer"
             )
         source = Path(manifest.source)
-        store = SafeTensorStore(source)
         raw_config = json.loads((source / "config.json").read_text(encoding="utf-8"))
+        if type(raw_config) is dict and (CONTRACT_FIELD in raw_config or
+                type(raw_config.get("text_config")) is dict and CONTRACT_FIELD in raw_config["text_config"]):
+            raise TransformerEngineError("source cannot supply reserved captured source contract")
+        try:
+            legacy_geometry = legacy_source_geometry(raw_config)
+            if legacy_geometry is not None:
+                if self.private_boundary:
+                    raise ValueError("legacy source route does not support private boundary")
+                from .bundle_document import bounded_metadata, MAX_OBJECTS
+                bounded_metadata(manifest.metadata, json_mode=True)
+                if len(manifest.stages) > MAX_OBJECTS:
+                    raise ValueError("legacy manifest stage count exceeds bound")
+                legacy_record_counts(len(manifest.stages), 0, 0)
+                if any(type(stage) is not StageSpec for stage in manifest.stages):
+                    raise ValueError("legacy manifest requires exact stage specifications")
+                source_manifest = {
+                    key: getattr(manifest, "context_length" if key == "max_position_embeddings" else key)
+                    for key in legacy_geometry.dimensions
+                }
+                source_manifest["context_length"] = source_manifest.pop("max_position_embeddings")
+                source_manifest.update(architecture=manifest.architecture,
+                    tied_embeddings=manifest.tied_embeddings, metadata=manifest.metadata,
+                    stages=[{key: getattr(stage, key) for key in (
+                        "id", "op", "in_features", "out_features", "role", "layer_index")}
+                        for stage in manifest.stages])
+                validate_legacy_manifest(legacy_geometry, source_manifest)
+                validate_legacy_stages(legacy_geometry, source_manifest["stages"])
+                # Snapshot before runtime enrichment, independently of config.
+                original_source = json.loads(json.dumps(raw_config, separators=(",", ":"),
+                    ensure_ascii=False, allow_nan=False))
+            else:
+                original_source = None
+        except (ValueError, TypeError) as exc:
+            raise TransformerEngineError(str(exc)) from exc
+        store = SafeTensorStore(source)
+        pending_model = None
+        if legacy_geometry is not None:
+            pending_model = LoadedTransformer(manifest, store, {}, {}, {}, {})
+            pending.append(pending_model)
+        legacy_presence = None
+        if legacy_geometry is not None:
+            try:
+                legacy_presence = capture_legacy_presence(
+                    legacy_geometry, self._legacy_header_inventory(store))
+                legacy_record_counts(
+                    (3 + 6 * manifest.num_hidden_layers) if legacy_geometry.ple else
+                    (2 + 4 * manifest.num_hidden_layers), 2, len(legacy_presence))
+                # Source negatives finish before any stage coefficients, cache
+                # mappings, native compilation, or publication can occur.
+                pending_model.local_tensors.update(self._load_local_tensors(store,
+                    legacy_geometry=legacy_geometry, legacy_presence=legacy_presence))
+            except (ValueError, KeyError) as exc:
+                raise TransformerEngineError(str(exc)) from exc
         config = (
             raw_config.get("text_config")
             if isinstance(raw_config.get("text_config"), dict)
             else raw_config
         )
         config = dict(config)
+        if legacy_geometry is not None:
+            config.update(legacy_geometry.dimensions)
+            config[CONTRACT_FIELD] = {"v": 1, "source": original_source,
+                                      "present_local_tensors": legacy_presence}
 
         from pllm.configuration import Model
         from pllm.modeling import lower_model
@@ -687,7 +929,8 @@ class MaskedTransformerEngine:
             ),
         )
         try:
-            semantic_plan = lower_model(raw_config, batch=1, max_input_tokens=1, max_new_tokens=1)
+            semantic_plan = (None if legacy_geometry is not None else
+                lower_model(raw_config, batch=1, max_input_tokens=1, max_new_tokens=1))
         except ValueError as exc:
             if not any(
                 marker in str(exc)
@@ -703,6 +946,7 @@ class MaskedTransformerEngine:
             except SemanticTensorError as exc:
                 raise TransformerEngineError(str(exc)) from exc
         if semantic_plan is not None and semantic_plan.coverage(composition).complete:
+            _populate_semantic_runtime_geometry(config, raw_config, manifest)
             try:
                 stages = scheduled_stage_specs(semantic_plan, composition)
             except ValueError as exc:
@@ -721,7 +965,7 @@ class MaskedTransformerEngine:
             )
         else:
             profile = classify_architecture(manifest, config)
-            if profile.stage_plan == "gemma4":
+            if legacy_geometry is not None or profile.stage_plan == "gemma4":
                 stages = gemma4_stage_plan(config, include_lm_head=True)
             elif semantic_plan is None:
                 # Existing sources without semantic adapters retain the older
@@ -895,11 +1139,20 @@ class MaskedTransformerEngine:
             # Auxiliary slices still need their independently quantized source.
             if token.out_features == head.in_features and token_sources[0][0] == head_sources[0][0]:
                 retained.remove(token.id)
-        runtimes = {
-            stage.id: await asyncio.to_thread(self._load_stage, store, stage, manifest,
-                                             retain_weight=stage.id in retained)
-            for stage in stages
-        }
+        runtimes = pending_model.stages if pending_model is not None else {}
+        for stage in stages:
+            if pending_model is None:
+                runtimes[stage.id] = await asyncio.to_thread(self._load_stage, store, stage, manifest,
+                    retain_weight=stage.id in retained)
+            else:
+                runtime, worker_error, first_cancel = await self._drain_legacy_worker(partial(
+                    self._load_stage, store, stage, manifest,
+                    retain_weight=stage.id in retained, legacy=True, mappings=mappings))
+                if worker_error is None:
+                    # Adopt the genuine result before cancellation can unwind.
+                    # No await separates adoption from rethrow.
+                    runtimes[stage.id] = runtime
+                self._raise_legacy_worker_outcome(worker_error, first_cancel)
         metal_stages: dict[str, Any] = {}
         if self._metal_kernel is not None:
             from .native import NativeKernelError
@@ -910,16 +1163,24 @@ class MaskedTransformerEngine:
                 for matrix in matrices.values()
             )
             try:
-                metal_stages = await asyncio.to_thread(
-                    self._metal_kernel.bind_stages,
-                    {
+                bindings = {
                         stage_id: runtime.weight.values
                         for stage_id, runtime in runtimes.items()
                         if self._provider_owns_stage(runtime.spec)
-                    },
-                    already_resident=existing,
-                )
+                    }
+                if pending_model is None:
+                    metal_stages = await asyncio.to_thread(self._metal_kernel.bind_stages,
+                        bindings, already_resident=existing)
+                else:
+                    metal_stages, worker_error, first_cancel = await self._drain_legacy_worker(
+                        partial(self._metal_kernel.bind_stages, bindings, already_resident=existing))
+                    if worker_error is None:
+                        # Local ownership only; registry publication is commit-time.
+                        auxiliary["metal"] = metal_stages
+                    self._raise_legacy_worker_outcome(worker_error, first_cancel)
             except NativeKernelError as exc:
+                if pending_model is not None:
+                    raise
                 raise TransformerEngineError(f"public Metal stage admission failed: {exc}") from exc
         moduli = sorted({runtime.modulus for runtime in runtimes.values()})
         manifest.metadata.update(
@@ -951,10 +1212,10 @@ class MaskedTransformerEngine:
                 or "silu",
             }
         )
-        if profile.stage_plan == "semantic" and isinstance(raw_config.get("text_config"), dict):
-            # Preserve the locked outer source vocabulary for nested decoders.
-            # The flattened text settings remain only a transport/runtime view.
-            config["semantic_source_config"] = raw_config
+        if profile.stage_plan == "semantic":
+            # Preserve every semantic source independently of mutable runtime
+            # settings, including flat sources and nested JSON values.
+            config["semantic_source_config"] = json.loads(json.dumps(raw_config))
         try:
             local_requirements = (
                 required_client_tensors(semantic_plan) if semantic_plan is not None else None
@@ -974,7 +1235,7 @@ class MaskedTransformerEngine:
             # an integer for existing tokenizers; it cannot authorize empty input.
             config["bos_token_id"] = fallback
             config["bos_token_policy"] = "nonempty_only"
-        loaded = LoadedTransformer(
+        loaded = pending_model or LoadedTransformer(
             manifest=manifest,
             store=store,
             config=config,
@@ -982,16 +1243,32 @@ class MaskedTransformerEngine:
             local_tensors=self._load_local_tensors(store, required=local_requirements),
             tokenizer=tokenizer_descriptor,
         )
-        self.models[manifest.id] = loaded
-        if self._metal_kernel is not None:
+        if pending_model is not None:
+            loaded.config = config
+            loaded.tokenizer = tokenizer_descriptor
+        else:
+            self.models[manifest.id] = loaded
+        if self._metal_kernel is not None and pending_model is None:
             self._metal_stages[manifest.id] = metal_stages
         self._bundle_runtime_config(loaded)
-        self._active_cache_entries[manifest.id] = {
+        cache_entries = {
             runtime.compiled_cache_entry
             for runtime in runtimes.values()
             if runtime.compiled_cache_entry is not None
         }
+        if pending_model is not None:
+            if manifest.id in self._active_cache_entries:
+                auxiliary["previous_cache"] = self._active_cache_entries[manifest.id]
+            auxiliary["installed_cache"] = cache_entries
+        self._active_cache_entries[manifest.id] = cache_entries
         self._trim_compiled_cache()
+        if pending_model is not None:
+            if self._metal_kernel is not None:
+                if manifest.id in self._metal_stages:
+                    auxiliary["previous_metal"] = self._metal_stages[manifest.id]
+                auxiliary["installed_metal"] = metal_stages
+                self._metal_stages[manifest.id] = metal_stages
+            self.models[manifest.id] = loaded
 
     async def unload(self, model_id: str) -> None:
         model = self.models.pop(model_id, None)
@@ -1355,12 +1632,49 @@ class MaskedTransformerEngine:
 
     def _load_stage(
         self, store: SafeTensorStore, stage: StageSpec, manifest: ModelManifest,
-        *, retain_weight: bool = True,
+        *, retain_weight: bool = True, legacy: bool = False, mappings=None,
+    ) -> StageRuntime:
+        if not legacy:
+            return self._load_stage_owned(store, stage, manifest, retain_weight=retain_weight)
+        owned = {}
+        mappings = {} if mappings is None else mappings
+        try:
+            return self._load_stage_owned(store, stage, manifest,
+                retain_weight=retain_weight, owned=owned)
+        except BaseException as exc:
+            original_arrays = []
+            try:
+                weight = owned.get("quantized")
+                if weight is not None:
+                    for field in ("values", "scales"):
+                        self._cleanup_attempt(exc, "original quantized array snapshot",
+                            lambda: original_arrays.append(getattr(weight, field)))
+                runtime = owned.get("runtime")
+                if runtime is not None:
+                    abandoned = LoadedTransformer(manifest, store, {}, {stage.id: runtime}, {}, {})
+                    self._cleanup_attempt(exc, "partial stage retirement", partial(
+                        self._retire_failed_load, abandoned, rollback=False,
+                        primary=exc, mappings=mappings))
+                self._cleanup_attempt(exc, "original quantized mappings", partial(
+                    self._close_array_mappings, original_arrays,
+                    mappings=mappings, primary=exc))
+            finally:
+                # Clear only our explicit tracking, never foreign traceback frames.
+                owned.clear()
+                original_arrays.clear()
+                runtime = weight = abandoned = None
+            raise
+
+    def _load_stage_owned(
+        self, store: SafeTensorStore, stage: StageSpec, manifest: ModelManifest,
+        *, retain_weight: bool = True, owned=None,
     ) -> StageRuntime:
         sources = self._resolve_stage_sources(store, stage, manifest)
         resolved = [key for key, _ in sources]
         source_shapes = [self._oriented_shape(store, key, transpose) for key, transpose in sources]
         quantized = self._quantize_sources(store, stage, sources)
+        if owned is not None:
+            owned["quantized"] = quantized
         bias: np.ndarray | None = None
         semantic = manifest.metadata.get("stage_origin") == "semantic_schedule_v1"
         if semantic:
@@ -1440,45 +1754,56 @@ class MaskedTransformerEngine:
         cache_entry = (Path(quantized.values.filename).parent
                        if isinstance(quantized.values, np.memmap) else None)
         paged = retain_weight and self.weight_storage == "paged"
-        compiled = self.kernel.compile(quantized.values) if retain_weight and not paged else None
-        # Retire the Python weight allocation/mapping. Metadata, preparation and
-        # GPU import share a read-only view whose base retains the Rust snapshot.
-        if compiled is not None:
-            quantized = QuantizedWeight(compiled.weight_view(), quantized.scales, quantized.bits)
-        runtime = StageRuntime(
-            spec=stage,
-            quantized_weight=quantized,
-            modulus=modulus,
-            wire_bits=choose_wire_bits(modulus),
-            source_keys=tuple(resolved),
-            bias=bias,
-            compiled_weight=compiled,
-            compiled_cache_entry=cache_entry,
-            input_equalization=self._stage_equalization(stage),
-            equalization_profile_digest=(
-                self.public_equalization_digest
-                if stage.id not in {"token_lookup", "lm_head"}
-                else None
-            ),
-        )
-        if not retain_weight:
-            runtime.release_weight()
-        elif paged:
-            from .paged import PagedGEMM
-            import tempfile
+        try:
+            compiled = self.kernel.compile(quantized.values) if retain_weight and not paged else None
+            if owned is not None:
+                owned["compiled"] = compiled
+            # Retire the Python weight allocation/mapping. Metadata, preparation and
+            # GPU import share a read-only view whose base retains the Rust snapshot.
+            if compiled is not None:
+                quantized = QuantizedWeight(compiled.weight_view(), quantized.scales, quantized.bits)
+            runtime = StageRuntime(
+                spec=stage,
+                quantized_weight=quantized,
+                modulus=modulus,
+                wire_bits=choose_wire_bits(modulus),
+                source_keys=tuple(resolved),
+                bias=bias,
+                compiled_weight=compiled,
+                compiled_cache_entry=cache_entry,
+                input_equalization=self._stage_equalization(stage),
+                equalization_profile_digest=(
+                    self.public_equalization_digest
+                    if stage.id not in {"token_lookup", "lm_head"}
+                    else None
+                ),
+            )
+            if owned is not None:
+                owned["runtime"] = runtime
+            if not retain_weight:
+                runtime.release_weight()
+            elif paged:
+                from .paged import PagedGEMM
+                import tempfile
 
-            # Cache validation and exact bounds run before retiring the staging
-            # array. Native import owns an authenticated private file snapshot.
-            _ = runtime.output_residue_bits
-            with tempfile.TemporaryDirectory(prefix="pllm-preparation-") as directory:
-                path = Path(directory) / "weight.i8"
-                with path.open("xb") as output:
-                    for chunk in _weight_chunks(quantized.values):
-                        output.write(memoryview(chunk))
-                runtime.compiled_weight = PagedGEMM._from_raw_executor(
-                    path, runtime.weight_digest, quantized.values.shape, self.kernel._executor)
-            runtime.quantized_weight = None
-        return runtime
+                # Cache validation and exact bounds run before retiring the staging
+                # array. Native import owns an authenticated private file snapshot.
+                _ = runtime.output_residue_bits
+                with tempfile.TemporaryDirectory(prefix="pllm-preparation-") as directory:
+                    path = Path(directory) / "weight.i8"
+                    with path.open("xb") as output:
+                        for chunk in _weight_chunks(quantized.values):
+                            output.write(memoryview(chunk))
+                    runtime.compiled_weight = PagedGEMM._from_raw_executor(
+                        path, runtime.weight_digest, quantized.values.shape, self.kernel._executor)
+                runtime.quantized_weight = None
+            return runtime
+        except BaseException:
+            if owned is not None:
+                # Retire our frame's extra references; the legacy caller still
+                # owns tracking and will attempt each resource's actual cleanup.
+                compiled = runtime = quantized = bias = None
+            raise
 
     @staticmethod
     def _default_weight_keys(stage: StageSpec) -> tuple[str, ...]:
@@ -1496,9 +1821,26 @@ class MaskedTransformerEngine:
 
     @staticmethod
     def _load_local_tensors(
-        store: SafeTensorStore, *, required: dict[str, tuple[int, ...]] | None = None
+        store: SafeTensorStore, *, required: dict[str, tuple[int, ...]] | None = None,
+        legacy_geometry=None, legacy_presence=None,
     ) -> dict[str, np.ndarray]:
         result: dict[str, np.ndarray] = {}
+        if legacy_geometry is not None:
+            allowed = legacy_local_requirements(legacy_geometry)
+            exact_keys = store.keys
+            for key in legacy_presence:
+                # contains()/resolve() alone deliberately permit suffixes. The
+                # header census plus exact membership must precede either get.
+                if key not in exact_keys or store.tensor_shape(key) != allowed[key]:
+                    result.clear()
+                    raise TransformerEngineError("legacy source norm header differs")
+                value = store.get(key, dtype=np.float32)
+                if value.shape != allowed[key] or not np.all(np.isfinite(value)):
+                    result.clear()
+                    value = None
+                    raise TransformerEngineError("legacy source norm has invalid shape or values")
+                result[key] = value
+            return result
         if required is not None:
             for weight_id, expected_shape in required.items():
                 try:
@@ -1517,6 +1859,25 @@ class MaskedTransformerEngine:
             if lower.endswith("norm.weight") or lower.endswith("norm.scale"):
                 result[key] = store.get(key, dtype=np.float32)
         return result
+
+    @staticmethod
+    def _legacy_header_inventory(store):
+        """Read actual shard headers, not an index's claimed membership."""
+        from safetensors import safe_open
+        from .bundle_document import MAX_OBJECTS
+        if len(store._locations) > MAX_OBJECTS:
+            raise ValueError("legacy source header inventory exceeds object bound")
+        inventory = {}
+        paths = {location.path for location in store._locations.values()}
+        for path in paths:
+            with safe_open(path, framework="np") as handle:
+                for key in handle.keys():
+                    if key in inventory:
+                        raise ValueError("duplicate legacy source tensor header identity")
+                    if len(inventory) >= MAX_OBJECTS:
+                        raise ValueError("legacy source header inventory exceeds object bound")
+                    inventory[key] = tuple(handle.get_slice(key).get_shape())
+        return inventory
 
     @staticmethod
     def _load_tokenizer_descriptor(
@@ -2006,7 +2367,14 @@ class MaskedTransformerEngine:
 
     @staticmethod
     def _bundle_runtime_config(model: LoadedTransformer) -> dict[str, Any]:
+        if CONTRACT_FIELD in model.config:
+            legacy_bundle_record_counts({"stages": model.manifest.stages}, model.local_tensors,
+                stages=model.stages, weights=model.stages)
         config = dict(model.config)
+        if model.manifest.metadata.get("stage_origin") == "semantic_schedule_v1":
+            _populate_semantic_runtime_geometry(
+                config, config.get("semantic_source_config"), model.manifest,
+            )
         norm_offset = float(config.get("norm_offset", 0.0))
         block_style = str(config.get("block_style", "llama"))
         config.update(
@@ -2026,6 +2394,16 @@ class MaskedTransformerEngine:
                 "attention_scaling": config.get("attention_scaling"),
             }
         )
+        if CONTRACT_FIELD in config:
+            from .bundle_document import bounded_metadata
+            bounded_metadata(config, json_mode=True)
+            geometry = legacy_source_geometry(config[CONTRACT_FIELD]["source"])
+            if geometry is None:
+                raise TransformerEngineError("legacy source contract identity is not eligible")
+            try:
+                validate_legacy_runtime(config, geometry)
+            except ValueError as exc:
+                raise TransformerEngineError(str(exc)) from exc
         model.manifest.metadata["runtime_config_digest"] = hashlib.sha256(
             json.dumps(
                 config,
@@ -2082,6 +2460,18 @@ class MaskedTransformerEngine:
         ):
             raise TransformerEngineError("client-owned prefix requires prepared client weights")
         model = self._model(model_id)
+        if CONTRACT_FIELD in model.config:
+            # Admission precedes retaining descriptor/weight/tensor collections.
+            from .client_tensor_contract import legacy_presence_requirements
+            try:
+                legacy_bundle_record_counts({"stages": model.manifest.stages}, model.local_tensors,
+                    stages=model.stages, weights=model.stages)
+                geometry = legacy_source_geometry(model.config[CONTRACT_FIELD]["source"])
+                if geometry is None:
+                    raise ValueError("legacy source contract identity is not eligible")
+                presence = legacy_presence_requirements(model.config, geometry, model.local_tensors)
+            except (ValueError, TypeError, KeyError, OverflowError) as exc:
+                raise TransformerEngineError(str(exc)) from exc
         local_stage_ids = (
             ({"token_lookup"} if self.remote_output_head else {"token_lookup", "lm_head"})
             if include_local_weights
@@ -2224,8 +2614,7 @@ class MaskedTransformerEngine:
             manifest["fingerprint"] = hashlib.sha256(
                 json.dumps(fingerprint_payload, sort_keys=True, separators=(",", ":")).encode()
             ).hexdigest()
-        return BundleDocument(
-            {
+        document = {
                 "v": 2,
                 "runtime": bundle_runtimes[placement],
                 "model": model_id,
@@ -2280,8 +2669,17 @@ class MaskedTransformerEngine:
                         else {}
                     ),
                 },
-            },
-        )
+            }
+        if CONTRACT_FIELD in config:
+            from .bundle_document import bounded_metadata
+            from .client_tensor_contract import validate_legacy_bundle_contract
+            try:
+                bounded_metadata(document)
+                validate_legacy_bundle_contract(config, manifest, tensors,
+                    stages=stage_descriptors, weights=client_weights)
+            except (ValueError, TypeError, KeyError, OverflowError) as exc:
+                raise TransformerEngineError(str(exc)) from exc
+        return BundleDocument(document)
 
     def private_boundary_bundle(self, model_id: str) -> dict[str, Any]:
         """Commit the original tied table without serializing a second weight owner."""

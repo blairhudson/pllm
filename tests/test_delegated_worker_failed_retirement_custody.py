@@ -170,6 +170,189 @@ async def _blocked_drain(h, owner, original):
     assert h.aborts == attempts and h.refunds == refunds
 
 
+async def _custody_http(app, path, raw, *, final_body=None, forbid_receive=False):
+    delivered = False
+    statuses, bodies = [], []
+
+    async def receive():
+        nonlocal delivered
+        if forbid_receive:
+            pytest.fail("failed retirement ingress received a body")
+        if not delivered:
+            delivered = True
+            return {"type": "http.request", "body": raw, "more_body": False}
+        await asyncio.Future()
+
+    async def send(message):
+        if message["type"] == "http.response.start":
+            statuses.append(message["status"])
+        elif message["type"] == "http.response.body":
+            bodies.append(message.get("body", b""))
+            assert not message.get("more_body", False)
+            if final_body is not None:
+                final_body()
+
+    scope = {"type": "http", "http_version": "1.1", "method": "POST",
+        "scheme": "http", "path": path, "root_path": "", "query_string": b"",
+        "server": ("testserver", 80), "client": ("testclient", 1),
+        "headers": [(b"content-length", str(len(raw)).encode()),
+                    (b"authorization", b"Bearer " + b"k" * 32)]}
+    # No lifespan: expiry/shutdown must not supply the retirement witness.
+    await app(scope, receive, send)
+    assert len(statuses) == len(bodies) == 1
+    return NS(status=statuses[0], body=bodies[0], delivered=delivered)
+
+
+@pytest.mark.parametrize("failure_type", [RuntimeError, KeyboardInterrupt, SystemExit])
+def test_http_backend_failure_after_cancel_send_keeps_original_custody(custody, monkeypatch, failure_type):
+    h = custody
+
+    async def run():
+        app = h.app()
+        owner = app.state.delegated_owner
+        raw = await h.request(owner).body()
+        fresh = worker.unpack(raw)
+        fresh["request"] = "b" * 64
+        fresh["start"] = bytes.fromhex("b" * 64)
+        fresh_raw = worker.pack(fresh)
+        ready = await _custody_http(app, "/v1/delegation/admit", raw)
+        assert ready.status == 200 and ready.delivered and ready.body
+        retirement = owner.retirement
+        original = _original(retirement)
+        native = retirement.native
+        _charged(h, retirement, original)
+        backend_type = type(original.backend())
+        real_exit = backend_type.__exit__
+        failure = failure_type("HTTP backend exit")
+        exits, during_send = [], []
+
+        def fail_exit(backend, *exc):
+            if backend is original.backend():
+                assert owner.lock.locked()
+                assert not h.capacity.lock._is_owned()
+                _charged(h, retirement, original)
+                assert retirement.exit_seen and retirement.root._references == 0
+                exits.append(id(original.token))
+                raise failure
+            return real_exit(backend, *exc)
+
+        monkeypatch.setattr(backend_type, "__exit__", fail_exit)
+
+        def final_body():
+            _charged(h, retirement, original)
+            assert retirement.terminal and retirement.abort_ok and retirement.native is None
+            assert retirement.root_closed and retirement.root._closed
+            assert retirement.root._references == 1 and not retirement.exit_seen
+            assert retirement.root._manager is retirement
+            assert not retirement.done and exits == [] and h.aborts == 1
+            during_send.append(True)
+
+        cancelled = await _custody_http(app, f"/v1/delegation/{'a' * 64}/cancel", b"",
+                                       final_body=final_body)
+        assert cancelled.status == 200 and cancelled.delivered
+        assert worker.unpack(cancelled.body)["action"] == "cancel"
+        assert during_send == [True]
+        _charged(h, retirement, original)
+        assert retirement.exit_seen and retirement.root._references == 0
+        assert retirement.root._manager is None
+        assert retirement.abort_ok and retirement.native is None and not retirement.done
+        assert owner.active is owner.request is owner.reservation is None
+        assert exits == [] and h.aborts == 1 and not h.refunds
+
+        def trap(*args, **kwargs):
+            pytest.fail("failed retirement ingress reached body/source/load/native")
+
+        monkeypatch.setattr(worker, "_body", trap)
+        monkeypatch.setattr(h.source, "runtime_contract", trap)
+        monkeypatch.setattr(h.source, "load_transport", trap)
+        monkeypatch.setattr(native, "execute", trap)
+        for path, body in [("/v1/delegation/admit", fresh_raw),
+                           ("/v1/delegation/admit", fresh_raw),
+                           (f"/v1/delegation/{'a' * 64}/step", b"x")]:
+            blocked = await _custody_http(app, path, body, forbid_receive=True)
+            assert blocked.status == 409 and blocked.body == b"" and not blocked.delivered
+            _charged(h, owner.retirement, original)
+            assert owner.retirement is retirement and owner.pending_retirement
+            assert retirement.busy and not retirement.done
+            assert exits == [id(original.token)]
+            assert h.loads == h.aborts == 1 and owner.seen == {"a" * 64}
+            assert not h.refunds
+
+    asyncio.run(run())
+
+
+def test_http_failed_native_abort_fences_healthy_repeated_ingress(custody, monkeypatch):
+    h = custody
+
+    async def run():
+        app = h.app()
+        owner = app.state.delegated_owner
+        raw = await h.request(owner).body()
+        fresh = worker.unpack(raw)
+        fresh["request"] = "b" * 64
+        fresh["start"] = bytes.fromhex("b" * 64)
+        fresh_raw = worker.pack(fresh)
+        ready = await _custody_http(app, "/v1/delegation/admit", raw)
+        assert ready.status == 200 and ready.delivered and ready.body
+        retirement = owner.retirement
+        original = _original(retirement)
+        native = retirement.native
+        _charged(h, retirement, original)
+        backend_type = type(original.backend())
+        real_exit = backend_type.__exit__
+        exits, errors = [], []
+        failure = RuntimeError("HTTP native abort")
+        clear = worker._clear_failure_frames
+
+        def observe_exit(backend, *exc):
+            if backend is original.backend():
+                exits.append(id(original.token))
+                pytest.fail("failed native abort reached backend exit")
+            return real_exit(backend, *exc)
+
+        def observe_error(error):
+            errors.append(error)
+            return clear(error)
+
+        monkeypatch.setattr(backend_type, "__exit__", observe_exit)
+        monkeypatch.setattr(worker, "_clear_failure_frames", observe_error)
+        h.failure = failure
+        cancelled = await _custody_http(app, f"/v1/delegation/{'a' * 64}/cancel", b"")
+        assert cancelled.status == 400 and cancelled.delivered and cancelled.body == b""
+        assert errors == [failure] and errors[0] is h.failure
+        _charged(h, retirement, original)
+        assert retirement.terminal and retirement.started and not retirement.abort_ok
+        assert retirement.native is native is h.refs["native"]()
+        assert not retirement.root_closed and not retirement.root._closed
+        assert not retirement.exit_seen and retirement.root._references == 1
+        assert retirement.root._manager is retirement and owner.reservation is retirement.root
+        assert owner.active is owner.request is None
+        assert not retirement.done and exits == [] and h.aborts == 1
+        h.failure = None  # Native is healthy now; ingress still must not retry.
+
+        def trap(*args, **kwargs):
+            pytest.fail("failed retirement ingress reached body/source/load/native")
+
+        monkeypatch.setattr(worker, "_body", trap)
+        monkeypatch.setattr(h.source, "runtime_contract", trap)
+        monkeypatch.setattr(h.source, "load_transport", trap)
+        monkeypatch.setattr(native, "execute", trap)
+        for path, body in [("/v1/delegation/admit", fresh_raw),
+                           ("/v1/delegation/admit", fresh_raw),
+                           (f"/v1/delegation/{'a' * 64}/step", b"x")]:
+            blocked = await _custody_http(app, path, body, forbid_receive=True)
+            assert blocked.status == 409 and blocked.body == b"" and not blocked.delivered
+            _charged(h, owner.retirement, original)
+            assert owner.retirement is retirement and owner.pending_retirement
+            assert retirement.native is native and not retirement.abort_ok
+            assert not retirement.root_closed and not retirement.exit_seen and not retirement.done
+            assert retirement.root._references == 1 and errors == [failure]
+            assert exits == [] and h.loads == h.aborts == 1
+            assert owner.seen == {"a" * 64} and not h.refunds
+
+    asyncio.run(run())
+
+
 def test_failed_abort_survives_owner_app_gc_without_handoff(custody):
     h = custody
 
@@ -669,6 +852,25 @@ def test_shutdown_abort_failure_stays_charged_without_physical_retry(custody):
     asyncio.run(run())
 
 
+def test_worker_adapter_does_not_change_sticky_shared_transport_close(monkeypatch):
+    import threading
+
+    peers = transport._Peers.__new__(transport._Peers)
+    peers.io = None
+    peers._close_gate = threading.Lock()
+    peers._close_succeeded = peers.closed = False
+    attempts = []
+
+    def fail():
+        attempts.append(True)
+        raise ValueError("shared close")
+
+    monkeypatch.setattr(peers, "_close_owned", fail)
+    with pytest.raises(ValueError, match="shared close"):
+        peers.close()
+    with pytest.raises(transport.ProtocolError, match="previously failed"):
+        peers.close()
+    assert attempts == [True] and not peers._close_succeeded
 
 
 def test_prearm_foreign_custody_is_never_overwritten_or_removed(custody, monkeypatch):

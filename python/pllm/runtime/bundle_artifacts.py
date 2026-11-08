@@ -24,13 +24,13 @@ from typing import Any, Callable, Iterator
 
 import msgpack
 
-from .bundle_document import BundleDocument, binary_view, document_identity
+from .bundle_document import (
+    BundleDocument, binary_view, document_identity, unpack_document,
+    MAX_RAW_BYTES, MAX_MANIFEST_BYTES, MAX_OBJECTS,
+)
 from .bundle_storage import FilePayload, MAX_TOKENIZER_BYTES
 
 ENCODING = "pllm-public-artifacts/1"
-MAX_RAW_BYTES = 4 << 30
-MAX_MANIFEST_BYTES = 16 << 20
-MAX_OBJECTS = 16384
 DEFAULT_CACHE_BYTES = 2 << 30
 MAX_BATCH_OBJECTS = 64
 MAX_BATCH_BYTES = 1 << 20
@@ -216,18 +216,8 @@ def _unpack(payload: bytes | bytearray, *, maximum: int) -> Any:
     if type(payload) not in (bytes, bytearray) or not 0 < len(payload) <= maximum:
         raise ArtifactError("artifact document exceeds its byte bound")
 
-    def pairs(rows):
-        result = {}
-        for key, value in rows:
-            if type(key) is not str or key in result:
-                raise ArtifactError("artifact maps require unique string keys")
-            result[key] = value
-        return result
-
     try:
-        return msgpack.unpackb(payload, raw=False, object_pairs_hook=pairs,
-                               max_bin_len=maximum, max_str_len=MAX_MANIFEST_BYTES,
-                               max_array_len=65536, max_map_len=65536, max_ext_len=32)
+        return unpack_document(payload, maximum=maximum, artifact_limits=True)
     except (ValueError, TypeError, msgpack.UnpackException) as exc:
         raise ArtifactError("invalid artifact MessagePack") from exc
 
@@ -282,6 +272,25 @@ def _public(value: Any) -> None:
 def _binary_metadata(value: dict[str, Any], object_rows: list[dict[str, Any]] | None = None) -> dict[tuple[str, ...], dict[str, Any]]:
     """Validate schema binary fields; infer physical metadata without family/path rules."""
     _public(value)
+    from .client_tensor_contract import (
+        legacy_source_candidate, legacy_contract_geometry, legacy_bundle_record_counts,
+        legacy_presence_requirements, validate_legacy_stages,
+    )
+    if legacy_source_candidate(value):
+        try:
+            legacy_bundle_record_counts(value["manifest"], value["local_tensors"],
+                stages=value["stages"], weights=value["client_weights"])
+            geometry = legacy_contract_geometry(value["config"], value["manifest"])
+            validate_legacy_stages(geometry, value["manifest"].get("stages"), value["stages"])
+            required = legacy_presence_requirements(value["config"], geometry, value["local_tensors"])
+            for key, shape in required.items():
+                row = value["local_tensors"][key]
+                if (type(row) is not dict or type(row.get("shape")) is not list
+                        or any(type(d) is not int for d in row["shape"])
+                        or tuple(row["shape"]) != shape):
+                    raise ValueError("legacy artifact local shape differs from source")
+        except (ValueError, TypeError, KeyError, OverflowError) as exc:
+            raise ArtifactError(str(exc)) from exc
     source = value["manifest"].get("metadata", {}).get("source_lock_digest")
     _digest(source)
     result = {}
@@ -416,6 +425,15 @@ def export_bundle(payload: bytes | BundleDocument) -> BundleArtifacts:
     else:
         value = _unpack(payload, maximum=MAX_RAW_BYTES)
         raw_size, raw_digest = len(payload), hashlib.sha256(payload).hexdigest()
+    from .client_tensor_contract import legacy_source_candidate, validate_legacy_bundle_contract
+    if legacy_source_candidate(value):
+        from .bundle_document import bounded_metadata
+        try:
+            bounded_metadata(value)
+            validate_legacy_bundle_contract(value["config"], value["manifest"], value["local_tensors"],
+                stages=value["stages"], weights=value["client_weights"])
+        except (ValueError, TypeError, KeyError, OverflowError) as exc:
+            raise ArtifactError(str(exc)) from exc
     _tree(value)
     metadata = _binary_metadata(value)
     # Reject noncanonical binary representations rather than silently changing

@@ -253,6 +253,10 @@ def create_preparation_app(
     push_client: httpx.AsyncClient | None = None,
     owns_engine: bool = True,
 ) -> FastAPI:
+    from pllm._decoder_admission import require_decoder_source_record
+
+    for record in config.engine_models:
+        require_decoder_source_record(record)
     if PrivacyMode.parse(config.privacy_mode) is not PrivacyMode.PUBLIC:
         raise ValueError("preparation service supports public-weight models only")
     inference_url = _validate_inference_url(config.preparation_inference_url)

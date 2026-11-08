@@ -6,7 +6,6 @@ import copy
 import json
 import os
 from pathlib import Path
-from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -15,7 +14,7 @@ from pllm import Model, lower_model
 from pllm.profiles import MaskedLinearCpu
 from pllm.runtime.models import StageSpec
 from pllm.runtime.safetensors_store import SafeTensorStore
-from pllm.runtime.semantic_executor import SemanticDecoderRuntime
+from pllm.runtime.semantic_executor import SemanticLocalOperators
 from pllm.runtime.semantic_stages import (
     _linear_stage,
     _token_lookup_stage,
@@ -24,6 +23,25 @@ from pllm.runtime.semantic_stages import (
 )
 from pllm.runtime.semantic_tensors import SemanticTensorError, preflight_semantic_checkpoint
 from pllm.runtime.transformer_client import TransformerClientError
+
+
+def test_native_frozen_contracts_materialize_real_io_checkpoint_stages(tmp_path):
+    import asyncio
+    from absolute_position_decoder_oracle import tiny_checkpoint, write_checkpoint
+    from pllm.runtime.loaders import load_hf_directory
+    from pllm.runtime.transformer_engine import MaskedTransformerEngine
+
+    config, weights = tiny_checkpoint()
+    root = write_checkpoint(tmp_path, config, weights)
+    manifest = load_hf_directory(root, model_id="frozen-io-contract")
+    engine = MaskedTransformerEngine(threads=1, weight_bits=8, activation_bits=8)
+    assert any(stage.transpose_weight for stage in manifest.stages)
+    asyncio.run(engine.load(manifest))
+    stages = engine.models[manifest.id].stages
+    assert set(stages) == {stage.id for stage in manifest.stages}
+    for loaded in stages.values():
+        result = loaded.compiled_weight.clear(np.zeros((1, loaded.spec.in_features), dtype=np.int8))
+        assert result.shape == (1, loaded.spec.out_features)
 
 
 def _pinned_token_group() -> tuple[dict, dict, int]:
@@ -150,71 +168,83 @@ def test_pinned_token_stage_matches_real_checkpoint_headers(monkeypatch: pytest.
         preflight_semantic_checkpoint(plan, store)
 
 
-@pytest.mark.parametrize("selected", ["main_embedding", "ple_token_embedding"])
-def test_fused_token_lookup_assigns_each_declared_numeric_output(selected: str) -> None:
-    step, operations, vocabulary = _pinned_token_group()
-    stage = _token_lookup_stage(step, operations, vocabulary)
-    decoder = object.__new__(SemanticDecoderRuntime)
-    # Isolated token-boundary fixture still needs the phase lifecycle fields;
-    # this does not advertise whole-decoder admission for the synthetic graph.
-    decoder._continuation_failed = False
-    decoder._boundary = None
-    decoder.nonlinear_evaluator = None
-    decoder._generated_prefix_contract = None
-    decoder._snapshot_basis = None
-    decoder._verification_bits = 0
-    decoder._verification_lineage_limit = 1
-    decoder._continuation_owner = None
-    decoder._source_plan = SimpleNamespace(digest="a" * 64)
-    decoder._state_binding_digest = "b" * 64
-    decoder.position = 0
-    decoder.caches = []
-    decoder._text_only_tokens = frozenset()
-    decoder._hybrid_states = {}
-    decoder._hybrid_contracts = {}
-    decoder.bundle = SimpleNamespace(stages={"token_lookup": stage})
-    primary_width = stage.out_features - stage.metadata["ple_width"]
-    decoder._token_lookup = lambda _ids: (
-        np.full((1, primary_width), 1.0, dtype=np.float32),
-        np.full((1, stage.metadata["ple_width"]), 2.0, dtype=np.float32),
-    )
-    graph = {
-        "query_sequence": 1,
-        "maximum_key_sequence": 2,
-        "state_inputs": [],
-        "state_outputs": [],
-        "operations": [
-            operations["main_embedding"],
-            operations["ple_token_embedding"],
-            {"id": "selection", "operator": "greedy_token_selection", "inputs": [selected], "attributes": {}},
-        ],
+def _tiny_token_output_group(dtypes):
+    operations = {}
+    outputs = []
+    for name, width, offset, dtype in (
+        ("main_embedding", 2, 0, dtypes[0]),
+        ("ple_token_embedding", 3, 2, dtypes[1]),
+    ):
+        operations[name] = {
+            "id": name, "operator": "token_lookup", "inputs": ["input.tokens"],
+            "output_shape": [1, 2, width], "attributes": {
+                "index_domain": "tokens", "weight": name + ".weight",
+                "weight_shape": [8, width], "output_dtype": dtype,
+            },
+        }
+        outputs.append({"operation_id": name, "stage_offset": offset, "stage_width": width})
+    step = {
+        "operation_ids": list(operations), "operators": ["token_lookup", "token_lookup"],
+        "input_ids": ["input.tokens"], "layer": None,
+        "weight_ids": [op["attributes"]["weight"] for op in operations.values()],
+        "outputs": outputs,
     }
-    schedule = {
-        "steps": [
-            {"executor": "remote_stage", **step},
-            {"executor": "client_local", "operation_ids": ["selection"], "input_ids": [selected]},
-        ]
-    }
-    decoder._graphs = {"prefill": graph, "decode": graph}
-    decoder._schedule = {"prefill": schedule, "decode": schedule}
-    decoder._stages = {
-        f"{phase}:{op_id}": "token_lookup"
-        for phase in ("prefill", "decode")
-        for op_id in step["operation_ids"]
-    }
-    actual = decoder._forward(np.asarray([3], dtype=np.int64))
-    expected = 1.0 if selected == "main_embedding" else 2.0
-    width = primary_width if selected == "main_embedding" else stage.metadata["ple_width"]
-    np.testing.assert_array_equal(actual, np.full((1, width), expected, dtype=np.float32))
-    assert decoder.position == 1
+    return step, operations
 
-    decoder.position = 0
-    decoder._token_lookup = lambda _ids: (
-        np.ones((1, primary_width), dtype=np.float32), np.ones((1, 1), dtype=np.float32)
-    )
-    with pytest.raises(TransformerClientError, match="invalid width"):
-        decoder._forward(np.asarray([3], dtype=np.int64))
-    assert decoder.position == 0
+
+@pytest.mark.parametrize("dtypes", [("bfloat16", "float32"), ("float32", "bfloat16")])
+def test_fused_token_lookup_assigns_each_declared_numeric_output(dtypes, monkeypatch) -> None:
+    # Stateless placement only: no executable graph or fabricated runtime owner.
+    step, operations = _tiny_token_output_group(dtypes)
+    stage = _token_lookup_stage(step, operations, 8)
+    primary = np.asarray([[1.001953125, -1.005859375],
+                          [1.005859375, -1.001953125]], dtype=np.float32)
+    auxiliary = np.asarray([[2.00390625, 2.01171875, -2.00390625],
+                            [-2.01171875, 0.5009765625, 0.5029296875]], dtype=np.float32)
+    rounded_primary = np.asarray([[1.0, -1.0078125], [1.0078125, -1.0]], dtype=np.float32)
+    rounded_auxiliary = np.asarray([[2.0, 2.015625, -2.0],
+                                    [-2.015625, 0.5, 0.50390625]], dtype=np.float32)
+    calls = []
+    numeric_output = SemanticLocalOperators._numeric_output
+
+    def count_conversion(operation, value):
+        calls.append(operation["id"])
+        return numeric_output(operation, value)
+
+    monkeypatch.setattr(SemanticLocalOperators, "_numeric_output", staticmethod(count_conversion))
+    actual = SemanticLocalOperators.materialize_token_lookup_outputs(
+        step, operations, stage, primary, auxiliary)
+    assert stage.in_features == 8 and stage.out_features == 5
+    assert list(actual) == calls == ["main_embedding", "ple_token_embedding"]
+    expected = (rounded_primary if dtypes[0] == "bfloat16" else primary,
+                rounded_auxiliary if dtypes[1] == "bfloat16" else auxiliary)
+    for name, width, value in zip(step["operation_ids"], (2, 3), expected, strict=True):
+        assert actual[name].shape == (2, width) and actual[name].dtype == np.float32
+        np.testing.assert_array_equal(actual[name], value)
+    assert not np.array_equal(primary, rounded_primary)
+    assert not np.array_equal(auxiliary, rounded_auxiliary)
+
+    with pytest.raises(TransformerClientError, match="semantic token lookup has an invalid width"):
+        SemanticLocalOperators.materialize_token_lookup_outputs(
+            step, operations, stage, primary, auxiliary[:, :1])
+    assert calls == ["main_embedding", "ple_token_embedding"]
+
+
+@pytest.mark.parametrize("dtype", ["float32", "bfloat16"])
+def test_single_token_lookup_materializes_without_auxiliary(dtype):
+    step, operations = _tiny_token_output_group((dtype, "float32"))
+    step["operation_ids"] = step["operation_ids"][:1]
+    step["operators"] = step["operators"][:1]
+    step["weight_ids"] = step["weight_ids"][:1]
+    step["outputs"] = step["outputs"][:1]
+    operations = {"main_embedding": operations["main_embedding"]}
+    stage = _token_lookup_stage(step, operations, 8)
+    primary = np.asarray([[1.001953125, -1.005859375]], dtype=np.float32)
+    actual = SemanticLocalOperators.materialize_token_lookup_outputs(step, operations, stage, primary, None)
+    expected = np.asarray([[1.0, -1.0078125]], dtype=np.float32) if dtype == "bfloat16" else primary
+    assert list(actual) == ["main_embedding"]
+    assert actual["main_embedding"].shape == (1, 2) and actual["main_embedding"].dtype == np.float32
+    np.testing.assert_array_equal(actual["main_embedding"], expected)
 
 
 @pytest.mark.skipif(not os.environ.get("PLLM_GEMMA4_E2B_PATH"), reason="set PLLM_GEMMA4_E2B_PATH")

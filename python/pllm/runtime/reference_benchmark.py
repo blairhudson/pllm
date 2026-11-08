@@ -645,6 +645,12 @@ def run_reference_benchmark(
         raise ReferenceBenchmarkError("record decode requires frozen caller continuations")
     if record and not decode_steps and continuations is not None:
         raise ReferenceBenchmarkError("prefill record mode does not consume continuations")
+    from pllm._decoder_admission import require_decoder_experiment
+
+    for experiment in experiments:
+        if not isinstance(experiment, Experiment):
+            raise ReferenceBenchmarkError("quality candidates must be Experiments")
+        require_decoder_experiment(experiment)
     configurations = []
     source_lock = None
     resolved_source = None

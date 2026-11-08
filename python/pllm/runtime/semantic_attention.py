@@ -16,6 +16,37 @@ _FULL_LAYOUT = "batch_kv_heads_sequence_feature"
 _WINDOW_LAYOUT = "batch_kv_heads_query_window_feature"
 
 
+def _finite(value):
+    from .bundle_storage import CHUNK_BYTES
+    return all(np.all(np.isfinite(chunk)) for chunk in np.nditer(
+        value, flags=["external_loop", "buffered", "zerosize_ok"],
+        op_flags=["readonly"], buffersize=CHUNK_BYTES // 4))
+
+
+def mask_key_padding_scores(scores, padding_mask, attributes):
+    """Noncausal additive finite-min key mask; queries remain untouched."""
+    expected = {
+        "kind": "key_padding", "mask_input": "input.attention_mask",
+        "broadcast": "batch_heads_queries_keys", "masked_value": "float32_min",
+        "application": "additive", "compute_dtype": "float32",
+    }
+    if (attributes != expected or type(scores) is not np.ndarray
+            or scores.dtype != np.float32 or scores.ndim != 4 or scores.shape[0] != 1
+            or type(padding_mask) is not np.ndarray or padding_mask.dtype != np.bool_
+            or padding_mask.shape != (1, scores.shape[-1]) or not _finite(scores)
+            or not any(bool(item) for item in padding_mask[0])):
+        raise SemanticAttentionError("unsupported key-padding attention mask")
+    output = scores.copy()
+    minimum = np.float32(np.finfo(np.float32).min)
+    for key, valid in enumerate(padding_mask[0]):
+        if not valid:
+            with np.errstate(over="ignore"):
+                np.add(output[..., key], minimum, out=output[..., key])
+    if not _finite(output):
+        raise SemanticAttentionError("additive attention mask exceeds finite FP32")
+    return output
+
+
 def _grouped_heads(query: np.ndarray, kv_heads: int, group: int) -> np.ndarray:
     if (
         query.dtype != np.float32
@@ -25,7 +56,7 @@ def _grouped_heads(query: np.ndarray, kv_heads: int, group: int) -> np.ndarray:
         or type(group) is not int
         or group < 1
         or query.shape[1] != kv_heads * group
-        or not np.all(np.isfinite(query))
+        or not _finite(query)
     ):
         raise SemanticAttentionError("attention head grouping is invalid")
     return query.reshape(1, kv_heads, group, query.shape[2], query.shape[3])
@@ -44,7 +75,7 @@ def semantic_attention_scores(
         width = keys.shape[3]
     else:
         raise SemanticAttentionError("attention key layout is unsupported")
-    if keys.shape[-1] != query.shape[-1] or not np.all(np.isfinite(keys)):
+    if keys.shape[-1] != query.shape[-1] or not _finite(keys):
         raise SemanticAttentionError("attention key features are invalid")
     if query.shape[1] * query.shape[2] * width > _MAX_ELEMENTS:
         raise SemanticAttentionError("attention score tensor exceeds the local bound")
@@ -52,7 +83,7 @@ def semantic_attention_scores(
         scores = np.einsum("bkgqd,bktd->bkgqt", grouped, keys, optimize=False)
     else:
         scores = np.einsum("bkgqd,bkqwd->bkgqw", grouped, keys, optimize=False)
-    if not np.all(np.isfinite(scores)):
+    if not _finite(scores):
         raise SemanticAttentionError("attention scores exceed the numeric domain")
     return scores.reshape(1, query.shape[1], query.shape[2], width)
 
@@ -70,7 +101,7 @@ def semantic_attention_values(
         width = values.shape[3]
     else:
         raise SemanticAttentionError("attention value layout is unsupported")
-    if probabilities.shape[-1] != width or not np.all(np.isfinite(values)):
+    if probabilities.shape[-1] != width or not _finite(values):
         raise SemanticAttentionError("attention value shape is invalid")
     if probabilities.shape[1] * probabilities.shape[2] * values.shape[-1] > _MAX_ELEMENTS:
         raise SemanticAttentionError("attention output tensor exceeds the local bound")
@@ -78,7 +109,7 @@ def semantic_attention_values(
         output = np.einsum("bkgqt,bktd->bkgqd", grouped, values, optimize=False)
     else:
         output = np.einsum("bkgqw,bkqwd->bkgqd", grouped, values, optimize=False)
-    if not np.all(np.isfinite(output)):
+    if not _finite(output):
         raise SemanticAttentionError("attention output exceeds the numeric domain")
     return output.reshape(1, probabilities.shape[1], probabilities.shape[2], values.shape[-1])
 
@@ -113,6 +144,23 @@ def mask_causal_scores(
     query_positions = positions[None, None, :, None]
     if not attributes:
         # The dense baseline has only an absolute-position causal contract.
+        allowed = indices <= query_positions
+    elif attributes == {
+        "padding_mask_input": "input.attention_mask",
+        "valid_lengths_input": "input.sequence_lengths",
+        "cache_validity": "visible_valid_prefix",
+        "masked_value": "negative_infinity",
+    }:
+        # Visible-prefix keys already exclude unused cache capacity. Lengths
+        # still bind the absolute query end; never treat physical slots as IDs.
+        if (
+            padding_mask is None or padding_mask.dtype != np.bool_
+            or padding_mask.shape != (1, positions.size) or not np.all(padding_mask)
+            or valid_lengths is None or valid_lengths.dtype != np.int64
+            or valid_lengths.shape != (1,) or valid_lengths[0] != positions[-1] + 1
+            or valid_lengths[0] != scores.shape[-1]
+        ):
+            raise SemanticAttentionError("visible-prefix causal mask lacks valid client-side bounds")
         allowed = indices <= query_positions
     else:
         if (

@@ -535,7 +535,11 @@ class _Peers:
                 if expected is not None and observed != expected:
                     raise ProtocolError("GKM truncated batch reply")
                 if response.status_code != 200:
-                    raise ProtocolError("GKM worker rejected its one-use request", response.status_code)
+                    error = ProtocolError("GKM worker rejected its one-use request", response.status_code)
+                    if self.namespace == "delegation":
+                        error.annotate_request_failure({"stage": "transport", "role": self.roles[role],
+                            "code": "worker_http_rejected", "http_status": response.status_code})
+                    raise error
                 if phase == "online":
                     self.calls += 1
                     elapsed = response.headers.get("x-pllm-server-ns", "")

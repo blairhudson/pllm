@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
-from types import SimpleNamespace
 
 import ml_dtypes
 import numpy as np
@@ -102,10 +101,8 @@ def test_bfloat16_normalization_uses_declared_weight_offset_and_optional_scale(
 ) -> None:
     source = np.asarray([[[0.125, -0.75, 2.5, -0.25], [3.0, 0.0, -1.5, 0.5]]], dtype=np.float32)
     weights = np.asarray([-0.25, 0.0, 0.25, 1.0], dtype=np.float32)
-    runtime = object.__new__(SemanticDecoderRuntime)
     norm = operations["layer.0.input_norm"]
-    runtime._tensors = {norm["attributes"]["weight"]: "gamma"}
-    runtime.bundle = SimpleNamespace(arrays={"gamma": weights})
+    attrs = norm["attributes"]
     expected_input = torch.from_numpy(source).to(torch.bfloat16).float()
     normalized = expected_input * torch.rsqrt(
         expected_input.square().mean(dim=-1, keepdim=True) + 1e-6
@@ -113,19 +110,28 @@ def test_bfloat16_normalization_uses_declared_weight_offset_and_optional_scale(
     assert norm["attributes"]["weight_offset"] == 0
     expected = (normalized * torch.from_numpy(weights)).to(torch.bfloat16).float().numpy()
     np.testing.assert_array_equal(
-        runtime._local(norm, {norm["inputs"][0]: source}, {}, {}), expected
+        bfloat16_rms_norm(source, epsilon=attrs["epsilon"], weight=weights,
+                          offset=attrs["weight_offset"]),
+        expected,
     )
     unweighted = operations["layer.0.v_norm"]
+    assert attrs["with_scale"] is True
+    assert unweighted["attributes"]["with_scale"] is False
     np.testing.assert_array_equal(
-        runtime._local(unweighted, {unweighted["inputs"][0]: source}, {}, {}),
+        bfloat16_rms_norm(source, epsilon=unweighted["attributes"]["epsilon"], weight=None,
+                          offset=unweighted["attributes"]["weight_offset"]),
         normalized.to(torch.bfloat16).float().numpy(),
+    )
+    np.testing.assert_array_equal(
+        bfloat16_rms_norm(source, epsilon=attrs["epsilon"], weight=weights, offset=1),
+        (normalized * (torch.from_numpy(weights) + 1)).to(torch.bfloat16).float().numpy(),
     )
     bad = {**norm, "attributes": {**norm["attributes"], "with_scale": False}}
     with pytest.raises(TransformerClientError, match="inconsistent"):
-        runtime._local(bad, {bad["inputs"][0]: source}, {}, {})
-    runtime.bundle = SimpleNamespace(arrays={"gamma": weights[:3]})
-    with pytest.raises(TransformerClientError, match="wrong shape"):
-        runtime._local(norm, {norm["inputs"][0]: source}, {}, {})
+        _local(bad, source)
+    with pytest.raises(SemanticNumericError, match="wrong shape"):
+        bfloat16_rms_norm(source, epsilon=attrs["epsilon"], weight=weights[:3],
+                          offset=attrs["weight_offset"])
 
 
 @pytest.mark.filterwarnings("error::RuntimeWarning")

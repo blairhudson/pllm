@@ -1,0 +1,9 @@
+from pllm.configuration import ComponentDescriptor, ComponentRef
+
+class SourceFloat32(ComponentRef):
+    NUMERIC_PROFILE: str
+    descriptor: ComponentDescriptor
+    def __init__(self) -> None: ...
+    def get_params(self, deep: bool = True) -> dict[str, object]: ...
+    @classmethod
+    def describe(cls) -> ComponentDescriptor: ...

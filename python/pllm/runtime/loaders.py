@@ -9,10 +9,41 @@ from typing import Any, BinaryIO
 import httpx
 
 from .models import ModelManifest, gemma4_stage_plan, transformer_stage_plan
+from .client_tensor_contract import CONTRACT_FIELD, legacy_source_geometry
 
 
 class ModelLoadError(ValueError):
     pass
+
+
+def resolve_hf_source_geometry(raw: dict[str, Any]) -> dict[str, int]:
+    """Describe geometry from the original flat or nested HF source config.
+
+    Present aliases must be exact positive integers and agree. Only omissions
+    receive the existing loader defaults: intermediate_size = hidden_size * 4,
+    num_key_value_heads = num_attention_heads, head_dim = hidden_size //
+    num_attention_heads, and max_position_embeddings = 2048. No universal head
+    layout is imposed; explicit head dimensions and grouped-query heads remain
+    source-owned. The input is never modified.
+
+    This description grants neither funding nor execution authority. Native
+    plan and config-digest validation remain required independently.
+    """
+    if not isinstance(raw, dict):
+        raise ModelLoadError("model source config must be a dictionary")
+    cfg = raw.get("text_config") if isinstance(raw.get("text_config"), dict) else raw
+    hidden = _int(cfg, "hidden_size", "d_model", "n_embd")
+    heads = _int(cfg, "num_attention_heads", "n_head", "num_heads")
+    return {
+        "hidden_size": hidden,
+        "intermediate_size": _int(cfg, "intermediate_size", "ffn_dim", "n_inner", default=hidden * 4),
+        "num_hidden_layers": _int(cfg, "num_hidden_layers", "n_layer", "num_layers"),
+        "num_attention_heads": heads,
+        "num_key_value_heads": _int(cfg, "num_key_value_heads", "n_kv_head", default=heads),
+        "head_dim": _int(cfg, "head_dim", default=hidden // heads),
+        "vocab_size": _int(cfg, "vocab_size"),
+        "max_position_embeddings": _context_length(cfg),
+    }
 
 
 def load_hf_directory(path: str | Path, *, model_id: str | None = None, source_format: str = "huggingface") -> ModelManifest:
@@ -21,16 +52,24 @@ def load_hf_directory(path: str | Path, *, model_id: str | None = None, source_f
     if not config_path.exists():
         raise ModelLoadError(f"missing config.json in {root}")
     raw = json.loads(config_path.read_text())
+    if type(raw) is dict and (CONTRACT_FIELD in raw or
+            type(raw.get("text_config")) is dict and CONTRACT_FIELD in raw["text_config"]):
+        raise ModelLoadError("source cannot supply reserved captured source contract")
+    try:
+        legacy_geometry = legacy_source_geometry(raw)
+    except ValueError as exc:
+        raise ModelLoadError(str(exc)) from exc
     cfg = raw.get("text_config") if isinstance(raw.get("text_config"), dict) else raw
     architecture = _architecture(raw, cfg)
-    hidden = _int(cfg, "hidden_size", "d_model", "n_embd")
-    intermediate = _int(cfg, "intermediate_size", "ffn_dim", "n_inner", default=hidden * 4)
-    layers = _int(cfg, "num_hidden_layers", "n_layer", "num_layers")
-    heads = _int(cfg, "num_attention_heads", "n_head", "num_heads")
-    kv_heads = _int(cfg, "num_key_value_heads", "n_kv_head", default=heads)
-    head_dim = _int(cfg, "head_dim", default=hidden // heads)
-    vocab = _int(cfg, "vocab_size")
-    context = _int(cfg, "max_position_embeddings", "max_sequence_length", "seq_length", default=2048)
+    geometry = legacy_geometry.dimensions if legacy_geometry is not None else resolve_hf_source_geometry(raw)
+    hidden = geometry["hidden_size"]
+    intermediate = geometry["intermediate_size"]
+    layers = geometry["num_hidden_layers"]
+    heads = geometry["num_attention_heads"]
+    kv_heads = geometry["num_key_value_heads"]
+    head_dim = geometry["head_dim"]
+    vocab = geometry["vocab_size"]
+    context = geometry["max_position_embeddings"]
     tied = bool(cfg.get("tie_word_embeddings", raw.get("tie_word_embeddings", False)))
     tokenizer_path = str(root) if any((root / name).exists() for name in ("tokenizer.json", "tokenizer.model", "tokenizer_config.json")) else None
     chat_template = None
@@ -53,7 +92,8 @@ def load_hf_directory(path: str | Path, *, model_id: str | None = None, source_f
 
     composition = MaskedLinearCpu(Model(identity))
     try:
-        semantic_plan = lower_model(raw, batch=1, max_input_tokens=1, max_new_tokens=1)
+        semantic_plan = (None if legacy_geometry is not None else
+                         lower_model(raw, batch=1, max_input_tokens=1, max_new_tokens=1))
     except ValueError as exc:
         if not any(
             marker in str(exc)
@@ -66,9 +106,11 @@ def load_hf_directory(path: str | Path, *, model_id: str | None = None, source_f
             stages = scheduled_stage_specs(semantic_plan, composition)
         except ValueError as exc:
             raise ModelLoadError("semantic decoder cannot materialize its stages") from exc
-    elif is_gemma4:
+    elif legacy_geometry is not None:
         # Existing Gemma 4 runtime remains explicitly uncompiled until its
         # extra operator/state contracts are executable in the shared schedule.
+        stages = gemma4_stage_plan(legacy_geometry.config, include_lm_head=True)
+    elif is_gemma4:
         stages = gemma4_stage_plan(cfg, include_lm_head=True)
     elif semantic_plan is None:
         # Inspection of sources without a lowering adapter retains its legacy
@@ -317,12 +359,32 @@ def _architecture(raw: dict[str, Any], cfg: dict[str, Any]) -> str:
     return str(cfg.get("model_type", raw.get("model_type", "transformer")))
 
 
+def _context_length(value: dict[str, Any]) -> int:
+    keys = ("max_position_embeddings", "max_sequence_length", "seq_length", "n_positions")
+    present = [(key, value[key]) for key in keys if key in value]
+    for key, item in present:
+        if type(item) is not int or item <= 0:
+            raise ModelLoadError(f"model field {key!r} must be a positive integer")
+    if not present:
+        return 2048
+    if any(item != present[0][1] for _, item in present[1:]):
+        raise ModelLoadError(f"conflicting model field aliases: {tuple(key for key, _ in present)}")
+    return present[0][1]
+
+
 def _int(value: dict[str, Any], *keys: str, default: int | None = None) -> int:
-    for key in keys:
-        if key in value and value[key] is not None:
-            return int(value[key])
+    present = [(key, value[key]) for key in keys if key in value]
+    for key, item in present:
+        if type(item) is not int or item <= 0:
+            raise ModelLoadError(f"model field {key!r} must be a positive integer")
+    if present:
+        if any(item != present[0][1] for _, item in present[1:]):
+            raise ModelLoadError(f"conflicting model field aliases: {tuple(key for key, _ in present)}")
+        return present[0][1]
     if default is not None:
-        return int(default)
+        if type(default) is not int or default <= 0:
+            raise ModelLoadError(f"model field {keys[0]!r} default must be a positive integer")
+        return default
     raise ModelLoadError(f"missing required model field: one of {keys}")
 
 

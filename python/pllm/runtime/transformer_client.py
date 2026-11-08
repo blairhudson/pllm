@@ -401,8 +401,9 @@ class ClientBundle:
 
     @classmethod
     def unpack(cls, payload: bytes | bytearray, *, threads: int = 0) -> "ClientBundle":
+        from .bundle_document import unpack_document
         try:
-            value = msgpack.unpackb(payload, raw=False, strict_map_key=False)
+            value = unpack_document(payload)
         except Exception as exc:
             raise TransformerClientError("invalid transformer client bundle") from exc
         return cls._from_document(value, threads=threads)
@@ -421,6 +422,31 @@ class ClientBundle:
     @classmethod
     def _import_document(cls, value, *, storage, threads, snapshots) -> "ClientBundle":
         from .bundle_storage import FilePayload
+        from .bundle_document import bounded_metadata
+        from .client_tensor_contract import (
+            legacy_source_candidate, validate_legacy_bundle_contract, PRESENCE_REQUIRED,
+            CONTRACT_FIELD,
+        )
+
+        # Fixed-key builtin inspection precedes set()/dict(), sorting, JSON,
+        # builders, or numerical owners. This is only a scope hint.
+        legacy_scope = legacy_source_candidate(value)
+        if legacy_scope:
+            try:
+                bounded_metadata(value)
+                config = value.get("config")
+                if type(config) is not dict or CONTRACT_FIELD not in config:
+                    raise ValueError(PRESENCE_REQUIRED)
+                if type(value.get("v")) is not int or value["v"] != 2:
+                    raise ValueError("legacy source contract requires bundle schema 2")
+                privacy = value.get("privacy")
+                if type(privacy) is dict and "private_boundary" in privacy:
+                    raise ValueError("legacy source route does not support private boundary")
+                validate_legacy_bundle_contract(config, value.get("manifest"),
+                    value.get("local_tensors"), stages=value.get("stages"),
+                    weights=value.get("client_weights"))
+            except (ValueError, TypeError, KeyError, OverflowError) as exc:
+                raise TransformerClientError(str(exc)) from exc
 
         if type(threads) is not int or not 0 <= threads <= 32:
             raise TransformerClientError("client native threads must be in [0,32]")
@@ -431,7 +457,6 @@ class ClientBundle:
         version = int(value["v"])
         if storage == "paged" and version != 2:
             raise TransformerClientError("paged client weights require schema 2")
-        paged_executor = MaskedGEMM(threads=threads) if storage == "paged" else None
         new_format = {"v", "manifest", "runtime", "tokenizer", "arrays", "stages", "privacy"}
         legacy_format = {
             "v",
@@ -530,6 +555,52 @@ class ClientBundle:
             and (privacy.get("mode") != "public" or value.get("runtime") != "masked_transformer")
         ):
             raise TransformerClientError("invalid client-owned prefix bundle placement")
+        # Source semantics, not payload shape declarations, own local geometry.
+        # Preflight before any stage/native matrix or local ndarray materializes.
+        from .bundle_storage import f32_array_nbytes, immutable_f32_array
+        from .semantic_source import semantic_source_config
+        from .semantic_tensors import required_client_tensors
+        from pllm.modeling import lower_model
+
+        try:
+            if legacy_scope:
+                # Already checked exact census, immutable bytes and source
+                # geometry. This route grants no native semantic authority.
+                required_local = {}
+            else:
+                source_plan = lower_model(semantic_source_config(runtime_config), batch=1,
+                                          max_input_tokens=1, max_new_tokens=1)
+                required_local = required_client_tensors(source_plan)
+            if type(array_rows) is not dict or any(type(key) is not str for key in array_rows):
+                raise ValueError("invalid client tensor identities")
+            resolved_local = set(array_rows) if legacy_scope else set()
+            for weight_id, expected_shape in required_local.items():
+                candidates = [key for key in array_rows
+                              if key == weight_id or key.endswith("." + weight_id)]
+                if weight_id in array_rows:
+                    candidates = [weight_id]
+                if len(candidates) != 1:
+                    raise ValueError(f"missing or ambiguous client tensor {weight_id!r}")
+                if candidates[0] in resolved_local:
+                    raise ValueError("client tensor identity aliases multiple source tensors")
+                resolved_local.add(candidates[0])
+                row = array_rows[candidates[0]]
+                if (type(row) is not dict or row.get("dtype") != "f4"
+                        or type(row.get("shape")) not in (list, tuple)
+                        or tuple(row["shape"]) != expected_shape
+                        or f32_array_nbytes(row.get("shape")) != len(row.get("data", b""))
+                        or type(row.get("data")) is not bytes):
+                    raise ValueError(f"client tensor {weight_id!r} differs from source geometry")
+            if resolved_local != set(array_rows):
+                raise ValueError("client tensors include identities absent from semantic source")
+            for key, row in array_rows.items():
+                if (type(row) is not dict or row.get("dtype") != "f4"
+                        or type(row.get("data")) is not bytes
+                        or f32_array_nbytes(row.get("shape")) != len(row["data"])):
+                    raise ValueError(f"invalid client tensor {key!r} geometry or storage")
+        except (ValueError, TypeError, KeyError, OverflowError) as exc:
+            raise TransformerClientError("client tensors differ from semantic source") from exc
+        paged_executor = MaskedGEMM(threads=threads) if storage == "paged" else None
         client_weights: dict[str, tuple[np.ndarray | PagedGEMM, np.ndarray]] = {}
         extra_client_bytes = 0
         for weight_id, weight_row in weight_rows.items():
@@ -787,11 +858,14 @@ class ClientBundle:
                 raise TransformerClientError("private boundary has unsolicited tensor payloads")
             if row.get("dtype") != "f4":
                 raise TransformerClientError(f"unsupported client tensor dtype for {key}")
-            shape = tuple(int(item) for item in row["shape"])
-            array = np.frombuffer(row["data"], dtype="<f4").copy()
-            if array.size != int(np.prod(shape, dtype=np.int64)):
-                raise TransformerClientError(f"client tensor byte length mismatch for {key}")
-            arrays[str(key)] = array.reshape(shape)
+            try:
+                arrays[str(key)] = immutable_f32_array(row["data"], row["shape"])
+                if legacy_scope:
+                    from .bundle_storage import f32_chunks
+                    if any(not np.all(np.isfinite(chunk)) for chunk in f32_chunks(arrays[str(key)])):
+                        raise ValueError("legacy local tensor values must be finite")
+            except ValueError as exc:
+                raise TransformerClientError(f"invalid client tensor storage for {key}") from exc
         local_ids = {stage.id for stage in stages.values() if stage.client_weight is not None}
         advertised_ids = set(privacy.get("local_quantized_stages", []))
         if private_boundary:

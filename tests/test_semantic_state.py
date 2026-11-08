@@ -299,18 +299,45 @@ def test_windowed_plan_preflights_aggregate_state_before_issuance(
         SemanticDecoderRuntime._window_resource_bytes(graphs, windows)
 
 
-def test_windowed_prefill_accepts_numpy_token_vector() -> None:
-    runtime = object.__new__(SemanticDecoderRuntime)
-    runtime._window_contracts = {0: 4}
-    runtime._graphs = {"prefill": {"query_sequence": 2}}
-    runtime.caches = []
-    runtime.reset = lambda: None
-    runtime._forward = lambda tokens, *, final_logits_only: np.asarray(
-        [[float(tokens[0]), 42.0]], dtype=np.float32
+def test_windowed_prefill_accepts_numpy_token_vector(tmp_path: Path) -> None:
+    import asyncio
+
+    from pllm import Model
+    from pllm.profiles import MaskedLinearCpu
+    from pllm.quantization import SymmetricPerRow
+    from pllm.runtime.loaders import load_hf_directory
+    from pllm.runtime.model_binding import compile_runtime_model
+    from pllm.runtime.tiny_gemma import create_tiny_gemma4_checkpoint
+    from pllm.runtime.transformer_client import ClientBundle
+    from pllm.runtime.transformer_engine import MaskedTransformerEngine
+    from test_decoder_continuation import QuantizedRemote
+
+    root = create_tiny_gemma4_checkpoint(
+        tmp_path / "windowed", hidden_size=4, intermediate_size=8,
+        num_hidden_layers=2, num_attention_heads=1, num_key_value_heads=1, head_dim=4,
     )
+    config_path = root / "config.json"
+    config = json.loads(config_path.read_text()) | {"sliding_window": 4}
+    config_path.write_text(json.dumps(config))
+    identity = "windowed-numpy-prefill"
+    engine = MaskedTransformerEngine(weight_bits=8, activation_bits=8, threads=1)
+    asyncio.run(engine.load(load_hf_directory(root, model_id=identity)))
+    bundle = ClientBundle.unpack(engine.client_bundle(identity))
+    plan = lower_model(config, batch=1, max_input_tokens=2, max_new_tokens=2)
+    composition = MaskedLinearCpu(
+        Model(identity), quantization=SymmetricPerRow(weight_bits=8, activation_bits=8)
+    )
+    owner = compile_runtime_model(plan, bundle, composition=composition)
+    runtime = owner.runtime(QuantizedRemote(engine, identity))
+    assert runtime._window_contracts == {0: 4}
+    _, expected, _ = runtime.prepare_ids([1, 2])
     ids, logits, _ = runtime.prepare_ids(np.asarray([1, 2], dtype=np.int64))
     assert ids == [1, 2]
-    np.testing.assert_array_equal(logits, [2.0, 42.0])
+    np.testing.assert_array_equal(logits, expected)
+    assert logits.shape == (config["vocab_size"],)
+    assert np.all(np.isfinite(logits))
+    assert runtime.position == 2
+    assert isinstance(runtime.caches[0], WindowedLayerCache)
 
 
 def test_compiled_session_validates_declared_kv_owners_and_bfloat16_state() -> None:

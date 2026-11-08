@@ -301,6 +301,13 @@ def test_tied_w4_bundle_without_ple_rejects_malformed_weight_references(tmp_path
     run(engine.load(manifest))
     raw = msgpack.unpackb(engine.client_bundle(manifest.id), raw=False, strict_map_key=False)
 
+    baseline = ClientBundle.unpack(msgpack.packb(raw, use_bin_type=True))
+    try:
+        assert baseline.schema_version == 2
+        assert baseline.stages["token_lookup"].client_weight is baseline.stages["lm_head"].client_weight
+    finally:
+        baseline.close()
+
     assert raw["privacy"]["protocol"] == "masked_w4a4"
     assert set(raw["client_weights"]) == {"tied_embeddings"}
     assert "client_aux_weight" not in raw["stages"]["token_lookup"]
@@ -353,22 +360,40 @@ def test_untied_bundle_keeps_distinct_boundary_weights(tmp_path: Path):
     np.testing.assert_array_equal(bundle.local_token_lookup(ids), expected)
 
 
-def test_client_runtime_honors_tokenizer_add_bos_setting(tmp_path: Path):
+@pytest.mark.parametrize("add_bos", [False, True])
+def test_client_runtime_honors_tokenizer_add_bos_setting(tmp_path: Path, add_bos: bool):
     from pllm.runtime.transformer_client import MaskedTransformerClientRuntime
 
     root = create_tiny_gemma4_checkpoint(tmp_path / "model")
     tokenizer_config = root / "tokenizer_config.json"
     value = json.loads(tokenizer_config.read_text(encoding="utf-8"))
-    value["add_bos_token"] = False
+    value["add_bos_token"] = add_bos
     tokenizer_config.write_text(json.dumps(value), encoding="utf-8")
+    source = json.loads((root / "config.json").read_text(encoding="utf-8"))
+    assert source["pllm_test_tokenizer"] == "byte"
+    assert (source["bos_token_id"], source["eos_token_id"]) == (0, 1)
     manifest = load_hf_directory(root, model_id="tiny-no-bos")
     engine = MaskedTransformerEngine(threads=1)
-    run(engine.load(manifest))
-    bundle = ClientBundle.unpack(engine.client_bundle("tiny-no-bos"))
-    runtime = MaskedTransformerClientRuntime(bundle, lambda *_: None)
+    bundle = None
+    try:
+        run(engine.load(manifest))
+        bundle = ClientBundle.unpack(engine.client_bundle("tiny-no-bos"))
+        runtime = MaskedTransformerClientRuntime(bundle, lambda *_: None)
 
-    assert bundle.tokenizer_descriptor["add_bos_token"] is False
-    assert runtime.encode_prompt("A") == [65]
+        assert bundle.tokenizer_descriptor["add_bos_token"] is add_bos
+        # ModelByteTokenizer reserves 0/1; A occupies vocabulary row 67.
+        content_ids = [67]
+        bos_id = source["bos_token_id"]
+        assert bos_id not in content_ids
+        expected = [bos_id, *content_ids] if add_bos else content_ids
+        assert runtime.encode_prompt("A") == expected
+    finally:
+        try:
+            if bundle is not None:
+                bundle.close()
+        finally:
+            if manifest.id in engine.models:
+                run(engine.unload(manifest.id))
 
 
 def test_masked_runtime_matches_clear_w4a4_runtime(tmp_path: Path):

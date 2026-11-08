@@ -5,6 +5,11 @@ from importlib import import_module
 from ._version import __version__
 
 _EXPORTS = {
+    "SourceFloat32": ("pllm.numeric", "SourceFloat32"),
+    "ForwardBudget": ("pllm.configuration", "ForwardBudget"),
+    "ForwardInputs": ("pllm.runtime.forward_inputs", "ForwardInputs"),
+    "CompiledForwardModel": ("pllm.runtime.forward_binding", "CompiledForwardModel"),
+    "ForwardResult": ("pllm.runtime.forward_binding", "ForwardResult"),
     "FuseFssSourceDecoder": ("pllm.protocols", "FuseFssSourceDecoder"),
     "TrustedDealerTwoShareRoles": ("pllm.roles", "TrustedDealerTwoShareRoles"),
     "FixedCountPrivatePrefix": ("pllm.state", "FixedCountPrivatePrefix"),

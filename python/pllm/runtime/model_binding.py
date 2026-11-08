@@ -30,7 +30,10 @@ from pllm.runtime.semantic_stages import (
     semantic_stage_role,
 )
 from pllm.runtime.semantic_source import semantic_source_config
-from pllm.runtime.semantic_tensors import SemanticTensorError, required_client_tensors
+from pllm.runtime.semantic_tensors import SemanticTensorError, lookup_contract, required_client_tensors
+from pllm.runtime.bundle_storage import (
+    CHUNK_BYTES, f32_chunks, immutable_f32_backing, immutable_f32_retained_bytes,
+)
 from pllm.runtime.transformer_client import ClientBundle, TransformerClientError
 from pllm.runtime.transformer_client import validate_private_boundary_bundle
 
@@ -47,6 +50,7 @@ LOCAL_OPERATORS = frozenset(
     {
         "reshape",
         "rms_norm",
+        "layer_norm",
         "rotary_embedding",
         "kv_cache_append",
         "attention_scores",
@@ -257,6 +261,8 @@ class CompiledRuntimeModel:
         "_runtime_schedule_digest",
         "_stages",
         "_tokenizer_digest",
+        "_local_tensors",
+        "_local_tensor_bytes",
     )
 
     def __init__(self) -> None:
@@ -277,6 +283,7 @@ class CompiledRuntimeModel:
         canonical_composition: bytes,
         runtime_schedule_digest: str,
         tokenizer_digest: str,
+        local_tensors: dict,
     ) -> CompiledRuntimeModel:
         self = object.__new__(cls)
         self._plan = plan
@@ -290,7 +297,21 @@ class CompiledRuntimeModel:
         self._canonical_composition = canonical_composition
         self._runtime_schedule_digest = runtime_schedule_digest
         self._tokenizer_digest = tokenizer_digest
+        self._local_tensors = local_tensors
+        self._local_tensor_bytes = immutable_f32_retained_bytes(row[0] for row in local_tensors.values())
         return self
+
+    def local_tensor(self, weight_id: str) -> np.ndarray:
+        """Fresh metadata over retained validated immutable bytes; no rescans."""
+        try:
+            value, _, root = self._local_tensors[weight_id]
+        except (KeyError, TypeError) as exc:
+            raise RuntimeBindingError(f"unknown bound client tensor {weight_id!r}") from exc
+        # Construct against bytes directly: exposing a view of the retained
+        # ndarray would let callers mutate its metadata through .base.
+        origin = np.frombuffer(root, dtype=np.uint8).ctypes.data
+        return np.ndarray(value.shape, dtype=value.dtype, buffer=root,
+                          offset=value.ctypes.data - origin, order="C")
 
     @property
     def complete(self) -> bool:
@@ -413,6 +434,7 @@ class CompiledRuntimeModel:
             self._plan,
             self._bundle,
             composition=Pipeline.from_spec(json.loads(self._canonical_composition)),
+            _previous_binding=self,
         )
         if refreshed.digest != self._digest or refreshed._canonical != self._canonical:
             raise RuntimeBindingError("bound plan or bundle changed since compilation")
@@ -507,6 +529,7 @@ class CompiledRuntimeModel:
                 if options.verification_component and options.prefix_cache_bytes else 1),
             boundary=boundary,
             _private_boundary_binding=self if private_boundary else None,
+            _local_tensor_binding=self,
         )
         cache = composition.components.get("cache")
         if cache is not None and cache.params.get("generated_prefixes"):
@@ -773,6 +796,28 @@ def _resolve_array(arrays: dict[str, np.ndarray], weight_id: str) -> tuple[str, 
     if len(matches) > 1:
         raise RuntimeBindingError(f"ambiguous client tensor suffix for {weight_id!r}")
     return matches[0]
+
+
+def _chunked_f32_digest(value):
+    try:
+        immutable_f32_backing(value)
+    except ValueError as exc:
+        raise RuntimeBindingError("client tensor requires immutable bytes backing") from exc
+    digest = hashlib.sha256()
+    data = memoryview(value).cast("B")
+    for offset in range(0, len(data), CHUNK_BYTES):
+        digest.update(data[offset:offset + CHUNK_BYTES])
+    return digest.hexdigest()
+
+
+def _finite_f32_digest(value):
+    """One import scan; no serialized table copy or table-sized Boolean mask."""
+    digest = hashlib.sha256()
+    for chunk in f32_chunks(value):
+        if not np.all(np.isfinite(chunk)):
+            raise RuntimeBindingError("client tensor must be finite")
+        digest.update(memoryview(chunk).cast("B"))
+    return digest.hexdigest()
 
 
 def _canonical_stage_fingerprints(
@@ -1053,6 +1098,128 @@ def _canonicalize_descriptor(value: Any) -> Any:
     raise RuntimeBindingError(f"tokenizer descriptor value {type(value).__name__!r} is unsupported")
 
 
+def _validate_source_geometry(
+    source_config: dict[str, Any], cfg: dict[str, Any],
+    runtime_config: dict[str, Any], manifest: dict[str, Any],
+) -> None:
+    from .loaders import ModelLoadError, resolve_hf_source_geometry
+
+    try:
+        source_geometry = resolve_hf_source_geometry(source_config)
+    except ModelLoadError as exc:
+        raise RuntimeBindingError("client bundle source geometry is invalid") from exc
+    # Called only after native source-plan/config-digest checks in binding.
+    # Metadata agreement alone never grants execution authority.
+    for key, expected in source_geometry.items():
+        manifest_key = "context_length" if key == "max_position_embeddings" else key
+        runtime_value = cfg.get(key) if key == "max_position_embeddings" else runtime_config.get(key)
+        if type(runtime_value) is not int or runtime_value != expected:
+            raise RuntimeBindingError(f"bundle config {key} does not match the source geometry")
+        manifest_value = manifest.get(manifest_key)
+        if type(manifest_value) is not int or manifest_value != expected:
+            raise RuntimeBindingError(f"bundle manifest {manifest_key} does not match the source geometry")
+
+
+def _validate_nonrotary_attention(
+    runtime_config: dict[str, Any],
+    phases: dict[str, tuple[dict[str, Any], dict[str, dict[str, Any]]]],
+) -> None:
+    """Cross-check authenticated graph geometry, not authorize graph execution."""
+    def shape(operation: dict[str, Any], rank: int) -> list[int]:
+        value = operation.get("output_shape")
+        if (not isinstance(value, list) or len(value) != rank
+                or any(type(dim) is not int or dim <= 0 for dim in value)):
+            raise RuntimeBindingError("nonrotary attention shape must have positive integer dimensions")
+        return value
+
+    def inputs(operation: dict[str, Any], count: int, operations) -> list[dict[str, Any]]:
+        refs = operation.get("inputs")
+        if (not isinstance(refs, list) or len(refs) != count
+                or any(type(ref) is not str or ref not in operations for ref in refs)):
+            raise RuntimeBindingError("nonrotary attention inputs must reference graph producers")
+        return [operations[ref] for ref in refs]
+
+    def attributes(operation: dict[str, Any]) -> dict[str, Any]:
+        value = operation.get("attributes")
+        if not isinstance(value, dict):
+            raise RuntimeBindingError("nonrotary attention attributes must be an object")
+        return value
+
+    geometry = []
+    for key in ("num_attention_heads", "num_key_value_heads", "head_dim", "hidden_size"):
+        value = runtime_config.get(key)
+        if type(value) is not int or value <= 0:
+            raise RuntimeBindingError(f"nonrotary runtime {key} must be a positive integer")
+        geometry.append(value)
+    heads, kv_heads, head_dim, hidden = geometry
+    if heads % kv_heads:
+        raise RuntimeBindingError("nonrotary attention head grouping is invalid")
+    group = heads // kv_heads
+
+    def grouped(operation: dict[str, Any]) -> None:
+        value = attributes(operation).get("group_size")
+        if type(value) is not int or value != group:
+            raise RuntimeBindingError("nonrotary attention group_size disagrees with runtime geometry")
+
+    if set(phases) != {"prefill", "decode"}:
+        raise RuntimeBindingError("nonrotary attention requires both graph phases")
+    for _, operations in phases.values():
+        scores = {}
+        values = {}
+        scaled = set()
+        reshaped = set()
+        for op_id, operation in operations.items():
+            if operation.get("operator") != "attention_scores":
+                continue
+            query, key = inputs(operation, 2, operations)
+            b, hq, q, d = shape(query, 4)
+            bk, hkv, k, dk = shape(key, 4)
+            expected = [b, hq, q, k]
+            if ((hq, hkv, d) != (heads, kv_heads, head_dim)
+                    or (bk, dk) != (b, d) or shape(operation, 4) != expected):
+                raise RuntimeBindingError("nonrotary attention score geometry disagrees with runtime")
+            grouped(operation)
+            scores[op_id] = expected
+        for op_id, operation in operations.items():
+            operator = operation.get("operator")
+            if operator == "attention_scale":
+                producer, = inputs(operation, 1, operations)
+                score_id = operation["inputs"][0]
+                declared = attributes(operation).get("head_dim")
+                if (producer.get("operator") != "attention_scores" or score_id not in scores
+                        or type(declared) is not int or declared != head_dim
+                        or shape(operation, 4) != scores[score_id]):
+                    raise RuntimeBindingError("nonrotary attention scale geometry disagrees with scores")
+                scaled.add(score_id)
+            elif operator == "attention_values":
+                probs, value = inputs(operation, 2, operations)
+                b, hq, q, k = shape(probs, 4)
+                bv, hkv, kv, d = shape(value, 4)
+                expected = [b, hq, q, d]
+                if ((hq, hkv, d) != (heads, kv_heads, head_dim)
+                        or (bv, kv) != (b, k) or shape(probs, 4) not in scores.values()
+                        or shape(operation, 4) != expected):
+                    raise RuntimeBindingError("nonrotary attention value geometry disagrees with runtime")
+                grouped(operation)
+                values[op_id] = expected
+        for operation in operations.values():
+            if operation.get("operator") != "reshape":
+                continue
+            refs = operation.get("inputs") or []
+            if not isinstance(refs, list) or not any(type(ref) is str and ref in values for ref in refs):
+                continue
+            producer, = inputs(operation, 1, operations)
+            b, hq, q, d = shape(producer, 4)
+            layout = attributes(operation)
+            if (layout.get("layout") != "batch_sequence_hidden"
+                    or layout.get("input_layout") != "batch_heads_sequence_feature"
+                    or hq * d != hidden or shape(operation, 3) != [b, q, hidden]):
+                raise RuntimeBindingError("nonrotary attention head-to-hidden reshape disagrees with runtime")
+            reshaped.add(refs[0])
+        if not scores or not values or scaled != set(scores) or reshaped != set(values):
+            raise RuntimeBindingError("nonrotary attention graph lacks checked scores, scale, values or reshape")
+
+
 def _validate_runtime_semantics(
     runtime_config: dict[str, Any],
     phases: dict[str, tuple[dict[str, Any], dict[str, dict[str, Any]]]],
@@ -1118,12 +1285,17 @@ def _validate_runtime_semantics(
         # Native re-lowering and numeric-flow checks validate every operator;
         # flattened transport controls are constrained to the locked source.
         return
-    if rotary_head_dims != {_require_int(runtime_config.get("head_dim"), "runtime head_dim")}:
-        raise RuntimeBindingError("runtime head dimension diverges from the semantic plan")
-    if rotary_norm_inputs and any(rotary_norm_inputs) != all(rotary_norm_inputs):
-        raise RuntimeBindingError("runtime Q/K normalization topology is inconsistent")
-    if bool(runtime_config.get("qk_norm")) != bool(rotary_norm_inputs and all(rotary_norm_inputs)):
-        raise RuntimeBindingError("runtime Q/K normalization diverges from the semantic plan")
+    if rotary_head_dims:
+        if rotary_head_dims != {_require_int(runtime_config.get("head_dim"), "runtime head_dim")}:
+            raise RuntimeBindingError("runtime head dimension diverges from the semantic plan")
+        if rotary_norm_inputs and any(rotary_norm_inputs) != all(rotary_norm_inputs):
+            raise RuntimeBindingError("runtime Q/K normalization topology is inconsistent")
+        if bool(runtime_config.get("qk_norm")) != bool(rotary_norm_inputs and all(rotary_norm_inputs)):
+            raise RuntimeBindingError("runtime Q/K normalization diverges from the semantic plan")
+    else:
+        _validate_nonrotary_attention(runtime_config, phases)
+        if source_scaling is not None or runtime_config.get("qk_norm") is not False:
+            raise RuntimeBindingError("nonrotary attention cannot enable rotary scaling or Q/K normalization")
     expected_defaults = {
         "block_style": "llama",
         "embedding_multiplier": 1.0,
@@ -1156,9 +1328,53 @@ def _validate_runtime_semantics(
         )
 
 
-def _tokenizer_digest(descriptor: Any, runtime_config: dict[str, Any]) -> str:
+def _tokenizer_digest(
+    descriptor: Any, runtime_config: dict[str, Any], *, source_config: dict[str, Any] | None = None,
+) -> str:
     if not isinstance(descriptor, dict):
         raise RuntimeBindingError("client bundle tokenizer descriptor must be a mapping")
+    discriminators = [dict.get(descriptor, key) for key in ("kind", "type")]
+    if any(isinstance(value, str) and str.__eq__(value, "alphabet") is True
+           for value in discriminators):
+        from .tokenizer import AlphabetTokenizer
+
+        allowed = {"kind", "type", "alphabet", "vocab_size", "bos_token_id",
+                   "eos_token_id", "pad_token_id", "chat_template"}
+        if (type(descriptor) is not dict or any(type(key) is not str for key in descriptor)
+                or set(descriptor) - allowed):
+            raise RuntimeBindingError("alphabet tokenizer descriptor has unsupported fields")
+        for key in ("kind", "type"):
+            if key in descriptor and (type(descriptor[key]) is not str or descriptor[key] != "alphabet"):
+                raise RuntimeBindingError("alphabet tokenizer discriminators must agree")
+        alphabet = descriptor.get("alphabet")
+        vocab = runtime_config.get("vocab_size")
+        if (type(alphabet) is not str or type(vocab) is not int
+                or not 2 <= len(alphabet) == vocab - 2):
+            raise RuntimeBindingError("alphabet tokenizer length does not match the runtime vocabulary")
+        try:
+            tokenizer = AlphabetTokenizer(alphabet)
+        except ValueError as exc:
+            raise RuntimeBindingError(str(exc)) from exc
+        expected = {"vocab_size": tokenizer.vocab_size, "bos_token_id": tokenizer.bos_token_id,
+                    "eos_token_id": tokenizer.eos_token_id}
+        for key, wanted in expected.items():
+            if type(runtime_config.get(key)) is not int or runtime_config[key] != wanted:
+                raise RuntimeBindingError(f"alphabet tokenizer {key} does not match the model config")
+            if key in descriptor and (type(descriptor[key]) is not int or descriptor[key] != wanted):
+                raise RuntimeBindingError(f"alphabet tokenizer {key} does not match its alphabet")
+        if "pad_token_id" in descriptor:
+            pad = descriptor["pad_token_id"]
+            if type(pad) is not int or not 0 <= pad < vocab:
+                raise RuntimeBindingError("alphabet tokenizer pad_token_id is outside the vocabulary")
+            # PAD is not a normalized runtime control. Compare the original
+            # config when it declares a concrete PAD, without inventing one.
+            source_pad = source_config.get("pad_token_id") if source_config is not None else None
+            if source_pad is not None and (type(source_pad) is not int or source_pad != pad):
+                raise RuntimeBindingError("alphabet tokenizer pad_token_id does not match the model config")
+        template = descriptor.get("chat_template")
+        if template is not None and type(template) is not str:
+            raise RuntimeBindingError("alphabet tokenizer chat_template must be a string or null")
+        return _sha256(_canonical_json(_canonicalize_descriptor(descriptor)))
     kind = str(descriptor.get("kind", descriptor.get("type", "")))
     if kind not in {"byte", "sentencepiece", "tokenizer_json"}:
         raise RuntimeBindingError(f"unsupported tokenizer type {kind!r}")
@@ -1299,11 +1515,22 @@ def _compile_runtime_model(
     bundle: ClientBundle,
     *,
     composition: Pipeline | None = None,
+    _previous_binding: CompiledRuntimeModel | None = None,
 ) -> tuple[CompiledRuntimeModel, dict[str, Any]]:
+    if isinstance(composition, Pipeline):
+        from pllm._decoder_admission import require_decoder_pipeline
+
+        require_decoder_pipeline(composition)
     if type(plan) is not ModelPlan:
         raise RuntimeBindingError("plan must be a ModelPlan")
     if type(bundle) is not ClientBundle:
         raise RuntimeBindingError("bundle must be a ClientBundle")
+    if _previous_binding is not None and (
+        type(_previous_binding) is not CompiledRuntimeModel
+        or _previous_binding._plan is not plan or _previous_binding._bundle is not bundle
+    ):
+        raise RuntimeBindingError("local tensor reuse requires its compiled binding owner")
+    _retained_local_tensors = _previous_binding._local_tensors if _previous_binding is not None else {}
     if composition is None:
         from pllm.profiles import MaskedLinearCpu
 
@@ -1410,14 +1637,17 @@ def _compile_runtime_model(
         raise RuntimeBindingError("native whole-decoder runtime schedule is inconsistent")
     runtime_schedule_digest = runtime_schedule.digest
 
-    nested_source = source_config is not cfg
+    nested_source = isinstance(source_config.get("text_config"), dict)
     runtime_config = _runtime_config(
         cfg,
         nested_source=nested_source,
         tokenizer_descriptor=bundle.tokenizer_descriptor,
     )
+    # Native re-lowering above authenticates the original source. Neither the
+    # manifest nor the canonical transport view can independently redefine it.
+    _validate_source_geometry(source_config, cfg, runtime_config, manifest)
     runtime_config_digest = _sha256(_canonical_json(cfg))
-    tokenizer_digest = _tokenizer_digest(bundle.tokenizer_descriptor, runtime_config)
+    tokenizer_digest = _tokenizer_digest(bundle.tokenizer_descriptor, runtime_config, source_config=cfg)
 
     phases = {phase: _phase_operations(document, phase) for phase in ("prefill", "decode")}
     _validate_runtime_semantics(runtime_config, phases, nested_source=nested_source)
@@ -1460,34 +1690,6 @@ def _compile_runtime_model(
         "head_dim": runtime_config["head_dim"],
         "vocab": runtime_config["vocab_size"],
     }
-    manifest_dimensions = {
-        "hidden_size": dims["hidden"],
-        "intermediate_size": dims["intermediate"],
-        "num_hidden_layers": dims["layers"],
-        "num_attention_heads": dims["heads"],
-        "num_key_value_heads": dims["kv_heads"],
-        "head_dim": dims["head_dim"],
-        "vocab_size": dims["vocab"],
-    }
-    for key, expected in manifest_dimensions.items():
-        manifest_value = _require_int(manifest.get(key), f"manifest {key}")
-        config_source = cfg.get(key)
-        if key == "head_dim" and config_source is None:
-            config_source = _require_int(
-                cfg.get("hidden_size"), "config hidden_size"
-            ) // _require_int(cfg.get("num_attention_heads"), "config num_attention_heads")
-        config_value = _require_int(config_source, f"config {key}")
-        if manifest_value != expected:
-            raise RuntimeBindingError(f"bundle manifest {key} does not match the model plan")
-        if config_value != expected:
-            raise RuntimeBindingError(f"bundle config {key} does not match the model plan")
-        if config_value != manifest_value:
-            raise RuntimeBindingError(f"bundle config and manifest {key} disagree")
-    if _require_int(
-        cfg.get("max_position_embeddings"), "config max_position_embeddings"
-    ) != _require_int(manifest.get("context_length"), "manifest context_length"):
-        raise RuntimeBindingError("bundle config and manifest context disagree")
-
     bound = 0
     for graph, _ in phases.values():
         bound = max(bound, _require_int(graph.get("maximum_key_sequence"), "maximum_key_sequence"))
@@ -2104,6 +2306,28 @@ def _compile_runtime_model(
             attributes = operation.get("attributes")
             if not isinstance(attributes, dict):
                 raise RuntimeBindingError(f"operation {operation_id!r} requires attributes")
+            if operator == "token_lookup":
+                try:
+                    domain, _, table_shape = lookup_contract(
+                        operation, legacy_vocabulary=dims["vocab"],
+                    )
+                except SemanticTensorError as exc:
+                    raise RuntimeBindingError(str(exc)) from exc
+                if domain == "absolute_positions":
+                    if (
+                        private_boundary
+                        or runtime_options.nonlinear_layout is not None
+                        or runtime_options.privacy_mode not in {"public", "client_only", "offset_public"}
+                        or table_shape != (max_positions, dims["hidden"])
+                        or _normalize_weight_key(attributes["weight"]) in ownership
+                    ):
+                        raise RuntimeBindingError(
+                            "absolute position lookup differs from its local baseline ownership or context"
+                        )
+                    local_operations.add(qualified)
+                    continue
+                if domain != "tokens":
+                    raise RuntimeBindingError("semantic runtime does not supply input.segments")
             if operator in LOCAL_OPERATORS:
                 local_operations.add(qualified)
                 continue
@@ -2350,30 +2574,45 @@ def _compile_runtime_model(
         raise RuntimeBindingError("plan operation coverage is incomplete")
 
     local_tensors = []
+    retained_local_tensors = {}
+    local_digest_cache = {}
     if private_boundary:
         resolved = {_resolve_array(bundle.arrays, weight_id)[0] for weight_id in client_weights}
         if set(bundle.arrays) != resolved:
             raise RuntimeBindingError("private boundary has unsolicited client tensors")
     for weight_id in sorted(client_weights):
         key, array = _resolve_array(bundle.arrays, weight_id)
-        value = np.asarray(array)
+        value = array
+        try:
+            root = immutable_f32_backing(value)
+        except ValueError as exc:
+            raise RuntimeBindingError(f"client tensor {key!r} requires immutable bytes backing") from exc
         if value.dtype != np.float32:
             raise RuntimeBindingError(f"client tensor {key!r} must be float32")
         if tuple(value.shape) != client_weights[weight_id]:
             raise RuntimeBindingError(
                 f"client tensor {key!r} shape does not match its semantic use"
             )
-        if not np.all(np.isfinite(value)):
-            raise RuntimeBindingError(f"client tensor {key!r} must be finite")
-        local_tensors.append(
-            {
+        previous = (_retained_local_tensors or {}).get(weight_id)
+        if (previous is not None and previous[2] is root
+                and previous[0].ctypes.data == value.ctypes.data
+                and previous[0].shape == value.shape and previous[1]["key"] == key):
+            row = previous[1]
+            canonical_value = previous[0]
+        else:
+            identity = (id(root), value.ctypes.data, value.shape)
+            if identity not in local_digest_cache:
+                local_digest_cache[identity] = _finite_f32_digest(value)
+            row = {
                 "weight_id": weight_id,
                 "key": key,
                 "shape": list(value.shape),
                 "dtype": str(value.dtype),
-                "sha256": _sha256(value.astype("<f4", copy=False).tobytes()),
+                "sha256": local_digest_cache[identity],
             }
-        )
+            canonical_value = value.view()
+        local_tensors.append(row)
+        retained_local_tensors[weight_id] = (canonical_value, row, root)
 
     bindings = []
     for stage in canonical.values():
@@ -2506,7 +2745,8 @@ def _compile_runtime_model(
                 "key": key,
                 "shape": list(np.asarray(value).shape),
                 "dtype": str(np.asarray(value).dtype),
-                "sha256": _sha256(_f32_bytes(np.asarray(value))),
+                "sha256": next((row[1]["sha256"] for row in retained_local_tensors.values()
+                                if row[1]["key"] == key), None) or _chunked_f32_digest(value),
             }
             for key, value in sorted(bundle.arrays.items())
         ],
@@ -2572,6 +2812,7 @@ def _compile_runtime_model(
         canonical_composition=canonical_composition,
         runtime_schedule_digest=runtime_schedule_digest,
         tokenizer_digest=tokenizer_digest,
+        local_tensors=retained_local_tensors,
     )
     if private_boundary and runtime_schedule_spec["private_boundary"].get("head_output_encoding") == "row_residues":
         from .private_boundary_certificate import import_certificate

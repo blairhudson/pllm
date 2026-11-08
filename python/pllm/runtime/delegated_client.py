@@ -893,7 +893,10 @@ class DelegatedClient:
             cleanup = getattr(self, "_compact_cleanup", None)
             if (self._active is not None or self._tokenizer_scopes
                     or (cleanup is not None and not cleanup.closed)):
-                raise ProtocolError("client already owns request/tokenizer cleanup", 409)
+                error = ProtocolError("client already owns request/tokenizer cleanup", 409)
+                error.annotate_request_failure({"stage": "input_count", "role": "client",
+                                              "code": "count_owner_busy", "http_status": None})
+                raise error
             slot = _CountPreparation(_PreparedPromptUse._empty())
             self._count_preparation = slot
         try:
@@ -969,27 +972,48 @@ class DelegatedClient:
         result = tokenizer = source = None
         ids = ()
         body = attempt.body
+        failure_stage = None
+        failure_error = None
         try:
             attempt.check_cancelled()
             with self.tokenizer_scope():
-                self._prepare_request_prompt(body, attempt=attempt)
-                attempt.check_cancelled()
-                source = self._ensure_source()
-                tokenizer, ids = self._encode(body, source, attempt=attempt)
-                count = body["max_output_tokens"]
-                attempt.check_cancelled()
-                with self._lock:
-                    self.audit.generation_requested_output_tokens += count
-                    self.audit.generation_requested_prefill_tokens += len(ids)
-                    self.audit.generation_requested_decode_steps += count - 1
-                    self.audit.begin_transport()
                 try:
-                    result = self._execute(source, ids, count, attempt)
-                finally:
+                    failure_stage = "prepare_prompt"
+                    self._prepare_request_prompt(body, attempt=attempt)
+                    failure_stage = None
+                    attempt.check_cancelled()
+                    failure_stage = "validate_source"
+                    source = self._ensure_source()
+                    failure_stage = "bind_encode"
+                    tokenizer, ids = self._encode(body, source, attempt=attempt)
+                    failure_stage = None
+                    count = body["max_output_tokens"]
+                    attempt.check_cancelled()
                     with self._lock:
-                        self.audit.finish_transport(attempt.transport_audit)
-                attempt.check_cancelled()
-                self._validate_result(result, source, ids, count)
+                        self.audit.generation_requested_output_tokens += count
+                        self.audit.generation_requested_prefill_tokens += len(ids)
+                        self.audit.generation_requested_decode_steps += count - 1
+                        self.audit.begin_transport()
+                    try:
+                        failure_stage = "transport"
+                        result = self._execute(source, ids, count, attempt)
+                    finally:
+                        # Never label an audit-cleanup failure as transport.
+                        transport_stage = failure_stage
+                        failure_stage = None
+                        with self._lock:
+                            self.audit.finish_transport(attempt.transport_audit)
+                        failure_stage = transport_stage
+                    failure_stage = None
+                    attempt.check_cancelled()
+                    failure_stage = "accept_result"
+                    self._validate_result(result, source, ids, count)
+                    failure_stage = None
+                except ProtocolError as error:
+                    # Scope retirement can replace this error. Only label the
+                    # same exception that actually escaped an instrumented call.
+                    failure_error = error
+                    raise
                 if self._result_hook is not None:
                     self._result_hook(result)
                 attempt.check_cancelled()
@@ -1028,11 +1052,17 @@ class DelegatedClient:
                         self.audit.generation_attribution_supported_responses += 1
                 return events
         except BaseException as error:
+            if (self.runtime_id == "compiled_gkm_v1"
+                    and isinstance(error, ProtocolError) and error is failure_error
+                    and failure_stage is not None):
+                error.annotate_request_failure({"stage": failure_stage, "role": "client",
+                                                "code": "gkm_stage_failed", "http_status": None})
             clear_failure_frames(error)
             raise
         finally:
             # No accepted logits/KV in the iterator, client cache, or error frame.
             result = tokenizer = source = body = None
+            failure_error = None
             ids = ()
             attempt.body = None
 

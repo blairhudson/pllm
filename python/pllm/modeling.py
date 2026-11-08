@@ -244,4 +244,65 @@ def lower_model(
     )
 
 
-__all__ = ["DecoderContinuationSchedule", "DecoderCoverageReport", "DecoderRuntimeSchedule", "ModelPlan", "lower_model"]
+@dataclass(frozen=True, slots=True)
+class ForwardPlan:
+    """Immutable inspection metadata, never execution authority."""
+
+    _canonical_bytes: bytes
+
+    def __post_init__(self) -> None:
+        if type(self._canonical_bytes) is not bytes:
+            raise TypeError("forward plan must be exact bytes")
+        document = json.loads(self._canonical_bytes)
+        if not isinstance(document, dict) or document.get("schema_version") != "pllm.forward_plan.v1":
+            raise ValueError("invalid forward model plan")
+
+    @property
+    def digest(self) -> str:
+        return hashlib.sha256(b"pllm.forward_plan.v1\0" + self._canonical_bytes).hexdigest()
+
+    @property
+    def inputs(self) -> Mapping[str, Any]:
+        return _freeze(self.to_dict()["inputs"])
+
+    @property
+    def operations(self) -> tuple[Mapping[str, Any], ...]:
+        return _freeze(self.to_dict()["operations"])
+
+    @property
+    def outputs(self) -> Mapping[str, Any]:
+        return _freeze(self.to_dict()["outputs"])
+
+    @property
+    def max_sequence(self) -> int:
+        return self.to_dict()["max_sequence"]
+
+    def canonical_bytes(self) -> bytes:
+        return self._canonical_bytes
+
+    def to_dict(self) -> dict[str, Any]:
+        return json.loads(self._canonical_bytes)
+
+
+def lower_forward_model(
+    config: Mapping[str, Any] | bytes | str, *, max_sequence: int
+) -> ForwardPlan:
+    """Lower source configuration for inspection; weights remain unloaded."""
+    from pllm import _native
+
+    if type(max_sequence) is not int or not 0 < max_sequence <= (1 << 64) - 1:
+        raise ValueError("max_sequence must be a positive u64 integer")
+    if isinstance(config, Mapping):
+        document = json.dumps(
+            config, allow_nan=False, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ).encode()
+    elif type(config) is bytes:
+        document = config
+    elif type(config) is str:
+        document = config.encode()
+    else:
+        raise TypeError("config must be a mapping, bytes, or JSON string")
+    return ForwardPlan(_native.lower_forward_model(document, max_sequence=max_sequence))
+
+
+__all__ = ["DecoderContinuationSchedule", "DecoderCoverageReport", "DecoderRuntimeSchedule", "ModelPlan", "ForwardPlan", "lower_model", "lower_forward_model"]

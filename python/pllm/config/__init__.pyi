@@ -2,6 +2,7 @@ from pllm.configuration import ComponentRef as ComponentRef
 from pllm.configuration import ConfigurationError as ConfigurationError
 from pllm.configuration import Deployment as Deployment
 from pllm.configuration import ExecutionBudget as ExecutionBudget
+from pllm.configuration import ForwardBudget as ForwardBudget
 from pllm.configuration import Experiment as Experiment
 from pllm.configuration import ExperimentProfile as ExperimentProfile
 from pllm.configuration import Model as Model

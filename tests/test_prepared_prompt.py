@@ -62,7 +62,9 @@ def test_template_system_generation_and_bos_are_preserved():
     assert tokenizer.calls == [("BSYSTEM|hello|ASSISTANT", True)]
 
 
-@pytest.mark.parametrize("template", ["{% broken %}", "{{ missing.value }}", "{{ raise_exception('no') }}"])
+@pytest.mark.parametrize("template", [
+    "{% broken %}", "{{ missing.value }}", "{{ raise_exception('no') }}", False, 0, [], {},
+])
 def test_present_broken_template_refuses_before_encode(template):
     tokenizer = Tokenizer()
     with pytest.raises(ResponsesError, match="template failed"):
@@ -327,6 +329,44 @@ def _observe_source_tokenizer(monkeypatch, owned):
 
 
 @pytest.mark.parametrize("kind", ["gkm", "fss"])
+def test_paper_sequence_keeps_explicit_empty_system_through_source_renderer(tmp_path, monkeypatch, kind):
+    from pllm.runtime.benchmark_context import validate_context
+
+    sequence = json.loads((Path(__file__).resolve().parents[1]
+        / "examples/papers/qwen-empty-system.json").read_text(encoding="utf-8"))
+    assert sequence == [[{"role": "system", "content": ""}, {"role": "user", "content": "hi"}]]
+    contexts = [validate_context(value) for value in sequence]
+    rows = normalize_input(contexts[0])
+    assert [(row.role, row.text) for row in rows] == [("system", ""), ("user", "hi")]
+
+    # Fixture ChatML control, not the pinned Qwen tokenizer/template qualification.
+    template = (
+        "{% if messages[0].role != 'system' %}"
+        "{{ '<|im_start|>system\\nDEFAULT SYSTEM<|im_end|>\\n' }}{% endif %}"
+        "{% for message in messages %}"
+        "{{ '<|im_start|>' + message.role + '\\n' + message.content + '<|im_end|>\\n' }}"
+        "{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\\n' }}{% endif %}"
+    )
+    _, _, _, core, owned = _real_prompt_metadata(tmp_path, monkeypatch, kind, template=template)
+    prepared = None
+    try:
+        descriptor = owned.tokenizer_descriptor
+        assert descriptor["chat_template"] == template
+        expected = "<|im_start|>system\n<|im_end|>\n<|im_start|>user\nhi<|im_end|>\n<|im_start|>assistant\n"
+        assert _render_prompt(rows, descriptor) == expected
+        assert _render_prompt(normalize_input("hi"), descriptor) == (
+            "<|im_start|>system\nDEFAULT SYSTEM<|im_end|>\n"
+            "<|im_start|>user\nhi<|im_end|>\n<|im_start|>assistant\n")
+        prepared = _prepare_prompt({"model": core.default_model, "input": contexts[0], "max_output_tokens": 1},
+            descriptor=descriptor, tokenizer=owned.tokenizer(), source=_owned_prompt_source(owned))
+        assert prepared._payload.rendered == expected
+    finally:
+        if prepared is not None:
+            prepared.close()
+        core.close()
+
+
+@pytest.mark.parametrize("kind", ["gkm", "fss"])
 @pytest.mark.parametrize("case", ["zero_ids", "missing_bos", "manifest_template_fallback"])
 def test_prepared_real_source_descriptor_matches_lease(tmp_path, monkeypatch, kind, case):
     exp, manifest, cfg, core, owned = _real_prompt_metadata(tmp_path, monkeypatch, kind,
@@ -542,6 +582,94 @@ def _forbid_full_source_work(monkeypatch):
     monkeypatch.setattr(delegated_client, "_admit_source", forbidden)
     for name in ("gkm_source_contract", "fss_source_contract", "replicated_source_contract"):
         monkeypatch.setattr(_native, name, forbidden, raising=False)
+
+
+@pytest.mark.parametrize("kind", ["gkm", "fss", "puma"])
+@pytest.mark.parametrize("case", ["over_budget", "exact_budget", "render_failure"])
+def test_cold_response_input_tokens_preflight_retires_owners(tmp_path, monkeypatch, kind, case):
+    from contextlib import contextmanager
+    from dataclasses import replace
+    from pllm.deployment import resources
+    from pllm.runtime import responses, tokenizer_admission
+    from pllm.runtime.http_gateway import GatewayError
+
+    words = 29 if case == "over_budget" else 15
+    template = "{% broken %}" if case == "render_failure" else " ".join(["hello"] * words)
+    exp, _, _, core, owned = _cold_metadata_client(
+        tmp_path, monkeypatch, kind, template=template)
+    # Exercise the same 16-token metadata boundary for every inherited route;
+    # this fixture never admits the FSS source's separate execution contract.
+    exp = replace(exp, budget=replace(exp.budget, max_input_tokens=16))
+    core._declaration, core._experiment_budget = exp, exp.budget
+    expected_request = _prompt_request(core._admit({"model": core.default_model, "input": "hello"}))
+    encoded, closed, prepared_owners, reservations, source_calls = [], [], [], [], []
+    original_encode = tokenizer_admission._PromptTokenizer.encode
+    original_close = tokenizer_admission._PromptTokenizer.close
+    original_prepare = responses._prepare_prompt
+    original_reserve = resources.reserve_incremental_memory
+
+    def encode(value, text, *, add_bos):
+        ids = original_encode(value, text, add_bos=add_bos)
+        encoded.append((text, add_bos, tuple(ids)))
+        return ids
+
+    def close(value):
+        original_close(value)
+        closed.append(value)
+
+    def prepare(request, **kwargs):
+        snapshot = kwargs["_pending_source"]
+        assert snapshot.tokenizer_descriptor == owned.tokenizer_descriptor
+        assert kwargs["descriptor"] == owned.tokenizer_descriptor
+        assert kwargs["source"] == snapshot.association()
+        assert _prompt_request(request) == expected_request
+        prepared = original_prepare(request, **kwargs)
+        prepared_owners.append(prepared)
+        return prepared
+
+    @contextmanager
+    def reserve(*args, **kwargs):
+        with original_reserve(*args, **kwargs):
+            reservations.append("entered")
+            try:
+                yield
+            finally:
+                assert len(closed) == 1 and closed[0]._inner is None
+                reservations.append("retired")
+
+    def ensure_source():
+        source_calls.append("ensure")
+        pytest.fail("token count reached full source admission")
+
+    monkeypatch.setattr(tokenizer_admission._PromptTokenizer, "encode", encode)
+    monkeypatch.setattr(tokenizer_admission._PromptTokenizer, "close", close)
+    monkeypatch.setattr(responses, "_prepare_prompt", prepare)
+    monkeypatch.setattr(resources, "reserve_incremental_memory", reserve)
+    monkeypatch.setattr(core, "_ensure_source", ensure_source)
+    _forbid_full_source_work(monkeypatch)
+    try:
+        if case == "exact_budget":
+            assert core._response_input_tokens(core.default_model, "hello") == 16
+        else:
+            match = "template failed" if case == "render_failure" else "input exceeds selected budget"
+            with pytest.raises(GatewayError, match=match) as caught:
+                core._response_input_tokens(core.default_model, "hello")
+            if case == "render_failure":
+                assert caught.value.param == "input"
+                assert isinstance(caught.value.__cause__, ResponsesError)
+                assert str(caught.value) == str(caught.value.__cause__)
+        assert source_calls == [] and core._source is None and core._source_checked is False
+        assert reservations == ["entered", "retired"]
+        assert len(closed) == 1 and closed[0]._inner is None
+        if case == "render_failure":
+            assert encoded == prepared_owners == []
+        else:
+            assert encoded == [(template, True, (0,) + (4,) * words)]
+            assert len(prepared_owners) == 1
+            assert prepared_owners[0]._payload is None
+            assert prepared_owners[0]._metadata_owner is None
+    finally:
+        core.close()
 
 
 def _count_cleanup_fixture(monkeypatch, kind="gkm", case="success", failures=1):
@@ -763,6 +891,363 @@ def test_count_metadata_failure_retires_empty_preparation(monkeypatch):
         assert f.core._count_preparation is None and f.attempts == []
         assert f.reservations[0]._exited and f.capacity._owners == f.baseline
     finally:
+        f.core.close()
+
+
+@pytest.mark.parametrize("case,kind", [
+    ("duplicate", "value"), ("nonfinite", "recursion"),
+    ("duplicate", "json"), ("nonfinite", "unicode_decode"),
+    ("nonfinite", "unicode_encode"), ("shape", "value"),
+])
+def test_metadata_parser_preserves_caller_errors(case, kind):
+    from pllm.runtime import tokenizer_admission
+
+    payload = b"caller-owned bytes"
+    errors = {
+        "value": ValueError("caller detail"),
+        "recursion": RecursionError("caller detail"),
+        "json": json.JSONDecodeError("caller detail", "caller-owned document", 2),
+        "unicode_decode": UnicodeDecodeError("utf-8", payload, 1, 2, "caller detail"),
+        "unicode_encode": UnicodeEncodeError("ascii", "caller-owned document", 1, 2, "caller detail"),
+    }
+    external = errors[kind]
+    external.add_note("caller note")
+    args = external.args
+    calls = []
+
+    def error(message):
+        calls.append(message)
+        return external if len(calls) == 1 else tokenizer_admission._PromptMetadataError(message)
+
+    raw = {"duplicate": b'{"a": 1, "a": 2}', "nonfinite": b'{"a": NaN}', "shape": b'[]'}[case]
+    expected = type(external) if case == "shape" else tokenizer_admission._PromptMetadataError
+    with pytest.raises(expected) as caught:
+        tokenizer_admission._json_metadata(raw, error=error, label="fixture")
+    assert (caught.value if case == "shape" else caught.value.__cause__) is external
+    assert external.args == args and external.__notes__ == ["caller note"]
+    if kind == "json":
+        assert external.doc == "caller-owned document" and external.pos == 2
+    elif kind == "unicode_decode":
+        assert external.object is payload
+    elif kind == "unicode_encode":
+        assert external.object == "caller-owned document"
+
+
+@pytest.mark.parametrize("kind", ["json", "unicode_decode"])
+def test_metadata_parser_preserves_external_input_decoder_error(kind):
+    from pllm.runtime import tokenizer_admission
+
+    external = (json.JSONDecodeError("caller detail", "caller document", 1) if kind == "json"
+                else UnicodeDecodeError("utf-8", b"caller bytes", 1, 2, "caller detail"))
+    external.add_note("caller note")
+    args = external.args
+
+    class CallerBytes(bytes):
+        def decode(self, *args, **kwargs):
+            raise external
+
+    with pytest.raises(tokenizer_admission._PromptMetadataError) as caught:
+        tokenizer_admission._json_metadata(CallerBytes(b"{}"),
+            error=tokenizer_admission._PromptMetadataError, label="fixture")
+    assert caught.value.__cause__ is external and external.args == args
+    assert external.__notes__ == ["caller note"]
+    if kind == "json":
+        assert external.doc == "caller document"
+    else:
+        assert external.object == b"caller bytes"
+
+
+@pytest.mark.parametrize("case", ["long_json", "multibyte_utf8"])
+def test_cold_count_parser_payloads_retire_before_refund(tmp_path, monkeypatch, case):
+    import sys
+    from types import ModuleType
+    from pllm.deployment import resources
+    from pllm.runtime import tokenizer_admission
+
+    # Keep the real capture/read/parse path, with fake core and host observation.
+    capture = tokenizer_admission._capture_prompt_metadata
+    f = _count_cleanup_fixture(monkeypatch, failures=0)
+    monkeypatch.setattr(tokenizer_admission, "_capture_prompt_metadata", capture)
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("malformed metadata reached native tokenizer construction")
+
+    tokenizers = ModuleType("tokenizers")
+    tokenizers.Tokenizer = SimpleNamespace(from_buffer=forbidden)
+    monkeypatch.setitem(sys.modules, "tokenizers", tokenizers)
+    model = SimpleNamespace(kind="safetensors", source=str(tmp_path),
+        to_spec=lambda: {"kind": "safetensors", "source": str(tmp_path)})
+    f.core._declaration.pipeline.model = model
+    document = '{"note":"' + "雪" * 2048 + '",\n"broken": }'
+    prefix = b'{"note":"' + "雪é".encode() * 256
+    raw = document.encode() if case == "long_json" else prefix + b'\xff"}'
+    (tmp_path / "config.json").write_bytes(raw)
+    (tmp_path / "tokenizer.json").write_bytes(b"{}")
+    (tmp_path / "tokenizer_config.json").write_bytes(b"{}")
+    escaped, parser_errors, diagnostics, topology = [], [], [], []
+    loads = json.loads
+
+    def observe_loads(value, *args, **kwargs):
+        try:
+            return loads(value, *args, **kwargs)
+        except (json.JSONDecodeError, UnicodeDecodeError) as error:
+            error.add_note("parser detail")
+            parser_errors.append(error)
+            if case == "long_json":
+                assert type(error) is json.JSONDecodeError and error.doc == document
+                assert error.args == (str(error),)  # No document copy in JSON args.
+                diagnostics.append((error.msg, error.pos, error.lineno, error.colno, error.args))
+            else:
+                assert type(error) is UnicodeDecodeError and error.object == raw
+                assert error.args[1] == error.object
+                diagnostics.append((error.encoding, error.start, error.end, error.reason))
+            pending, seen = [error], set()
+            while pending:
+                current = pending.pop()
+                if id(current) in seen:
+                    continue
+                seen.add(id(current))
+                assert len(seen) <= 4  # Examine only this known parser chain.
+                topology.append((current, current.__cause__, current.__context__,
+                                 current.__suppress_context__))
+                if current is not error:
+                    # CPython scanner offsets, not retained token fragments.
+                    assert type(current) is StopIteration
+                    assert type(current.value) is int and current.args == (current.value,)
+                pending.extend(item for item in (current.__cause__, current.__context__)
+                               if item is not None)
+            raise
+
+    metadata = tokenizer_admission._json_metadata
+
+    def observe_metadata(*args, **kwargs):
+        try:
+            return metadata(*args, **kwargs)
+        except tokenizer_admission._PromptMetadataError as error:
+            error.add_note("outer detail")
+            escaped.append(error)
+            raise
+
+    monkeypatch.setattr(json, "loads", observe_loads)
+    monkeypatch.setattr(tokenizer_admission, "_json_metadata", observe_metadata)
+    original_exit = resources._MemoryReservation.__exit__
+    refunds = []
+
+    def check_errors():
+        for index, outer in enumerate(escaped):
+            cause = parser_errors[index]
+            assert type(outer) is tokenizer_admission._PromptMetadataError
+            assert outer.args == ("prompt config invalid metadata JSON",)
+            assert str(outer) == "prompt config invalid metadata JSON"
+            assert outer.__notes__ == ["outer detail"]
+            assert outer.__cause__ is cause and outer.__context__ is cause
+            assert cause.__notes__ == ["parser detail"]
+            if case == "long_json":
+                msg, pos, line, column, args = diagnostics[index]
+                assert (msg, pos, line, column) == ("Expecting value", len(document) - 1, 2, 11)
+                assert (cause.msg, cause.pos, cause.lineno, cause.colno) == (msg, pos, line, column)
+                assert cause.doc == "" and cause.args == args == (str(cause),)
+                # Approved debug delta: pickle's document is empty; original
+                # live offsets/message survive, not reconstructed line geometry.
+                assert cause.__reduce__() == (json.JSONDecodeError, (msg, "", pos))
+            else:
+                encoding, start, end, reason = diagnostics[index]
+                assert (encoding, start, end, reason) == ("utf-8", len(prefix), len(prefix) + 1,
+                                                       "invalid start byte")
+                assert (cause.encoding, cause.start, cause.end, cause.reason) == (encoding, start, end, reason)
+                assert cause.object == b""
+                assert cause.args == (encoding, b"", start, end, reason)
+                # Approved debug delta: repr/pickle args no longer show bytes.
+                assert repr(cause) == repr(UnicodeDecodeError(encoding, b"", start, end, reason))
+                assert cause.__reduce__()[1] == cause.args
+            inspected = set()
+            pending, seen = [outer], set()
+            while pending:
+                current = pending.pop()
+                if id(current) in seen:
+                    continue
+                seen.add(id(current))
+                tb = current.__traceback__
+                while tb is not None:
+                    name = tb.tb_frame.f_code.co_name
+                    if name in {"_json_metadata", "_capture_prompt_metadata", "observe_loads",
+                                "observe_metadata", "loads", "decode", "raw_decode"}:
+                        inspected.add(name)
+                        assert tb.tb_frame.f_locals == {}
+                    tb = tb.tb_next
+                pending.extend(item for item in (current.__cause__, current.__context__)
+                               if item is not None)
+            assert {"_json_metadata", "_capture_prompt_metadata", "loads"} <= inspected
+        for error, cause, context, suppressed in topology:
+            assert error.__cause__ is cause and error.__context__ is context
+            assert error.__suppress_context__ is suppressed
+            if type(error) is StopIteration:
+                assert type(error.value) is int and error.args == (error.value,)
+
+    def retire(reservation, *exc):
+        assert reservation in f.reservations
+        assert f.capacity._owners[reservation._token] == reservation._amount == 1 << 20
+        assert not reservation._exited and reservation._token.retained is None
+        assert len(escaped) == len(parser_errors) == len(f.reservations) == len(refunds) + 1
+        check_errors()  # BEFORE the real reservation refunds its actual charge.
+        refunds.append(reservation)
+        return original_exit(reservation, *exc)
+
+    monkeypatch.setattr(resources._MemoryReservation, "__exit__", retire)
+    try:
+        for index in range(2):
+            with pytest.raises(tokenizer_admission._PromptMetadataError) as caught:
+                f.core._response_input_tokens("fixture", "hello")
+            assert caught.value is escaped[index]
+            assert len(escaped) == len(parser_errors) == len(f.reservations) == index + 1
+            assert refunds == f.reservations
+            assert all(owner._exited for owner in refunds)
+            assert f.core._count_preparation is None and not f.core._closing
+            assert f.capacity._owners == f.baseline
+            check_errors()  # Late caller-held traceback, including first count.
+        assert f.attempts == f.tokenizer.calls == []  # Never reached a tokenizer/native factory.
+    finally:
+        f.core.close()
+
+
+@pytest.mark.parametrize("clear_failures", [0, 2])
+def test_count_constructor_failure_clears_native_frames_before_refund(monkeypatch, clear_failures):
+    import sys
+    import weakref
+    from types import ModuleType
+    from pllm.deployment import resources
+    from pllm.runtime import delegated_protocol, tokenizer_admission
+    from pllm.runtime.client import ProtocolError
+    from pllm.runtime.http_gateway import GatewayError
+
+    f = _count_cleanup_fixture(monkeypatch, failures=0)
+    events, references, originals, held_errors = [], [], [], []
+
+    class Backing(dict):
+        def __init__(self, label, value):
+            super().__init__(value)
+            self.label = label
+            references.append((label, weakref.ref(self)))
+
+        def __del__(self):
+            events.append(self.label)
+
+    class Native:
+        @classmethod
+        def from_buffer(cls, raw):
+            return cls()
+
+        def __init__(self):
+            self.cycle = len(f.reservations)
+            references.append(((self.cycle, "native"), weakref.ref(self)))
+
+        def __del__(self):
+            events.append((self.cycle, "native"))
+
+        def get_vocab(self, *, with_added_tokens):
+            assert with_added_tokens
+            # Actual validate_vocabulary rejects this incomplete reverse table.
+            return Backing((self.cycle, "vocab"), {"a": 0})
+
+    tokenizers = ModuleType("tokenizers")
+    tokenizers.Tokenizer = Native
+    monkeypatch.setitem(sys.modules, "tokenizers", tokenizers)
+
+    def failure(message):
+        error = ResponsesError(message, param="input")
+        error.add_note("native validation detail")
+        originals.append(error)
+        return error
+
+    def capture(*args, **kwargs):
+        cycle = len(f.reservations)
+        metadata = Backing((cycle, "metadata"), {"model": {"vocab": {"a": 0}}})
+        return tokenizer_admission._source_descriptor(
+            b"{}", {}, {}, policy=tokenizer_admission._DescriptorPolicy.DELEGATED,
+            vocabulary=256, max_entries=256, allow_model_padding=False,
+            manifest_template=None, error=failure, label="count fixture", document=metadata)
+
+    monkeypatch.setattr(tokenizer_admission, "_capture_prompt_metadata", capture)
+    original_exit = resources._MemoryReservation.__exit__
+
+    def retire(reservation, *exc):
+        cycle = f.reservations.index(reservation) + 1
+        # Check finalization while the ACTUAL module ledger still charges it.
+        assert reservation._token in f.capacity._owners
+        for kind in ("native", "vocab", "metadata"):
+            assert (cycle, kind) in events
+        assert all(ref() is None for label, ref in references if label[0] == cycle)
+        if reservation._token.retained is None:
+            events.append((cycle, "refund"))
+        return original_exit(reservation, *exc)
+
+    monkeypatch.setattr(resources._MemoryReservation, "__exit__", retire)
+    original_clear = delegated_protocol.clear_failure_frames
+    remaining = [clear_failures]
+
+    def clear(error):
+        if remaining[0]:
+            remaining[0] -= 1
+            raise RuntimeError("frame clearing busy")
+        original_clear(error)
+
+    monkeypatch.setattr(delegated_protocol, "clear_failure_frames", clear)
+    try:
+        for _ in range(2 if clear_failures == 0 else 1):
+            with pytest.raises(GatewayError) as caught:
+                f.core._response_input_tokens("fixture", "hello")
+            held_errors.append(caught.value)  # Keep original caller traceback alive.
+            original = originals[-1]
+            assert caught.value.__cause__ is original
+            assert original.__notes__[0] == "native validation detail"
+            reservation = f.reservations[-1]
+            if clear_failures:
+                slot = f.core._count_preparation
+                owner = slot.owner
+                assert slot.state == "pending" and owner._failure is original
+                assert owner._tokenizer is owner._payload is None
+                assert reservation._failed == (owner,) and reservation.pending_retirement
+                assert f.capacity._owners[reservation._token] == 1 << 20
+                assert any(ref() is not None for _, ref in references)
+                assert original.__notes__[-1] == "token count cleanup retained owner: RuntimeError"
+                with pytest.raises(ProtocolError, match="pending token count"):
+                    f.core._response_input_tokens("fixture", "hello")
+                with pytest.raises(RuntimeError, match="frame clearing busy"):
+                    f.core.close()
+                assert f.core._count_preparation is slot and slot.owner is owner
+                assert owner._failure is original and reservation._failed == (owner,)
+                assert reservation.pending_retirement and not reservation._exited
+                assert f.capacity._owners[reservation._token] == 1 << 20
+                for admit in (
+                        lambda: f.core._response_input_tokens("fixture", "hello"),
+                        lambda: f.core.events({"model": "fixture", "input": "hello"}),
+                        lambda: f.core.tokenizer_scope().__enter__()):
+                    with pytest.raises(ProtocolError, match="closed"):
+                        admit()
+                assert len(f.reservations) == 1 and not f.core._tokenizer_scopes
+                f.core.close()
+                assert owner._failure is owner._metadata_owner is None
+            assert f.core._count_preparation is None and reservation._exited
+            assert f.capacity._owners == f.baseline
+            assert all(ref() is None for _, ref in references)
+            cycle = len(f.reservations)
+            assert events.count((cycle, "refund")) == 1
+            assert all(events.index((cycle, kind)) < events.index((cycle, "refund"))
+                       for kind in ("native", "vocab", "metadata"))
+            # Inspect late, while all original exceptions remain caller-held.
+            for held in held_errors:
+                tb = held.__cause__.__traceback__
+                inspected = set()
+                while tb is not None:
+                    name = tb.tb_frame.f_code.co_name
+                    if name in {"capture", "_source_descriptor", "validate_vocabulary"}:
+                        inspected.add(name)
+                        assert not {"metadata", "inner", "complete"} & tb.tb_frame.f_locals.keys()
+                    tb = tb.tb_next
+                assert inspected == {"capture", "_source_descriptor", "validate_vocabulary"}
+        assert f.attempts == [] and f.tokenizer.calls == []
+    finally:
+        remaining[0] = 0
         f.core.close()
 
 
@@ -4235,6 +4720,486 @@ def test_ordinary_runtime_client_legacy_retirement(tmp_path, monkeypatch, busy):
         assert calls == closed_calls and lease._operation == "idle"
     finally:
         lease.close()
+
+
+def test_gkm_gate_retained_transport_reservation_blocks_source_retirement(tmp_path, monkeypatch):
+    """Post-unwind drain custody; recoverable transport and topology are doubles.
+
+    No ongoing-producer/reentrant-close or sticky native recovery qualification.
+    """
+    import threading
+    from pllm.deployment import resources
+    from pllm.runtime.delegated_client import _Attempt
+    from pllm.runtime.delegated_source import AdmittedSource
+
+    f = _gkm_custody_gate_fixture(tmp_path, monkeypatch)
+    monkeypatch.setattr(resources, "_capacity", f.capacity)
+    original_source = f.state["owned"]
+    producer_unwound = threading.Event()
+    operation_error = RuntimeError("transport operation sentinel")
+    cleanup_error = RuntimeError("fake transport retirement unavailable")
+    amount = 64 << 10
+    reservation = resources.reserve_incremental_memory(amount)
+    # Strong local teardown handle survives a failed handoff to client custody.
+    token = reservation._token
+    stream = None
+    tearing_down = False
+    primary_error = None
+    workers = []
+    producer_worker = None
+
+    def joined_call(function, *, label):
+        """Keep handles: a bounded observation does not guarantee worker exit."""
+        nonlocal producer_worker
+        result, errors = [], []
+
+        def run():
+            try:
+                result.append(function())
+            except BaseException as error:
+                errors.append(error)
+
+        worker = threading.Thread(target=run, daemon=True)
+        workers.append((label, worker))
+        if label == "producer":
+            producer_worker = worker
+        worker.start()
+        worker.join(timeout=3)
+        if worker.is_alive():
+            errors.append(AssertionError(f"UNCONFIRMED {label}: worker not joined"))
+        return result, errors
+
+    class RecoverableTransportOwner:
+        recover = False
+        close_count = 0
+        retired = False
+
+        def close(self):
+            self.close_count += 1
+            if not tearing_down:
+                assert f.capacity._owners[token] == amount
+                assert f.lease._source_owner is f.core._source is original_source
+                assert f.lease._client is client and f.lease._topology is topology
+                assert topology.rows and "release" not in f.state["calls"]
+                if self.close_count > 1:
+                    assert producer_unwound.is_set()
+                    assert attempt._completion.is_set() and attempt._retired
+                    assert attempt.running_thread is None and f.core._active is None
+                    assert f.lease._drain_attempt is f.core._drain_attempt is attempt
+                    assert reservation.pending_retirement and token.retained is reservation
+            if not self.recover:
+                raise cleanup_error
+            self.retired = True
+
+    fake = RecoverableTransportOwner()
+    original_exit = resources._MemoryReservation.__exit__
+
+    def refund_after_fake_retirement(current, *exc):
+        if current is reservation and token.retained is None:
+            # Applies to normal recovery AND fallback after a partial handoff.
+            # A retained __exit__ is not a refund; only actual refund needs this.
+            assert fake.retired, "fake transport must retire before actual refund"
+            assert not current._failed, "failed fake ownership must clear before refund"
+        return original_exit(current, *exc)
+
+    monkeypatch.setattr(resources._MemoryReservation, "__exit__", refund_after_fake_retirement)
+
+    def produce(current):
+        try:
+            with reservation:
+                assert current is attempt and type(current) is _Attempt
+                assert current.running_thread == threading.get_ident()
+                assert not current._completion.is_set() and not current._retired
+                assert f.lease._source_owner is f.core._source is original_source
+                assert f.lease._client is client and f.lease._topology is topology
+                assert topology.rows and f.capacity._owners[token] == amount
+                with pytest.raises(RuntimeError) as caught:
+                    fake.close()
+                assert caught.value is cleanup_error
+                reservation.retain_failed((fake,))
+                f.core._retain_failed_request_reservation(current, reservation)
+                assert token.retained is reservation and reservation.pending_retirement
+                raise operation_error
+                yield  # Keep the production iterator/unwind path, without output.
+        finally:
+            producer_unwound.set()
+
+    def release(name):
+        if name == "release":
+            assert producer_unwound.is_set()
+            assert attempt._completion.is_set() and attempt._retired
+            assert attempt.running_thread is None
+            assert token not in f.capacity._owners and not reservation.pending_retirement
+            assert f.core._source is None and not f.core._source_checked
+            assert f.lease._source_owner is original_source
+
+    try:
+        assert type(original_source) is AdmittedSource
+        monkeypatch.setattr(f.core, "_produce", produce)
+        stream = f.lease._construct_client().responses.create(
+            input="hello", max_output_tokens=4, stream=True)
+        attempt = f.core._active
+        client, topology = f.lease._client, f.lease._topology
+        f.state["hook"] = release
+
+        _, errors = joined_call(lambda: next(stream), label="producer")
+        assert len(errors) == 1 and errors[0] is operation_error
+        assert producer_unwound.is_set()
+        assert attempt._retired and attempt._completion.is_set()
+        assert attempt.running_thread is None and f.core._active is None
+        assert f.lease._source_owner is f.core._source is original_source
+        assert reservation.pending_retirement and token.retained is reservation
+        assert reservation._token is token and reservation._amount == amount
+        assert f.capacity._owners[token] == amount
+        assert reservation._failed == (fake,)
+        assert f.core._failed_request_cleanup is reservation and f.core._compact_cleanup is None
+        before_failed_drain = dict(f.capacity._owners)
+
+        _, errors = joined_call(f.lease.close, label="failed lease drain")
+        assert len(errors) == 1 and errors[0] is cleanup_error
+        assert f.lease._client is client and f.lease._topology is topology
+        assert f.lease._source_owner is f.core._source is original_source
+        assert f.lease._drain_attempt is f.core._drain_attempt is attempt
+        assert not f.lease._cleanup_complete and not topology.cleanup_complete
+        assert topology.rows and "release" not in f.state["calls"]
+        assert reservation._token is token and reservation._amount == amount
+        assert f.capacity._owners[token] == amount and token.retained is reservation
+        assert reservation.pending_retirement and reservation._failed == (fake,)
+        assert f.core._failed_request_cleanup is reservation and f.core._compact_cleanup is None
+        assert dict(f.capacity._owners) == before_failed_drain
+        assert fake.close_count == 2
+
+        fake.recover = True  # Only this local fake owner becomes recoverable.
+        _, errors = joined_call(f.lease.close, label="successful lease drain")
+        assert not errors and fake.close_count == 3
+        assert not reservation.pending_retirement and token.retained is None
+        assert reservation._failed == () and not f.capacity._owners
+        assert f.core._failed_request_cleanup is None and f.core._compact_cleanup is None
+        assert f.core._source is None and f.lease._source_owner is None
+        assert f.lease._client is None and f.lease._topology is None
+        assert f.lease._cleanup_complete and topology.cleanup_complete and not topology.rows
+        assert f.state["calls"].count("release") == 1
+        _, errors = joined_call(f.lease.close, label="repeated lease close")
+        assert not errors and fake.close_count == 3
+        assert f.state["calls"].count("release") == 1
+    except BaseException as error:
+        primary_error = error
+        raise
+    finally:
+        # Fake boundaries never wait; there is no test-controlled gate to unblock.
+        # Production regressions can still strand a worker: retain/join handles,
+        # report uncertainty, and never claim a guaranteed drain time.
+        tearing_down = True
+        fake.recover = True
+        f.state["hook"] = None
+        cleanup_errors = []
+
+        def attempt_cleanup(label, close):
+            try:
+                _, errors = joined_call(close, label=label)
+                cleanup_errors.extend(errors)
+            except BaseException as error:
+                cleanup_errors.append(error)
+
+        if stream is not None:
+            attempt_cleanup("teardown stream", stream.close)
+        attempt_cleanup("teardown lease", f.lease.close)
+        attempt_cleanup("teardown client", f.core.close)
+
+        def drain_local_reservation():
+            if producer_worker is not None:
+                producer_worker.join(timeout=3)
+                if producer_worker.is_alive():
+                    raise AssertionError("UNCONFIRMED producer: local refund unsafe")
+            if not fake.retired:
+                fake.close()
+            assert fake.retired
+            if token in f.capacity._owners:
+                if reservation.pending_retirement:
+                    reservation.drain_failed()
+                else:
+                    reservation.close()
+
+        # Client cleanup may have no handle if retain_failed succeeded but its
+        # client handoff failed. Only this known original reservation is retried.
+        attempt_cleanup("teardown local reservation", drain_local_reservation)
+        attempt_cleanup("teardown client retry", f.core.close)
+        attempt_cleanup("teardown lease retry", f.lease.close)
+        for label, worker in workers:
+            try:
+                worker.join(timeout=3)
+                if worker.is_alive():
+                    cleanup_errors.append(AssertionError(f"UNCONFIRMED {label}: worker not joined"))
+            except BaseException as error:
+                cleanup_errors.append(error)
+        try:
+            assert fake.retired and token not in f.capacity._owners
+            assert not reservation.pending_retirement and not f.capacity._owners
+            assert f.lease._cleanup_complete and f.core._source is None
+            assert all(t.cleanup_complete and not t.rows for t in f.state["topologies"])
+        except BaseException as error:
+            cleanup_errors.append(error)
+        if cleanup_errors:
+            failures = ([primary_error] if primary_error is not None else []) + cleanup_errors
+            raise BaseExceptionGroup("custody test failure and/or incomplete teardown", failures) from None
+
+
+def test_gkm_gate_active_producer_retained_transport_blocks_reentrant_close(tmp_path, monkeypatch):
+    """Real active-attempt/ledger custody; transport and topology remain doubles.
+
+    Reentrant cancellation is not retirement; no native recovery qualification.
+    """
+    import threading
+    from pllm.deployment import resources
+    from pllm.runtime.delegated_client import _Attempt
+    from pllm.runtime.delegated_source import AdmittedSource
+
+    f = _gkm_custody_gate_fixture(tmp_path, monkeypatch)
+    monkeypatch.setattr(resources, "_capacity", f.capacity)
+    original_source = f.state["owned"]
+    retained, closer_entered, reentered, release, unwound = (
+        threading.Event() for _ in range(5))
+    operation_error = RuntimeError("active transport operation sentinel")
+    cleanup_error = RuntimeError("active fake transport retirement unavailable")
+    amount = 64 << 10
+    reservation = resources.reserve_incremental_memory(amount)
+    token = reservation._token  # Local teardown custody, independent of handoff.
+    producer_errors, closer_errors = [], []
+    workers = []
+    stream = None
+    tearing_down = False
+    primary_error = None
+
+    def start_worker(label, function, errors):
+        def run():
+            try:
+                function()
+            except BaseException as error:
+                errors.append(error)
+
+        worker = threading.Thread(target=run, daemon=True)
+        workers.append((label, worker, errors))
+        worker.start()
+        return worker
+
+    class RecoverableTransportOwner:
+        recover = False
+        retired = False
+        close_count = 0
+
+        def close(self):
+            self.close_count += 1
+            if not tearing_down:
+                assert f.capacity._owners[token] == amount
+                assert f.lease._source_owner is f.core._source is original_source
+                assert f.lease._client is client and f.lease._topology is topology
+                assert topology.rows and "release" not in f.state["calls"]
+                if self.close_count > 1:
+                    assert unwound.is_set()
+                    assert attempt._completion.is_set() and attempt._retired
+                    assert attempt.running_thread is None and f.core._active is None
+                    assert f.lease._drain_attempt is f.core._drain_attempt is attempt
+                    assert reservation.pending_retirement and token.retained is reservation
+                    assert f.core._failed_request_cleanup is reservation
+            if not self.recover:
+                raise cleanup_error
+            self.retired = True
+
+    fake = RecoverableTransportOwner()
+    original_exit = resources._MemoryReservation.__exit__
+
+    def refund_after_fake_retirement(current, *exc):
+        if current is reservation and token.retained is None:
+            assert fake.retired, "fake transport must retire before actual refund"
+            assert not current._failed, "failed fake ownership must clear before refund"
+        return original_exit(current, *exc)
+
+    monkeypatch.setattr(resources._MemoryReservation, "__exit__", refund_after_fake_retirement)
+
+    def produce(current):
+        try:
+            with reservation:
+                assert current is attempt and type(current) is _Attempt
+                assert current.running_thread == threading.get_ident()
+                assert f.lease._source_owner is f.core._source is original_source
+                with pytest.raises(RuntimeError) as caught:
+                    fake.close()
+                assert caught.value is cleanup_error
+                reservation.retain_failed((fake,))
+                f.core._retain_failed_request_reservation(current, reservation)
+                retained.set()
+                assert closer_entered.wait(timeout=3)
+                f.lease.close()  # Producer reentry cannot wait for its own drain.
+                assert f.lease._operation == "retiring"
+                assert not current._completion.is_set() and not current._retired
+                assert current.running_thread == threading.get_ident()
+                assert f.core._active is current
+                assert f.lease._drain_attempt is f.core._drain_attempt is current
+                assert f.lease._source_owner is f.core._source is original_source
+                assert f.lease._client is client and f.lease._topology is topology
+                assert not f.lease._cleanup_complete and topology.rows
+                assert not topology.cleanup_complete and "release" not in f.state["calls"]
+                assert reservation._token is token and reservation._amount == amount
+                assert f.capacity._owners[token] == amount and token.retained is reservation
+                assert reservation.pending_retirement and reservation._failed == (fake,)
+                assert f.core._failed_request_cleanup is reservation
+                assert f.core._compact_cleanup is None and fake.close_count == 1
+                reentered.set()
+                assert release.wait(timeout=3)
+                raise operation_error
+                yield  # Real generator unwind, with no fabricated output.
+        finally:
+            unwound.set()
+
+    def hook(name):
+        if name == "client-close":
+            closer_entered.set()
+        elif name == "release":
+            assert unwound.is_set()
+            assert attempt._completion.is_set() and attempt._retired
+            assert attempt.running_thread is None
+            assert token not in f.capacity._owners and not reservation.pending_retirement
+            assert f.core._source is None and not f.core._source_checked
+            assert f.lease._source_owner is original_source
+
+    try:
+        assert type(original_source) is AdmittedSource
+        monkeypatch.setattr(f.core, "_produce", produce)
+        stream = f.lease._construct_client().responses.create(
+            input="hello", max_output_tokens=4, stream=True)
+        attempt = f.core._active
+        client, topology = f.lease._client, f.lease._topology
+        f.state["hook"] = hook
+        producer = start_worker("producer", lambda: next(stream), producer_errors)
+        assert retained.wait(timeout=3)
+        closer = start_worker("external closer", f.lease.close, closer_errors)
+        assert reentered.wait(timeout=3)
+        assert producer.is_alive() and closer.is_alive() and not unwound.is_set()
+        assert not attempt._completion.is_set() and not attempt._retired
+        assert attempt.running_thread == producer.ident
+        assert f.lease._source_owner is f.core._source is original_source
+        assert f.lease._client is client and f.lease._topology is topology
+        assert not f.lease._cleanup_complete and not topology.cleanup_complete
+        assert topology.rows and "release" not in f.state["calls"]
+        assert reservation.pending_retirement and token.retained is reservation
+        assert f.capacity._owners[token] == amount and fake.close_count == 1
+        before_failed_drain = dict(f.capacity._owners)
+        release.set()
+        producer.join(timeout=3)
+        closer.join(timeout=3)
+        assert not producer.is_alive(), "UNCONFIRMED producer: worker not joined"
+        assert not closer.is_alive(), "UNCONFIRMED external closer: worker not joined"
+        assert len(producer_errors) == 1 and producer_errors[0] is operation_error
+        assert len(closer_errors) == 1 and closer_errors[0] is cleanup_error
+        assert unwound.is_set() and attempt._completion.is_set() and attempt._retired
+        assert attempt.running_thread is None and f.core._active is None
+        assert f.lease._drain_attempt is f.core._drain_attempt is attempt
+        assert f.lease._source_owner is f.core._source is original_source
+        assert f.lease._client is client and f.lease._topology is topology
+        assert not f.lease._cleanup_complete and not topology.cleanup_complete
+        assert topology.rows and "release" not in f.state["calls"]
+        assert reservation._token is token and reservation._amount == amount
+        assert f.capacity._owners[token] == amount and token.retained is reservation
+        assert reservation.pending_retirement and reservation._failed == (fake,)
+        assert f.core._failed_request_cleanup is reservation and f.core._compact_cleanup is None
+        # Attempt metadata retires on unwind; only the original transport charge
+        # must survive unchanged, not the separate prompt-metadata ledger entry.
+        assert before_failed_drain[token] == f.capacity._owners[token] == amount
+        assert fake.close_count == 2
+
+        fake.recover = True  # Only this local fake owner becomes recoverable.
+        errors = []
+        recovery = start_worker("explicit lease recovery", f.lease.close, errors)
+        recovery.join(timeout=3)
+        assert not recovery.is_alive(), "UNCONFIRMED explicit lease recovery: worker not joined"
+        assert not errors and fake.close_count == 3
+        assert not reservation.pending_retirement and token.retained is None
+        assert reservation._failed == () and not f.capacity._owners
+        assert f.core._failed_request_cleanup is None and f.core._compact_cleanup is None
+        assert f.core._source is None and f.lease._source_owner is None
+        assert f.lease._client is None and f.lease._topology is None
+        assert f.lease._cleanup_complete and topology.cleanup_complete and not topology.rows
+        assert f.state["calls"].count("release") == 1
+    except BaseException as error:
+        primary_error = error
+        raise
+    finally:
+        release.set()  # Always unblock the finite producer wait before joining.
+        closer_entered.set()  # Also unblock an early failure before closer start.
+        cleanup_errors = []
+
+        def join_started():
+            confirmed = True
+            for label, worker, _ in list(workers):
+                if worker.ident is None:  # Thread.start failed; no running frame.
+                    continue
+                try:
+                    worker.join(timeout=3)
+                    if worker.is_alive():
+                        confirmed = False
+                        cleanup_errors.append(AssertionError(f"UNCONFIRMED {label}: worker not joined"))
+                except BaseException as error:
+                    confirmed = False
+                    cleanup_errors.append(error)
+            return confirmed
+
+        def attempt_cleanup(label, close):
+            errors = []
+            try:
+                worker = start_worker(label, close, errors)
+                worker.join(timeout=3)
+                if worker.is_alive():
+                    cleanup_errors.append(AssertionError(f"UNCONFIRMED {label}: worker not joined"))
+            except BaseException as error:
+                cleanup_errors.append(error)
+
+        if join_started():
+            # No recovery or refund until every previously started worker exited.
+            tearing_down = True
+            fake.recover = True
+            f.state["hook"] = None
+            if stream is not None:
+                attempt_cleanup("teardown stream", stream.close)
+            attempt_cleanup("teardown lease", f.lease.close)
+            attempt_cleanup("teardown client", f.core.close)
+
+            def drain_local_reservation():
+                if not fake.retired:
+                    fake.close()
+                assert fake.retired
+                if token in f.capacity._owners:
+                    if reservation.pending_retirement:
+                        reservation.drain_failed()
+                    else:
+                        reservation.close()
+
+            if join_started():
+                attempt_cleanup("teardown local reservation", drain_local_reservation)
+            attempt_cleanup("teardown client retry", f.core.close)
+            attempt_cleanup("teardown lease retry", f.lease.close)
+            if join_started():
+                try:
+                    assert fake.retired and token not in f.capacity._owners
+                    assert not reservation.pending_retirement and not f.capacity._owners
+                    assert f.lease._cleanup_complete and f.core._source is None
+                    assert all(t.cleanup_complete and not t.rows for t in f.state["topologies"])
+                    if primary_error is None:
+                        assert fake.close_count == 3 and f.state["calls"].count("release") == 1
+                except BaseException as error:
+                    cleanup_errors.append(error)
+        # Preserve unexpected worker diagnostics even if the main observer failed
+        # before it could inspect them; expected operation/drain errors stay local.
+        for label, _, errors in workers:
+            for error in errors:
+                if label == "producer" and error is operation_error:
+                    continue
+                if label == "external closer" and error is cleanup_error:
+                    continue
+                if not any(error is previous for previous in cleanup_errors):
+                    cleanup_errors.append(error)
+        if cleanup_errors:
+            failures = ([primary_error] if primary_error is not None else []) + cleanup_errors
+            raise BaseExceptionGroup("active custody test failure and/or incomplete teardown", failures) from None
 
 
 def _fss_custody_stream(tmp_path, monkeypatch):

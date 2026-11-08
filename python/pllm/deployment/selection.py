@@ -37,6 +37,17 @@ class SelectedClientFactory:
             raise TypeError("policy requires an Experiment and PlanningPolicy")
         if experiment is not None and not isinstance(experiment, Experiment):
             raise TypeError("experiment must be Experiment")
+        from pllm._decoder_admission import require_decoder_experiment
+
+        candidates = ((experiment,) if experiment is not None else
+                      (result.experiment,) if result is not None else request.candidates)
+        if any(item is None for item in candidates):
+            raise NetworkError("NO_FEASIBLE_PLACEMENT")
+        for candidate in candidates:
+            require_decoder_experiment(candidate)
+        if result is not None:
+            for candidate in result.request.candidates:
+                require_decoder_experiment(candidate)
         if performance_prior is not None:
             if experiment is None:
                 raise ValueError("supply performance_prior on the planning request or with an Experiment")
@@ -52,10 +63,6 @@ class SelectedClientFactory:
         self.policy = replace(policy or self.default_policy(), allocation_model="native_shared_v1")
         self.credentials, self.ttl_seconds = credentials, ttl_seconds
         self._lock = threading.Lock()
-        candidates = ((experiment,) if experiment is not None else
-                      (result.experiment,) if result is not None else request.candidates)
-        if any(item is None for item in candidates):
-            raise NetworkError("NO_FEASIBLE_PLACEMENT")
         for candidate in candidates:
             intent = candidate.deployment
             if network.backend == "http":

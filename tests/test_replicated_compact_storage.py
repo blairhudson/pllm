@@ -37,6 +37,224 @@ def _scope():
 
 
 @pytest.fixture
+def compact_custody_capacity(monkeypatch, _isolated_cleanup_admission):
+    """Failed compact custody stays rooted; fixture disposal is NOT recovery."""
+    capacity = resources._ClientCapacity()
+    monkeypatch.setattr(resources, "_capacity", capacity)
+    monkeypatch.setattr(capacity, "observe", lambda: SimpleNamespace(headroom_bytes=1 << 40))
+    return capacity
+
+
+@pytest.fixture
+def compact_bridge(monkeypatch, tmp_path, compact_custody_capacity):
+    """Real original reservation/ledgers; native factories are ONLY doubles."""
+    disk = resources._DiskCapacity()
+    monkeypatch.setattr(resources, "_disk_capacity", disk)
+    reserve = resources.reserve_incremental_disk
+    events, contexts = [], []
+
+    class DiskCM:
+        def __init__(self, amount, directory):
+            self.inner = reserve(amount, directory=directory, minimum_free_bytes=1)
+            self.lease = None
+            self.exits = 0
+            self.fail_exit = False
+            contexts.append(self)
+
+        def __enter__(self):
+            self.lease = self.inner.__enter__()
+            events.append("admit_disk")
+            return self.lease
+
+        def __exit__(self, *args):
+            self.exits += 1
+            if self.fail_exit:
+                raise RuntimeError("compact disk exit uncertain")
+            result = self.inner.__exit__(*args)
+            events.append("refund_disk")
+            return result
+
+    monkeypatch.setattr(replicated_source, "reserve_incremental_disk",
+                        lambda amount, *, directory: DiskCM(amount, directory))
+
+    class Native:
+        collection_disk_bytes = 4096
+        collection_disk_directory = str(tmp_path)
+
+        def __init__(self, fail=None, removal_fails=False):
+            self.fail, self.removal_fails = fail, removal_fails
+            self.files = self.unknown = False
+            self.charged = True
+            self.closes = 0
+
+        def _compact_start(self):
+            assert len(contexts) == 1 and not contexts[0].lease.closed
+            assert disk._owners[contexts[0].lease._token] is contexts[0].lease
+            if self.fail == "before":
+                raise ValueError("before mkdir")
+            if self.fail == "opaque":
+                self.unknown = True  # No path/handle returned; NOT live custody.
+                raise ValueError("opaque factory failure")
+            for phase in ("mkdir", "anchor", "metadata"):
+                self.files = True
+                events.append(phase)
+                if self.fail == phase:
+                    raise ValueError(f"after {phase}")
+
+        def append(self):
+            events.append("collection")
+            if self.fail == "collection":
+                raise ValueError("after collection")
+
+        def close(self):
+            self.closes += 1
+            events.append("retire")
+            if self.removal_fails or self.unknown:
+                raise RuntimeError("compact retirement uncertain")
+            self.files = self.charged = False
+            events.append("removed")
+
+    class ObservedOwner(replicated_source._CompactPublisherOwner):
+        pass
+
+    def pending(fail=None, removal_fails=False):
+        scope = _scope()
+        holder = ObservedOwner(scope)
+        native = Native(fail, removal_fails)
+
+        def factory():
+            assert scope.owns(holder) and holder._owner is None and holder._busy
+            assert not native.files and not contexts
+            with pytest.raises(ValueError, match="acquisition in flight"):
+                scope.drain()
+            assert scope.owns(holder) and not scope.closed
+            return native
+
+        return holder, native, scope, factory
+
+    return SimpleNamespace(pending=pending, capacity=compact_custody_capacity,
+                           disk=disk, contexts=contexts, events=events)
+
+
+@pytest.mark.parametrize("phase", ["before", "mkdir", "anchor", "metadata", "collection"])
+def test_compact_two_phase_acquisition_failure_explicitly_retires_once(compact_bridge, phase):
+    holder, native, scope, factory = compact_bridge.pending(phase)
+    with pytest.raises(ValueError) as caught:
+        holder._acquire(factory)
+        holder.append()
+    primary = caught.value
+    holder._close_preserving(primary)
+    assert not getattr(primary, "__notes__", ())
+    assert scope.closed and holder._owner is None and not native.files and not native.charged
+    assert native.closes == 1 and compact_bridge.contexts[0].exits == 1
+    assert not compact_bridge.capacity._owners and not compact_bridge.disk._owners
+    holder.close()
+    assert native.closes == compact_bridge.contexts[0].exits == 1
+    assert compact_bridge.events.index("removed") < compact_bridge.events.index("refund_disk")
+
+
+@pytest.mark.parametrize("phase", ["mkdir", "anchor", "metadata", "collection", "opaque"])
+def test_compact_failed_remove_gc_keeps_exact_native_original_reservation_and_leases(compact_bridge, phase):
+    def fail_and_drop_all_caller_roots():
+        holder, native, scope, factory = compact_bridge.pending(phase, removal_fails=True)
+        with pytest.raises(ValueError) as caught:
+            holder._acquire(factory)
+            holder.append()
+        original = caught.value
+        assert str(original) == ("opaque factory failure" if phase == "opaque" else f"after {phase}")
+        # Return weak observations and scalars only: even a token or bound
+        # callback must not accidentally retain the original reservation/slot.
+        charges = {id(token): amount for token, amount in compact_bridge.capacity._owners.items()}
+        leases = tuple((id(record), id(record[0]), record[1]) for record in holder._leases)
+        identities = (id(scope), id(scope._token), id(compact_bridge.contexts[0].lease),
+                      id(holder._leases[0][0]._token))
+        references = weakref.ref(native), weakref.ref(holder)
+        holder._close_preserving(original)
+        assert original is caught.value and original.__notes__ == ["compact publisher cleanup failed: RuntimeError"]
+        assert (native.unknown, native.files) == (phase == "opaque", phase != "opaque")
+        original.__traceback__ = original.__context__ = original.__cause__ = None
+        del caught, original, native, holder, factory, scope
+        return references, charges, leases, identities
+
+    (native_ref, holder_ref), charges, leases, identities = fail_and_drop_all_caller_roots()
+    gc.collect()
+    # Reacquire scope ONLY from the process ledger, AFTER caller-frame/GC loss.
+    scope_id, token_id, lease_id, memory_token_id = identities
+    scope = next(slot for token, slot in compact_bridge.capacity._cleanup.items() if id(token) == token_id)
+    retained = holder_ref()
+    assert retained is not None and retained._owner is native_ref()
+    assert id(scope) == scope_id and id(scope._token) == token_id
+    assert scope._payload is retained and scope.owns(retained)
+    assert scope._retire.__self__ is retained
+    assert compact_bridge.capacity._cleanup[scope._token] is scope
+    assert tuple((id(record), id(record[0]), record[1]) for record in retained._leases) == leases
+    original_memory = retained._leases[0][0]
+    assert id(original_memory._token) == memory_token_id and not original_memory._exited
+    assert compact_bridge.capacity._owners[original_memory._token] == replicated_source.REQUEST_MEMORY
+    assert {id(token): amount for token, amount in compact_bridge.capacity._owners.items()} == charges
+    cm = compact_bridge.contexts[0]
+    lease = cm.lease
+    assert id(lease) == lease_id
+    assert compact_bridge.disk._owners[lease._token] is lease and not lease.closed
+    assert lease._backing is None and cm.exits == 0
+    native_ref().removal_fails = False  # Neither elapsed time nor mutation resets custody.
+    for _ in range(2):
+        with pytest.raises(ValueError, match="retirement failed") as repeated:
+            scope.drain()
+        repeated.value.__traceback__ = repeated.value.__context__ = repeated.value.__cause__ = None
+    assert native_ref().closes == 1 and cm.exits == 0
+    assert {id(token): amount for token, amount in compact_bridge.capacity._owners.items()} == charges
+    assert retained._owner is native_ref()
+
+
+def test_compact_preacquisition_factory_failure_releases_original_memory_normally(compact_bridge):
+    holder, native, scope, _ = compact_bridge.pending()
+
+    def refuse():
+        assert scope.owns(holder) and holder._owner is None and holder._busy
+        raise ValueError("resource-free preparation refused")
+
+    with pytest.raises(ValueError) as caught:
+        holder._acquire(refuse)
+    holder._close_preserving(caught.value)
+    assert scope.closed and not getattr(caught.value, "__notes__", ())
+    assert not native.files and native.closes == 0 and not compact_bridge.contexts
+    assert not compact_bridge.capacity._owners and not compact_bridge.disk._owners
+
+
+def test_compact_success_removes_before_refund_and_refunds_original_once(compact_bridge):
+    holder, native, scope, factory = compact_bridge.pending()
+    holder._acquire(factory)
+    holder.append()
+    original_memory = holder._leases[0][0]
+    token = original_memory._token
+    assert compact_bridge.capacity._owners[token] == replicated_source.REQUEST_MEMORY
+    lease = compact_bridge.contexts[0].lease
+    holder.close()
+    scope.drain()
+    assert native.closes == compact_bridge.contexts[0].exits == 1
+    assert original_memory._exited and lease.closed
+    assert not compact_bridge.capacity._owners and not compact_bridge.disk._owners
+    assert compact_bridge.events.index("removed") < compact_bridge.events.index("refund_disk")
+
+
+def test_compact_ambiguous_disk_exit_keeps_original_memory_and_cannot_retry(compact_bridge):
+    holder, native, scope, factory = compact_bridge.pending()
+    holder._acquire(factory)
+    charges = dict(compact_bridge.capacity._owners)
+    records = tuple(holder._leases)
+    cm = compact_bridge.contexts[0]
+    cm.fail_exit = True
+    with pytest.raises(RuntimeError, match="exit uncertain"):
+        holder.close()
+    with pytest.raises(ValueError, match="retirement failed"):
+        scope.drain()
+    assert holder._owner is native and tuple(holder._leases) == records
+    assert native.closes == cm.exits == 1 and not cm.lease.closed
+    assert compact_bridge.capacity._owners == charges and scope.owns(holder)
+
+
+@pytest.fixture
 def raw_bridge(monkeypatch, tmp_path, _isolated_cleanup_admission):
     """Ownership choreography only, NOT synthetic Python source authority.
 
@@ -1021,8 +1239,8 @@ def test_compact_unsupported_output_count_refuses_before_factory(monkeypatch, ou
         replicated_source.ReplicatedSource.publisher(SimpleNamespace(), experiment, [2, 2, 3, 3], outputs, forbidden)
 
 
-@pytest.mark.parametrize("failure", [None, "filesystem", "directory_refused", "disk", "append", "cancel"])
-def test_compact_actual_factory_signature_and_resource_order_mock(monkeypatch, failure):
+@pytest.mark.parametrize("failure", [None, "factory", "filesystem", "directory_refused", "disk", "append", "cancel"])
+def test_compact_actual_factory_signature_and_resource_order_mock(monkeypatch, failure, compact_custody_capacity):
     """ABI/ownership mocks only; no source validation, compilation or IDs proof."""
     experiment = experiment_for(weights="public", range_policy="checked", storage="compact")
     encoded = experiment.canonical_bytes()
@@ -1051,6 +1269,10 @@ def test_compact_actual_factory_signature_and_resource_order_mock(monkeypatch, f
     class NativeOwner:
         collection_disk_bytes = 40
         shapes = ()
+
+        def _compact_start(self):
+            assert events[-1] == "disk_admission"
+            events.append("start")
 
         @property
         def collection_disk_directory(self):
@@ -1085,6 +1307,8 @@ def test_compact_actual_factory_signature_and_resource_order_mock(monkeypatch, f
             assert source == bytes.fromhex("a" * 64)
             assert composition == bytes.fromhex(experiment.pipeline.digest())
             events.append("factory")
+            if failure == "factory":
+                raise ValueError("factory refused before acquisition")
             return NativeOwner()
 
     def runtime(*args):
@@ -1102,14 +1326,22 @@ def test_compact_actual_factory_signature_and_resource_order_mock(monkeypatch, f
     monkeypatch.setattr(replicated_source, "reserve_incremental_disk", disk)
     if failure:
         expected = AttributeError if failure == "filesystem" else ValueError
-        message = {"filesystem": "collection_disk_directory unavailable", "directory_refused": "directory refused", "disk": "disk refused",
+        message = {"factory": "factory refused before acquisition", "filesystem": "collection_disk_directory unavailable", "directory_refused": "directory refused", "disk": "disk refused",
                    "append": "append refused", "cancel": "import cancelled"}[failure]
         with pytest.raises(expected, match=message):
             replicated_source.ReplicatedSource.publisher(source, experiment, [2, 2, 3, 3], 2,
                 lambda: failure == "cancel", cleanup_scope=_scope())
-        if failure in {"filesystem", "directory_refused", "disk"}:
+        if failure in {"factory", "filesystem", "directory_refused", "disk"}:
             assert "collection" not in events and "runtime" not in events
         assert "seal" not in events
+        if failure == "disk":
+            assert "start" not in events and "caller_refunded" not in events
+            assert compact_custody_capacity._cleanup
+            return  # Opaque failed CM entry is uncertain, not refund evidence.
+        if failure == "factory":
+            assert events == ["caller_admitted", "factory", "caller_refunded"]
+            assert not compact_custody_capacity._cleanup
+            return
     else:
         owner, manifest = replicated_source.ReplicatedSource.publisher(source, experiment, [2, 2, 3, 3], 2, lambda: False,
             cleanup_scope=_scope())
@@ -1189,7 +1421,7 @@ async def test_compact_server_rejects_binding_before_constructor_or_import(monke
 
 
 @pytest.mark.parametrize("failure", [None, "disk", "append"])
-def test_compact_caller_and_disk_owners_retire_payload_before_refund(monkeypatch, failure):
+def test_compact_caller_and_disk_owners_retire_payload_before_refund(monkeypatch, failure, compact_custody_capacity):
     events = []
     directory = "/not-opened/native-snapshot-filesystem"
 
@@ -1244,7 +1476,15 @@ def test_compact_caller_and_disk_owners_retire_payload_before_refund(monkeypatch
             owner.seal()
             assert "caller_refunded" not in events and "disk_refunded" not in events
     finally:
-        owner.close()
+        if failure == "disk":
+            with pytest.raises(ValueError, match="acquisition uncertain"):
+                owner.close()
+        else:
+            owner.close()
+    if failure == "disk":
+        assert "append" not in events and "caller_refunded" not in events
+        assert compact_custody_capacity._cleanup and owner._owner is not None
+        return
     assert events.index("payload_closed") < events.index("caller_refunded")
     if failure != "disk":
         assert events.index("payload_closed") < events.index("disk_refunded")
@@ -1260,7 +1500,8 @@ def test_compact_caller_and_disk_owners_retire_payload_before_refund(monkeypatch
 
 
 @pytest.mark.parametrize("error_type", [ValueError, asyncio.CancelledError])
-def test_compact_cleanup_failure_preserves_error_and_holds_charges(monkeypatch, error_type):
+@pytest.mark.parametrize("cleanup_fails", [False, True])
+def test_compact_cleanup_failure_preserves_error_and_holds_charges(monkeypatch, error_type, cleanup_fails, compact_custody_capacity):
     refunded = []
 
     @contextmanager
@@ -1281,21 +1522,30 @@ def test_compact_cleanup_failure_preserves_error_and_holds_charges(monkeypatch, 
     monkeypatch.setattr(replicated_source, "reserve_incremental_disk", lease)
     owner = replicated_source._CompactPublisherOwner(_scope())
     native = NativeOwner()
+    native.refuses = cleanup_fails
     owner._retain(native)
     owner._admit_disk(40, directory="/not-opened")
     original = error_type("collection cancelled or failed")
     owner._close_preserving(original)
+    if not cleanup_fails:
+        assert len(refunded) == 2 and owner._owner is None
+        owner.close()
+        assert len(refunded) == 2 and not compact_custody_capacity._cleanup
+        return
     assert not refunded and owner._owner is native
     assert "RuntimeError" in original.__notes__[0]
     with pytest.raises(error_type) as captured:
         raise original
     assert captured.value is original
     native.refuses = False
-    owner.close()
-    assert len(refunded) == 2
+    for _ in range(2):
+        with pytest.raises(ValueError, match="retirement failed"):
+            owner.close()
+    assert not refunded and owner._owner is native and compact_custody_capacity._cleanup
 
 
-def test_compact_failed_close_survives_caller_and_traceback_gc_until_explicit_drain(monkeypatch):
+@pytest.mark.parametrize("cleanup_fails", [False, True])
+def test_compact_failed_close_survives_caller_and_traceback_gc_until_explicit_drain(monkeypatch, cleanup_fails, compact_custody_capacity):
     """H716 custody regression; mocks actual resource owner, NOT native evidence.
 
     No external owner/exception/traceback root may make this pass. The actual
@@ -1339,6 +1589,7 @@ def test_compact_failed_close_survives_caller_and_traceback_gc_until_explicit_dr
     def fail_and_drop_all_caller_roots():
         owner = ObservedOwner(_scope())
         native = NativeOwner()
+        native.refuses = cleanup_fails
         owner._retain(native)
         owner._admit_disk(40, directory="/not-opened")
         references = weakref.ref(owner), weakref.ref(native)
@@ -1348,7 +1599,8 @@ def test_compact_failed_close_survives_caller_and_traceback_gc_until_explicit_dr
         except ValueError as caught:
             owner._close_preserving(caught)
             preserved = caught is original and str(caught) == "original work failed"
-            assert "RuntimeError" in caught.__notes__[0]
+            if cleanup_fails:
+                assert "RuntimeError" in caught.__notes__[0]
         # Exceptions/tracebacks must NOT act as the hidden failed-owner root.
         original.__traceback__ = original.__context__ = original.__cause__ = None
         del original, owner, native
@@ -1357,6 +1609,13 @@ def test_compact_failed_close_survives_caller_and_traceback_gc_until_explicit_dr
     (owner_ref, native_ref), preserved = fail_and_drop_all_caller_roots()
     gc.collect()
     assert preserved
+    if not cleanup_fails:
+        assert owner_ref() is native_ref() is None
+        assert events.count("payload_retired") == 1
+        assert events.count("caller_refunded") == events.count("disk_refunded") == 1
+        assert events.index("payload_retired") < events.index("disk_refunded") < events.index("caller_refunded")
+        assert not compact_custody_capacity._cleanup
+        return
     retained = owner_ref()
     try:
         assert retained is not None and native_ref() is not None, (
@@ -1365,18 +1624,15 @@ def test_compact_failed_close_survives_caller_and_traceback_gc_until_explicit_dr
         assert retained._cleanup_scope in resources._capacity._cleanup.values()
         assert sum(resources._capacity._owners.values()) == resources._capacity._owners[retained._cleanup_scope._token]
         assert sum(resources._capacity._owners.values()) >= 64 << 10
-        native_ref().refuses = False
-        retained.close()  # explicit successful cleanup, never timeout-as-success
-        retained.close()  # idempotent cleanup must not refund twice
-        assert events.count("payload_retired") == 1
-        assert events.count("caller_refunded") == events.count("disk_refunded") == 1
-        assert events.index("payload_retired") < events.index("disk_refunded") < events.index("caller_refunded")
+        native_ref().refuses = False  # Does NOT authorize a retry/reset.
+        for _ in range(2):
+            with pytest.raises(ValueError, match="retirement failed"):
+                retained.close()
+        assert events.count("close_failed") == 1 and "payload_retired" not in events
+        assert "caller_refunded" not in events and "disk_refunded" not in events
     finally:
-        # Test cleanup if an assertion fails after a genuine retained owner is
-        # observed; does not establish the missing production handoff itself.
-        if retained is not None and retained._owner is not None:
-            retained._owner.refuses = False
-            retained.close()
+        # No recovery teardown: keep original failed slot/leases in this ledger.
+        del retained
 
 
 def _lifecycle_client():
@@ -1393,7 +1649,8 @@ def _lifecycle_client():
     return client
 
 
-def test_compact_pending_client_close_drains_outside_locks_and_blocks_new_request(monkeypatch):
+@pytest.mark.parametrize("cleanup_fails", [False, True])
+def test_compact_pending_client_close_drains_outside_locks_and_blocks_new_request(monkeypatch, cleanup_fails, compact_custody_capacity):
     from pllm.runtime.client import ProtocolError
     from pllm.runtime.delegated_client import _Attempt
 
@@ -1437,20 +1694,28 @@ def test_compact_pending_client_close_drains_outside_locks_and_blocks_new_reques
     monkeypatch.setattr(replicated_source, "reserve_incremental_disk", disk)
     owner = replicated_source._CompactPublisherOwner(slot)
     native = Native()
+    native.refuses = cleanup_fails
     owner._retain(native)
     owner._admit_disk(40, directory="/not-opened")
     original = ValueError("original operation failed")
-    owner._close_preserving(original)
-    assert "RuntimeError" in original.__notes__[0]
+    if cleanup_fails:
+        owner._close_preserving(original)
+        assert "RuntimeError" in original.__notes__[0]
     client._clear_owned_state()
     assert client._source is original_source and client._compact_cleanup is slot
     with pytest.raises(ProtocolError, match="pending compact cleanup"):
         client.events({})
-    with pytest.raises(RuntimeError, match="native drain refused"):
-        client.close()
-    assert attempt.closed and client._active is None
-    assert not events and not slot.closed and resources._capacity._cleanup
-    native.refuses = False
+    if cleanup_fails:
+        with pytest.raises(ValueError, match="retirement failed"):
+            client.close()
+        assert attempt.closed and client._active is None
+        assert not events and not slot.closed and resources._capacity._cleanup
+        native.refuses = False
+        with pytest.raises(ValueError, match="retirement failed"):
+            client.close()
+        assert client._compact_cleanup is slot and client._source is original_source
+        assert not events and compact_custody_capacity._cleanup
+        return
     client.close()
     client.close()
     assert events == ["payload_retired", "disk_refunded", "caller_refunded"]
@@ -1590,7 +1855,8 @@ def test_replicated_transport_preserves_work_error_and_cleans_peers_after_close_
 
 
 @pytest.mark.parametrize("peer_failure", [False, True])
-def test_only_actual_rooted_compact_publisher_can_release_outer_after_close_failure(monkeypatch, peer_failure):
+@pytest.mark.parametrize("compact_failure", [False, True])
+def test_only_actual_rooted_compact_publisher_can_release_outer_after_close_failure(monkeypatch, peer_failure, compact_failure, compact_custody_capacity):
     from pllm.runtime import replicated_transport as transport
     from pllm.runtime.delegated_client import _Attempt
 
@@ -1641,6 +1907,7 @@ def test_only_actual_rooted_compact_publisher_can_release_outer_after_close_fail
     monkeypatch.setattr(replicated_source, "reserve_incremental_disk", disk)
     publisher = replicated_source._CompactPublisherOwner(client._new_compact_cleanup_scope(attempt))
     native = Native()
+    native.refuses = compact_failure
     publisher._retain(native)
     publisher._admit_disk(40, directory="/not-opened")
     before = sum(resources._capacity._owners.values())
@@ -1651,19 +1918,38 @@ def test_only_actual_rooted_compact_publisher_can_release_outer_after_close_fail
         transport.execute_request(experiment, source, [2, 2, 3, 3], 2, {}, 1, attempt)
     assert caught.value is original
     outer = reservations[0]
-    assert replicated_source._independently_rooted_compact_publisher(publisher)
-    assert sum(resources._capacity._owners.values()) == before + (transport.REQUEST_MEMORY if peer_failure else 0)
-    assert "disk_refunded" not in events
+    if compact_failure:
+        assert replicated_source._independently_rooted_compact_publisher(publisher)
+        assert sum(resources._capacity._owners.values()) == before + (transport.REQUEST_MEMORY if peer_failure else 0)
+        assert "disk_refunded" not in events
+    else:
+        assert publisher._closed and publisher._owner is None
+        assert events.index("payload_retired") < events.index("disk_refunded")
+        assert not compact_custody_capacity._cleanup
     if peer_failure:
         assert outer._token.retained is outer and len(outer._failed) == 1
         assert client._failed_request_cleanup is outer
-    with pytest.raises(RuntimeError, match="native close failed"):
-        client.close()  # tries failed peer too, even when compact cleanup fails
+    if compact_failure:
+        with pytest.raises(ValueError, match="retirement failed"):
+            client.close()  # tries failed peer too, even when compact cleanup fails
+    elif peer_failure:
+        with pytest.raises(RuntimeError, match="peers close failed"):
+            client.close()
+    else:
+        client.close()
     if peer_failure:
         assert events.count("peers_close") == 2
         assert outer.pending_retirement
         Peers.refuses = False
     native.refuses = False
+    if compact_failure:
+        with pytest.raises(ValueError, match="retirement failed"):
+            client.close()
+        assert compact_custody_capacity._cleanup and publisher._owner is native
+        assert "disk_refunded" not in events
+        if peer_failure:
+            assert not outer.pending_retirement
+        return
     client.close()
     client.close()
     assert events.index("payload_retired") < events.index("disk_refunded")

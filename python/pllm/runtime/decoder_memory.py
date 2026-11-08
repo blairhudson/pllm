@@ -9,13 +9,15 @@ from collections import Counter
 import math
 
 from .rotary_coefficients import rotary_coefficient_bound
+from .semantic_workspace import semantic_local_workspace_bytes
 
 
 _VIEWS = {"reshape", "permute", "slice", "last_token", "token_feedback",
           "cache_suffix", "kv_cache_append", "causal_mask"}
 _OPERATORS = _VIEWS | {"token_lookup", "linear", "output_head", "rms_norm",
     "rotary_embedding", "attention_scores", "attention_scale", "softmax",
-    "attention_values", "residual_add", "silu", "multiply", "greedy_token_selection"}
+    "attention_values", "residual_add", "silu", "multiply", "greedy_token_selection",
+    "layer_norm", "gelu_tanh"}
 
 
 def _bytes(shape):
@@ -97,7 +99,12 @@ def _phase_working_bytes(graph, schedule, tiling=None):
         step_bytes = tile_step if region is not None else output_bytes + sum(sizes[name] for name in inputs)
         # Eight four-byte arrays per declared input/output element. Includes
         # f64 reductions, quantization and Python/native conversion scratch.
-        peak = max(peak, sum(roots.values()) + 4 * step_bytes + (tile_live if region is not None else 0))
+        local_scratch = max((semantic_local_workspace_bytes(
+            operations[row["operation_id"]], row["output_shape"])
+            for row in outputs if operations[row["operation_id"]]["operator"]
+            in {"layer_norm", "gelu_tanh", "token_lookup"}), default=0)
+        peak = max(peak, sum(roots.values()) + 4 * step_bytes + local_scratch
+                   + (tile_live if region is not None else 0))
         largest_step = max(largest_step, step_bytes)
         for name in inputs:
             remaining[name] -= 1

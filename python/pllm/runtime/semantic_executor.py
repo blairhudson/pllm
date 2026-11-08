@@ -29,10 +29,15 @@ from .semantic_numeric import (
     float32_rotary_per_frequency,
     float32_rotary_text_mrope,
     float32_rotary_wavelength,
+    float32_embedding_lookup,
+    float32_layer_norm,
+    float32_gelu_tanh,
+    _BoundLocalNumeric,
     round_bfloat16,
 )
 from .rotary_coefficients import PhaseRotaryCoefficients, default_rotary_coefficients
 from .semantic_state import SemanticStateError, WindowedLayerCache
+from .semantic_tensors import SemanticTensorError, lookup_contract
 from .semantic_hybrid import (
     HybridStateError, bounded_gated_delta_decay, execute_declared_causal_convolution,
     execute_declared_gated_delta, execute_declared_gated_rms_norm,
@@ -86,7 +91,16 @@ class _SemanticDecoderState(MaskedTransformerClientRuntime):
         verification_lineage_limit: int = 1,
         boundary: object | None = None,
         _private_boundary_binding: object | None = None,
+        _local_tensor_binding: object | None = None,
     ) -> None:
+        from .model_binding import CompiledRuntimeModel
+        if tensors and (
+            type(_local_tensor_binding) is not CompiledRuntimeModel
+            or _local_tensor_binding._bundle is not bundle or _local_tensor_binding._plan is not plan
+            or _local_tensor_binding._validated_schedule() != schedule
+        ):
+            raise TransformerClientError("local tensors require their private compiled runtime owner")
+        self._compiled_binding = _local_tensor_binding
         boundary_selected = "private_boundary" in schedule
         if boundary_selected != ("private_boundary" in bundle.privacy):
             raise TransformerClientError("private boundary bundle and schedule ownership differ")
@@ -143,6 +157,12 @@ class _SemanticDecoderState(MaskedTransformerClientRuntime):
         self._state_binding_digest = _state_binding_digest(plan, bundle, schedule["composition_digest"])
         self._stages = dict(stages)
         self._tensors = dict(tensors)
+        self._local_numeric_by_phase = {
+            phase: self._bind_local_numeric(plan, phase, self._graphs[phase], schedule[phase])
+            for phase in ("prefill", "decode")
+        }
+        self._phase_local_numeric = {}
+        self._phase_numeric_rows = 0
         self._window_contracts = self._declared_windows(self._graphs)
         self._window_state_bytes = self._window_resource_bytes(
             self._graphs, self._window_contracts
@@ -374,6 +394,9 @@ class _SemanticDecoderState(MaskedTransformerClientRuntime):
         if digest != document["source_schedule_digest"]:
             raise TransformerClientError("continuation source schedule mismatch")
         self._continuation_contract = contract
+        self._local_numeric_by_phase["continuation"] = self._bind_local_numeric(
+            contract, "continuation", document["graph"], document["schedule"],
+        )
 
     def _validate_full_snapshot(self, snapshot: RuntimeSnapshot) -> None:
         if self._tiered is not None:
@@ -482,12 +505,18 @@ class _SemanticDecoderState(MaskedTransformerClientRuntime):
             contract = self._continuation_contract
             if contract is None:
                 raise TransformerClientError("native continuation contract was not admitted")
-            tokens = np.asarray(ids)
-            if tokens.ndim != 1 or not np.issubdtype(tokens.dtype, np.integer):
-                raise TransformerClientError("continuation token shape/type is invalid")
-            if np.any(tokens < 0) or np.any(tokens >= int(self.cfg["vocab_size"])):
-                raise TransformerClientError("continuation token ID exceeds vocabulary")
-            contract.admit(self.position, int(tokens.size), memory_bytes=memory_bytes)
+            count = self._token_container_size(ids)
+            import json
+            document = json.loads(contract.canonical_bytes())
+            if (count < 1 or count > document["graph"]["query_sequence"]
+                    or self.position + count > document["token_bound"]):
+                # Preserve the native extent refusal, without touching payload
+                # storage. This handle is geometry admission, not a reservation.
+                contract.admit(self.position, count, memory_bytes=memory_bytes)
+                raise TransformerClientError("continuation exceeds its native request bounds")
+            self._check_continuation_token_domains(ids, contract)
+            contract.admit(self.position, count, memory_bytes=memory_bytes)
+            tokens = np.asarray(ids, dtype=np.int64)
             basis = self._snapshot_basis
             if (basis is None or not basis.valid() or basis.position != self.position
                     or basis.source_binding_digest != self._state_binding_digest
@@ -499,7 +528,7 @@ class _SemanticDecoderState(MaskedTransformerClientRuntime):
             self._validate_full_snapshot(RuntimeSnapshot(
                 self.position, self.caches, self.shared_kv, self._state_binding_digest
             ))
-            result = self._forward(tokens.astype(np.int64), continuation=True)
+            result = self._forward(tokens, continuation=True)
             if not np.all(np.isfinite(result)):
                 raise TransformerClientError("continuation produced nonfinite logits")
             return result
@@ -512,7 +541,91 @@ class _SemanticDecoderState(MaskedTransformerClientRuntime):
                 inventory.close()
             raise
 
+    def _check_continuation_token_domains(self, ids, contract) -> None:
+        """Scalar checks only; conveys no admission, reservation or execution authority."""
+        from pllm.modeling import DecoderContinuationSchedule
+        import json
+
+        if type(contract) is not DecoderContinuationSchedule:
+            raise TransformerClientError("token domains require a native continuation contract")
+        graph = json.loads(contract.canonical_bytes())["graph"]
+        # Used only by lookup_contract's strict legacy token-source fallback.
+        heads = [op for op in graph["operations"] if op["operator"] == "output_head"]
+        vocabulary = heads[0]["output_shape"][-1] if len(heads) == 1 else None
+        self._check_integer_token_values(ids)
+        for operation in graph["operations"]:
+            if operation["operator"] != "token_lookup":
+                continue
+            try:
+                domain, _, shape = lookup_contract(operation, legacy_vocabulary=vocabulary)
+            except SemanticTensorError as exc:
+                raise TransformerClientError(str(exc)) from exc
+            if domain == "tokens":
+                self._check_integer_token_values(ids, upper=shape[0] - 1)
+
+    @staticmethod
+    def _token_container_size(ids: list[int] | np.ndarray) -> int:
+        # Exact types avoid user __len__/__iter__/__array__ hooks. In particular,
+        # inspect only the outer list; never recursively traverse a nested row.
+        if type(ids) is list:
+            return len(ids)
+        if type(ids) is not np.ndarray or ids.ndim != 1 or ids.dtype.kind not in ("i", "u"):
+            raise TransformerClientError("semantic token IDs must be a one-dimensional integer array")
+        return int(ids.size)
+
+    @staticmethod
+    def _check_integer_token_values(ids: list[int] | np.ndarray, *, upper: int = (1 << 63) - 1) -> None:
+        if type(ids) is list:
+            scalar_types = (int, np.int8, np.uint8, np.int16, np.uint16,
+                            np.int32, np.uint32, np.int64, np.uint64,
+                            np.longlong, np.ulonglong)
+            for value in ids:
+                if not any(type(value) is scalar_type for scalar_type in scalar_types):
+                    raise TransformerClientError("semantic token IDs require scalar non-boolean integers")
+                if not 0 <= int(value) <= upper:
+                    raise TransformerClientError("semantic token ID exceeds the integer domain")
+        elif type(ids) is not np.ndarray or ids.ndim != 1 or ids.dtype.kind not in ("i", "u"):
+            raise TransformerClientError("semantic token IDs must be a one-dimensional integer array")
+        elif np.any(ids < 0) or np.any(ids > upper):
+            raise TransformerClientError("semantic token ID exceeds the integer domain")
+
+    @classmethod
+    def _integer_token_ids(cls, ids: list[int] | np.ndarray) -> np.ndarray:
+        cls._check_integer_token_values(ids)
+        return np.asarray(ids, dtype=np.int64)
+
+    def _admit_request_extent(self, count: int, *, fresh: bool) -> None:
+        position = 0 if fresh else self.position
+        graph = self._source_plan.to_dict()["prefill" if position == 0 else "decode"]
+        limit = min(graph["query_sequence"], graph["maximum_key_sequence"]) if position == 0 else graph["maximum_key_sequence"] - position
+        if not 1 <= count <= limit:
+            raise TransformerClientError("semantic request exceeds compiled workload bounds")
+
+    def _admit_request_ids(self, tokens: np.ndarray, *, fresh: bool) -> None:
+        self._admit_request_extent(tokens.size, fresh=fresh)
+        position = 0 if fresh else self.position
+        graph = self._source_plan.to_dict()["prefill" if position == 0 else "decode"]
+        for operation in graph["operations"]:
+            if operation["operator"] != "token_lookup":
+                continue
+            try:
+                domain, _, shape = lookup_contract(operation, legacy_vocabulary=int(self.cfg["vocab_size"]))
+            except SemanticTensorError as exc:
+                raise TransformerClientError(str(exc)) from exc
+            if ((domain == "tokens" and (np.any(tokens < 0) or np.any(tokens >= shape[0])))
+                    or (domain == "absolute_positions" and position + tokens.size > shape[0])
+                    or domain == "segments"):
+                raise TransformerClientError("request IDs exceed their declared lookup domain")
+
     def prepare_ids(self, ids: list[int]) -> tuple[list[int], np.ndarray, list[LayerCache]]:
+        count = self._token_container_size(ids)
+        if count:
+            self._admit_request_extent(count, fresh=True)
+            tokens = self._integer_token_ids(ids)
+            self._admit_request_ids(tokens, fresh=True)
+            ids = tokens.tolist()
+        else:
+            ids = []
         if len(ids) == 0 and self.cfg.get("bos_token_policy") == "nonempty_only":
             raise TransformerClientError("model without a BOS token requires nonempty input")
         if self._tiered is not None:
@@ -538,7 +651,10 @@ class _SemanticDecoderState(MaskedTransformerClientRuntime):
 
     def forward_ids(self, ids: list[int] | np.ndarray) -> np.ndarray:
         """Expose per-token logits via the bound prefill and decode phases."""
-        tokens = np.asarray(ids, dtype=np.int64).reshape(-1)
+        count = self._token_container_size(ids)
+        self._admit_request_extent(count, fresh=False)
+        tokens = self._integer_token_ids(ids)
+        self._admit_request_ids(tokens, fresh=False)
         if tokens.size == 0:
             raise TransformerClientError("at least one token is required")
         if self._retained is not None and tokens.size != 1:
@@ -559,7 +675,30 @@ class _SemanticDecoderState(MaskedTransformerClientRuntime):
         key = self._tensors.get(name)
         if key is None:
             raise TransformerClientError("semantic operation lacks a bound local tensor")
-        return np.asarray(self.bundle.arrays[key], dtype=np.float32)
+        from .model_binding import CompiledRuntimeModel, RuntimeBindingError
+        owner = self._compiled_binding
+        if type(owner) is not CompiledRuntimeModel or owner._bundle is not self.bundle or owner._plan is not self._source_plan:
+            raise TransformerClientError("local weight lacks its private compiled runtime owner")
+        try:
+            return owner.local_tensor(name)
+        except RuntimeBindingError as exc:
+            raise TransformerClientError(str(exc)) from exc
+
+    def _bind_local_numeric(self, plan, phase, graph, schedule):
+        local_ids = {op_id for step in schedule["steps"] if step.get("executor") == "client_local"
+                     for op_id in step["operation_ids"]}
+        result = {}
+        for operation in graph["operations"]:
+            if (operation["id"] not in local_ids
+                    or operation["operator"] not in ("layer_norm", "token_lookup", "gelu_tanh")
+                    or (operation["operator"] == "gelu_tanh"
+                        and operation["attributes"].get("compute_dtype") != "float32")):
+                continue
+            try:
+                result[operation["id"]] = _BoundLocalNumeric(plan, phase, operation["id"], self._compiled_binding)
+            except (SemanticNumericError, SemanticTensorError) as exc:
+                raise TransformerClientError(str(exc)) from exc
+        return result
 
 
 class SemanticLocalOperators:
@@ -567,6 +706,18 @@ class SemanticLocalOperators:
 
     This mixin does not admit a protocol, bundle, source, or execution schedule.
     """
+
+    def _bound_local_kernel(self, operation, value):
+        contract = getattr(self, "_phase_local_numeric", {}).get(operation.get("id"))
+        rows = getattr(self, "_phase_numeric_rows", 0)
+        if (type(contract) is not _BoundLocalNumeric or operation != contract.operation
+                or type(value) is not np.ndarray or rows < 1):
+            raise TransformerClientError("local numeric operator requires its active compiled phase contract")
+        actual_rows = value.size if operation["operator"] == "token_lookup" else (
+            value.shape[-2] if value.ndim in (2, 3) else 0)
+        if actual_rows != rows:
+            raise TransformerClientError("local numeric operand differs from admitted request rows")
+        return contract
 
     @staticmethod
     def _declared_state_kinds(graph: dict[str, Any]) -> dict[str, str]:
@@ -600,7 +751,7 @@ class SemanticLocalOperators:
         )
         if dtype is None:
             return value
-        if dtype == "model_native":
+        if dtype in {"model_native", "float32"}:
             if np.asarray(value).dtype != np.float32:
                 raise TransformerClientError("semantic operator has an unsupported numeric representation")
             return value
@@ -610,6 +761,21 @@ class SemanticLocalOperators:
             return round_bfloat16(value)
         except SemanticNumericError as exc:
             raise TransformerClientError(str(exc)) from exc
+
+    @staticmethod
+    def materialize_token_lookup_outputs(step, operations, stage, primary, auxiliary):
+        """Place an already validated boundary's outputs in their declared representations."""
+        combined = primary if auxiliary is None else np.concatenate((primary, auxiliary), axis=-1)
+        if combined.shape[-1] != stage.out_features:
+            raise TransformerClientError("semantic token lookup has an invalid width")
+        outputs = {}
+        for op_id, row in zip(step["operation_ids"], step["outputs"], strict=True):
+            offset = int(row["stage_offset"])
+            width = int(row["stage_width"])
+            outputs[op_id] = SemanticLocalOperators._numeric_output(
+                operations[op_id], combined[..., offset : offset + width]
+            )
+        return outputs
 
     @staticmethod
     def _rotary(value: np.ndarray, positions: np.ndarray, attributes: dict[str, Any], *,
@@ -663,6 +829,16 @@ class SemanticLocalOperators:
         inputs = operation["inputs"]
         attrs = operation["attributes"]
         layer = operation.get("layer")
+        if kind == "token_lookup":
+            try:
+                _, input_id, _ = lookup_contract(operation)
+                if input_id not in values:
+                    raise TransformerClientError("lookup requires its declared integer input")
+                return float32_embedding_lookup(
+                    values[input_id], self._bound_local_kernel(operation, values[input_id]),
+                )
+            except (SemanticTensorError, SemanticNumericError) as exc:
+                raise TransformerClientError(str(exc)) from exc
         if kind == "state_initialize":
             shape = operation.get("output_shape")
             if (
@@ -713,6 +889,13 @@ class SemanticLocalOperators:
                 return execute_declared_gated_rms_norm(operation, values, self._weight(weight))
             except HybridStateError as exc:
                 raise TransformerClientError(str(exc)) from exc
+        if kind == "layer_norm" and len(inputs) != 1:
+            raise TransformerClientError("LayerNorm requires one declared input")
+        if (
+            kind == "reshape" and attrs.get("layout") == "batch_heads_sequence_feature"
+            and len(inputs) != 1
+        ):
+            raise TransformerClientError("semantic head reshape requires one declared input")
         source = values[inputs[0]]
         if kind == "gated_delta_decay":
             if (
@@ -774,6 +957,14 @@ class SemanticLocalOperators:
             except SemanticNumericError as exc:
                 raise TransformerClientError(str(exc)) from exc
         if kind == "gelu_tanh":
+            if attrs == {
+                "formula": "0.5*x*(1+tanh(sqrt(2/pi)*(x+0.044715*x^3)))",
+                "compute_dtype": "float32",
+            }:
+                try:
+                    return float32_gelu_tanh(source, self._bound_local_kernel(operation, source))
+                except SemanticNumericError as exc:
+                    raise TransformerClientError(str(exc)) from exc
             if attrs != {
                 "approximation": "tanh",
                 "compute_dtype": "bfloat16",
@@ -837,8 +1028,20 @@ class SemanticLocalOperators:
         if kind == "reshape":
             layout = attrs.get("layout")
             if layout == "batch_heads_sequence_feature":
+                if attrs not in (
+                    {"layout": "batch_heads_sequence_feature"},
+                    {"layout": "batch_heads_sequence_feature", "input_layout": "batch_sequence_hidden"},
+                    {"layout": "batch_heads_sequence_feature", "input_layout": "batch_sequence_heads_feature"},
+                ):
+                    raise TransformerClientError("semantic head input layout is unsupported")
+                shape = operation.get("output_shape")
+                if (
+                    not isinstance(shape, (list, tuple)) or len(shape) != 4
+                    or any(type(dimension) is not int or dimension <= 0 for dimension in shape)
+                    or shape[0] != 1
+                ):
+                    raise TransformerClientError("semantic head reshape declaration is invalid")
                 if attrs.get("input_layout") == "batch_sequence_heads_feature":
-                    shape = operation["output_shape"]
                     if (
                         source.ndim != 4 or source.shape[0] != 1
                         or source.shape[2] != shape[1] or source.shape[3] != shape[3]
@@ -846,12 +1049,16 @@ class SemanticLocalOperators:
                     ):
                         raise TransformerClientError("semantic head permutation shape is invalid")
                     return source.transpose(0, 2, 1, 3)
-                if attrs.get("input_layout") is not None:
-                    raise TransformerClientError("semantic head input layout is unsupported")
-                if source.ndim != 2:
-                    raise TransformerClientError("semantic head reshape expects a row-major tensor")
-                shape = operation["output_shape"]
-                return source.reshape(1, source.shape[0], shape[1], shape[-1]).transpose(0, 2, 1, 3)
+                if (
+                    source.ndim not in {2, 3}
+                    or (source.ndim == 3 and (
+                        attrs.get("input_layout") != "batch_sequence_hidden" or source.shape[0] != 1
+                    ))
+                    or source.shape[-1] != shape[1] * shape[3]
+                    or not 0 < source.shape[-2] <= shape[2]
+                ):
+                    raise TransformerClientError("semantic head reshape source shape is invalid")
+                return source.reshape(1, source.shape[-2], shape[1], shape[3]).transpose(0, 2, 1, 3)
             if layout in {"batch_sequence_heads_feature", "batch_sequence_layer_feature"}:
                 shape = operation["output_shape"]
                 if (
@@ -871,6 +1078,11 @@ class SemanticLocalOperators:
                 if attrs.get("input_layout") not in {None, "batch_heads_sequence_feature"}:
                     raise TransformerClientError("semantic attention flatten layout is unsupported")
                 return source.transpose(0, 2, 1, 3).reshape(source.shape[2], -1)
+        elif kind == "layer_norm":
+            try:
+                return float32_layer_norm(source, self._bound_local_kernel(operation, source))
+            except SemanticNumericError as exc:
+                raise TransformerClientError(str(exc)) from exc
         elif kind == "rms_norm":
             if attrs.get("output_dtype") == "bfloat16" and attrs.get("compute_dtype") == "float32":
                 declared_weight = attrs.get("weight")
@@ -1132,13 +1344,10 @@ class SemanticDecoderRuntime(SemanticLocalOperators, _SemanticDecoderState):
         stage_id = stage_ids.pop()
         if operations[op_ids[0]]["operator"] == "token_lookup":
             primary, auxiliary = self._token_lookup(ids)
-            combined = primary if auxiliary is None else np.concatenate((primary, auxiliary), axis=-1)
-            if combined.shape[-1] != self.bundle.stages[stage_id].out_features:
-                raise TransformerClientError("semantic token lookup has an invalid width")
-            for op_id, row in zip(op_ids, step["outputs"], strict=True):
-                offset = int(row["stage_offset"])
-                width = int(row["stage_width"])
-                values[op_id] = combined[..., offset : offset + width]
+            values.update(self.materialize_token_lookup_outputs(
+                step, operations, self.bundle.stages[stage_id], primary, auxiliary
+            ))
+            return
         elif operations[op_ids[0]]["operator"] == "output_head":
             input_value = values[step["input_ids"][0]]
             stage = self.bundle.stages[stage_id]
@@ -1200,6 +1409,8 @@ class SemanticDecoderRuntime(SemanticLocalOperators, _SemanticDecoderState):
 
     def _forward(self, ids: np.ndarray, *, final_logits_only: bool = False,
                  continuation: bool = False) -> np.ndarray:
+        # Admission precedes optional execution owners, cache mutation and remote I/O.
+        self._validate_phase_request(ids, continuation=continuation)
         self._phase_rotary = None
         self._phase_recurrent_results = {}
         self._phase_recurrent_pairs = {}
@@ -1235,12 +1446,40 @@ class SemanticDecoderRuntime(SemanticLocalOperators, _SemanticDecoderState):
                 self._continuation_failed = True
             raise
         finally:
+            self._phase_local_numeric = {}
+            self._phase_numeric_rows = 0
             self._phase_recurrent_results = {}
             self._phase_recurrent_pairs = {}
             self._phase_recurrent_states = []
             if self._phase_rotary is not None:
                 self._phase_rotary.clear()
                 self._phase_rotary = None
+
+    def _validate_phase_request(self, ids, *, continuation):
+        if type(ids) is not np.ndarray or ids.dtype != np.int64 or ids.ndim != 1:
+            raise TransformerClientError("phase IDs must be a one-dimensional int64 array")
+        phase = "prefill" if self.position == 0 else "decode"
+        graph = self._graphs[phase]
+        if continuation:
+            if self._continuation_contract is None:
+                raise TransformerClientError("native continuation contract was not admitted")
+            graph = self._continuation_contract.to_dict()["graph"]
+            phase = "prefill"
+        if (ids.size < 1 or ids.size > graph["query_sequence"]
+                or (phase == "decode" and ids.size != 1)
+                or self.position + ids.size > graph["maximum_key_sequence"]):
+            raise TransformerClientError("semantic execution exceeds compiled workload bounds")
+        for operation in graph["operations"]:
+            if operation["operator"] != "token_lookup":
+                continue
+            try:
+                domain, _, shape = lookup_contract(operation, legacy_vocabulary=int(self.cfg["vocab_size"]))
+            except SemanticTensorError as exc:
+                raise TransformerClientError(str(exc)) from exc
+            if ((domain == "tokens" and (np.any(ids < 0) or np.any(ids >= shape[0])))
+                    or (domain == "absolute_positions" and self.position + ids.size > shape[0])
+                    or domain == "segments"):
+                raise TransformerClientError("lookup IDs are unavailable or outside their declared domain")
 
     def _forward_phase(self, ids: np.ndarray, *, final_logits_only: bool = False,
                        continuation: bool = False) -> np.ndarray:
@@ -1264,6 +1503,21 @@ class SemanticDecoderRuntime(SemanticLocalOperators, _SemanticDecoderState):
         ):
             raise TransformerClientError("semantic execution exceeds compiled workload bounds")
         positions = np.arange(self.position, self.position + ids.size, dtype=np.int64)
+        # Validate every boundary ID domain before any remote work or cache mutation.
+        boundary_ids = {"input.tokens": ids, "input.positions": positions}
+        for operation in graph["operations"]:
+            if operation["operator"] != "token_lookup":
+                continue
+            try:
+                _, source, shape = lookup_contract(operation, legacy_vocabulary=int(self.cfg["vocab_size"]))
+            except SemanticTensorError as exc:
+                raise TransformerClientError(str(exc)) from exc
+            indices = boundary_ids.get(source)
+            if (indices is None or indices.dtype != np.int64 or indices.ndim != 1
+                    or np.any(indices < 0) or np.any(indices >= shape[0])):
+                raise TransformerClientError("lookup IDs are unavailable or outside their declared domain")
+        self._phase_local_numeric = self._local_numeric_by_phase["continuation" if continuation else phase]
+        self._phase_numeric_rows = int(ids.size)
         self._phase_rotary = PhaseRotaryCoefficients(positions)
         previous_basis = self._snapshot_basis
         # A partial/failed phase must never retain completed-prefill qualification.

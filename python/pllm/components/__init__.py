@@ -30,6 +30,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
     """Delay family imports so each family can expose planned component symbols."""
     from pllm.correlation import SecretReplicationPcf, SeededExpansion
     from pllm.kernels import AppleMetal, Cpu
+    from pllm.numeric import SourceFloat32
     from pllm.metrics import (
         Accuracy,
         Communication,
@@ -176,6 +177,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         SecureLinear,
         SharedRescale,
         SymmetricPerRow,
+        SourceFloat32,
         Throughput,
         TwoOnlineOffsetLinear,
         TwoOnlineOffsetRoles,

@@ -265,6 +265,66 @@ def test_checked_qwen_factory_is_distinct_explicit_and_bounded(monkeypatch):
     assert checked.pipeline.with_params(linear__numeric_profile=PROFILES[1]) == static.pipeline
 
 
+@pytest.mark.parametrize("factory_name,schedule", [
+    ("qwen_checked_wavefront_smoke", "wavefront-v1"),
+    ("qwen_checked_tensor_smoke", "tensor-v1"),
+])
+def test_checked_qwen_scheduled_factories_preserve_pinned_bounded_batch_contract(monkeypatch, factory_name, schedule):
+    from pathlib import Path
+
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1]))
+    from examples.papers import fusefss
+
+    baseline = fusefss.qwen_checked_batch_smoke()
+    scheduled = getattr(fusefss, factory_name)()
+    assert scheduled.pipeline.model.to_spec() == {
+        "source": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "local_files_only": True,
+    }
+    assert scheduled.budget == baseline.budget == pllm.ExecutionBudget(
+        requests=1, max_input_tokens=4, max_new_tokens=1)
+    assert scheduled.pipeline.linear.params == {
+        "numeric_profile": PROFILES[2], "capacity": "decoder",
+        "material_delivery": "batch-v1", "online_schedule": schedule,
+    }
+    assert scheduled.name != baseline.name
+    assert scheduled.deployment == baseline.deployment
+    assert scheduled.configuration_digest() != baseline.configuration_digest()
+    assert scheduled.pipeline.digest() != baseline.pipeline.digest()
+    assert scheduled.with_params(
+        name=baseline.name, pipeline__linear__online_schedule="serial") == baseline
+    restored = loads_configuration(scheduled.canonical_bytes().decode())
+    assert restored == scheduled
+    assert restored.configuration_digest() == scheduled.configuration_digest()
+    assert resolve_runtime_composition(restored.pipeline) == resolve_runtime_composition(scheduled.pipeline)
+
+
+def test_qwen_empty_system_factory_preserves_pinned_tensor_composition(monkeypatch):
+    from pathlib import Path
+
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1]))
+    from examples.papers.fusefss import qwen_checked_tensor_smoke, qwen_empty_system
+
+    baseline, candidate = qwen_checked_tensor_smoke(), qwen_empty_system()
+    assert candidate.name == "fusefss-qwen-empty-system"
+    assert candidate.pipeline.model.to_spec() == {
+        "source": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "local_files_only": True,
+    }
+    assert candidate.pipeline.linear.params == {
+        "numeric_profile": PROFILES[2], "capacity": "decoder",
+        "material_delivery": "batch-v1", "online_schedule": "tensor-v1",
+    }
+    assert candidate.budget == pllm.ExecutionBudget(requests=1, max_input_tokens=15, max_new_tokens=1)
+    assert baseline.budget == pllm.ExecutionBudget(requests=1, max_input_tokens=4, max_new_tokens=1)
+    assert candidate.pipeline == baseline.pipeline
+    assert candidate.deployment == baseline.deployment
+    assert candidate.with_params(name=baseline.name, budget=baseline.budget) == baseline
+    assert loads_configuration(candidate.canonical_bytes().decode()) == candidate
+
+
 def test_public_exports_and_old_defaults_remain_distinct():
     for name, cls in (("FuseFssSourceDecoder", FuseFssSourceDecoder),
                       ("FuseFssSourceCpu", FuseFssSourceCpu),

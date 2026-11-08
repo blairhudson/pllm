@@ -161,6 +161,7 @@ def test_original_root_inside_backend_and_single_deferred_refund(admitted):
     assert h.reservation._exited and not h.reservation._draining
     assert h.reservation._drain_finish_state == "committed"
     h.reservation.drain_failed()
+    h.reservation.close()
     assert h.backend.calls == owner.calls == 1
 
 
@@ -432,6 +433,8 @@ def test_ordinary_reservation_behavior_unchanged(admitted, exceptional):
     assert h.reservation.__exit__(None, None, None) is False
     assert h.backend.calls == 1
     assert h.reservation._drain_finish_state is None
+    h.reservation.close()
+    assert h.reservation._closed
 
 
 class _Injected(BaseException):

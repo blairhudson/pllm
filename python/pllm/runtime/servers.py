@@ -43,6 +43,9 @@ async def load_role_adapter(
     Admission never installs a method described by an offer. Exact composition
     determines the existing engine, numeric settings and session protocol.
     """
+    from pllm._decoder_admission import require_decoder_experiment
+
+    require_decoder_experiment(experiment)
     from pllm.model_loader import resolve_model
     from pllm.profiles import resolve_runtime_composition
     from pllm.runtime.offset_worker import create_offset_worker_app
@@ -1646,6 +1649,12 @@ def build_roles(
     memory_budget_bytes: int | None = None,
     memory_safety_margin_percent: int = 25,
 ) -> LocalTopology:
+    from pllm._decoder_admission import require_decoder_experiment, require_decoder_pipeline
+
+    if isinstance(model, Experiment):
+        require_decoder_experiment(model)
+    elif isinstance(model, Pipeline):
+        require_decoder_pipeline(model)
     if type(docker) is not bool:
         raise TypeError("docker must be a boolean")
     if wan is not None:

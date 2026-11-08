@@ -173,6 +173,10 @@ def create_app(
     owns_engines: bool = True,
 ) -> FastAPI:
     config = config or GatewayConfig()
+    from pllm._decoder_admission import require_decoder_source_record
+
+    for record in config.engine_models:
+        require_decoder_source_record(record)
     if config.provider_push_api_key and config.provider_push_api_key in config.api_keys:
         raise ValueError("client and correction-push credentials must be distinct")
     backend_registry = backend_registry or BackendRegistry.from_config(list(config.backends))

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from types import SimpleNamespace
+from types import MappingProxyType, SimpleNamespace
 
 import numpy as np
 import pytest
@@ -11,9 +12,14 @@ from safetensors.numpy import save_file
 
 from pllm.modeling import lower_model
 from pllm.runtime.safetensors_store import SafeTensorStore
-from pllm.runtime.semantic_executor import SemanticDecoderRuntime
-from pllm.runtime.semantic_tensors import SemanticTensorError, required_client_tensors
-from pllm.runtime.transformer_client import TransformerClientError
+from pllm.runtime.semantic_numeric import SemanticNumericError, bfloat16_scale
+from pllm.runtime.semantic_hybrid import (
+    HybridStateError, bounded_gated_delta_decay, execute_declared_causal_convolution,
+    execute_declared_gated_delta,
+)
+from pllm.runtime.semantic_tensors import (
+    SemanticTensorError, lookup_contract, projection_weight_shape, required_client_tensors,
+)
 from pllm.runtime.transformer_engine import MaskedTransformerEngine, TransformerEngineError
 
 
@@ -25,6 +31,134 @@ def _plan():
         max_input_tokens=2,
         max_new_tokens=2,
     )
+
+
+def _contract_representation(value, frozen):
+    if not frozen:
+        return value
+    if type(value) is dict:
+        return MappingProxyType({key: _contract_representation(item, True) for key, item in value.items()})
+    if type(value) is list:
+        return tuple(_contract_representation(item, True) for item in value)
+    return value
+
+
+class _HookDict(dict):
+    def __iter__(self):
+        raise AssertionError("custom mapping traversed")
+
+    def get(self, *args):
+        raise AssertionError("custom mapping accessed")
+
+
+class _HookList(list):
+    def __len__(self):
+        raise AssertionError("custom shape measured")
+
+    def __iter__(self):
+        raise AssertionError("custom shape traversed")
+
+
+class _HookTuple(tuple):
+    def __len__(self):
+        raise AssertionError("custom tuple measured")
+
+    def __iter__(self):
+        raise AssertionError("custom tuple traversed")
+
+
+class _HookMapping(Mapping):
+    def __len__(self):
+        raise AssertionError("custom mapping measured")
+
+    def __iter__(self):
+        raise AssertionError("custom mapping traversed")
+
+    def __getitem__(self, key):
+        raise AssertionError("custom mapping accessed")
+
+
+class _HookSequence(Sequence):
+    def __len__(self):
+        raise AssertionError("custom sequence measured")
+
+    def __getitem__(self, key):
+        raise AssertionError("custom sequence accessed")
+
+
+@pytest.mark.parametrize("frozen", [False, True])
+@pytest.mark.parametrize("field,bad", [
+    ("inputs", None), ("inputs", []), ("inputs", [True]),
+    ("inputs", _HookList(["input.tokens"])), ("inputs", _HookTuple(("input.tokens",))),
+    ("output_shape", None), ("output_shape", [1, True, 4]),
+    ("output_shape", _HookList([1, 2, 4])),
+    ("attributes", None), ("attributes", _HookDict()), ("attributes", _HookMapping()),
+    ("weight_shape", None), ("weight_shape", [7, True]),
+    ("weight_shape", [True, 4]), ("weight_shape", [0, 4]),
+    ("weight_shape", [7, 5]), ("weight_shape", _HookTuple((7, 4))),
+    ("weight_shape", _HookSequence()), ("inputs", _HookSequence()),
+    ("index_domain", None), ("index_domain", False), ("source", None),
+    ("weight_layout", None),
+])
+def test_lookup_contract_rejects_malformed_json_and_frozen_declarations(frozen, field, bad):
+    op = {"inputs": ["input.tokens"], "output_shape": [1, 2, 4],
+          "attributes": {"index_domain": "tokens", "weight": "table", "weight_shape": [7, 4]}}
+    if field in {"inputs", "output_shape", "attributes"}:
+        op[field] = bad
+    else:
+        op["attributes"][field] = bad
+    with pytest.raises(SemanticTensorError):
+        lookup_contract(_contract_representation(op, frozen), legacy_vocabulary=11)
+
+
+@pytest.mark.parametrize("frozen", [False, True])
+def test_lookup_frozen_legacy_fallback_is_only_for_absent_domain_and_shape(frozen):
+    op = {"inputs": ["input.tokens"], "output_shape": [1, 2, 4], "attributes": {"weight": "table"}}
+    assert lookup_contract(_contract_representation(op, frozen), legacy_vocabulary=7) == (
+        "tokens", "input.tokens", (7, 4))
+    for key, value in (("index_domain", None), ("index_domain", "tokens"), ("weight_shape", None)):
+        declared = {**op, "attributes": {**op["attributes"], key: value}}
+        with pytest.raises(SemanticTensorError):
+            lookup_contract(_contract_representation(declared, frozen), legacy_vocabulary=7)
+
+
+@pytest.mark.parametrize("frozen", [False, True])
+@pytest.mark.parametrize("layout,shape", [("input_output", [3, 5]), ("output_input", [5, 3])])
+def test_projection_geometry_accepts_only_validated_json_or_frozen_dimensions(frozen, layout, shape):
+    op = {"output_shape": [1, 2, 5], "attributes": {
+        "weight_layout": layout, "weight_shape": shape, "bias_shape": [5]}}
+    assert projection_weight_shape(_contract_representation(op, frozen), 3) == tuple(shape)
+    for key, bad in (("weight_shape", None), ("weight_shape", [True, 5]),
+                     ("weight_shape", [3, 0]), ("weight_shape", [3, 6]),
+                     ("weight_shape", _HookList(shape)), ("weight_shape", _HookTuple(shape)),
+                     ("bias_shape", None), ("bias_shape", [False]), ("bias_shape", [6]),
+                     ("bias_shape", _HookList([5])), ("weight_layout", None)):
+        altered = {**op, "attributes": {**op["attributes"], key: bad}}
+        with pytest.raises(SemanticTensorError):
+            projection_weight_shape(_contract_representation(altered, frozen), 3)
+
+
+@pytest.mark.parametrize("bad", [_HookDict(), _HookMapping(), _HookSequence(), _HookList(), _HookTuple(), None])
+def test_tensor_contract_rejects_unknown_root_containers_without_hooks(bad):
+    with pytest.raises(SemanticTensorError):
+        lookup_contract(bad)
+    with pytest.raises(SemanticTensorError):
+        projection_weight_shape(bad, 3)
+
+
+def test_native_frozen_lookup_and_projection_contracts_match_to_dict():
+    from absolute_position_decoder_oracle import tiny_checkpoint
+    config, _ = tiny_checkpoint()
+    plan = lower_model(config, batch=1, max_input_tokens=2, max_new_tokens=2)
+    for phase in ("prefill", "decode"):
+        frozen = {op["id"]: op for op in getattr(plan, phase)["operations"]}
+        plain = {op["id"]: op for op in plan.to_dict()[phase]["operations"]}
+        for name, operation in frozen.items():
+            if operation["operator"] == "token_lookup":
+                assert lookup_contract(operation) == lookup_contract(plain[name])
+            elif operation["operator"] in ("linear", "output_head"):
+                width = frozen[operation["inputs"][0]]["output_shape"][-1]
+                assert projection_weight_shape(operation, width) == projection_weight_shape(plain[name], width)
 
 
 def test_semantic_tensor_requirements_bind_checkpoint_scalars_across_phases() -> None:
@@ -43,18 +177,16 @@ def test_semantic_tensor_requirements_bind_checkpoint_scalars_across_phases() ->
     assert None not in required
 
     operation = operations["layer.0.layer_scalar"]
-    runtime = object.__new__(SemanticDecoderRuntime)
-    runtime._tensors = {operation["attributes"]["factor"]["weight"]: "scalar"}
-    runtime.bundle = SimpleNamespace(arrays={"scalar": np.asarray([1.25], dtype=np.float32)})
+    # Numerical kernel only; the resized source is not a bound decoder workload.
+    scalar = np.asarray([1.25], dtype=np.float32)
     source = np.asarray([[1.0, -0.75, 0.375, 2.0]], dtype=np.float32)
-    actual = runtime._local(operation, {operation["inputs"][0]: source}, {}, {})
+    actual = bfloat16_scale(source, operation["attributes"]["factor"], scalar)
     expected = (
         torch.from_numpy(source).to(torch.bfloat16) * torch.tensor([1.25], dtype=torch.bfloat16)
     ).float().numpy()
     np.testing.assert_array_equal(actual, expected)
-    runtime._tensors = {}
-    with pytest.raises(TransformerClientError, match="bound local tensor"):
-        runtime._local(operation, {operation["inputs"][0]: source}, {}, {})
+    with pytest.raises(SemanticNumericError, match="bound BF16 value"):
+        bfloat16_scale(source, operation["attributes"]["factor"])
 
 
 def test_checkpoint_scalar_import_requires_exact_shape_and_finite_value(tmp_path: Path) -> None:
@@ -108,17 +240,13 @@ def test_declared_hybrid_convolution_binds_exact_weight_and_runs_local_prefill()
     assert update["attributes"] == convolution["attributes"]
 
     weights = np.array([[[0.25, 0.5, -0.125, 0.75]], [[0.5, 0.125, 0.25, -0.5]]], dtype=np.float32)
-    runtime = object.__new__(SemanticDecoderRuntime)
-    runtime._tensors = {weight_id: "conv"}
-    runtime.bundle = SimpleNamespace(arrays={"conv": weights})
-    initialized = runtime._local(initializer, {}, {}, {})
+    # The native declaration is checked above; resized evaluation below is a
+    # numerical kernel test, not compiled/imported runtime admission.
+    assert initializer["attributes"] == {"initial_value": 0, "dtype": "float32", "state_kind": "convolution"}
+    initialized = np.zeros(initializer["output_shape"], dtype=np.float32)
     assert initialized.shape == (1, 8192, 4)
     assert initialized.dtype == np.float32
     assert not np.any(initialized)
-    forged_initial = dict(initializer)
-    forged_initial["attributes"] = {**initializer["attributes"], "initial_value": 1}
-    with pytest.raises(TransformerClientError, match="zero state"):
-        runtime._local(forged_initial, {}, {}, {})
     values = {
         convolution["inputs"][0]: np.asarray([[[0.5, -0.5], [1.0, 0.25]]], dtype=np.float32),
         convolution["inputs"][1]: np.zeros((1, 2, 4), dtype=np.float32),
@@ -126,8 +254,8 @@ def test_declared_hybrid_convolution_binds_exact_weight_and_runs_local_prefill()
     for operator in (update, convolution):
         operator["attributes"]["groups"] = 2
         operator["output_shape"] = [1, 2, 4] if operator is update else [1, 2, 2]
-    state_after = runtime._local(update, values, {}, {})
-    output = runtime._local(convolution, values, {}, {})
+    state_after = execute_declared_causal_convolution(update, values, weights)
+    output = execute_declared_causal_convolution(convolution, values, weights)
     expected = torch.nn.functional.silu(
         torch.nn.functional.conv1d(
             torch.from_numpy(values[convolution["inputs"][0]].transpose(0, 2, 1).copy()),
@@ -140,11 +268,10 @@ def test_declared_hybrid_convolution_binds_exact_weight_and_runs_local_prefill()
     np.testing.assert_array_equal(state_after[:, :, -2:], values[convolution["inputs"][0]].transpose(0, 2, 1))
     bad = dict(convolution)
     bad["attributes"] = {**convolution["attributes"], "kernel_size": 5}
-    with pytest.raises(TransformerClientError, match="shapes"):
-        runtime._local(bad, values, {}, {})
-    runtime._tensors = {}
-    with pytest.raises(TransformerClientError, match="bound local tensor"):
-        runtime._local(convolution, values, {}, {})
+    with pytest.raises(HybridStateError, match="shapes"):
+        execute_declared_causal_convolution(bad, values, weights)
+    with pytest.raises(HybridStateError, match="shapes"):
+        execute_declared_causal_convolution(convolution, values, weights[:1])
 
 
 def test_declared_hybrid_decay_and_retained_recurrence_bind_local_coefficients() -> None:
@@ -164,21 +291,20 @@ def test_declared_hybrid_decay_and_retained_recurrence_bind_local_coefficients()
     assert required[decay["attributes"]["dt_bias"]] == (32,)
     assert required[gated_norm["attributes"]["weight"]] == (128,)
 
-    runtime = object.__new__(SemanticDecoderRuntime)
-    runtime._tensors = {decay["attributes"]["a_log"]: "a", decay["attributes"]["dt_bias"]: "dt"}
-    runtime.bundle = SimpleNamespace(arrays={
-        "a": np.array([0.0, 0.5], dtype=np.float32),
-        "dt": np.array([0.1, -0.2], dtype=np.float32),
-    })
+    # Pure resized numerical kernels; no fabricated checkpoint owner/binding.
+    a_log = np.array([0.0, 0.5], dtype=np.float32)
+    dt_bias = np.array([0.1, -0.2], dtype=np.float32)
+    assert initializer["attributes"] == {"initial_value": 0, "dtype": "float32", "state_kind": "recurrent"}
     initializer["output_shape"] = [1, 2, 4, 3]
-    retained = runtime._local(initializer, {}, {}, {})
+    retained = np.zeros(initializer["output_shape"], dtype=np.float32)
     assert retained.shape == (1, 2, 4, 3) and not retained.any()
 
     projected = np.array([[0.5, -0.5], [0.25, 0.1]], dtype=np.float32)
     decay["output_shape"] = [1, 2, 2]
     beta["output_shape"] = [1, 2, 2]
-    gates = runtime._local(decay, {decay["inputs"][0]: projected}, {}, {})
-    confidence = runtime._local(beta, {beta["inputs"][0]: projected}, {}, {})
+    gates = bounded_gated_delta_decay(projected[None, :, :], a_log, dt_bias)
+    assert beta["attributes"] == {}
+    confidence = 1.0 / (1.0 + np.exp(-projected[None, :, :]))
     assert gates.shape == confidence.shape == (1, 2, 2)
     assert np.all(gates < 0) and np.all((confidence > 0) & (confidence < 1))
 
@@ -194,16 +320,15 @@ def test_declared_hybrid_decay_and_retained_recurrence_bind_local_coefficients()
         rule["inputs"][4]: confidence,
         rule["inputs"][5]: retained,
     }
-    next_state = runtime._local(update, samples, {}, {})
-    output = runtime._local(rule, samples, {}, {})
+    next_state = execute_declared_gated_delta(update, samples)
+    output = execute_declared_gated_delta(rule, samples)
     assert next_state.shape == (1, 2, 4, 3)
     assert output.shape == (1, 2, 2, 3)
     assert np.all(np.isfinite(output)) and np.any(next_state)
     assert not retained.any()
     forged = dict(rule)
     forged["attributes"] = {**rule["attributes"], "query_scale": {"numerator": 1, "sqrt_denominator": 5}}
-    with pytest.raises(TransformerClientError, match="shapes"):
-        runtime._local(forged, samples, {}, {})
-    runtime._tensors = {}
-    with pytest.raises(TransformerClientError, match="bound local tensor"):
-        runtime._local(decay, {decay["inputs"][0]: projected}, {}, {})
+    with pytest.raises(HybridStateError, match="shapes"):
+        execute_declared_gated_delta(forged, samples)
+    with pytest.raises(HybridStateError, match="shape"):
+        bounded_gated_delta_decay(projected[None, :, :], a_log[:1], dt_bias)

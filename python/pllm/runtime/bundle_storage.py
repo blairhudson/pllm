@@ -8,9 +8,62 @@ from __future__ import annotations
 import hashlib
 import tempfile
 import threading
+import math
+import sys
+from pathlib import Path
+
+import numpy as np
 
 CHUNK_BYTES = 1 << 20
 MAX_TOKENIZER_BYTES = 64 << 20
+
+
+def f32_array_nbytes(shape):
+    """Check public geometry before NumPy construction; not a memory budget."""
+    if (type(shape) not in (list, tuple) or not shape
+            or any(type(width) is not int or width <= 0 for width in shape)):
+        raise ValueError("client tensor shape requires positive integer dimensions")
+    elements = math.prod(shape)
+    if elements > sys.maxsize // 4 or len(shape) > getattr(np, "MAXDIMS", 64):
+        raise ValueError("client tensor geometry exceeds NumPy addressable bounds")
+    return elements * 4
+
+
+def immutable_f32_array(data, shape):
+    """Borrow exact immutable MessagePack bytes, never a mutable snapshot copy."""
+    size = f32_array_nbytes(shape)
+    if type(data) is not bytes or len(data) != size:
+        raise ValueError("client tensor requires exact immutable bytes and byte length")
+    return np.frombuffer(data, dtype="<f4").reshape(tuple(shape))
+
+
+def immutable_f32_backing(array):
+    """Reject readonly views of mutable owners, including buffer wrappers."""
+    if (type(array) is not np.ndarray or array.dtype != np.dtype("<f4")
+            or not array.flags.c_contiguous or array.flags.writeable):
+        raise ValueError("client tensor requires contiguous immutable float32 storage")
+    f32_array_nbytes(array.shape)
+    owner = array
+    while type(owner) is np.ndarray:
+        if owner.flags.writeable:
+            raise ValueError("client tensor has a mutable ndarray owner")
+        owner = owner.base
+    if type(owner) is not bytes:
+        raise ValueError("client tensor backing must be exact immutable bytes")
+    return owner
+
+
+def immutable_f32_retained_bytes(arrays):
+    """Price complete retained bytes owners once, even for alias/slice views."""
+    owners = {id(root): root for root in map(immutable_f32_backing, arrays)}
+    return sum(len(root) for root in owners.values())
+
+
+def f32_chunks(array):
+    """Zero-copy contiguous chunks; finite masks need at most CHUNK_BYTES/4."""
+    flat = array.reshape(-1)
+    for start in range(0, flat.size, CHUNK_BYTES // 4):
+        yield flat[start:start + CHUNK_BYTES // 4]
 
 
 def binary_digest(value):
@@ -30,7 +83,8 @@ class FilePayload:
 
     __slots__ = ("_file", "_snapshot", "_size", "_digest", "_lock")
 
-    def __init__(self, chunks, *, size: int, digest: str, native: bool = False):
+    def __init__(self, chunks, *, size: int, digest: str, native: bool = False,
+                 temp_directory: str | Path | None = None):
         if (type(size) is not int or not 0 < size <= 4 << 30
                 or type(digest) is not str or len(digest) != 64
                 or any(c not in "0123456789abcdef" for c in digest)
@@ -55,7 +109,8 @@ class FilePayload:
             finally:
                 writer.close()
             return
-        self._file = tempfile.NamedTemporaryFile(prefix="pllm-public-object-", mode="w+b")
+        self._file = tempfile.NamedTemporaryFile(prefix="pllm-public-object-", mode="w+b",
+                                                 dir=temp_directory)
         actual, count = hashlib.sha256(), 0
         try:
             for chunk in chunks:
@@ -105,6 +160,21 @@ class FilePayload:
                 yield block
             if self._file.read(1):
                 raise ValueError("private file payload has trailing bytes")
+
+    def read_at(self, offset: int, size: int) -> bytes:
+        """Read the owned descriptor/snapshot, never reopen a mutable pathname."""
+        if (type(offset) is not int or type(size) is not int
+                or not 0 <= offset <= self._size or not 0 <= size <= self._size - offset):
+            raise ValueError("private file read exceeds snapshot bounds")
+        with self._lock:
+            if self._snapshot is not None:
+                data = self._snapshot.read(offset, size)
+            else:
+                self._file.seek(offset)
+                data = self._file.read(size)
+            if len(data) != size:
+                raise ValueError("private file payload was truncated")
+            return data
 
     def close(self):
         with self._lock:

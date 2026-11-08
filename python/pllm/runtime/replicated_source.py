@@ -5,13 +5,12 @@ import hashlib
 import json
 import math
 import threading
-from contextlib import ExitStack
 from pathlib import Path
 
 from pllm import _native, model_loader
 from pllm.configuration import Experiment
 from pllm.deployment.resources import (
-    _CleanupSlot, _admit_raw_disk_lease, _clear_raw_disk_backing,
+    _CleanupSlot, _MemoryReservation, _admit_raw_disk_lease, _clear_raw_disk_backing,
     reserve_incremental_disk, reserve_incremental_memory,
 )
 from . import delegated_source as source_io
@@ -28,25 +27,61 @@ class _CompactPublisherOwner:
     is charged independently, including for direct publisher callers; it is not
     free credit against the transport's separate reservation.
 
-    Snapshot directory/quantity come from the actual live native owner.
+    Snapshot directory/quantity come from the native pending descriptor; start
+    runs only after adoption and admission. No destructor certifies retirement.
     This owner itself grants no native storage/source/execution authority.
     """
-    __slots__ = ("_owner", "_leases", "_disk_admitted", "_closed", "_cleanup_scope")
+    __slots__ = ("_owner", "_leases", "_disk_admitted", "_closed", "_cleanup_scope",
+                 "_cleanup_failure", "_gate", "_busy")
 
     def __init__(self, cleanup_scope):
         if not isinstance(cleanup_scope, _CleanupSlot) or cleanup_scope.closed:
             raise ValueError("compact publisher requires an admitted cleanup scope")
         self._owner = None
-        self._leases = ExitStack()
+        self._leases = []
+        self._cleanup_failure = None
+        self._gate = threading.Lock()
+        self._busy = True
         self._disk_admitted = False
         self._closed = False
         self._cleanup_scope = cleanup_scope
         cleanup_scope.retain(self, self._retire)
         try:
-            self._leases.enter_context(reserve_incremental_memory(REQUEST_MEMORY))
+            self._enter_lease(reserve_incremental_memory(REQUEST_MEMORY))
         except BaseException as error:
+            self._busy = False
             self._close_preserving(error)
             raise
+        self._busy = False
+
+    def _enter_lease(self, manager):
+        # Retain the original CM even when entry/exit is ambiguous. Never let an
+        # ExitStack continue refunding earlier reservations after one exit fails.
+        record = [manager, False]
+        self._leases.append(record)
+        try:
+            manager.__enter__()
+            record[1] = True
+        except BaseException:
+            # The ordinary memory reservation has an explicit retirement proof.
+            # An opaque CM offers none; do not manufacture a refund or retry.
+            if type(manager) is not _MemoryReservation:
+                self._cleanup_failure = "compact lease acquisition uncertain"
+            raise
+
+    def _acquire(self, factory, *args):
+        with self._gate:
+            if self._busy or self._closed or self._owner is not None or self._cleanup_failure:
+                raise ValueError("compact acquisition unavailable")
+            self._busy = True
+        try:
+            self._retain(factory(*args))  # private factory MUST be resource-free
+            self._admit_disk(self._owner.collection_disk_bytes,
+                             directory=_compact_snapshot_directory(self._owner))
+            self._owner._compact_start()
+        finally:
+            with self._gate:
+                self._busy = False
 
     def _retain(self, owner):
         if self._owner is not None or self._closed:
@@ -56,10 +91,12 @@ class _CompactPublisherOwner:
     def _admit_disk(self, amount, *, directory):
         if self._owner is None or self._closed or self._disk_admitted or type(amount) is not int or amount <= 0:
             raise ValueError("invalid compact publisher disk admission")
-        self._leases.enter_context(reserve_incremental_disk(amount, directory=directory))
+        self._enter_lease(reserve_incremental_disk(amount, directory=directory))
         self._disk_admitted = True
 
     def __getattr__(self, name):
+        if self._cleanup_failure:
+            raise ValueError(self._cleanup_failure)
         if self._owner is None:
             raise ValueError("compact publisher retired")
         if not self._disk_admitted:
@@ -72,11 +109,30 @@ class _CompactPublisherOwner:
     def _retire(self):
         # If native close fails, retain both owner and leases; never pretend the
         # disk/caller backing retired. Caller preserves original error identity.
-        if self._owner is not None:
-            self._owner.close()
+        with self._gate:
+            if self._busy:
+                raise ValueError("compact acquisition in flight")
+            if self._cleanup_failure:
+                raise ValueError(self._cleanup_failure)
+            self._busy = True
+        try:
+            if self._owner is not None:
+                self._owner.close()
+            for manager, entered in reversed(self._leases):
+                if entered:
+                    manager.__exit__(None, None, None)
+                elif type(manager) is _MemoryReservation:
+                    manager.close()
             self._owner = None
-        self._leases.close()
-        self._closed = True
+            self._leases.clear()
+            self._closed = True
+        except BaseException as error:
+            # Sticky text, not an exception/traceback as the custody root.
+            self._cleanup_failure = f"compact retirement failed: {type(error).__name__}"
+            raise
+        finally:
+            with self._gate:
+                self._busy = False
 
     def _close_preserving(self, error):
         try:
@@ -267,6 +323,7 @@ def _compact_snapshot_directory(owner):
     # I frozen source03 readonly property, not a method or ambient tempdir.
     # Native owns this location for publisher AND importer snapshots. It is
     # location metadata, never permission/backing credit/source authority.
+    # Pending owner returns its fixed parent, NOT evidence of a live directory.
     directory = owner.collection_disk_directory
     if type(directory) is not str or not directory:
         raise ValueError("compact publisher snapshot directory must be a native string")
@@ -373,11 +430,8 @@ class ReplicatedSource(source_io.AdmittedSource):
             owner = None
             try:
                 owner = _CompactPublisherOwner(cleanup_scope)  # registered BEFORE factory
-                owner._retain(factory(self.experiment_bytes, self.config_bytes, len(ids), outputs,
-                    bytes.fromhex(self.source_lock_digest), bytes.fromhex(experiment.pipeline.digest())))
-                native = owner._owner
-                owner._admit_disk(native.collection_disk_bytes,
-                    directory=_compact_snapshot_directory(native))
+                owner._acquire(factory, self.experiment_bytes, self.config_bytes, len(ids), outputs,
+                    bytes.fromhex(self.source_lock_digest), bytes.fromhex(experiment.pipeline.digest()))
                 self.runtime_contract(experiment, len(ids), outputs)
                 self._append_source(owner.shapes, owner.append, cancelled)
                 if cancelled():

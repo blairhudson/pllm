@@ -490,6 +490,8 @@ def _replace_stage(bundle: ClientBundle, stage_id: str, **changes) -> ClientBund
 
 
 def test_bundle_tamper_rejected(tmp_path: Path):
+    from pllm.runtime.bundle_storage import immutable_f32_array
+
     engine, bundle, config = _bundle(tmp_path)
     plan = _plan(config)
     stage_id = "layers.0.self_attn.qkv_proj"
@@ -527,17 +529,20 @@ def test_bundle_tamper_rejected(tmp_path: Path):
         for key, value in bundle.arrays.items()
         if key != "model.layers.0.input_layernorm.weight"
     }
-    ambiguous_arrays["other.model.layers.0.input_layernorm.weight"] = np.ones(32, np.float32)
-    ambiguous_arrays["extra.model.layers.0.input_layernorm.weight"] = np.ones(32, np.float32)
-    cases.append(dataclasses.replace(bundle, arrays=ambiguous_arrays))
+    original_norm = bundle.arrays["model.layers.0.input_layernorm.weight"]
+    ambiguous_arrays["other.model.layers.0.input_layernorm.weight"] = original_norm
+    ambiguous_arrays["extra.model.layers.0.input_layernorm.weight"] = original_norm
+    with pytest.raises(RuntimeBindingError, match="ambiguous client tensor suffix"):
+        compile_runtime_model(plan, dataclasses.replace(bundle, arrays=ambiguous_arrays))
 
     suffix_arrays = {
         key: value
         for key, value in bundle.arrays.items()
         if key != "model.layers.0.input_layernorm.weight"
     }
-    suffix_arrays["other.model.layers.0.input_layernorm.weight"] = np.ones(32, np.float32)
+    suffix_arrays["other.model.layers.0.input_layernorm.weight"] = original_norm
     resolved = dataclasses.replace(bundle, arrays=suffix_arrays)
+    assert resolved.arrays["other.model.layers.0.input_layernorm.weight"] is original_norm
     resolved_spec = compile_runtime_model(plan, resolved).to_spec()
     assert any(
         row["key"] == "other.model.layers.0.input_layernorm.weight"
@@ -545,12 +550,20 @@ def test_bundle_tamper_rejected(tmp_path: Path):
     )
 
     bad_norm = dict(bundle.arrays)
-    bad_norm["model.layers.0.input_layernorm.weight"] = np.ones(16, np.float32)
-    cases.append(dataclasses.replace(bundle, arrays=bad_norm))
+    value = np.ones(16, np.float32)
+    bad_norm["model.layers.0.input_layernorm.weight"] = immutable_f32_array(
+        value.tobytes(), value.shape
+    )
+    with pytest.raises(RuntimeBindingError, match="shape does not match its semantic use"):
+        compile_runtime_model(plan, dataclasses.replace(bundle, arrays=bad_norm))
 
     nan_norm = dict(bundle.arrays)
-    nan_norm["model.layers.0.input_layernorm.weight"] = np.full(32, np.nan, np.float32)
-    cases.append(dataclasses.replace(bundle, arrays=nan_norm))
+    value = np.full(32, np.nan, np.float32)
+    nan_norm["model.layers.0.input_layernorm.weight"] = immutable_f32_array(
+        value.tobytes(), value.shape
+    )
+    with pytest.raises(RuntimeBindingError, match="client tensor must be finite"):
+        compile_runtime_model(plan, dataclasses.replace(bundle, arrays=nan_norm))
 
     for index, tampered in enumerate(cases):
         with pytest.raises(RuntimeBindingError):
@@ -576,10 +589,19 @@ def test_runtime_rejects_post_bind_mutation(tmp_path: Path):
     key = "model.layers.0.input_layernorm.weight"
     array = bundle.arrays[key]
     saved = array.copy()
-    array[0] += 1.0
-    with pytest.raises(RuntimeBindingError):
-        compiled.runtime(remote)
-    bundle.arrays[key] = saved
+    assert not array.flags.writeable
+    with pytest.raises(ValueError, match="read-only"):
+        array[0] += 1.0
+    np.testing.assert_array_equal(array, saved)
+    assert compiled.runtime(remote).bundle is bundle
+    changed = saved.copy()
+    changed.flat[0] += 1.0
+    bundle.arrays[key] = np.frombuffer(changed.tobytes(), dtype=array.dtype).reshape(array.shape)
+    try:
+        with pytest.raises(RuntimeBindingError, match="bound plan or bundle changed since compilation"):
+            compiled.runtime(remote)
+    finally:
+        bundle.arrays[key] = array
 
     compiled = compile_runtime_model(plan, bundle)
     bundle.privacy["mode"] = "proprietary"

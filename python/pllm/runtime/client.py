@@ -231,6 +231,19 @@ class ProtocolError(RuntimeError):
         super().__init__(message)
         self.status_code = status_code
         self.body = body
+        self.request_failure_context = None
+
+    def annotate_request_failure(self, context) -> None:
+        """Best-effort public labels; deepest valid boundary wins, body stays private."""
+        try:
+            from .benchmark_failure import sanitize_request_failure_context
+
+            if sanitize_request_failure_context(self.request_failure_context) is None:
+                safe = sanitize_request_failure_context(context)
+                if safe is not None:
+                    self.request_failure_context = safe
+        except BaseException:
+            pass  # Diagnostics must not replace the original exception.
 
 
 class _BundleIntegrityError(ProtocolError):
@@ -1135,8 +1148,14 @@ class RuntimeClient:
         if experiment is None:
             self.experiment = None
         elif isinstance(experiment, ExperimentProfile):
+            from pllm._decoder_admission import require_decoder_profile
+
+            require_decoder_profile(experiment)
             self.experiment = experiment
         elif isinstance(experiment, Experiment):
+            from pllm._decoder_admission import require_decoder_experiment
+
+            require_decoder_experiment(experiment)
             self.experiment = experiment.resolve()
         else:
             raise TypeError("experiment must be an Experiment or ExperimentProfile")
@@ -5616,6 +5635,13 @@ class OpenAI:
         from pllm.configuration import Experiment, ExperimentProfile
         from pllm.settings import ClientSettings
 
+        from pllm._decoder_admission import require_decoder_experiment, require_decoder_profile
+
+        if isinstance(experiment, Experiment):
+            require_decoder_experiment(experiment)
+        elif isinstance(experiment, ExperimentProfile):
+            require_decoder_profile(experiment)
+
         if execution is not None:
             from pllm.deployment.execution import ExecutionLease
 
@@ -5682,6 +5708,7 @@ class OpenAI:
 
                 experiment = Experiment.from_spec(strict_load(
                     Path(settings_base.experiment).read_bytes()))
+                require_decoder_experiment(experiment)
         if network is not None:
             from pllm.deployment import NetworkSpec
             from pllm.deployment.network import strict_load

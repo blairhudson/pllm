@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import fnmatch
 import hashlib
 import json
 import os
@@ -72,7 +73,45 @@ def _digest(domain: bytes, value: Any) -> str:
     return hashlib.sha256(domain + _canonical(value)).hexdigest()
 
 
-def _file_digest(path: Path, *, expected_sha1: str | None = None) -> str:
+def _sha256_file(path: Path, *, read_policy=None) -> str:
+    if read_policy is not None:
+        return read_policy.hash_file(path)
+    return _file_digest(path)
+
+
+def _file_digest(path: Path, *, expected_sha1: str | None = None, read_policy=None) -> str:
+    if read_policy is not None:
+        result = _sha256_file(path, read_policy=read_policy)
+        if expected_sha1 is not None:
+            # Git's blob ID is SHA-1, unlike the policy's SHA-256 identity.
+            # Stream this optional compatibility check with the same bound;
+            # never materialize a checkpoint file to compute its Git identity.
+            with path.open("rb") as stream:
+                before = os.fstat(stream.fileno())
+                if before.st_size > read_policy.max_file_bytes:
+                    raise ModelLoadError(f"source file exceeds byte envelope: {path.name}")
+                digest = hashlib.sha1()
+                content_digest = hashlib.sha256()
+                digest.update(f"blob {before.st_size}\0".encode("ascii"))
+                actual = 0
+                while block := stream.read(min(1024 * 1024, read_policy.max_file_bytes - actual + 1)):
+                    actual += len(block)
+                    if actual > read_policy.max_file_bytes:
+                        raise ModelLoadError(f"source file exceeds byte envelope: {path.name}")
+                    digest.update(block)
+                    content_digest.update(block)
+                after = os.fstat(stream.fileno())
+                if actual != before.st_size or (
+                    before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns
+                ) != (
+                    after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns
+                ):
+                    raise ModelLoadError(f"model source changed while hashing {path.name}")
+                if digest.hexdigest() != expected_sha1:
+                    raise ModelLoadError(f"shared HF blob digest mismatch for {path.name}")
+                if content_digest.hexdigest() != result:
+                    raise ModelLoadError(f"model source changed while hashing {path.name}")
+        return result
     digest = hashlib.sha256()
     etag_digest = hashlib.sha1() if expected_sha1 is not None else None
     if etag_digest is not None:
@@ -88,12 +127,16 @@ def _file_digest(path: Path, *, expected_sha1: str | None = None) -> str:
     return digest.hexdigest()
 
 
-def _resolver_metadata(root: Path) -> dict[str, Any]:
+def _resolver_metadata(root: Path, *, read_policy=None) -> dict[str, Any]:
     path = root / ".pllm-model.json"
     if not path.is_file():
         return {}
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        # Strict policy owns the single bounded read and strict JSON parse;
+        # never reread metadata independently after that admission.
+        value = (json.loads(path.read_text(encoding="utf-8"))) if read_policy is None else (
+            read_policy.read_json(path, limit=read_policy.max_metadata_bytes)
+        )
     except (OSError, TypeError, ValueError) as exc:
         raise ModelLoadError("invalid .pllm-model.json") from exc
     if (
@@ -107,7 +150,10 @@ def _resolver_metadata(root: Path) -> dict[str, Any]:
         )
     ):
         raise ModelLoadError("invalid .pllm-model.json")
+    if read_policy is not None and len(value["files"]) > read_policy.max_files:
+        raise ModelLoadError("source inventory exceeds file envelope")
     paths = []
+    storage = 0
     for row in value["files"]:
         if (
             not isinstance(row, dict)
@@ -122,13 +168,42 @@ def _resolver_metadata(root: Path) -> dict[str, Any]:
             )
         ):
             raise ModelLoadError("invalid .pllm-model.json")
+        if read_policy is not None:
+            storage = _source_inventory_budget(row["path"], len(paths) + 1, storage, read_policy)
         paths.append(row["path"])
     if len(paths) != len(set(paths)):
         raise ModelLoadError("invalid .pllm-model.json")
     return value
 
 
-def _source_files(path: Path) -> tuple[Path, ...]:
+def _source_inventory_budget(name: str, count: int, storage: int, read_policy) -> int:
+    name_bytes = len(name.encode("utf-8"))
+    # Account for names, hashes, sizes and retained row/container bookkeeping.
+    storage += name_bytes + 256
+    if (count > read_policy.max_files or name_bytes > read_policy.max_name_bytes
+            or storage > read_policy.max_metadata_bytes):
+        raise ModelLoadError("source inventory exceeds metadata envelope")
+    return storage
+
+
+def _source_files(path: Path, *, read_policy=None) -> tuple[Path, ...]:
+    if read_policy is not None:
+        if path.is_file():
+            _source_inventory_budget(path.name, 1, 0, read_policy)
+            return (path,)
+        files = []
+        storage = 0
+        # scandir streams entries; glob/set/sort must not first retain an
+        # unbounded inventory. Sort only after every retained name is admitted.
+        with os.scandir(path) as entries:
+            for entry in entries:
+                if (entry.name == ".pllm-model.json"
+                        or not any(fnmatch.fnmatchcase(entry.name, pattern) for pattern in _DIRECTORY_PATTERNS)
+                        or not entry.is_file()):
+                    continue
+                storage = _source_inventory_budget(entry.name, len(files) + 1, storage, read_policy)
+                files.append(path / entry.name)
+        return tuple(sorted(files, key=lambda candidate: candidate.name))
     if path.is_file():
         return (path,)
     files: set[Path] = set()
@@ -141,9 +216,15 @@ def _source_files(path: Path) -> tuple[Path, ...]:
     return tuple(sorted(files, key=lambda candidate: candidate.name))
 
 
-def _source_lock(path: Path, model: Model) -> tuple[str, str, dict[str, Any]]:
+def _source_lock(path: Path, model: Model, *, read_policy=None) -> tuple[str, str, dict[str, Any]]:
+    """Preserve source identity; optionally bound reads and retained inventory.
+
+    Policy methods: read_json(path, *, limit=None), hash_file(path).
+    Policy limits: max_files, max_name_bytes, max_metadata_bytes, max_file_bytes.
+    No-policy callers retain the legacy hashing and JSON behavior.
+    """
     root = path if path.is_dir() else path.parent
-    resolver = _resolver_metadata(root)
+    resolver = _resolver_metadata(root) if read_policy is None else _resolver_metadata(root, read_policy=read_policy)
     hub_commit = None
     source_is_local = Path(model.source).expanduser().exists()
     if not source_is_local and model.kind == "huggingface":
@@ -165,7 +246,7 @@ def _source_lock(path: Path, model: Model) -> tuple[str, str, dict[str, Any]]:
         for row in resolver.get("files", [])
         if isinstance(row, dict) and isinstance(row.get("path"), str)
     }
-    sources = _source_files(path)
+    sources = _source_files(path) if read_policy is None else _source_files(path, read_policy=read_policy)
     actual_paths = {
         source.name if path.is_file() else source.relative_to(path).as_posix()
         for source in sources
@@ -200,7 +281,11 @@ def _source_lock(path: Path, model: Model) -> tuple[str, str, dict[str, Any]]:
             etag = anchor.name
             if re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", etag) is None:
                 raise ModelLoadError(f"shared HF blob has no content identity: {relative}")
-        sha256 = _file_digest(source, expected_sha1=etag if etag is not None and len(etag) == 40 else None)
+        expected_sha1 = etag if etag is not None and len(etag) == 40 else None
+        sha256 = (
+            _file_digest(source, expected_sha1=expected_sha1) if read_policy is None else
+            _file_digest(source, expected_sha1=expected_sha1, read_policy=read_policy)
+        )
         if etag is not None and len(etag) == 64 and sha256 != etag:
             raise ModelLoadError(f"shared HF blob digest mismatch for {relative}")
         after = source.stat()
@@ -210,6 +295,8 @@ def _source_lock(path: Path, model: Model) -> tuple[str, str, dict[str, Any]]:
             after.st_size,
             after.st_mtime_ns,
         ):
+            raise ModelLoadError(f"model source changed while hashing {relative}")
+        if read_policy is not None and before.st_ctime_ns != after.st_ctime_ns:
             raise ModelLoadError(f"model source changed while hashing {relative}")
         if candidate is not None and (
             not isinstance(candidate, str)
@@ -247,6 +334,9 @@ def coerce_model(value: Model | str | Mapping[str, Any]) -> Model:
 def model_from_runtime_spec(value: Mapping[str, Any]) -> Model:
     if not isinstance(value, Mapping):
         raise ConfigurationError("runtime model request must be a mapping")
+    from pllm._decoder_admission import require_decoder_source_record
+
+    require_decoder_source_record(value)
     nested = value.get("model")
     if nested is not None:
         if not isinstance(nested, Mapping):

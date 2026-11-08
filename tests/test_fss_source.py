@@ -28,6 +28,115 @@ def canonical(value):
     return json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
 
 
+@pytest.mark.skipif(not REAL_BRIDGE, reason="requires native FSS source bridge")
+@pytest.mark.parametrize("work_policy", [None, "mixed-work-40"])
+@pytest.mark.parametrize("observe_peer_frames", [False, True])
+def test_native_description_is_scalar_and_consumes_success_and_failure(tmp_path, work_policy, observe_peer_frames):
+    config, originals = write_checkpoint(tmp_path, vocabulary=3, all_f32=True)
+    builder = _native.FssSourceBuilder(canonical(config), 1, 1, GPT)
+    for name, (dtype, payload) in sorted(originals.items()):
+        builder.append(name, dtype, 0, payload)
+    # Invalid policy parsing does not begin native execution or retire custody.
+    with pytest.raises(ValueError, match="^FuseFSS unsupported source-description work policy$"):
+        builder.describe_tensor(work_policy="unknown")
+    builder.metadata()
+    for invalid_bool in [None, 0, 1, "true", []]:
+        with pytest.raises(ValueError, match="^FuseFSS observe_peer_frames requires bool$"):
+            builder.describe_tensor(observe_peer_frames=invalid_bool)
+        builder.metadata()
+    options = {} if work_policy is None else {"work_policy": work_policy}
+    if observe_peer_frames:
+        options["observe_peer_frames"] = True
+    description = builder.describe_tensor(**options)
+    assert type(description) is dict
+    assert description["schema"] == "pllm.fss.source_description.v1"
+    assert description["extent"] == "complete"
+    assert description["first_material_refusal"] is None
+    assert description["stop_error"] is None
+    assert description["stop_context"] is None
+    assert description["material_wire_bytes"] is None
+    assert description["resources"]["private_material_cumulative_bytes"] > 0
+    assert description["resources"]["peak_native_bytes"] > 0
+    if work_policy is None:
+        assert "work_policy" not in description and "work_ceiling" not in description
+    else:
+        assert description["work_policy"] == work_policy
+        assert description["work_ceiling"] == 1 << 40
+    if observe_peer_frames:
+        assert description["observe_peer_frames"] is True
+        assert description["first_frame_refusal"] is None
+        assert description["first_frame_selection"] is None
+    else:
+        assert not {"observe_peer_frames", "first_frame_refusal", "first_frame_selection"} & description.keys()
+
+    def scalars(value):
+        if type(value) is dict:
+            assert all(type(key) is str for key in value)
+            for item in value.values():
+                scalars(item)
+        else:
+            assert value is None or type(value) in (int, str, bool)
+    scalars(description)
+    assert not {"program", "source", "capsule", "execution_binding", "obligations"} & description.keys()
+    with pytest.raises(ValueError, match="retired"):
+        builder.describe_tensor(**options)
+    with pytest.raises(ValueError, match="retired"):
+        builder.metadata()
+    failed = _native.FssSourceBuilder(canonical(config), 1, 1, GPT)
+    with pytest.raises(ValueError, match="Context.*source_seal.*source_assembly"):
+        failed.describe_tensor(**options)
+    with pytest.raises(ValueError, match="retired"):
+        failed.describe_tensor(**options)
+    with pytest.raises(ValueError, match="retired"):
+        failed.metadata()
+
+
+@pytest.mark.skipif(not REAL_BRIDGE, reason="requires native FSS source bridge")
+@pytest.mark.parametrize("work_policy", [None, "mixed-work-40"])
+@pytest.mark.parametrize("observe_peer_frames", [False, True])
+def test_describe_source_reuses_import_without_client_or_manifest(tmp_path, work_policy, observe_peer_frames):
+    write_checkpoint(tmp_path, vocabulary=3, all_f32=True)
+    phases = []
+    description = source.describe_source(experiment(tmp_path, rows=1, outputs=1,
+                                                   online_schedule="tensor-v1"), lifecycle=phases.append,
+                                         work_policy=work_policy, observe_peer_frames=observe_peer_frames)
+    assert type(description) is dict
+    assert description["extent"] == "complete"
+    assert description["material_wire_bytes"] is None
+    assert "source_recheck" in phases
+    assert phases[-1] == "source_description"
+    assert "source_manifest" not in phases
+    assert "qualification_seal" not in phases
+    if work_policy is None:
+        assert "work_policy" not in description and "work_ceiling" not in description
+    else:
+        assert (description["work_policy"], description["work_ceiling"]) == (work_policy, 1 << 40)
+    if observe_peer_frames:
+        assert description["observe_peer_frames"] is True
+        assert description["first_frame_refusal"] is None
+        assert description["first_frame_selection"] is None
+    else:
+        assert not {"observe_peer_frames", "first_frame_refusal", "first_frame_selection"} & description.keys()
+
+
+@pytest.mark.parametrize("work_policy", ["default", "mixed-work-41", "", True, 40])
+def test_description_invalid_work_policy_precedes_cold_load(monkeypatch, work_policy):
+    def forbidden_load(*args, **kwargs):
+        pytest.fail("invalid policy must not enter source loading")
+    monkeypatch.setattr(source, "_load_source", forbidden_load)
+    with pytest.raises(ValueError, match="^FuseFSS unsupported source-description work policy$"):
+        source.describe_source(object(), work_policy=work_policy)
+
+
+@pytest.mark.parametrize("observe_peer_frames", [None, 0, 1, "true", []])
+def test_description_invalid_frame_observer_precedes_cold_load(monkeypatch, observe_peer_frames):
+    def forbidden_load(*args, **kwargs):
+        pytest.fail("invalid frame option must not enter source loading")
+    monkeypatch.setattr(source, "_load_source", forbidden_load)
+    with pytest.raises(ValueError, match="^FuseFSS observe_peer_frames requires bool$"):
+        source.describe_source(object(), observe_peer_frames=observe_peer_frames)
+
+
 def inventory(config, profile):
     """Independent source-storage fixture: complete one-block GPT-2/Qwen3 shapes."""
     h, v = config.get("n_embd", config.get("hidden_size")), config["vocab_size"]
@@ -301,18 +410,18 @@ def test_tokenizer_document_retires_before_native_parse(tmp_path, monkeypatch, b
     import tokenizers
 
     write_checkpoint(tmp_path)
-    document = source._document
+    admission = source.tokenizer_admission
+    document = admission._json_metadata
     validated = []
     native_parses = []
 
     class TokenizerDocument(dict):
         pass
 
-    def track_document(payload, label, limit=source._METADATA):
-        result = document(payload, label, limit)
-        if label == "tokenizer.json":
-            result = TokenizerDocument(result)
-            validated.append(weakref.ref(result))
+    def track_document(payload, *, error, label):
+        result = document(payload, error=error, label=label)
+        result = TokenizerDocument(result)
+        validated.append(weakref.ref(result))
         return result
 
     class NativeTokenizer:
@@ -322,9 +431,10 @@ def test_tokenizer_document_retires_before_native_parse(tmp_path, monkeypatch, b
             native_parses.append(raw)
             return Tokenizer.from_buffer(raw)
 
-    monkeypatch.setattr(source, "_document", track_document)
+    monkeypatch.setattr(admission, "_json_metadata", track_document)
     monkeypatch.setattr(tokenizers, "Tokenizer", NativeTokenizer)
     admitted = admit(bridge, tmp_path, capacity=capacity)
+    assert len(validated) == 1
     assert native_parses == [admitted.tokenizer_bytes]
     assert admitted.tokenizer_digest == hashlib.sha256(admitted.tokenizer_bytes).hexdigest()
     assert admitted.tokenizer_descriptor["vocab_size"] == 32
@@ -505,11 +615,17 @@ def test_worker_rejects_coordinator_original_pin_mismatch(tmp_path, bridge, pin)
     assert all(not owner.frames for owner in bridge.owners)
 
 
-@pytest.mark.parametrize("rows,outputs", [(True, 2), (0, 2), (4, 2), (2, 4), (2, False)])
-def test_actual_request_cannot_relax_or_exceed_saved_envelope(tmp_path, bridge, rows, outputs):
+@pytest.mark.parametrize("rows,outputs,message", [
+    (True, 2, "FuseFSS invalid request geometry"),
+    (0, 2, "FuseFSS invalid request geometry"),
+    (4, 2, "FuseFSS request exceeds saved envelope"),
+    (2, 4, "FuseFSS request exceeds saved envelope"),
+    (2, False, "FuseFSS invalid request geometry"),
+])
+def test_actual_request_cannot_relax_or_exceed_saved_envelope(tmp_path, bridge, rows, outputs, message):
     write_checkpoint(tmp_path)
     admitted = admit(bridge, tmp_path)
-    with pytest.raises(ValueError, match="saved envelope"):
+    with pytest.raises(ValueError, match=f"^{message}$"):
         source.load_role_source(bridge.experiment, source=admitted, expected_pins=admitted.snapshot_pins,
                                input_rows=rows, outputs=outputs)
 

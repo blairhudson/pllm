@@ -1,7 +1,8 @@
 """Source recipe regression definitions; no checkpoint admission or execution.
 
-Pure cases never resolve a runtime. The separately guarded ``rust`` case checks
-native configuration resolution only, not trained responses or capacity.
+Pure cases never resolve a runtime. Separately guarded ``rust`` cases check
+native configuration resolution and refusal propagation only, not trained
+responses or capacity. The refusal double cannot establish native admission.
 """
 
 import json
@@ -118,3 +119,33 @@ def test_native_configuration_resolution_only():
     assert options.runtime_kind == "replicated"
     assert options.numeric_profile == PumaThreePartyDecoder.CHECKED_NUMERIC_PROFILE
     assert options.generation_policy == "fixed_length_greedy"
+    public = candidate.resolve()
+    assert public.canonical_composition == resolved.canonical_composition
+    assert public.composition_digest == resolved.composition_digest
+    assert public.configuration_digest == resolved.configuration_digest
+    assert public.client_runtime == "compiled_replicated_v1"
+    assert public.privacy_protocol == "replicated_q18"
+    assert not public.requires_preparation
+    assert public.inventory_policy == "none"
+    assert public.prepared_inventory_rows == 0
+    assert not public.background_inventory_refill
+
+
+@pytest.mark.rust
+def test_native_configuration_refusal_propagates_without_recipe_fallback(monkeypatch):
+    native = pytest.importorskip("pllm._native")
+    candidate = experiment()
+    payloads = []
+    refusal = ValueError("trained recipe native configuration refused")
+
+    def reject(payload):
+        payloads.append(payload)
+        raise refusal
+
+    # Failure-control test only: never substitute a successful runtime/model.
+    monkeypatch.setattr(native, "resolve_experiment", reject)
+    with pytest.raises(ConfigurationError, match="trained recipe native configuration refused") as failure:
+        candidate.resolve()
+    assert failure.value.__cause__ is refusal
+    assert payloads == [candidate.canonical_bytes()]
+    assert candidate.budget is BUDGET

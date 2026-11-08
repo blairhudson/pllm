@@ -98,6 +98,9 @@ def plan_on_load(
 
     if not isinstance(experiment, Experiment) or not isinstance(policy, PlanningPolicy):
         raise TypeError("plan_on_load requires Experiment and PlanningPolicy")
+    from pllm._decoder_admission import require_decoder_experiment
+
+    require_decoder_experiment(experiment)
     if space is None:
         space = optimization_space(experiment, max_candidates=policy.max_candidates)
     if (
@@ -110,6 +113,8 @@ def plan_on_load(
     candidates = tuple(row.experiment for row in GridSearch("load", space).candidates())
     if not candidates:
         raise ValueError("optimization space has no candidates satisfying its constraints")
+    for candidate in candidates:
+        require_decoder_experiment(candidate)
     base_components = experiment.pipeline.components
     adjustable = {"kernels", "inventory", "delivery", "placement", "cache", "scheduler", "preparation"}
     for candidate in candidates:

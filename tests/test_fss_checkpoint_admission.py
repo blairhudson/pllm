@@ -1,4 +1,4 @@
-"""Opt-in installed-wheel checkpoint admission; no roles or private execution.
+"""Opt-in installed-wheel checkpoint admission and raw-ID transport regression.
 
 After ordinary wheel installation, retry 1+1 from the repository root first::
 
@@ -39,6 +39,17 @@ not a claim that checkpoint admission has passed.
 Uses the existing qwen_checked_tensor_smoke factory with only its input-row
 budget varied. Source numeric/work admission is not tape/transport admission,
 an accepted private request, serving qualification, or trained-model quality.
+
+The checkpoint-backed raw-ID transport regression has independent per-node
+execution guards: both PLLM_RUN_REAL_QWEN25=1 and
+PLLM_RUN_FSS_RAW_TRANSPORT_ROWS=N are required for node [N], N in 1..4.
+Admission opt-ins alone never launch it. Each node needs a separate execution
+grant, the installed wheel, an explicit existing HF_HUB_CACHE, and unchanged
+local-only checkpoint pins and native caps; no downloads or fallback occur.
+It sends exactly N raw tokenizer IDs and requests one selected ID, not ChatML
+or Responses input. This is not ordinary benchmark acceptance, whole-model
+quality, or security qualification. Context closure and completion receipts
+are not independent physical-retirement, funding, or security proofs.
 """
 
 from contextlib import contextmanager, ExitStack
@@ -76,6 +87,81 @@ def test_pinned_qwen_checked_tensor_source_admission(initial_rows, monkeypatch):
 def test_pinned_qwen_checked_tensor_topology_admission(initial_rows, monkeypatch):
     """Require full graph capacity, without starting children or making material."""
     _complete_topology_admission(_qualified_qwen_source(initial_rows, monkeypatch))
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(
+    os.environ.get("PLLM_RUN_REAL_QWEN25") != "1",
+    reason="opt in to the pinned cached real Qwen2.5 checkpoint",
+)
+@pytest.mark.parametrize("initial_rows", [1, 2, 3, 4])
+def test_pinned_qwen_checked_tensor_raw_transport(initial_rows, monkeypatch):
+    if os.environ.get("PLLM_RUN_FSS_RAW_TRANSPORT_ROWS") != str(initial_rows):
+        pytest.skip(
+            f"opt in separately to raw-ID execution for this node with "
+            f"PLLM_RUN_FSS_RAW_TRANSPORT_ROWS={initial_rows}"
+        )
+
+    cache = os.environ.get("HF_HUB_CACHE")
+    assert cache and Path(cache).is_dir(), "HF_HUB_CACHE must name an explicit existing cache directory"
+
+    import tokenizers
+
+    from pllm.runtime.benchmark_memory import (
+        BenchmarkMemoryError,
+        MemoryWatchdog,
+        require_admission,
+    )
+    from pllm.runtime.fss_transport import execute_request, FssResult
+    from pllm.runtime.servers import build_roles
+
+    with _qualified_qwen_source(initial_rows, monkeypatch) as (experiment, loaded, check_memory):
+        source = loaded.source
+        expected_pins = dict(source.snapshot_pins)
+        tokenizer = tokenizers.Tokenizer.from_buffer(source.tokenizer_bytes)
+        encoded = tokenizer.encode("hello", add_special_tokens=False).ids
+        assert encoded
+        ids = tuple((encoded * initial_rows)[:initial_rows])
+        assert len(ids) == initial_rows
+        assert all(type(token) is int and 0 <= token < source.contract["vocabulary"] for token in ids)
+        check_memory()
+    assert loaded._closed
+    del loaded
+
+    report = _source_qualification_report(experiment)
+    cancelled = threading.Event()
+    watchdog = MemoryWatchdog(report, lambda _reason: cancelled.set())
+
+    def check_execution_memory():
+        if watchdog.error is not None:
+            raise BenchmarkMemoryError(watchdog.error)
+        watchdog.check()
+        if watchdog.error is not None:
+            raise BenchmarkMemoryError(watchdog.error)
+        assert not cancelled.is_set(), "checkpoint-backed raw-ID transport cancelled"
+
+    with ExitStack() as stack:
+        stack.callback(watchdog.close)
+        watchdog.start()
+        topology = stack.enter_context(build_roles(experiment))
+        admission = topology.memory_admission
+        assert type(admission) is dict and admission.get("full_topology_admitted") is True
+        require_admission(admission)
+        qualification = admission["source_qualification"]
+        assert qualification["native_program_priced"] is True
+        assert qualification["owner_retired"] is True
+        assert qualification["completed"] is True
+        assert admission["estimate"]["fss_admission"]["source_pins"] == expected_pins
+        check_execution_memory()
+        result = execute_request(
+            experiment, source, ids, 1, topology.worker_connections(), 600.0, cancelled.is_set,
+        )
+        check_execution_memory()
+        assert isinstance(result, FssResult)
+        assert len(result.selected) == 1
+        assert type(result.selected[0]) is int
+        assert 0 <= result.selected[0] < source.contract["vocabulary"]
+    assert topology.closed
 
 
 @contextmanager

@@ -1501,13 +1501,19 @@ def open_execution(
     configured environment references (or their named local mapping), and private
     capacity tokens scoped to an attempt. Neither enters public bindings/archives.
     """
+    if not isinstance(result, PlanningResult) or not isinstance(network, NetworkSpec):
+        raise TypeError("open_execution requires PlanningResult and NetworkSpec")
+    from pllm._decoder_admission import require_decoder_experiment
+
+    if result.experiment is not None:
+        require_decoder_experiment(result.experiment)
+    for candidate in result.request.candidates:
+        require_decoder_experiment(candidate)
     from pllm.model_loader import resolve_model
     from pllm.modeling import lower_model
     from pllm.runtime.servers import build_roles
     from pllm.runtime.transformer_engine import MaskedTransformerEngine
 
-    if not isinstance(result, PlanningResult) or not isinstance(network, NetworkSpec):
-        raise TypeError("open_execution requires PlanningResult and NetworkSpec")
     if credentials is not None and network.backend == "local":
         raise NetworkError("local backend generates credentials; credential overrides unsupported")
     clock = (lambda: time.time_ns() // 1_000_000) if clock is None else clock

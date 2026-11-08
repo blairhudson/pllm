@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from fractions import Fraction
+from types import MappingProxyType
 from typing import Any
 
 import ml_dtypes
@@ -12,6 +14,335 @@ import numpy as np
 
 class SemanticNumericError(ValueError):
     pass
+
+
+def _contract_mapping(value):
+    """Only JSON objects and the native facade's frozen object representation."""
+    if (type(value) is not dict and type(value) is not MappingProxyType
+            or any(type(key) is not str for key in value)):
+        raise SemanticNumericError("semantic contract requires an exact object container")
+    return value
+
+
+def _contract_dimensions(value):
+    """Normalize small shape declarations, never arbitrary sequence objects."""
+    if (type(value) is not list and type(value) is not tuple
+            or not value or any(type(n) is not int or n < 1 for n in value)):
+        return None
+    return tuple(value)
+
+
+def layer_norm_contract(attributes: dict[str, Any], width: int) -> np.float32:
+    """Validate the existing centered affine FP32 declaration, without weights."""
+    attributes = _contract_mapping(attributes)
+    allowed = {
+        "epsilon", "weight", "bias", "weight_shape", "bias_shape", "axis",
+        "variance", "epsilon_placement", "affine_order", "compute_dtype", "output_dtype",
+    }
+    if (
+        set(attributes) - allowed or type(width) is not int or width < 1
+        or type(attributes.get("axis")) is not int or attributes["axis"] != -1
+        or any(type(attributes.get(key)) is not str or attributes[key] != expected
+               for key, expected in (("variance", "centered_mean_square"),
+                                     ("epsilon_placement", "inside_sqrt"),
+                                     ("affine_order", "normalize_multiply_add"),
+                                     ("compute_dtype", "float32")))
+        or ("output_dtype" in attributes and (type(attributes["output_dtype"]) is not str
+                                             or attributes["output_dtype"] != "float32"))
+        or type(attributes.get("weight")) is not str or not attributes["weight"]
+        or _contract_dimensions(attributes.get("weight_shape")) != (width,)
+    ):
+        raise SemanticNumericError("unsupported centered affine LayerNorm contract")
+    bias = attributes.get("bias")
+    if (
+        type(bias) is not str or not bias
+        or _contract_dimensions(attributes.get("bias_shape")) != (width,)
+    ):
+        raise SemanticNumericError("LayerNorm bias declaration is invalid")
+    epsilon = attributes.get("epsilon")
+    if type(epsilon) is not str:
+        raise SemanticNumericError("LayerNorm epsilon is invalid")
+    try:
+        from pllm import _native as core
+        result = np.float32(core.parse_positive_f32(epsilon))
+    except (ValueError, OverflowError) as exc:
+        raise SemanticNumericError("LayerNorm epsilon is invalid") from exc
+    if not np.isfinite(result) or result <= 0:
+        raise SemanticNumericError("LayerNorm epsilon is invalid")
+    return result
+
+
+@dataclass(frozen=True, slots=True)
+class LocalNumericWorkspace:
+    """Logical array storage estimate, not physical allocator or work-ledger proof."""
+
+    max_rows: int
+    width: int
+    output_bytes: int
+    row_scratch_bytes: int
+    finite_check_bytes: int
+    scalar_bytes: int
+    estimated_scratch_bytes: int
+
+    @property
+    def temporary_bytes(self) -> int:
+        return self.output_bytes + self.estimated_scratch_bytes
+
+
+def _compiled_local_geometry(plan, phase: str, operation_id: str):
+    from pllm.modeling import ModelPlan, DecoderContinuationSchedule
+
+    if type(plan) is ModelPlan and phase in ("prefill", "decode"):
+        graph = plan.to_dict()[phase]
+    elif type(plan) is DecoderContinuationSchedule and phase == "continuation":
+        graph = plan.to_dict()["graph"]
+    else:
+        raise SemanticNumericError("local numeric geometry requires a compiled phase")
+    operations = {op["id"]: op for op in graph["operations"]}
+    operation = operations.get(operation_id)
+    if operation is None or operation["operator"] not in ("layer_norm", "token_lookup", "gelu_tanh"):
+        raise SemanticNumericError("operation has no embedding/normalization geometry")
+    shape = operation["output_shape"]
+    query, maximum = graph["query_sequence"], graph["maximum_key_sequence"]
+    if (
+        not isinstance(shape, list) or len(shape) != 3 or shape[0] != 1
+        or any(type(n) is not int or n < 1 for n in (*shape, query, maximum))
+        or shape[1] != query or query > maximum
+    ):
+        raise SemanticNumericError("local numeric geometry differs from its compiled phase")
+    if operation["operator"] in ("layer_norm", "gelu_tanh"):
+        inputs = operation["inputs"]
+        if len(inputs) != 1 or inputs[0] not in operations or operations[inputs[0]]["output_shape"] != shape:
+            raise SemanticNumericError("LayerNorm geometry differs from its producer")
+    return operation, query, shape[-1]
+
+
+def local_numeric_workspace(plan, phase: str, operation_id: str) -> LocalNumericWorkspace:
+    """Maximum geometry comes solely from the native compiled phase declaration."""
+    operation, rows, width = _compiled_local_geometry(plan, phase, operation_id)
+    from .bundle_storage import CHUNK_BYTES
+    from .semantic_workspace import semantic_local_workspace_bytes
+    norm = operation["operator"] in ("layer_norm", "gelu_tanh")
+    return LocalNumericWorkspace(rows, width, 4 * rows * width,
+                                 4 * width if norm else 0,
+                                 min(width, CHUNK_BYTES // 4) if norm else rows,
+                                 16 if norm else 0,
+                                 semantic_local_workspace_bytes(operation, (1, rows, width)))
+
+
+def _finite_row(row):
+    from .bundle_storage import CHUNK_BYTES
+    elements = CHUNK_BYTES // 4
+    return all(np.all(np.isfinite(row[start:start + elements]))
+               for start in range(0, row.size, elements))
+
+
+def source_float32_layer_norm(source, weight, bias, epsilon):
+    """Plan-neutral centered population LayerNorm; bounded row scratch."""
+    if (type(source) is not np.ndarray or source.dtype != np.float32
+            or source.ndim < 2 or source.shape[-1] < 1):
+        raise SemanticNumericError("LayerNorm requires a nonempty FP32 tensor")
+    width = source.shape[-1]
+    if weight.shape != (width,) or bias.shape != (width,):
+        raise SemanticNumericError("LayerNorm coefficient width differs")
+    for index in np.ndindex(source.shape[:-1]):
+        if not _finite_row(source[index]):
+            raise SemanticNumericError("LayerNorm input must be finite FP32")
+    output = np.empty(source.shape, dtype=np.float32)
+    squared = np.empty(width, dtype=np.float32)
+    with np.errstate(over="ignore", invalid="ignore", divide="ignore", under="ignore"):
+        for index in np.ndindex(source.shape[:-1]):
+            row, target = source[index], output[index]
+            mean = np.mean(row, dtype=np.float32)
+            np.subtract(row, mean, out=target)
+            np.multiply(target, target, out=squared)
+            variance = np.mean(squared, dtype=np.float32)
+            adjusted = np.float32(variance + epsilon)
+            denominator = np.sqrt(adjusted)
+            if not all(np.isfinite(item) for item in (mean, variance, adjusted, denominator)):
+                raise SemanticNumericError("LayerNorm arithmetic exceeds the finite float32 domain")
+            np.divide(target, denominator, out=target)
+            np.multiply(target, weight, out=target)
+            if not _finite_row(target):
+                raise SemanticNumericError("LayerNorm affine multiply exceeds the finite float32 domain")
+            np.add(target, bias, out=target)
+            if not _finite_row(target):
+                raise SemanticNumericError("LayerNorm result exceeds the finite float32 domain")
+    return output
+
+
+def source_float32_lookup(ids, weight):
+    """Exact immutable F32 table lookup, preserving input physical dimensions."""
+    from .bundle_storage import immutable_f32_backing
+    immutable_f32_backing(weight)
+    if type(ids) is not np.ndarray or ids.dtype != np.int64 or ids.size < 1:
+        raise SemanticNumericError("lookup requires exact int64 IDs")
+    if any(not 0 <= int(item) < weight.shape[0] for item in ids.flat):
+        raise SemanticNumericError("embedding IDs exceed their compiled domain")
+    return weight[ids]
+
+
+def source_float32_softmax(source):
+    """Stable last-axis FP32 softmax; no tensor-sized reduction masks."""
+    if type(source) is not np.ndarray or source.dtype != np.float32 or min(source.shape) < 1:
+        raise SemanticNumericError("softmax requires nonempty FP32 scores")
+    output = np.empty(source.shape, dtype=np.float32)
+    for index in np.ndindex(source.shape[:-1]):
+        row, target = source[index], output[index]
+        if not _finite_row(row):
+            raise SemanticNumericError("softmax scores must be finite")
+        np.subtract(row, np.max(row), out=target)
+        np.exp(target, out=target)
+        denominator = np.sum(target, dtype=np.float32)
+        if not np.isfinite(denominator) or denominator <= 0:
+            raise SemanticNumericError("softmax normalization is invalid")
+        np.divide(target, denominator, out=target)
+    return output
+
+
+def source_float32_activation(source, kind):
+    """Native erff/tanhf source arithmetic, serialized in bounded F32 chunks."""
+    from pllm import _native
+    from .bundle_storage import CHUNK_BYTES
+    if (type(source) is not np.ndarray or source.dtype != np.dtype("<f4")
+            or kind not in {"gelu_erf", "tanh"}):
+        raise SemanticNumericError("unsupported source FP32 activation")
+    output = np.empty(source.shape, dtype=np.float32)
+    # nditer buffers noncontiguous inputs in bounded chunks; no full reshape copy.
+    iterator = np.nditer([source, output], flags=["external_loop", "buffered", "zerosize_ok"],
+                         op_flags=[["readonly"], ["writeonly"]], order="C",
+                         buffersize=CHUNK_BYTES // 4)
+    with iterator:
+        for value, target in iterator:
+            if not _finite_row(value):
+                raise SemanticNumericError("activation input must be finite")
+            raw = _native.source_float32_activation(kind, value.tobytes())
+            if type(raw) is not bytes or len(raw) != value.size * 4:
+                raise SemanticNumericError("native activation returned invalid storage")
+            decoded = np.frombuffer(raw, dtype="<f4")
+            if not _finite_row(decoded):
+                raise SemanticNumericError("activation result must be finite")
+            target[:] = decoded
+    return output
+
+
+class _BoundLocalNumeric:
+    """Private runtime kernel. Tensor authority belongs to CompiledRuntimeModel."""
+
+    def __init__(self, plan, phase: str, operation_id: str, owner):
+        from .model_binding import CompiledRuntimeModel
+        from pllm.modeling import ModelPlan, DecoderContinuationSchedule
+
+        if (type(owner) is not CompiledRuntimeModel
+                or not ((type(plan) is ModelPlan and owner._plan is plan)
+                        or (type(plan) is DecoderContinuationSchedule
+                            and plan._source_plan == owner._plan.canonical_bytes()))):
+            raise SemanticNumericError("local numeric kernel requires its private compiled tensor owner")
+        tensor = owner.local_tensor
+        operation, self.max_rows, self.width = _compiled_local_geometry(plan, phase, operation_id)
+        self.operation = operation
+        self.workspace = local_numeric_workspace(plan, phase, operation_id)
+        attrs = operation["attributes"]
+        if operation["operator"] == "gelu_tanh":
+            if attrs != {
+                "formula": "0.5*x*(1+tanh(sqrt(2/pi)*(x+0.044715*x^3)))",
+                "compute_dtype": "float32",
+            }:
+                raise SemanticNumericError("unsupported compiled FP32 GELU declaration")
+            self.gelu_cubic = np.float32(0.044715)
+            self.gelu_coefficient = np.float32(math.sqrt(2.0 / math.pi))
+        elif operation["operator"] == "layer_norm":
+            self.epsilon = layer_norm_contract(attrs, self.width)
+            self.weight = tensor(attrs["weight"])
+            self.bias = tensor(attrs["bias"])
+            self._coefficient(self.weight, (self.width,))
+            self._coefficient(self.bias, (self.width,))
+        else:
+            from .semantic_tensors import lookup_contract
+            _, _, self.table_shape = lookup_contract(operation)
+            self.weight = tensor(attrs["weight"])
+            self._coefficient(self.weight, self.table_shape)
+
+    @staticmethod
+    def _coefficient(value, shape):
+        if (type(value) is not np.ndarray or value.dtype != np.float32
+                or value.shape != shape or value.flags.writeable or not value.flags.c_contiguous):
+            raise SemanticNumericError("local numeric coefficients require admitted immutable FP32 backing")
+        backing = value
+        while isinstance(backing, np.ndarray):
+            if backing.flags.writeable:
+                raise SemanticNumericError("local numeric coefficient has mutable backing")
+            backing = backing.base
+        if type(backing) is not bytes:
+            raise SemanticNumericError("local numeric coefficient lacks its immutable admitted snapshot")
+
+    def _rows(self, source):
+        if (type(source) is not np.ndarray or source.dtype != np.float32
+                or source.ndim not in (2, 3) or (source.ndim == 3 and source.shape[0] != 1)
+                or source.shape[-1] != self.width or not 1 <= source.shape[-2] <= self.max_rows):
+            raise SemanticNumericError("local FP32 operand exceeds its compiled geometry")
+        # Do not reshape a noncontiguous matrix: that could allocate another NxW.
+        return source if source.ndim == 2 else source[0]
+
+    def normalize(self, source: np.ndarray) -> np.ndarray:
+        rows = self._rows(source)
+        from .semantic_workspace import semantic_local_workspace_bytes
+        semantic_local_workspace_bytes(self.operation, (1, rows.shape[0], self.width))
+        return source_float32_layer_norm(source, self.weight, self.bias, self.epsilon)
+
+    def lookup(self, ids: np.ndarray) -> np.ndarray:
+        if (type(ids) is not np.ndarray or ids.dtype != np.int64 or ids.ndim != 1
+                or not 1 <= ids.size <= self.max_rows
+                or np.any(ids < 0) or np.any(ids >= self.table_shape[0])):
+            raise SemanticNumericError("embedding IDs exceed their compiled domain or row geometry")
+        from .semantic_workspace import semantic_local_workspace_bytes
+        semantic_local_workspace_bytes(self.operation, (1, ids.size, self.width))
+        # Import owner already checked and retained the entire immutable table.
+        return source_float32_lookup(ids, self.weight)
+
+    def activate(self, source: np.ndarray) -> np.ndarray:
+        rows = self._rows(source)
+        from .semantic_workspace import semantic_local_workspace_bytes
+        semantic_local_workspace_bytes(self.operation, (1, rows.shape[0], self.width))
+        for row in rows:
+            if not _finite_row(row):
+                raise SemanticNumericError("float32 GELU input must be finite float32")
+        output = np.empty(source.shape, dtype=np.float32)
+        target = output if output.ndim == 2 else output[0]
+        scratch = np.empty(self.width, dtype=np.float32)
+        with np.errstate(over="ignore", under="ignore", invalid="ignore"):
+            for index, row in enumerate(rows):
+                np.multiply(self.gelu_cubic, row, out=scratch)
+                np.multiply(scratch, row, out=scratch)
+                np.multiply(scratch, row, out=scratch)
+                np.add(row, scratch, out=scratch)
+                np.multiply(self.gelu_coefficient, scratch, out=scratch)
+                np.tanh(scratch, out=scratch)
+                np.add(np.float32(1), scratch, out=scratch)
+                np.multiply(np.float32(0.5), row, out=target[index])
+                np.multiply(target[index], scratch, out=target[index])
+                if not _finite_row(target[index]):
+                    raise SemanticNumericError("float32 GELU result exceeds the finite domain")
+        return output
+
+
+def float32_layer_norm(value: np.ndarray, contract: _BoundLocalNumeric) -> np.ndarray:
+    if type(contract) is not _BoundLocalNumeric or contract.operation["operator"] != "layer_norm":
+        raise SemanticNumericError("LayerNorm requires its private compiled runtime contract")
+    return contract.normalize(value)
+
+
+def float32_embedding_lookup(indices: np.ndarray, contract: _BoundLocalNumeric) -> np.ndarray:
+    if type(contract) is not _BoundLocalNumeric or contract.operation["operator"] != "token_lookup":
+        raise SemanticNumericError("lookup requires its private compiled runtime contract")
+    return contract.lookup(indices)
+
+
+def float32_gelu_tanh(value: np.ndarray, contract: _BoundLocalNumeric) -> np.ndarray:
+    """Existing tanh GELU formula with FP32 arithmetic and no BF16 boundary."""
+    if type(contract) is not _BoundLocalNumeric or contract.operation["operator"] != "gelu_tanh":
+        raise SemanticNumericError("GELU requires its private compiled runtime contract")
+    return contract.activate(value)
 
 
 def _finite_float32(value: np.ndarray | float) -> np.ndarray:
@@ -439,6 +770,12 @@ def float32_rotary_text_mrope(
 
 __all__ = [
     "SemanticNumericError",
+    "LocalNumericWorkspace",
+    "local_numeric_workspace",
+    "layer_norm_contract",
+    "float32_layer_norm",
+    "float32_embedding_lookup",
+    "float32_gelu_tanh",
     "bfloat16_gelu_tanh",
     "bfloat16_scale",
     "bfloat16_softcap",

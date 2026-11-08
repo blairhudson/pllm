@@ -332,7 +332,9 @@ def test_scaled_rotary_uses_compiled_sdk_and_gateway(
         "low_freq_factor": 1.0, "high_freq_factor": 4.0,
     }
     config_path.write_text(json.dumps(config), encoding="utf-8")
-    source = pllm.Model.path(str(root), model_id="scaled-runtime")
+    model_id = "scaled-runtime"
+    api_key = "scaled-test"
+    source = pllm.Model.path(str(root), model_id=model_id)
     quantization = SymmetricPerRow(weight_bits=8, activation_bits=8)
     experiment = pllm.Experiment(
         name="scaled-client" if client_owned else "scaled-prepared",
@@ -344,14 +346,54 @@ def test_scaled_rotary_uses_compiled_sdk_and_gateway(
     )
     with build_roles(experiment) as topology:
         with topology.client() as client:
-            result = client.responses.create(model="scaled-runtime", input="A", max_output_tokens=2)
+            if not client_owned:
+                assert client.prepared_inventory_status(model_id)["available"] == 0
+                required = client.prepared_rows_for_response("A", 2, model=model_id)
+                gateway_rows = client.prepared_rows_for_response("B", 2, model=model_id)
+                assert required > 0
+                assert gateway_rows > 0
+                assert client._core._foreground_active == client._core._online_active == 0
+                prepared = client.prepare_response("A", 2, model=model_id)
+                assert prepared["protocol"] == "seeded-inventory/v1"
+                assert prepared["status"] == "ready"
+                assert prepared["generated"] > 0
+                before = client.prepared_inventory_status(model_id)
+                assert before["available"] >= required
+                assert before["reserved"] == 0
+                assert before["stage_rows_claimed"] == 0
+                issued = client.privacy_audit.preparation_rows
+                assert issued > 0
+                assert client.privacy_audit.inference_stage_calls == 0
+            result = client.responses.create(model=model_id, input="A", max_output_tokens=2)
             assert result.usage.input_tokens > 0
             assert (client.privacy_audit.inference_stage_calls == 0) == client_owned
             assert client.privacy_audit.plaintext_prompt_bytes_sent == 0
-        with TestClient(topology.gateway_app(local_api_key="scaled-test")) as gateway:
+            if not client_owned:
+                after = client.prepared_inventory_status(model_id)
+                assert after["id"] == before["id"]
+                assert after["available"] == before["available"] - required
+                assert after["reserved"] == 0
+                assert after["stage_rows_claimed"] > 0
+                assert client.privacy_audit.preparation_rows == issued
+                assert client.privacy_audit.preparation_requests_during_online == 0
+                assert client._core._foreground_active == client._core._online_active == 0
+        with TestClient(topology.gateway_app(local_api_key=api_key)) as gateway:
+            if not client_owned:
+                preparation = gateway.post(
+                    "/v1/preprocess", headers={"Authorization": f"Bearer {api_key}"},
+                    json={"model": model_id, "count": gateway_rows},
+                )
+                assert preparation.status_code == 200, preparation.text
+                prepared = preparation.json()
+                assert prepared["model"] == model_id
+                assert prepared["protocol"] == "seeded-inventory/v1"
+                assert prepared["status"] == "ready"
+                assert prepared["generated"] >= gateway_rows
+                assert prepared["available_per_stage"]
+                assert all(rows >= gateway_rows for rows in prepared["available_per_stage"].values())
             response = gateway.post(
-                "/v1/responses", headers={"Authorization": "Bearer scaled-test"},
-                json={"model": "scaled-runtime", "input": "B", "max_output_tokens": 2},
+                "/v1/responses", headers={"Authorization": f"Bearer {api_key}"},
+                json={"model": model_id, "input": "B", "max_output_tokens": 2},
             )
             assert response.status_code == 200, response.text
             assert response.json()["usage"]["input_tokens"] > 0
@@ -438,7 +480,9 @@ def test_bounded_phi_uses_compiled_sdk_and_gateway(tmp_path: Path, client_owned:
     from pllm.runtime import build_roles
 
     root, _ = _tiny_phi_checkpoint(tmp_path / "phi")
-    source = pllm.Model.path(str(root), model_id="tiny-phi-compiled")
+    model_id = "tiny-phi-compiled"
+    api_key = "phi-test"
+    source = pllm.Model.path(str(root), model_id=model_id)
     selected = (ClientOnlyCpu if client_owned else MaskedLinearCpu)(
         source, quantization=SymmetricPerRow(weight_bits=8, activation_bits=8),
     )
@@ -450,16 +494,56 @@ def test_bounded_phi_uses_compiled_sdk_and_gateway(tmp_path: Path, client_owned:
     )
     with build_roles(experiment) as topology:
         with topology.client() as client:
+            if not client_owned:
+                assert client.prepared_inventory_status(model_id)["available"] == 0
+                required = client.prepared_rows_for_response("A", 2, model=model_id)
+                gateway_rows = client.prepared_rows_for_response("B", 2, model=model_id)
+                assert required > 0
+                assert gateway_rows > 0
+                assert client._core._foreground_active == client._core._online_active == 0
+                prepared = client.prepare_response("A", 2, model=model_id)
+                assert prepared["protocol"] == "seeded-inventory/v1"
+                assert prepared["status"] == "ready"
+                assert prepared["generated"] > 0
+                before = client.prepared_inventory_status(model_id)
+                assert before["available"] >= required
+                assert before["reserved"] == 0
+                assert before["stage_rows_claimed"] == 0
+                issued = client.privacy_audit.preparation_rows
+                assert issued > 0
+                assert client.privacy_audit.inference_stage_calls == 0
             result = client.responses.create(
-                model="tiny-phi-compiled", input="A", max_output_tokens=2,
+                model=model_id, input="A", max_output_tokens=2,
             )
             assert result.usage.input_tokens > 0
             assert (client.privacy_audit.inference_stage_calls == 0) == client_owned
             assert client.privacy_audit.plaintext_prompt_bytes_sent == 0
-        with TestClient(topology.gateway_app(local_api_key="phi-test")) as gateway:
+            if not client_owned:
+                after = client.prepared_inventory_status(model_id)
+                assert after["id"] == before["id"]
+                assert after["available"] == before["available"] - required
+                assert after["reserved"] == 0
+                assert after["stage_rows_claimed"] > 0
+                assert client.privacy_audit.preparation_rows == issued
+                assert client.privacy_audit.preparation_requests_during_online == 0
+                assert client._core._foreground_active == client._core._online_active == 0
+        with TestClient(topology.gateway_app(local_api_key=api_key)) as gateway:
+            if not client_owned:
+                preparation = gateway.post(
+                    "/v1/preprocess", headers={"Authorization": f"Bearer {api_key}"},
+                    json={"model": model_id, "count": gateway_rows},
+                )
+                assert preparation.status_code == 200, preparation.text
+                prepared = preparation.json()
+                assert prepared["model"] == model_id
+                assert prepared["protocol"] == "seeded-inventory/v1"
+                assert prepared["status"] == "ready"
+                assert prepared["generated"] >= gateway_rows
+                assert prepared["available_per_stage"]
+                assert all(rows >= gateway_rows for rows in prepared["available_per_stage"].values())
             response = gateway.post(
-                "/v1/responses", headers={"Authorization": "Bearer phi-test"},
-                json={"model": "tiny-phi-compiled", "input": "B", "max_output_tokens": 2},
+                "/v1/responses", headers={"Authorization": f"Bearer {api_key}"},
+                json={"model": model_id, "input": "B", "max_output_tokens": 2},
             )
             assert response.status_code == 200, response.text
             assert response.json()["usage"]["input_tokens"] > 0

@@ -4,6 +4,10 @@ import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .source_io import SourceReadPolicy
 
 class HuggingFaceSourceError(RuntimeError):
     pass
@@ -48,17 +52,28 @@ def _configure_hf_transfer() -> None:
     os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
 
 
-def _is_complete_snapshot(path: Path) -> bool:
+def _is_complete_snapshot(path: Path, *, read_policy: SourceReadPolicy | None = None) -> bool:
     if not path.is_dir() or not (path / "config.json").is_file():
         return False
-    indexes = tuple(path.glob("*.safetensors.index.json"))
+    if read_policy is not None:
+        files = read_policy.directory_files(path, patterns=("*.safetensors.index.json", "*.safetensors"))
+        indexes = tuple(item for item in files if item.name.endswith(".safetensors.index.json"))
+        if len(indexes) > 1:
+            raise HuggingFaceSourceError("ambiguous Safetensors source indexes")
+    else:
+        indexes = tuple(path.glob("*.safetensors.index.json"))
     if not indexes:
-        return any(path.glob("*.safetensors"))
+        return any(item.name.endswith(".safetensors") for item in files) if read_policy is not None else any(path.glob("*.safetensors"))
     try:
         for index_path in indexes:
-            payload = json.loads(index_path.read_text(encoding="utf-8"))
+            payload = (read_policy.read_json(index_path) if read_policy is not None
+                       else json.loads(index_path.read_text(encoding="utf-8")))
             weight_map = payload.get("weight_map")
             if not isinstance(weight_map, dict) or not weight_map:
+                return False
+            if read_policy is not None and (len(weight_map) > read_policy.inventory_nodes
+                    or any(type(filename) is not str or Path(filename).name != filename
+                           for filename in weight_map.values())):
                 return False
             if any(not (path / str(filename)).is_file() for filename in set(weight_map.values())):
                 return False
@@ -75,6 +90,7 @@ def resolve_huggingface_source(
     token: str | bool | None = None,
     cache_dir: str | os.PathLike[str] | None = None,
     local_files_only: bool = False,
+    read_policy: SourceReadPolicy | None = None,
 ) -> ResolvedModelSource:
     """Resolve a local HF directory or download a Hub snapshot.
 
@@ -115,6 +131,6 @@ def resolve_huggingface_source(
             raise HuggingFaceSourceError(f"failed to resolve Hugging Face model {repo_id!r}: {exc}") from exc
         resolved_id = model_id or repo_id
 
-    if not _is_complete_snapshot(path):
+    if not _is_complete_snapshot(path, read_policy=read_policy):
         raise HuggingFaceSourceError(f"model source is incomplete or has no Safetensors weights: {path}")
     return ResolvedModelSource(path=path, model_id=str(resolved_id), repo_id=repo_id, revision=revision)

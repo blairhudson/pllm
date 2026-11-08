@@ -22,6 +22,55 @@ PHASES = ("unknown", "dashboard_startup", "memory_preflight", "source_inspection
           "graph_admission", "role_startup", "client_startup",
           "ready", "request", *SOURCE_IMPORT_PHASES)
 _OBSERVE = object()
+REQUEST_FAILURE_STAGES = ("input_count", "prepare_prompt", "validate_source", "bind_encode", "transport", "accept_result")
+_REQUEST_FAILURE_FIELDS = ("stage", "role", "code", "http_status")
+
+
+def sanitize_request_failure_context(value):
+    """Only fixed public request labels; no exception text or inferred HTTP status."""
+    if (type(value) is not dict or len(value) != len(_REQUEST_FAILURE_FIELDS)
+            or any(type(key) is not str or key not in _REQUEST_FAILURE_FIELDS for key in value)):
+        return None
+    stage, role, code, status = (value[key] for key in _REQUEST_FAILURE_FIELDS)
+    if (type(stage) is not str or stage not in REQUEST_FAILURE_STAGES
+            or type(role) is not str or role not in ("client", "worker_a", "worker_b")
+            or type(code) is not str or code not in (
+                "gkm_stage_failed", "worker_http_rejected", "count_owner_busy", "input_count_failed")
+            or (status is not None and (type(status) is not int or not 100 <= status <= 599))):
+        return None
+    if code == "worker_http_rejected":
+        if stage != "transport" or role == "client" or status is None:
+            return None
+    elif role != "client" or status is not None:
+        return None
+    elif (stage == "input_count") != (code in ("count_owner_busy", "input_count_failed")):
+        return None
+    return dict(zip(_REQUEST_FAILURE_FIELDS, (stage, role, code, status)))
+
+
+def merge_failure_diagnostics(primary, fallback):
+    """Keep first observations, filling only absent bounded optional context."""
+    primary = sanitize_failure_diagnostics(primary)
+    fallback = sanitize_failure_diagnostics(fallback)
+    if primary is None:
+        return fallback
+    if fallback is not None:
+        for key in ("request_failure_context", "fss_control_boundary", "fss_execution_progress"):
+            if key not in primary and key in fallback:
+                primary[key] = fallback[key]
+    return primary
+
+
+def _request_failure_context(error):
+    if error is None:
+        return None
+    from .client import ProtocolError
+
+    if isinstance(error, ProtocolError):
+        return sanitize_request_failure_context(getattr(error, "request_failure_context", None))
+    return None
+
+
 # One immutable tuple, not an event history. Intended charging is the existing
 # client HTTP control overlap (8 * 16 KiB control slots beyond admission bodies)
 # and supervisor's 1 MiB reader/cache/control allowance. These are coarse shared
@@ -148,6 +197,9 @@ def sanitize_failure_diagnostics(value):
     progress = sanitize_execution_progress(value.get("fss_execution_progress"))
     if progress is not None:
         result["fss_execution_progress"] = progress
+    context = sanitize_request_failure_context(value.get("request_failure_context"))
+    if context is not None:
+        result["request_failure_context"] = context
     return result
 
 
@@ -256,7 +308,8 @@ class FailureDiagnostics:
                                        if current_phase == "request" and progress_eligible else None),
         })
 
-    def capture(self, *, phase=None, observation=_OBSERVE, control_boundary=_OBSERVE):
+    def capture(self, *, phase=None, observation=_OBSERVE, control_boundary=_OBSERVE,
+                request_failure_context=None):
         # A concurrent capture must not delay cancellation or cleanup either.
         if not self._lock.acquire(blocking=False):
             return deepcopy(self._snapshot)
@@ -265,19 +318,27 @@ class FailureDiagnostics:
                 self._snapshot = (self.observe(phase=phase, control_boundary=control_boundary)
                                   if observation is _OBSERVE
                                   else sanitize_failure_diagnostics(observation))
+                context = sanitize_request_failure_context(request_failure_context)
+                if self._snapshot is not None and context is not None:
+                    self._snapshot.setdefault("request_failure_context", context)
             return deepcopy(self._snapshot)
         finally:
             self._lock.release()
 
 
-def capture_failure(runtime, *, phase=None, observation=_OBSERVE):
+def capture_failure(runtime, *, phase=None, observation=_OBSERVE, error=None):
     """Observe before abort cleanup; diagnostics must never interfere with guards."""
-    collector = getattr(runtime, "_benchmark_failure_diagnostics", None)
-    if collector is not None:
-        try:
-            return collector.capture(phase=phase, observation=observation)
-        except Exception:
-            return None
+    try:
+        context = _request_failure_context(error)
+        collector = getattr(runtime, "_benchmark_failure_diagnostics", None)
+        if collector is not None:
+            return collector.capture(phase=phase, observation=observation,
+                                     request_failure_context=context)
+        if context is not None:
+            return sanitize_failure_diagnostics({"schema_version": SCHEMA, "phase": phase,
+                                                 "request_failure_context": context})
+    except Exception:
+        return None
     return None
 
 

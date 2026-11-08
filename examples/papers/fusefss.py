@@ -56,3 +56,11 @@ def qwen_checked_tensor_smoke():
 def qwen_checked_tensor_minimal_smoke():
     """Separate 3+1 workload fitting `user: hi`; does not qualify the 4+1 default."""
     return qwen_checked_tensor_smoke().with_params(budget__max_input_tokens=3)
+
+
+def qwen_empty_system():
+    """Empty-system ChatML candidate; token count and material admission unverified."""
+    return qwen_checked_tensor_smoke().with_params(
+        name="fusefss-qwen-empty-system", budget__requests=1,
+        budget__max_input_tokens=15, budget__max_new_tokens=1,
+    )

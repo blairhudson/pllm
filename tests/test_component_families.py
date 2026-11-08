@@ -12,6 +12,7 @@ import pllm.components as components
 import pllm.configuration as configuration
 from pllm.correlation import CorrelationSource, SecretReplicationPcf, SeededExpansion
 from pllm.kernels import AppleMetal, Cpu, KernelBackend
+from pllm.numeric import SourceFloat32
 from pllm.metrics import (
     Accuracy,
     Communication,
@@ -175,7 +176,7 @@ def _instances():
 
 
 def test_builtin_registry_is_derived_from_family_classes() -> None:
-    instances = _instances()
+    instances = (*_instances(), SourceFloat32())
     expected = tuple(sorted(instance.component for instance in instances))
     classes = components.list_component_classes()
     descriptors = components.list_components()
@@ -199,7 +200,8 @@ def test_builtin_registry_is_derived_from_family_classes() -> None:
         assert restored == instance
 
 
-def test_all_registered_classes_round_trip_through_experiment_configuration() -> None:
+def test_registered_decoder_classes_round_trip_through_experiment_configuration() -> None:
+    # Forward-only SourceFloat32 has its own strict composition and schema tests.
     instances = _instances()
     experiment = pllm.Experiment.from_spec(
         {

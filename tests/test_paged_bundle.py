@@ -280,8 +280,33 @@ def test_paged_sdk_matches_all_logits_kv_cache_and_gateway(tmp_path, monkeypatch
             with roles.client(bundle_cache_dir=tmp_path / f"cache-{storage}") as client:
                 native_limit = 2 if storage == "memory" else 1
                 client._core._bind_native_worker_limit(native_limit)
-                results = [client.responses.create(input="abc", max_output_tokens=2, temperature=0)
-                           for _ in range(2)]
+                if topology != "offset":
+                    gateway_rows = client.prepared_rows_for_response("abc", 2, model=roles.model_id)
+                    assert gateway_rows > 0
+                results = []
+                for _ in range(2):
+                    if topology != "offset":
+                        assert client._core._foreground_active == client._core._online_active == 0
+                        required = client.prepared_rows_for_response("abc", 2, model=roles.model_id)
+                        prepared = client.prepare_response("abc", 2, model=roles.model_id)
+                        assert prepared["model"] == roles.model_id
+                        assert prepared["protocol"] == "seeded-inventory/v1"
+                        assert prepared["status"] == "ready"
+                        assert prepared["available_per_stage"]
+                        assert all(rows >= required for rows in prepared["available_per_stage"].values())
+                        before = client.prepared_inventory_status(roles.model_id)
+                        assert before["available"] >= required
+                        assert before["reserved"] == 0
+                        assert client._core._foreground_active == client._core._online_active == 0
+                        issued = client.privacy_audit.preparation_rows
+                        assert client.privacy_audit.preparation_requests_during_online == 0
+                    results.append(client.responses.create(input="abc", max_output_tokens=2, temperature=0))
+                    if topology != "offset":
+                        after = client.prepared_inventory_status(roles.model_id)
+                        assert after["reserved"] == 0
+                        assert client.privacy_audit.preparation_rows == issued
+                        assert client.privacy_audit.preparation_requests_during_online == 0
+                        assert client._core._foreground_active == client._core._online_active == 0
                 outputs.append([(r.output_text, r.usage) for r in results])
                 audit = client.privacy_audit.to_dict()
                 assert audit["plaintext_prompt_bytes_sent"] == audit["plaintext_token_ids_sent"] == 0
@@ -304,6 +329,17 @@ def test_paged_sdk_matches_all_logits_kv_cache_and_gateway(tmp_path, monkeypatch
             trajectories.append(current.copy())
             if storage == "paged":
                 with TestClient(roles.gateway_app(local_api_key="paged-local")) as api:
+                    if topology != "offset":
+                        preparation = api.post("/v1/preprocess", headers={"Authorization": "Bearer paged-local"},
+                            json={"model": roles.model_id, "count": gateway_rows})
+                        assert preparation.status_code == 200, preparation.text
+                        prepared = preparation.json()
+                        assert prepared["model"] == roles.model_id
+                        assert prepared["protocol"] == "seeded-inventory/v1"
+                        assert prepared["status"] == "ready"
+                        assert prepared["generated"] >= gateway_rows
+                        assert prepared["available_per_stage"]
+                        assert all(rows >= gateway_rows for rows in prepared["available_per_stage"].values())
                     response = api.post("/v1/responses", headers={"Authorization": "Bearer paged-local"},
                         json={"model": roles.model_id, "input": "abc", "max_output_tokens": 2, "temperature": 0})
                     assert response.status_code == 200, response.text

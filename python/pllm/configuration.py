@@ -14,12 +14,15 @@ from urllib.parse import urlsplit
 import yaml
 
 if TYPE_CHECKING:
+    from pllm.runtime.forward_inputs import ForwardInputs
+    from pllm.runtime.forward_binding import CompiledForwardModel, ForwardResult
     from pllm.providers import ProviderDescriptor
     from pllm.roles.topology import RoleGraph
 
 _DIGEST_DOMAIN = b"pllm.configuration.v1\0"
 _PIPELINE_DIGEST_DOMAIN = b"pllm.pipeline.v2\0"
 _EXPERIMENT_SCHEMA = "pllm.experiment.v2"
+_FORWARD_EXPERIMENT_SCHEMA = "pllm.experiment.forward.v1"
 _MAX_DOCUMENT_BYTES = 1_048_576
 
 
@@ -514,6 +517,12 @@ class Pipeline(_Configuration):
                     create_component(component.component, component.params),
                 )
         object.__setattr__(self, "components", MappingProxyType(copied))
+        if "numeric" in copied or any(
+            value.component == "pllm/source-float32/v1" for value in copied.values()
+        ):
+            from pllm.profiles import resolve_forward_runtime_composition
+
+            resolve_forward_runtime_composition(self)
 
     @classmethod
     def from_profile(
@@ -650,11 +659,28 @@ class ExecutionBudget(_Configuration):
 
 
 @dataclass(frozen=True, slots=True)
+class ForwardBudget(_Configuration):
+    """Accepted forward attempts and sequence-length ceiling, not generation."""
+
+    requests: int
+    max_input_tokens: int
+
+    def __post_init__(self) -> None:
+        for name in ("requests", "max_input_tokens"):
+            value = _integer(getattr(self, name), f"budget.{name}")
+            if value > (1 << 64) - 1:
+                raise ConfigurationError(f"budget.{name} exceeds uint64")
+
+    def to_spec(self) -> dict[str, Any]:
+        return {"requests": self.requests, "max_input_tokens": self.max_input_tokens}
+
+
+@dataclass(frozen=True, slots=True)
 class Experiment(_Configuration):
     name: str
     pipeline: Pipeline
     deployment: Deployment
-    budget: ExecutionBudget
+    budget: ExecutionBudget | ForwardBudget
 
     def __post_init__(self) -> None:
         _string(self.name, "experiment.name")
@@ -662,8 +688,16 @@ class Experiment(_Configuration):
             raise ConfigurationError("experiment.pipeline must be a Pipeline")
         if not isinstance(self.deployment, Deployment):
             raise ConfigurationError("experiment.deployment must be a Deployment")
-        if not isinstance(self.budget, ExecutionBudget):
-            raise ConfigurationError("experiment.budget must be an ExecutionBudget")
+        if not isinstance(self.budget, (ExecutionBudget, ForwardBudget)):
+            raise ConfigurationError("experiment.budget must be an ExecutionBudget or ForwardBudget")
+        if isinstance(self.budget, ForwardBudget):
+            if self.deployment.kind != "local":
+                raise ConfigurationError("forward execution requires local deployment")
+            from pllm.profiles import resolve_forward_runtime_composition
+
+            resolve_forward_runtime_composition(self.pipeline)
+        elif "numeric" in self.pipeline.components:
+            raise ConfigurationError("SourceFloat32 requires ForwardBudget, not decoder ExecutionBudget")
         cache = self.pipeline.components.get("cache")
         if (self.deployment.kind == "network" and cache is not None
                 and {"decode", "decode_max_bytes"} & cache.params.keys()):
@@ -689,7 +723,8 @@ class Experiment(_Configuration):
 
     def to_spec(self) -> dict[str, Any]:
         return {
-            "schema": "pllm.experiment.v3" if self.deployment.kind == "network" else _EXPERIMENT_SCHEMA,
+            "schema": (_FORWARD_EXPERIMENT_SCHEMA if isinstance(self.budget, ForwardBudget)
+                       else "pllm.experiment.v3" if self.deployment.kind == "network" else _EXPERIMENT_SCHEMA),
             "name": self.name,
             "pipeline": self.pipeline.to_spec(),
             "deployment": self.deployment.to_spec(),
@@ -704,6 +739,39 @@ class Experiment(_Configuration):
 
     def resolve(self) -> ExperimentProfile:
         return ExperimentProfile(self)
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any], *,
+                  providers: Iterable[ProviderDescriptor] = ()) -> Experiment:
+        return cls.from_spec(value, providers=providers)
+
+    @classmethod
+    def from_json(cls, text: str, *,
+                  providers: Iterable[ProviderDescriptor] = ()) -> Experiment:
+        return loads_configuration(text, format="json", providers=providers)
+
+    def to_dict(self) -> dict[str, Any]:
+        return self.to_spec()
+
+    def to_json(self) -> str:
+        return self.canonical_bytes().decode("utf-8")
+
+    def compile_forward(self, *, memory_bytes: int) -> CompiledForwardModel:
+        if not isinstance(self.budget, ForwardBudget):
+            raise ConfigurationError("compile_forward requires ForwardBudget")
+        value = _integer(memory_bytes, "memory_bytes")
+        if value > (1 << 64) - 1:
+            raise ConfigurationError("memory_bytes exceeds uint64")
+        from pllm.runtime.forward_binding import CompiledForwardModel
+
+        return CompiledForwardModel._from_experiment(self, memory_bytes=memory_bytes)
+
+    def forward(self, inputs: ForwardInputs, *, memory_bytes: int) -> ForwardResult:
+        compiled = self.compile_forward(memory_bytes=memory_bytes)
+        try:
+            return compiled.forward(inputs)
+        finally:
+            compiled.close()
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -748,6 +816,9 @@ class ExperimentProfile:
     def __init__(self, experiment: Experiment) -> None:
         if not isinstance(experiment, Experiment):
             raise TypeError("experiment must be an Experiment")
+        from pllm._decoder_admission import require_decoder_experiment
+
+        require_decoder_experiment(experiment)
         from pllm.profiles import resolve_runtime_composition
         from pllm.roles.topology import graph_for_runtime
 
@@ -923,7 +994,9 @@ def _experiment_from_spec(
     providers: Iterable[ProviderDescriptor] = (),
 ) -> Experiment:
     data = _fields(value, {"schema", "name", "pipeline", "deployment", "budget"}, "experiment")
-    if data["schema"] not in {_EXPERIMENT_SCHEMA, "pllm.experiment.v3"}:
+    if type(data["schema"]) is not str or data["schema"] not in {
+        _EXPERIMENT_SCHEMA, "pllm.experiment.v3", _FORWARD_EXPERIMENT_SCHEMA
+    }:
         raise ConfigurationError(f"unsupported schema: {data['schema']!r}")
     pipeline = Pipeline.from_spec(data["pipeline"], providers=providers)
     network = data["schema"] == "pllm.experiment.v3"
@@ -932,14 +1005,15 @@ def _experiment_from_spec(
                              if network else {"kind", "root"}, "deployment")
     if deployment_data["kind"] != ("network" if network else "local"):
         raise ConfigurationError("experiment schema and deployment kind disagree")
-    budget_data = _fields(
-        data["budget"], {"requests", "max_input_tokens", "max_new_tokens"}, "budget"
-    )
+    forward = data["schema"] == _FORWARD_EXPERIMENT_SCHEMA
+    budget_data = _fields(data["budget"],
+                          {"requests", "max_input_tokens"} if forward else
+                          {"requests", "max_input_tokens", "max_new_tokens"}, "budget")
     return Experiment(
         name=data["name"],
         pipeline=pipeline,
         deployment=Deployment(**deployment_data),
-        budget=ExecutionBudget(
+        budget=ForwardBudget(**budget_data) if forward else ExecutionBudget(
             requests=budget_data["requests"],
             max_input_tokens=budget_data["max_input_tokens"],
             max_new_tokens=budget_data["max_new_tokens"],
@@ -1096,6 +1170,7 @@ __all__ = [
     "ConfigurationError",
     "Deployment",
     "ExecutionBudget",
+    "ForwardBudget",
     "Experiment",
     "ExperimentProfile",
     "Model",

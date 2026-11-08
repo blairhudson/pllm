@@ -517,7 +517,7 @@ class LoadedFssSource:
 
 
 def load_role_source(experiment, *, expected_pins, input_rows=None, outputs=None, cancelled=None, source=None,
-                     lifecycle=None, on_failure=None):
+                      lifecycle=None, on_failure=None):
     """Import a role's own public checkpoint, pinned to coordinator's original snapshot.
 
     This does not send weights from client or manufacture serving admission.
@@ -525,18 +525,81 @@ def load_role_source(experiment, *, expected_pins, input_rows=None, outputs=None
     Lifecycle callbacks receive fixed names only. The failure callback runs before
     owned cleanup; callers must signal stop before nonblocking cached diagnostics.
     """
+    return _load_source(experiment, expected_pins=expected_pins, input_rows=input_rows,
+                        outputs=outputs, cancelled=cancelled, source=source,
+                        lifecycle=lifecycle, on_failure=on_failure)
+
+
+def describe_source(experiment, *, cancelled=None, lifecycle=None, on_failure=None, work_policy=None,
+                    observe_peer_frames=False):
+    """Import/recheck actual source and describe tensor-v1 without a Client.
+
+    Returns scalars only, before any manifest or executable capsule is created.
+    Complete means the walk finished despite any material refusal, not admission
+    or trained fit. Partial counters can reflect different intra-kernel progress.
+    This performs real source I/O and compilation; it is not a geometry estimate.
+    mixed-work-40 is a finite description-only mixed-work ceiling, not funding
+    or an execution limit change. Default serialization remains unchanged.
+    observe_peer_frames records the first predicted cumulative peer-frame refusal
+    without emitting frames; actual transport/public-copy/native limits stay hard.
+    """
+    if work_policy is not None and (type(work_policy) is not str or work_policy != "mixed-work-40"):
+        raise FssSourceError("FuseFSS unsupported source-description work policy")
+    if type(observe_peer_frames) is not bool:
+        raise FssSourceError("FuseFSS observe_peer_frames requires bool")
+    return _load_source(experiment, expected_pins=None, cancelled=cancelled,
+                        lifecycle=lifecycle, on_failure=on_failure, describe_only=True,
+                        work_policy=work_policy, observe_peer_frames=observe_peer_frames)
+
+
+def _load_source(experiment, *, expected_pins, input_rows=None, outputs=None, cancelled=None, source=None,
+                 lifecycle=None, on_failure=None, describe_only=False, work_policy=None,
+                 observe_peer_frames=False):
+    # One import-through-recheck path. The descriptive terminal cannot produce
+    # a program; normal seal/manifest order and cleanup remain unchanged.
+    failure_notified = False
+
+    def notify_failure_once():
+        nonlocal failure_notified
+        if not failure_notified:
+            # Share this invocation's notification across both exception scopes.
+            # Mark before calling: reentry or BaseException cannot notify twice.
+            failure_notified = True
+            _notify_failure(on_failure)
+
     builder = program = store = None
     try:
         if lifecycle is not None:
             lifecycle("qualification_metadata")
         _cancelled(cancelled)
-        source = source if source is not None else resolve_client_source(
-            experiment, expected_pins=expected_pins, lifecycle=lifecycle, on_failure=on_failure)
-        if not isinstance(source, FrozenFssSource):
-            raise TypeError("FuseFSS source requires FrozenFssSource metadata")
-        _check_pins(source, expected_pins)
+        if describe_only:
+            _experiment(experiment)
+            if _online_schedule(experiment.pipeline.components["linear"].params) != "tensor-v1":
+                raise FssSourceError("FuseFSS description requires tensor-v1")
+        # An already supplied owner must retain its original identity/pin error
+        # precedence. Geometry cannot authenticate it or authorize a replacement.
+        if source is not None:
+            if not isinstance(source, FrozenFssSource):
+                raise TypeError("FuseFSS source requires FrozenFssSource metadata")
+            if describe_only and expected_pins is None:
+                expected_pins = source.snapshot_pins
+            _check_pins(source, expected_pins)
         rows = experiment.budget.max_input_tokens if input_rows is None else input_rows
         outputs = experiment.budget.max_new_tokens if outputs is None else outputs
+        # Scalar refusal only: no source/config/native work is needed to know
+        # that the final selection reads prefix rows + outputs - 1. Keep the
+        # independent native and _contract checks; this grants no admission.
+        if (type(rows) is not int or type(outputs) is not int or not 1 <= outputs <= 4
+                or not 1 <= rows <= rows + outputs - 1 <= 16):
+            raise FssSourceError("FuseFSS invalid request geometry")
+        if source is None:
+            source = resolve_client_source(
+                experiment, expected_pins=expected_pins, lifecycle=lifecycle, on_failure=notify_failure_once)
+            if not isinstance(source, FrozenFssSource):
+                raise TypeError("FuseFSS source requires FrozenFssSource metadata")
+            if describe_only and expected_pins is None:
+                expected_pins = source.snapshot_pins
+            _check_pins(source, expected_pins)
         if lifecycle is not None:
             lifecycle("source_contract")
         contract_bytes = source.runtime_contract(experiment, rows, outputs)
@@ -600,6 +663,17 @@ def load_role_source(experiment, *, expected_pins, input_rows=None, outputs=None
         if _locked(source.path, source.model, size, source._identities, capacity) != expected_lock:
             raise FssSourceError("FuseFSS source changed during import")
         _cancelled(cancelled)
+        if describe_only:
+            if lifecycle is not None:
+                lifecycle("source_description")
+            options = {}
+            if work_policy is not None:
+                options["work_policy"] = work_policy
+            if observe_peer_frames:
+                options["observe_peer_frames"] = True
+            description = builder.describe_tensor(**options)
+            _cancelled(cancelled)
+            return description
         seal = {"serial": "seal", "wavefront-v1": "seal_wavefront", "tensor-v1": "seal_tensor"}[_online_schedule(record)]
         if lifecycle is not None:
             lifecycle("qualification_seal")
@@ -622,18 +696,22 @@ def load_role_source(experiment, *, expected_pins, input_rows=None, outputs=None
         descriptor["sha256"] = hashlib.sha256(b"pllm.fss.public-f32-rotary-source.v1\0" + io._canonical(descriptor)).hexdigest()
         return LoadedFssSource(source, contract_bytes, program, manifest_bytes, io._canonical(descriptor))
     except BaseException:
-        _notify_failure(on_failure)
-        if program is not None:
-            program.close()
+        try:
+            notify_failure_once()
+        finally:
+            if program is not None:
+                program.close()
         raise
     finally:
-        if builder is not None:
-            builder.close()
-        if store is not None:
-            store.clear_cache()
+        try:
+            if builder is not None:
+                builder.close()
+        finally:
+            if store is not None:
+                store.clear_cache()
 
 
 admit_source = resolve_client_source
 
 __all__ = ["FrozenFssSource", "FssSourceError", "LoadedFssSource", "admit_source",
-           "load_role_source", "resolve_client_source"]
+           "describe_source", "load_role_source", "resolve_client_source"]

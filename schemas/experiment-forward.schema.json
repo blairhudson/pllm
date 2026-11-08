@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.run/schemas/experiment-forward.schema.json",
+  "title": "PLLM public source FP32 forward experiment v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "name", "pipeline", "deployment", "budget"],
+  "properties": {
+    "schema": {"const": "pllm.experiment.forward.v1"},
+    "name": {"type": "string", "minLength": 1},
+    "pipeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "components"],
+      "properties": {
+        "model": {"$ref": "model.schema.json"},
+        "components": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["numeric", "kernels", "linear", "topology"],
+          "properties": {
+            "numeric": {
+              "$ref": "#/$defs/component",
+              "properties": {"component": {"const": "pllm/source-float32/v1"}, "params": {"maxProperties": 0}}
+            },
+            "linear": {
+              "$ref": "#/$defs/component",
+              "properties": {"component": {"const": "pllm/cleartext-linear"}, "params": {"maxProperties": 0}}
+            },
+            "topology": {
+              "$ref": "#/$defs/component",
+              "properties": {"component": {"const": "pllm/client-only/v1"}, "params": {"maxProperties": 0}}
+            },
+            "kernels": {
+              "$ref": "#/$defs/component",
+              "properties": {
+                "component": {"const": "pllm/cpu"},
+                "params": {
+                  "type": "object", "additionalProperties": false,
+                  "required": ["threads"],
+                  "properties": {"threads": {"$ref": "#/$defs/positiveUint64"}}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "deployment": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "root"],
+      "properties": {"kind": {"const": "local"}, "root": {"type": "string", "minLength": 1}}
+    },
+    "budget": {
+      "type": "object", "additionalProperties": false,
+      "required": ["requests", "max_input_tokens"],
+      "properties": {
+        "requests": {"$ref": "#/$defs/positiveUint64"},
+        "max_input_tokens": {"$ref": "#/$defs/positiveUint64"}
+      }
+    }
+  },
+  "$defs": {
+    "positiveUint64": {"type": "integer", "minimum": 1, "maximum": 18446744073709551615},
+    "component": {
+      "type": "object", "additionalProperties": false,
+      "required": ["component", "params"],
+      "properties": {"component": {"type": "string"}, "params": {"type": "object"}}
+    }
+  }
+}

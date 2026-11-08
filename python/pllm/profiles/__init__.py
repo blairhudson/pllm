@@ -7,6 +7,7 @@ from typing import Any, Literal
 
 from pllm.configuration import ConfigurationError, Model, Pipeline
 from pllm.kernels import AppleMetal, Cpu, KernelBackend
+from pllm.numeric import SourceFloat32
 from pllm.nonlinear import MaskedWireGatedMultiplyQ12, NonlinearProtocol
 from pllm.preparation import ModelAwareCorrections, PreparationProvider, PreparedInventory
 from pllm.quantization import PublicPerChannelEqualized, QuantizationScheme, SymmetricPerRow
@@ -262,7 +263,7 @@ class ClientOnlyCpu(_TypedPipeline):
     """Client-owned decoder with local quantized body linear stages."""
 
     PROFILE = "baseline.client_only_cpu"
-    SLOT_NAMES = ("linear", "kernels", "quantization", "topology", "state", "scheduler")
+    SLOT_NAMES = ("linear", "kernels", "quantization", "numeric", "topology", "state", "scheduler")
     __slots__ = ()
 
     def __init__(
@@ -275,7 +276,12 @@ class ClientOnlyCpu(_TypedPipeline):
         topology: RoleTopology = _DEFAULT_CLIENT_ONLY,
         state: ClientLocalKv | None = None,
         scheduler: MlpPrefillTiling | None = None,
+        numeric: SourceFloat32 | None = None,
     ) -> None:
+        if numeric is not None:
+            _slot("numeric", numeric, SourceFloat32, SourceFloat32.descriptor.component)
+            if quantization is not None:
+                raise ConfigurationError("numeric and quantization are mutually exclusive")
         if quantization is not None:
             _slot("quantization", quantization, QuantizationScheme)
             if quantization.component not in {
@@ -303,6 +309,7 @@ class ClientOnlyCpu(_TypedPipeline):
                 **({"quantization": quantization} if quantization is not None else {}),
                 **({"state": _slot("state", state, ClientLocalKv)} if state is not None else {}),
                 **({"scheduler": _slot("scheduler", scheduler, MlpPrefillTiling)} if scheduler is not None else {}),
+                **({"numeric": numeric} if numeric is not None else {}),
             },
         )
 
@@ -321,6 +328,10 @@ class ClientOnlyCpu(_TypedPipeline):
     @property
     def topology(self) -> ClientOnlyRoles:
         return self.components["topology"]
+
+    @property
+    def numeric(self) -> SourceFloat32 | None:
+        return self.components.get("numeric")
 
     @property
     def state(self) -> ClientLocalKv | None:
@@ -826,6 +837,47 @@ class DirectFHEProfile(_TypedPipeline):
 
 
 @dataclass(frozen=True, slots=True)
+class ForwardRuntimeComposition:
+    """Forward-only arithmetic contract; no decoder integer options."""
+
+    runtime_kind: str = "client_only_source_f32"
+    numeric_profile: str = SourceFloat32.NUMERIC_PROFILE
+    threads: int = 1
+
+
+def resolve_forward_runtime_composition(pipeline: Pipeline) -> ForwardRuntimeComposition:
+    if not isinstance(pipeline, Pipeline):
+        raise ConfigurationError("forward pipeline must be a Pipeline")
+    expected = {
+        "numeric": SourceFloat32.descriptor.component,
+        "linear": CleartextLinear.descriptor.component,
+        "kernels": Cpu.descriptor.component,
+        "topology": ClientOnlyRoles.descriptor.component,
+    }
+    if {name: value.component for name, value in pipeline.components.items()} != expected:
+        raise ConfigurationError("forward requires SourceFloat32, CPU, cleartext linear and client-only topology only")
+    if any(pipeline.components[name].params for name in ("numeric", "linear", "topology")):
+        raise ConfigurationError("forward numeric, linear and topology params must be empty")
+    params = pipeline.components["kernels"].params
+    if set(params) != {"threads"}:
+        raise ConfigurationError("forward CPU requires exactly threads")
+    kernels = Cpu.from_params(params)
+    if kernels.params != params:
+        raise ConfigurationError("forward CPU params are not canonical")
+    if params["threads"] > (1 << 64) - 1:
+        raise ConfigurationError("forward CPU threads exceeds uint64")
+    return ForwardRuntimeComposition(threads=params["threads"])
+
+
+def resolve_decoder_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None:
+    if "numeric" in pipeline.components or any(
+        value.component == SourceFloat32.descriptor.component for value in pipeline.components.values()
+    ):
+        raise ConfigurationError("SourceFloat32 is forward-only, not a decoder numeric mode")
+    return resolve_runtime_composition(pipeline)
+
+
+@dataclass(frozen=True, slots=True)
 class RuntimeComposition:
     privacy_mode: str
     proprietary_protocol: str
@@ -926,6 +978,10 @@ def _resolve_gkm_composition(pipeline: Pipeline) -> RuntimeComposition | None:
 
 
 def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None:
+    if "numeric" in pipeline.components or any(
+        value.component == SourceFloat32.descriptor.component for value in pipeline.components.values()
+    ):
+        return None
     identities = {name: component.component for name, component in pipeline.components.items()}
     if set(identities.values()) & {
             FuseFssSourceDecoder.descriptor.component, TrustedDealerTwoShareRoles.descriptor.component,
@@ -1497,6 +1553,9 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
 
 
 __all__ = [
+    "ForwardRuntimeComposition",
+    "resolve_forward_runtime_composition",
+    "resolve_decoder_runtime_composition",
     "ClientOnlyCpu",
     "ClientOnlyMetal",
     "TwoOnlineOffsetCpu",

@@ -23,13 +23,14 @@ from tokenizers.pre_tokenizers import Whitespace
 from pllm import Deployment, ExecutionBudget, Experiment, Model
 from pllm.profiles import OpenWeightVerifiableCpu
 from pllm.runtime import delegated_client as adapter
+from pllm.runtime import tokenizer_admission
 from pllm.runtime.client import (
     AsyncResponsesResource, ModelsResource, ProtocolError, ResponsesResource, RuntimeResource,
 )
 from pllm.runtime.delegated_decoder import GkmDecoderResult
 from pllm.runtime.http_gateway import GatewayError, iter_chat_sse
 from pllm.runtime.prepared_queue import PreparedCancellation, prepared_cancellation
-from pllm.runtime.responses import sse_event
+from pllm.runtime.responses import ResponsesError, sse_event
 from pllm.runtime.topology_accounting import measured_decode_window, two_worker_body_accounting
 from pllm.runtime.transformer_client import TokenizersJSONTokenizer
 from pllm.runtime.types import Response
@@ -47,11 +48,23 @@ class Source:
         self.contract = {"input_rows": experiment.budget.max_input_tokens,
                          "decode_steps": experiment.budget.max_new_tokens - 1, "vocabulary": 8}
         self.config = {"model_type": "qwen2", "num_hidden_layers": 2, "num_attention_heads": 2,
-                       "num_key_value_heads": 1, "hidden_size": 4}
+                       "num_key_value_heads": 1, "hidden_size": 4, "vocab_size": 8,
+                       "bos_token_id": 0, "eos_token_id": 1, "max_position_embeddings": 128}
         self.config_source_bytes = json.dumps(self.config).encode()
         self.source_float32_bytes = 128
         self.source = SimpleNamespace(manifest=SimpleNamespace(context_length=128))
-        self.tokenizer_descriptor = {"add_bos_token": False}
+        inner = Tokenizer(WordLevel({"<bos>": 0, "<eos>": 1, "<unk>": 2,
+                                    "user": 3, ":": 4, "hello": 5, "world": 6, "after": 7},
+                                   unk_token="<unk>"))
+        inner.pre_tokenizer = Whitespace()
+        inner.add_special_tokens(["<bos>", "<eos>", "<unk>"])
+        self.tokenizer_options = {"model_max_length": 128, "add_bos_token": False,
+                                  "bos_token": "<bos>", "eos_token": "<eos>"}
+        self.tokenizer_descriptor = tokenizer_admission._source_descriptor(
+            inner.to_str().encode(), self.config, self.tokenizer_options,
+            policy=tokenizer_admission._DescriptorPolicy.DELEGATED,
+            vocabulary=8, max_entries=256, allow_model_padding=False,
+            manifest_template=None, error=ValueError, label="GKM adapter fixture")
         self.checkpoint_digest = "1" * 64
         self.source_lock_digest = "2" * 64
         self.tokenizer_digest = "3" * 64
@@ -62,29 +75,39 @@ class Source:
         self.ids_override = None
 
     def tokenizer(self):
+        descriptor = self.tokenizer_descriptor
+        return self.observe_tokenizer(TokenizersJSONTokenizer(
+            Tokenizer.from_buffer(descriptor["model"]),
+            descriptor["bos_token_id"], descriptor["eos_token_id"]))
+
+    def observe_tokenizer(self, tokenizer):
+        """Observe request use only, including the genuine provisional tokenizer."""
         self.tokenizers_created += 1
-        inner = Tokenizer(WordLevel({"<bos>": 0, "<eos>": 1, "<unk>": 2,
-                                    "user": 3, ":": 4, "hello": 5, "world": 6, "after": 7},
-                                   unk_token="<unk>"))
-        inner.pre_tokenizer = Whitespace()
-        inner.add_special_tokens(["<bos>", "<eos>", "<unk>"])
-        tokenizer = TokenizersJSONTokenizer(inner, 0, 1)
         owner = self
 
         class ObservedTokenizer:
+            def __init__(self, inner):
+                self.inner = inner
+
             def encode(self, text, *, add_bos=False):
                 owner.encodings.append((text, add_bos))
-                return (tokenizer.encode(text, add_bos=add_bos)
+                return (self.inner.encode(text, add_bos=add_bos)
                         if owner.ids_override is None else owner.ids_override)
 
             def decode(self, ids):
                 owner.decodings.append(ids)
-                return tokenizer.decode(ids)
+                return self.inner.decode(ids)
 
             def close(self):
+                inner, self.inner = self.inner, None
+                if inner is None:
+                    return
                 owner.tokenizers_closed += 1
+                close = getattr(inner, "close", None)
+                if close is not None:
+                    close()
 
-        return ObservedTokenizer()
+        return ObservedTokenizer(tokenizer)
 
     def load_values(self):
         raise AssertionError("the adapter must leave tensor materialization to the transport")
@@ -101,13 +124,13 @@ def accepted(ids, count):
 
 def prompt_lease(h):
     """Ordinary lease with pure topology/result doubles; no planning/native calls."""
-    from pllm.deployment.execution import ExecutionLease, _LEASE_KEY, _LeaseResponses
+    from pllm.deployment.execution import ExecutionLease, _LEASE_KEY, _LeaseResponses, _TokenizerView
 
     result = SimpleNamespace(experiment=h.experiment, snapshot=None, validate=lambda **kw: None)
     topology = SimpleNamespace(close=lambda: None, cleanup_complete=True)
-    view = SimpleNamespace(tokenizer_descriptor=h.source.tokenizer_descriptor,
-        original_config=h.source.config, manifest={"chat_template": None},
-        tokenizer=h.source.tokenizer, source_lock_digest=h.source.source_lock_digest)
+    view = _TokenizerView(h.source.tokenizer_descriptor, h.source.config,
+        SimpleNamespace(chat_template=None), original_config=h.source.config,
+        source_lock_digest=h.source.source_lock_digest)
     lease = ExecutionLease(result, SimpleNamespace(backend="local", snapshot=None),
         lambda: 0, topology, view, "pure-test", _key=_LEASE_KEY)
     lease._client = SimpleNamespace(_core=h.core)
@@ -168,10 +191,12 @@ def test_prepared_changed_source_refuses_before_transport(harness):
     _, resource = prompt_lease(h)
     stream = resource.create(input="hello", stream=True)
     h.source.tokenizer_descriptor["chat_template"] = "changed"
-    with pytest.raises(GatewayError, match="association"):
+    with pytest.raises(tokenizer_admission._PromptMetadataError,
+                       match="^prepared metadata/source association changed$"):
         list(stream)
     assert h.calls == [] and h.core._active is None
-    assert h.source.tokenizers_closed == 1
+    assert h.source.tokenizers_created == h.source.tokenizers_closed == 1
+    assert not h.core.records
 
 
 def test_reference_input_witness_uses_same_prepared_cohort(harness):
@@ -224,9 +249,9 @@ def transport_counters():
 
 
 @pytest.fixture
-def harness(monkeypatch):
+def harness(monkeypatch, tmp_path):
     experiment = Experiment(name="gkm-adapter-unit",
-        pipeline=OpenWeightVerifiableCpu(Model.path("/unused/gkm-source")),
+        pipeline=OpenWeightVerifiableCpu(Model.path(str(tmp_path))),
         deployment=Deployment.local(root="local://gkm-adapter-unit"),
         budget=ExecutionBudget(requests=4, max_input_tokens=8, max_new_tokens=3))
     resolved = []
@@ -237,6 +262,23 @@ def harness(monkeypatch):
 
     monkeypatch.setattr(Experiment, "resolve", resolve)
     source = Source(experiment)
+    (tmp_path / "config.json").write_bytes(source.config_source_bytes)
+    (tmp_path / "tokenizer.json").write_bytes(source.tokenizer_descriptor["model"])
+    (tmp_path / "tokenizer_config.json").write_text(json.dumps(source.tokenizer_options))
+    from pllm.runtime.responses import _prompt_snapshot
+
+    model_spec = _prompt_snapshot(experiment.pipeline.model.to_spec())
+    root = tmp_path.resolve()
+    construct = tokenizer_admission._PromptMetadataSnapshot.tokenizer
+
+    def observed_snapshot_tokenizer(snapshot):
+        tokenizer = construct(snapshot)
+        if snapshot.root == root and snapshot.model_spec == model_spec:
+            return source.observe_tokenizer(tokenizer)
+        return tokenizer
+
+    monkeypatch.setattr(tokenizer_admission._PromptMetadataSnapshot, "tokenizer",
+                        observed_snapshot_tokenizer)
     admitted, calls = [], []
 
     def admit(value):
@@ -264,6 +306,74 @@ def harness(monkeypatch):
     core.close()
 
 
+def test_harness_metadata_matches_owned_source_without_resolving_it(harness, tmp_path):
+    h = harness
+    assert {path.name for path in tmp_path.iterdir()} == {
+        "config.json", "tokenizer.json", "tokenizer_config.json"}
+    assert h.source.model is h.experiment.pipeline.model
+    assert (tmp_path / "config.json").read_bytes() == h.source.config_source_bytes
+    assert (tmp_path / "tokenizer.json").read_bytes() == h.source.tokenizer_descriptor["model"]
+    snapshot = tokenizer_admission._capture_prompt_metadata(h.experiment.pipeline.model,
+        policy=tokenizer_admission._DescriptorPolicy.DELEGATED, capacity="capsule",
+        input_rows=8, outputs=3, expected_source_lock=h.source.source_lock_digest)
+    snapshot.check_source(h.source)
+    assert snapshot.tokenizer_descriptor == h.source.tokenizer_descriptor
+    assert snapshot.tokenizer_descriptor["type"] == "tokenizer_json"
+    assert snapshot.tokenizer_descriptor["vocab_size"] == 8
+    assert snapshot.tokenizer_descriptor["bos_token_id"] == 0
+    assert snapshot.tokenizer_descriptor["eos_token_id"] == 1
+    assert snapshot.tokenizer_descriptor["add_bos_token"] is False
+    assert snapshot.tokenizer_descriptor["chat_template"] is None
+    assert snapshot.config == h.source.config
+    lease, _ = prompt_lease(h)
+    lease._tokenizer._check_prompt_snapshot(snapshot, h.experiment.pipeline.model)
+    lease._tokenizer._check_owned_prompt_metadata(h.source, h.experiment.pipeline.model)
+    assert h.source.encodings == h.source.decodings == []
+    assert h.source.tokenizers_created == h.source.tokenizers_closed == 0
+    assert not h.core._source_checked and h.admitted == h.calls == []
+    assert h.resolved == [h.experiment]  # Only the existing client profile double.
+
+
+@pytest.mark.parametrize("owner", ["snapshot", "source"])
+@pytest.mark.parametrize("ids_override", [None, [7]])
+def test_harness_shared_tokenizer_observer_preserves_ids_and_retirement(harness, owner, ids_override):
+    h = harness
+    snapshot = tokenizer_admission._capture_prompt_metadata(h.experiment.pipeline.model,
+        policy=tokenizer_admission._DescriptorPolicy.DELEGATED, capacity="capsule",
+        input_rows=8, outputs=3)
+    assert h.source.tokenizers_created == 0  # Parsing metadata is not request use.
+    tokenizer = snapshot.tokenizer() if owner == "snapshot" else h.source.tokenizer()
+    h.source.ids_override = ids_override
+    expected = [3, 4, 5, 2, 4] if ids_override is None else ids_override
+    assert tokenizer.encode("user: hello\nassistant:", add_bos=False) == expected
+    assert tokenizer.decode([1, 6, 7]) == "world after"
+    tokenizer.close()
+    tokenizer.close()
+    assert tokenizer.inner is None
+    assert h.source.encodings == [("user: hello\nassistant:", False)]
+    assert h.source.decodings == [[1, 6, 7]]
+    assert h.source.tokenizers_created == h.source.tokenizers_closed == 1
+    assert not h.core._source_checked and h.admitted == h.calls == []
+
+
+def test_harness_snapshot_instrumentation_matches_both_model_and_root(harness, tmp_path):
+    h = harness
+    snapshot = tokenizer_admission._capture_prompt_metadata(h.experiment.pipeline.model,
+        policy=tokenizer_admission._DescriptorPolicy.DELEGATED, capacity="capsule",
+        input_rows=8, outputs=3)
+    # Only test the observer's filter; these copies authorize no request/source.
+    for other in (replace(snapshot, root=tmp_path.parent), replace(snapshot, model_spec=())):
+        tokenizer = other.tokenizer()
+        assert isinstance(tokenizer, tokenizer_admission._PromptTokenizer)
+        try:
+            assert tokenizer.encode("hello", add_bos=False) == [5]
+        finally:
+            tokenizer.close()
+    assert h.source.encodings == h.source.decodings == []
+    assert h.source.tokenizers_created == h.source.tokenizers_closed == 0
+    assert h.admitted == h.calls == []
+
+
 def test_resource_compatibility_fixed_count_eos_and_local_rendering(harness):
     h = harness
     assert h.resolved == [h.experiment]
@@ -287,6 +397,188 @@ def test_resource_compatibility_fixed_count_eos_and_local_rendering(harness):
     assert h.responses.cancel(response.id).status == "incomplete"
     assert h.source.tokenizers_created == h.source.tokenizers_closed == 1
     assert not h.core._transformer_states
+
+
+@pytest.mark.parametrize("method,stage", [
+    ("_prepare_request_prompt", "prepare_prompt"), ("_ensure_source", "validate_source"),
+    ("_encode", "bind_encode"), ("_execute", "transport"), ("_validate_result", "accept_result"),
+])
+def test_request_protocol_error_keeps_identity_traceback_and_bounded_stage(harness, monkeypatch, method, stage):
+    h = harness
+    h.core._ensure_source()  # Pure admitted fixture; never open an on-disk checkpoint.
+    body = {"private": "secret-prompt-coefficients-/tensor/path"}
+    error = ProtocolError("secret-worker-message", body=body)
+
+    def fail(*args, **kwargs):
+        if method == "_execute":
+            args[-1].record_audit(transport_counters())
+        raise error
+
+    monkeypatch.setattr(h.core, method, fail)
+    stream = h.responses.create(model="gkm-fixture", input="hello", max_output_tokens=2,
+                                stream=True, temperature=0)
+    with pytest.raises(ProtocolError) as caught:
+        next(stream)
+    assert caught.value is error and error.body is body
+    frames = []
+    tb = error.__traceback__
+    while tb is not None:
+        frames.append(tb.tb_frame.f_code.co_name)
+        tb = tb.tb_next
+    assert "fail" in frames and "_produce" in frames
+    assert error.request_failure_context == {
+        "stage": stage, "role": "client", "code": "gkm_stage_failed", "http_status": None}
+    assert error.status_code == 500  # Default SDK status is not HTTP-response evidence.
+    assert h.core._active is None and not h.core._tokenizer_scopes
+    assert h.source.tokenizers_created == h.source.tokenizers_closed
+    assert not h.core.records and h.core.audit.generation_completed_responses == 0
+    if stage == "transport":
+        assert h.core.audit.role_link_bodies["worker_a"]["teardown_upload_bytes"] == 7
+    stream.close()
+
+
+@pytest.mark.parametrize("role", ["worker_a", "worker_b"])
+def test_deeper_worker_context_survives_client_stage(harness, monkeypatch, role):
+    harness.core._ensure_source()
+    error = ProtocolError("private response", 503, b"private raw body")
+    context = {"stage": "transport", "role": role,
+               "code": "worker_http_rejected", "http_status": 503}
+    error.annotate_request_failure(context)
+
+    def fail(*args):
+        args[-1].record_audit(transport_counters())
+        raise error
+
+    monkeypatch.setattr(adapter, "_execute_request", fail)
+    with pytest.raises(ProtocolError) as caught:
+        harness.responses.create(input="hello")
+    assert caught.value is error and error.request_failure_context == context
+    assert error.body == b"private raw body"
+    assert harness.core.audit.role_link_bodies[role]["teardown_download_bytes"] == 2
+
+
+def test_sdk_shaped_stream_keeps_model_and_greedy_defaults(harness):
+    harness.core._ensure_source()
+    stream = harness.responses.create(model="gkm-fixture", input="hello", max_output_tokens=2,
+                                      stream=True, temperature=0)
+    events = list(stream)
+    terminal = events[-1].response
+    assert terminal["model"] == "gkm-fixture"
+    assert terminal["temperature"] == 0 and terminal["top_p"] == 1
+    assert terminal["incomplete_details"] == {"reason": "max_output_tokens"}
+    assert harness.calls == [((3, 4, 5, 2, 4), 2)]
+    assert harness.core.audit.generation_completed_responses == 1
+    assert harness.core.audit.generation_output_tokens == 2
+
+
+def test_transport_audit_cleanup_not_labeled_as_request_stage(harness, monkeypatch):
+    harness.core._ensure_source()
+    error = ProtocolError("private cleanup")
+
+    def fail(*args):
+        raise error
+
+    monkeypatch.setattr(harness.core.audit, "finish_transport", fail)
+    with pytest.raises(ProtocolError) as caught:
+        harness.responses.create(input="hello")
+    assert caught.value is error and error.request_failure_context is None
+    assert harness.core._active is None
+
+
+def test_decode_protocol_error_has_no_request_stage(harness, monkeypatch):
+    h = harness
+    h.core._ensure_source()
+    original = h.source.tokenizer
+    error = ProtocolError("private decoded message")
+
+    def fail_decode(*args):
+        raise error
+
+    def tokenizer():
+        inner = original()
+        return SimpleNamespace(encode=inner.encode, decode=fail_decode, close=inner.close)
+
+    monkeypatch.setattr(h.source, "tokenizer", tokenizer)
+    with pytest.raises(ProtocolError) as caught:
+        h.responses.create(input="hello")
+    assert caught.value is error and error.request_failure_context is None
+    assert h.core._active is None and not h.core.records
+    assert h.source.tokenizers_created == h.source.tokenizers_closed
+
+
+def test_scope_cleanup_replacing_transport_error_not_mislabeled(harness, monkeypatch):
+    from contextlib import contextmanager
+
+    h = harness
+    h.core._ensure_source()
+    original_scope = h.core.tokenizer_scope
+    request_error, cleanup_error = ProtocolError("private request"), ProtocolError("private cleanup")
+
+    def fail(*args):
+        raise request_error
+
+    @contextmanager
+    def scope():
+        try:
+            with original_scope():
+                yield
+        finally:
+            raise cleanup_error
+
+    monkeypatch.setattr(h.core, "_execute", fail)
+    monkeypatch.setattr(h.core, "tokenizer_scope", scope)
+    with pytest.raises(ProtocolError) as caught:
+        h.responses.create(input="hello")
+    assert caught.value is cleanup_error and cleanup_error.request_failure_context is None
+    assert h.core._active is None and not h.core._tokenizer_scopes
+
+
+@pytest.mark.parametrize("runtime", ["compiled_fss_v1", "compiled_replicated_v1"])
+def test_non_gkm_client_does_not_inherit_gkm_stage_labels(harness, monkeypatch, runtime):
+    harness.core._ensure_source()
+    error = ProtocolError("private other-method failure")
+
+    def fail(*args):
+        raise error
+
+    monkeypatch.setattr(harness.core, "runtime_id", runtime)
+    monkeypatch.setattr(harness.core, "_execute", fail)
+    with pytest.raises(ProtocolError) as caught:
+        harness.responses.create(input="hello")
+    assert caught.value is error and error.request_failure_context is None
+
+
+@pytest.mark.parametrize("role_index", [0, 1])
+@pytest.mark.parametrize("namespace", ["delegation", "fss", "replicated"])
+def test_actual_worker_http_rejection_context_keeps_counters(role_index, namespace):
+    """HTTP boundary double only: no network, I/O owner or native request."""
+    from contextlib import asynccontextmanager
+    from pllm.runtime.delegated_transport import _Peers
+
+    @asynccontextmanager
+    async def stream(*args, **kwargs):
+        async def chunks():
+            yield b"secret-worker-body"
+
+        yield SimpleNamespace(status_code=503, headers={},
+                              request=SimpleNamespace(content=b"request"), aiter_raw=chunks)
+
+    peers = _Peers()
+    peers.roles = ("worker_a", "worker_b")
+    peers.namespace, peers.request_id, peers.phase = namespace, "fixed", "prefill"
+    peers.clients = [SimpleNamespace(stream=stream), SimpleNamespace(stream=stream)]
+    prefix = f"role_link.{peers.roles[role_index]}.online_"
+    peers.counts = {prefix + direction + "_bytes": 0 for direction in ("upload", "download")}
+    with pytest.raises(ProtocolError) as caught:
+        asyncio.run(peers._post(role_index, "step", b"request", phase="online", limit=64, timeout=1))
+    context = {
+        "stage": "transport", "role": peers.roles[role_index],
+        "code": "worker_http_rejected", "http_status": 503}
+    assert caught.value.request_failure_context == (context if namespace == "delegation" else None)
+    assert caught.value.status_code == 503
+    assert peers.counts == {prefix + "upload_bytes": 7, prefix + "download_bytes": 18}
+    assert peers.phase_bytes == {"prefill": 25, "decode": 0}
+    assert peers.calls == 0 and peers.server_ns == 0 and not peers.unknown
 
 
 @pytest.mark.parametrize("streaming", [False, True])
@@ -364,10 +656,11 @@ def test_verification_failure_retires_without_response_state_or_events(harness, 
         raise ValueError("native request-end verification failed")
 
     monkeypatch.setattr(adapter, "_execute_request", fail)
-    with pytest.raises(ValueError, match="verification failed"):
+    with pytest.raises(ValueError, match="verification failed") as caught:
         result = h.responses.create(input="hello", stream=streaming)
         if streaming:
             next(result)
+    assert getattr(caught.value, "request_failure_context", None) is None
     assert not observed and not h.core.records and not h.source.decodings
     assert h.core._active is None and not h.core._tokenizer_scopes
     assert h.core.audit.generation_completed_responses == 0
@@ -423,14 +716,23 @@ def test_body_byte_depth_and_cardinality_admission(harness):
     assert not h.admitted and not h.calls
 
 
-@pytest.mark.parametrize("ids", [[], list(range(9)), [True], [-1], [8], [1.0]])
-def test_token_admission_precedes_transport(harness, ids):
+@pytest.mark.parametrize("ids,error_type,message", [
+    ([], ResponsesError, "tokenized input contains invalid prompt IDs"),
+    (list(range(9)), GatewayError, "request input exceeds selected budget"),
+    ([True], ResponsesError, "tokenized input contains invalid prompt IDs"),
+    ([-1], ResponsesError, "tokenized input contains invalid prompt IDs"),
+    ([8], GatewayError, "request input exceeds selected budget"),
+    ([1.0], ResponsesError, "tokenized input contains invalid prompt IDs"),
+])
+def test_token_admission_precedes_transport(harness, ids, error_type, message):
     h = harness
     h.source.ids_override = ids
-    with pytest.raises(GatewayError, match="tokenized input"):
+    with pytest.raises(error_type, match=f"^{message}$"):
         h.responses.create(input="hello")
-    assert not h.calls and not h.core.records
-    assert h.source.tokenizers_closed == 1
+    assert h.admitted == h.calls == [] and h.core._active is None
+    assert h.source.encodings == [("user: hello\nassistant:", False)]
+    assert not h.source.decodings and not h.core.records
+    assert h.source.tokenizers_created == h.source.tokenizers_closed == 1
 
 
 def test_input_snapshot_and_shared_normalization(harness, monkeypatch):
@@ -769,12 +1071,23 @@ def test_source_listing_tokenizer_scopes_and_inventory_controls(harness):
     assert runtime["source_lock_digest"] == h.source.source_lock_digest
     with h.core.tokenizer_scope():
         with h.core.tokenizer_scope():
-            assert h.core._response_input_tokens("gkm-fixture", "hello") == 5
-        h.responses.create(input="hello")
-        # Generation transferred custody from this sizing scope to its attempt;
-        # the terminal response already retired that exact public tokenizer.
-        assert h.source.tokenizers_created == 1 and h.source.tokenizers_closed == 1
-    assert h.source.tokenizers_closed == 1
+            with pytest.raises(ProtocolError, match="^client already owns request/tokenizer cleanup$"):
+                h.core._response_input_tokens("gkm-fixture", "hello")
+            assert h.source.tokenizers_created == h.source.tokenizers_closed == 0
+            assert h.source.encodings == h.source.decodings == []
+        assert h.source.tokenizers_created == h.source.tokenizers_closed == 0
+    assert h.source.tokenizers_created == h.source.tokenizers_closed == 0
+    assert h.core._active is None and not h.core._tokenizer_scopes
+    assert h.calls == [] and not h.core.records
+    assert h.core._response_input_tokens("gkm-fixture", "hello") == 5
+    assert h.source.tokenizers_created == h.source.tokenizers_closed == 1
+    assert h.source.encodings == [("user: hello\nassistant:", False)]
+    assert h.source.decodings == [] and h.calls == []
+    h.responses.create(input="hello")
+    assert h.source.tokenizers_created == h.source.tokenizers_closed == 2
+    assert h.source.encodings == [("user: hello\nassistant:", False)] * 2
+    assert h.source.decodings == [[1, 6, 7]]
+    assert h.calls == [((3, 4, 5, 2, 4), 3)]
     assert h.core.prepared_inventory_status("gkm-fixture") == {
         "status": "not-applicable", "capacity": 0, "available": 0, "reserved": 0, "burned": 0,
     }
@@ -791,6 +1104,291 @@ def test_source_listing_tokenizer_scopes_and_inventory_controls(harness):
     assert not h.core.records and h.core._source is None
     with pytest.raises(ProtocolError, match="closed"):
         h.responses.create(input="hello")
+
+
+def _count_dashboard(h):
+    """Real dashboard request/history path over the existing tiny adapter fixture."""
+    from pllm.runtime import benchmark_failure, dashboard
+    from pllm.runtime.benchmark_history import BenchmarkHistory
+
+    config = dashboard.DashboardConfig("127.0.0.1", 1, "unused", "gkm-fixture", 3,
+                                       backend="native")
+    store = SimpleNamespace(finish_run_window=lambda _: {}, snapshot=lambda: {
+        "services": {"pllm-preparation": {}}, "traffic": {}})
+    runtime = dashboard.DashboardRuntime(config, store)
+    runtime._topology = SimpleNamespace(requires_preparation=False, statuses=[],
+        startup_breadcrumbs={"phase": "ready", "spawned_roles": [], "ready_roles": []})
+    runtime._client = SimpleNamespace(_core=h.core, responses=h.responses,
+                                      tokenizer_scope=h.core.tokenizer_scope)
+    runtime._active_run = dashboard._RunCapture("count-run", 3, False, 1, {}, 1, 0)
+    runtime._has_started_run = True
+    runtime._state.update(phase="preparing", run_id="count-run", prompt="hello")
+    runtime._delegated = True
+    runtime.memory_preflight = {"estimate": {"max_input_tokens": 5}}
+    runtime._audit_snapshot = lambda: {}
+    runtime._services_healthy = lambda: True
+    runtime._capture_online_telemetry = lambda: None
+    runtime._benchmark_failure_diagnostics = benchmark_failure.FailureDiagnostics(runtime)
+    runtime.history = BenchmarkHistory(":memory:")
+    return runtime
+
+
+@pytest.mark.parametrize("input_limit", [4, 5])
+def test_dashboard_real_count_retires_before_execution_scope(harness, monkeypatch, input_limit):
+    from pllm.runtime import dashboard
+
+    h = harness
+    runtime = _count_dashboard(h)
+    runtime.memory_preflight["estimate"]["max_input_tokens"] = input_limit
+    observed, cleanup = [], []
+    observe_tokenizer = h.source.observe_tokenizer
+
+    def observe(tokenizer):
+        observed.append((bool(h.core._tokenizer_scopes), h.core._count_preparation is not None))
+        return observe_tokenizer(tokenizer)
+
+    def execute(*args):
+        assert h.core._tokenizer_scopes and h.core._count_preparation is None
+        assert h.source.tokenizers_closed == 1  # Preflight already retired.
+        return h.execute(*args)
+
+    evict = h.core.evict_response
+
+    def evict_response(response_id):
+        assert h.core._tokenizer_scopes  # Dashboard cleanup still inside execution scope.
+        cleanup.append(response_id)
+        return evict(response_id)
+
+    monkeypatch.setattr(h.source, "observe_tokenizer", observe)
+    monkeypatch.setattr(adapter, "_execute_request", execute)
+    monkeypatch.setattr(h.core, "evict_response", evict_response)
+    monkeypatch.setattr(dashboard.time, "sleep", lambda _: None)
+    try:
+        runtime._execute_run("count-run", "hello", 3)
+        saved = runtime.history.get("count-run")
+        assert runtime._active_run is None and runtime._state["phase"] == "ready"
+        assert h.core._count_preparation is None and not h.core._tokenizer_scopes
+        assert h.core._active is None and not h.core.records
+        if input_limit == 5:
+            assert saved["status"] == "completed" and saved["failure"] is None
+            assert saved["tokens"] == {"input_tokens": 5, "output_tokens": 3,
+                                       "total_tokens": 8, "authoritative": True}
+            assert runtime._state["text"] == "world after"
+            assert observed == [(False, True), (True, False)]
+            assert h.calls == [((3, 4, 5, 2, 4), 3)] and len(cleanup) == 1
+            assert h.source.tokenizers_created == h.source.tokenizers_closed == 2
+            assert h.source.encodings == [("user: hello\nassistant:", False)] * 2
+        else:
+            assert saved["status"] == "failed" and saved["failure"]["type"] == "ValueError"
+            assert runtime._state["error"] == "ValueError: input exceeds the memory-admitted workload"
+            assert saved["timestamps"]["online_started_at_ns"] is None
+            assert saved["timestamps"]["preparation_finished_at_ns"] is not None
+            assert observed == [(False, True)] and cleanup == h.calls == h.admitted == []
+            assert h.source.tokenizers_created == h.source.tokenizers_closed == 1
+            assert h.source.encodings == [("user: hello\nassistant:", False)]
+    finally:
+        runtime.history.close()
+
+
+@pytest.mark.parametrize("failure", ["external_scope", "closed_client"])
+def test_dashboard_real_count_failure_preserves_origin_before_finish(harness, monkeypatch, tmp_path, failure):
+    from contextlib import ExitStack
+    from pllm._cli.benchmark_output import BenchmarkOutput
+    from pllm.runtime import benchmark_cli, benchmark_failure, dashboard
+
+    h = harness
+    runtime = _count_dashboard(h)
+    errors = []
+    annotations = []
+    finish = runtime._finish_run
+    annotate = ProtocolError.annotate_request_failure
+    expected = {"stage": "input_count", "role": "client", "http_status": None,
+                "code": "count_owner_busy" if failure == "external_scope" else "input_count_failed"}
+
+    def observe_annotation(error, context):
+        annotate(error, context)
+        annotations.append((error, error.__traceback__, error.request_failure_context))
+
+    def finish_run(capture, status, error):
+        assert isinstance(error, ProtocolError)
+        errors.append(error)
+        assert error.request_failure_context == expected
+        assert runtime._benchmark_failure_diagnostics.capture()["request_failure_context"] == expected
+        assert bool(h.core._tokenizer_scopes) == (failure == "external_scope")
+        first = runtime._benchmark_failure_diagnostics.capture()
+        runtime._topology.startup_breadcrumbs["phase"] = "role_startup"
+        assert benchmark_failure.capture_failure(runtime, error=ValueError("private-cleanup-secret")) == first
+        finish(capture, status, error)
+
+    monkeypatch.setattr(ProtocolError, "annotate_request_failure", observe_annotation)
+    monkeypatch.setattr(runtime, "_finish_run", finish_run)
+    monkeypatch.setattr(dashboard.time, "sleep", lambda _: None)
+    try:
+        with ExitStack() as scope:
+            if failure == "external_scope":
+                scope.enter_context(h.core.tokenizer_scope())
+                with pytest.raises(ProtocolError) as direct:
+                    h.core._response_input_tokens("gkm-fixture", "hello")
+                assert direct.value.status_code == 409
+                assert direct.value.request_failure_context == expected
+            else:
+                h.core.close()  # Real _admit/_check_open failure BEFORE busy guard.
+            runtime._execute_run("count-run", "hello", 3)
+            assert len(errors) == 1
+            error = errors[0]
+            own_annotations = [item for item in annotations if item[0] is error]
+            assert own_annotations[-1][0] is error
+            assert error.__traceback__ is own_annotations[-1][1]  # Dashboard used bare raise.
+            assert error.request_failure_context is own_annotations[0][2]  # Deepest label retained.
+            assert error.status_code == 409  # Local SDK status, never HTTP evidence.
+            frames = []
+            tb = error.__traceback__
+            while tb is not None:
+                frames.append(tb.tb_frame.f_code.co_name)
+                tb = tb.tb_next
+            assert frames.count("_execute_run") == 1 and "_response_input_tokens" in frames
+            if failure == "closed_client":
+                assert "_admit" in frames and "_check_open" in frames
+            saved = runtime.history.get("count-run")
+            assert saved["failure"]["diagnostics"]["request_failure_context"] == expected
+            assert saved["failure"]["type"] == "ProtocolError"
+            path = tmp_path / "count-failure.json"
+            output = BenchmarkOutput(path, force=False, configuration={}, experiments=[None])
+            output.start(1)
+            output.failed(benchmark_cli.LoopbackBenchmarkError("private-cleanup-secret",
+                failure_diagnostics=saved["failure"]["diagnostics"]))
+            artifact = json.loads(path.read_text())
+            assert artifact["failure"]["diagnostics"]["request_failure_context"] == expected
+            assert "private-cleanup-secret" not in json.dumps(saved) + path.read_text()
+            assert runtime._benchmark_failure_diagnostics.capture()["request_failure_context"] == expected
+            assert h.source.encodings == h.source.decodings == h.calls == h.admitted == []
+            assert h.source.tokenizers_created == h.source.tokenizers_closed == 0
+        assert not h.core._tokenizer_scopes and h.core._count_preparation is None
+    finally:
+        runtime.history.close()
+
+
+def test_real_count_busy_history_crosses_run_once_worker_receiver_and_artifact(harness, monkeypatch, tmp_path):
+    """Continuous real failure propagation; HTTP and process launch stay in memory."""
+    from collections import deque
+    from multiprocessing.reduction import ForkingPickler
+    import signal
+
+    import httpx
+
+    from pllm._cli.benchmark_output import BenchmarkOutput
+    from pllm.runtime import benchmark_cli, benchmark_isolation, dashboard
+
+    h = harness
+    runtime = _count_dashboard(h)
+    secret = "private-count-message-body-extra-/tensor/path"
+    sdk_errors, produced_errors, requests = [], [], []
+    queued, transmitted, closed = deque(), [], []
+    initialize = ProtocolError.__init__
+    finish = runtime._finish_run
+    previous_sigterm = signal.getsignal(signal.SIGTERM)
+
+    def initialize_error(error, message, *args, **kwargs):
+        initialize(error, message, *args, **kwargs)
+        if message == "client already owns request/tokenizer cleanup":
+            # Poison only the genuine guard's exception, never replace the guard/count.
+            error.args = (secret,)
+            error.body = {"private": secret}
+            error.private_extra = secret
+            sdk_errors.append(error)
+
+    def finish_run(capture, status, error):
+        assert error is sdk_errors[0] and error.status_code == 409
+        assert h.core._tokenizer_scopes and h.core._count_preparation is None
+        assert runtime._benchmark_failure_diagnostics.capture()["request_failure_context"] == error.request_failure_context
+        finish(capture, status, error)
+
+    def respond(request):
+        requests.append(request.url.path)
+        if request.url.path == "/api/run":
+            payload = json.loads(request.content)
+            run_id = payload["request_id"]
+            runtime._active_run.run_id = run_id
+            runtime._state["run_id"] = run_id
+            runtime._execute_run(run_id, payload["prompt"], payload["max_output_tokens"])
+            return httpx.Response(200, json={"status": "started"})
+        if request.url.path == "/api/snapshot":
+            return httpx.Response(200, json={"run": {**runtime._state, "active_run": None}})
+        if request.url.path.startswith("/api/runs/"):
+            return httpx.Response(200, json=runtime.history.get(request.url.path.rsplit("/", 1)[1]))
+        raise AssertionError(request.url.path)
+
+    def loopback_boundary(**options):
+        # Bypass only role/server startup; the real HTTP polling/failure conversion runs.
+        with httpx.Client(transport=httpx.MockTransport(respond), base_url="http://dashboard") as client:
+            try:
+                return benchmark_cli._run_once(client, SimpleNamespace(poll=lambda: None),
+                    prompt="hello", max_output_tokens=3, timeout_seconds=10)
+            except benchmark_cli.LoopbackBenchmarkError as error:
+                produced_errors.append(error)
+                error.private_extra = secret
+                error.failure_diagnostics["private_extra"] = secret
+                raise
+
+    def send_message(message):
+        encoded = bytes(ForkingPickler.dumps(message))
+        queued.append(encoded)
+        transmitted.append(encoded)
+
+    receive = SimpleNamespace(recv=lambda: ForkingPickler.loads(queued.popleft()),
+                              close=lambda: closed.append("receive"))
+    send = SimpleNamespace(send=send_message, close=lambda: closed.append("send"))
+
+    def process(*, target, args):
+        assert target is benchmark_isolation._worker
+        return SimpleNamespace(start=lambda: target(*args), join=lambda **kw: None,
+                               is_alive=lambda: False)
+
+    context = SimpleNamespace(Pipe=lambda **kw: (receive, send), Process=process)
+    monkeypatch.setattr(ProtocolError, "__init__", initialize_error)
+    monkeypatch.setattr(runtime, "_finish_run", finish_run)
+    monkeypatch.setattr(dashboard.time, "sleep", lambda _: None)
+    monkeypatch.setattr(benchmark_cli, "run_loopback_benchmark", loopback_boundary)
+    monkeypatch.setattr(benchmark_isolation.multiprocessing, "get_context", lambda _: context)
+    try:
+        with h.core.tokenizer_scope():
+            with pytest.raises(benchmark_cli.LoopbackBenchmarkError) as received:
+                benchmark_isolation.run_isolated_loopback_benchmark()
+            assert h.core._tokenizer_scopes  # External owner was not waived or retired.
+        assert len(sdk_errors) == len(produced_errors) == 1
+        original = sdk_errors[0]
+        expected = {"stage": "input_count", "role": "client",
+                    "code": "count_owner_busy", "http_status": None}
+        assert original.request_failure_context == expected  # Dashboard fallback kept deeper origin.
+        assert original.body == {"private": secret} and str(original) == secret
+        frames = []
+        tb = original.__traceback__
+        while tb is not None:
+            frames.append(tb.tb_frame.f_code.co_name)
+            tb = tb.tb_next
+        assert frames.count("_execute_run") == 1 and "_response_input_tokens" in frames
+        assert received.value is not produced_errors[0]
+        assert str(produced_errors[0]) == "benchmark run failed: ProtocolError"
+        assert received.value.failure_diagnostics["request_failure_context"] == expected
+        assert not hasattr(received.value, "private_extra")
+        assert [ForkingPickler.loads(item)[0] for item in transmitted] == ["failure_diagnostics", "error"]
+        assert secret.encode() not in b"".join(transmitted)
+        assert not queued and closed == ["send", "send", "receive"]
+        assert requests[:2] == ["/api/run", "/api/snapshot"] and len(requests) == 3
+        saved = runtime.history.get(runtime._state["run_id"])
+        assert saved["failure"]["diagnostics"]["request_failure_context"] == expected
+        path = tmp_path / "count-isolated-failure.json"
+        output = BenchmarkOutput(path, force=False, configuration={}, experiments=[None])
+        output.start(1)
+        output.failed(received.value)
+        artifact = json.loads(path.read_text())
+        assert artifact["failure"]["diagnostics"]["request_failure_context"] == expected
+        assert secret not in json.dumps(saved) + path.read_text()
+        assert h.source.encodings == h.source.decodings == h.calls == h.admitted == []
+        assert not h.core._tokenizer_scopes and h.core._count_preparation is None
+    finally:
+        signal.signal(signal.SIGTERM, previous_sigterm)
+        runtime.history.close()
 
 
 def test_native_resolution_and_connection_checks_precede_source(harness, monkeypatch):

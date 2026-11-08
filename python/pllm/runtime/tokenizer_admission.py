@@ -75,20 +75,35 @@ class _DescriptorPolicy(Enum):
 
 
 def _json_metadata(raw, *, error, label):
+    parser_owned = type(raw) in (str, bytes, bytearray)
+
     def pairs(items):
+        nonlocal parser_owned
         result = {}
         for key, value in items:
             if key in result:
+                parser_owned = False
                 raise error(f"{label} duplicate metadata key")
             result[key] = value
         return result
 
     def invalid(_):
+        nonlocal parser_owned
+        parser_owned = False
         raise error(f"{label} nonfinite metadata")
 
     try:
         result = json.loads(raw, object_pairs_hook=pairs, parse_constant=invalid)
     except (ValueError, UnicodeError, RecursionError) as exc:
+        # Assumes standard JSON parser/UTF codecs and error handlers; excludes
+        # errors from our local duplicate/nonfinite callbacks and input subclasses.
+        # JSONDecodeError.args is its formatted message; __reduce__ uses doc.
+        if parser_owned and type(exc) is json.JSONDecodeError:
+            exc.doc = ""
+        elif parser_owned and type(exc) is UnicodeDecodeError:
+            # Both slots own bytes. Keep offsets/reason, not raw repr/pickle data.
+            exc.object = b""
+            exc.args = (exc.encoding, b"", exc.start, exc.end, exc.reason)
         raise error(f"{label} invalid metadata JSON") from exc
     if type(result) is not dict:
         raise error(f"{label} metadata must be an object")
