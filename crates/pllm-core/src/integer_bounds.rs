@@ -406,6 +406,202 @@ pub fn dot_radius(left_squared: u128, right_squared: u128) -> Result<u128, Error
     ))
 }
 
+/// Absolute update-error codes, each representing its value divided by 2^f.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ReciprocalStepError {
+    pub delta_d: u128,
+    pub delta_n: u128,
+}
+
+/// Public reference envelope only: f=0..=127, m=0..=8 are not evaluated settings.
+/// All numeric codes represent value / 2^fraction_bits. Every inactive step must
+/// have both fields zero; this also applies to all eight steps when m=0.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ReciprocalBoundSpec {
+    pub fraction_bits: u8,
+    pub iterations: u8,
+    pub xmin: u128,
+    pub xmax: u128,
+    pub e0: u128,
+    pub w0: u128,
+    pub steps: [ReciprocalStepError; 8],
+}
+
+/// Conditional nonstrict absolute error bound, not an execution capability.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ReciprocalBound {
+    code: u128,
+    fraction_bits: u8,
+}
+
+impl ReciprocalBound {
+    pub fn code(self) -> u128 {
+        self.code
+    }
+
+    pub fn fraction_bits(self) -> u8 {
+        self.fraction_bits
+    }
+}
+
+// Private caller contract: divisor > 0. Quotient/remainder avoid n+d-1 overflow.
+// Increment cannot overflow: remainder!=0 implies divisor>=2 and q<u128::MAX;
+// divisor=1 instead gives remainder=0. Keep the increment checked nonetheless.
+fn reciprocal_ceil(numerator: u128, divisor: u128) -> Result<u128, Error> {
+    let quotient = numerator / divisor;
+    let remainder = numerator % divisor;
+    quotient
+        .checked_add(u128::from(remainder != 0))
+        .ok_or(Error::Bounds)
+}
+
+/// Bound simultaneous old-state Goldschmidt updates for a fixed positive x:
+/// d' = d*(2-d)+eps_d, n' = n*(2-d)+eps_n, |eps_*| <= delta_*/S.
+/// The caller must independently justify xmin/S <= x <= xmax/S,
+/// |1-d0| <= e0/S and |d0-x*n0| <= w0/S, where S=2^fraction_bits.
+/// For OLD E,W, propagate E'=ceil(E*E/S)+delta_d and
+/// W'=ceil((S+E)*W/S)+delta_d+ceil(xmax*delta_n/S).
+/// The returned B/S bounds |n-1/x| nonstrictly, B=ceil((E+W)*S/xmin).
+/// Indeed 1-d'=(1-d)^2-eps_d and
+/// d'-x*n'=(2-d)*(d-x*n)+eps_d-x*eps_n, with |2-d|<=1+E/S.
+/// Finally |n-1/x|<=((E+W)/S)/x<=(E+W)/xmin before outward rounding.
+/// Supplied premises are not authenticated: this API has no x,d0,n0 inputs.
+/// Refresh/gain are excluded; a post-refresh invocation needs independently
+/// justified new initial premises, never an automatic error reset. No convergence,
+/// tolerance, paper iteration count or numerical profile is selected.
+///
+/// Every invalid domain, nonzero inactive field or intermediate overflow returns
+/// Error::Bounds, even when a reduced answer would fit. Only complete success
+/// constructs a bound; the borrowed specification is immutable on every path.
+///
+/// External admission, as with MatrixScan: BEFORE entry the caller must fund
+/// validation, full work, input/original backing and output/error overlap. This
+/// helper neither authenticates funding/premises nor quotes/adopts a runtime.
+/// There is no heap allocation, history, callback or imported capability.
+///
+/// Source-level work inventory (successful m-step path; errors short-circuit):
+/// checked multiply 3m+1; division AND remainder each 3m+1; checked ceiling
+/// increment 3m+1; other checked add 4m+1; checked shift 1. Scalar validation
+/// has <=4 comparisons, then <=8 borrowed step reads/classifications, <=8 index
+/// validity comparisons and <=16 zero comparisons (short-circuit OR). Validation
+/// has <=9 loop termination checks; recurrence <=8 iterations/9 termination checks.
+/// A single prefix slice bounds check is justified by m<=8. No recurrence indexing.
+/// Each step has 7 checked-arithmetic Option->Result/? sites and 3 helper /?
+/// sites; finalization has 2 arithmetic sites and 1 helper /?, plus entry shift.
+/// Thus main has 10m+4 propagated Result sites on success; each of 3m+1 helper
+/// calls adds one Option->Result return. Two explicit validation Err returns and
+/// one final Ok return exist; helper returns its checked increment Result.
+/// Branches also include short-circuit validation and helper remainder!=0; each
+/// checked operation may exit early. Local E,W update only after all step checks.
+/// Named assignments: entry binds S,E,W; each recurrence binds nine magnitudes
+/// then assigns E,W; finalization binds sum,numerator,code. Each helper binds q,r.
+///
+/// Remaining source-control inventory (successful path):
+/// - Two slice-iterator constructions, one enumerate construction; validation
+///   next 9 / recurrence next m+1, separately Some/None classifications 9 / m+1;
+///   bind 8 validation pairs and m steps.
+/// - Scalar OR 1..4 comparisons, <=3 OR continuations. Validation 8 index
+///   comparisons / AND RHS 8-m, inactive fields 2(8-m) comparisons on success
+///   and short-circuit OR on error. Helper: one remainder comparison and u128
+///   Bool conversion per call.
+/// - usize::from 9, u32::from 1; prefix bounds check 1. Iterator internals are
+///   not additional SOURCE indexing.
+/// - Arithmetic Options 7m+3 main, 3m+1 helpers classified by ok_or. Main
+///   10m+4 propagated Result classifications; helper returns Result without ?;
+///   iterator Option classifications are separate.
+/// - Bind S/E/W once, nine magnitudes/step plus 2 commits, 3 final magnitudes,
+///   helper q/r. Two explicit validation Err sites, propagation exits, helper
+///   returns and final Ok are distinct. Accessors return one copied field.
+///
+/// All error prefixes use independent maximum m=8: validation next <=9,
+/// recurrence next <=9, 8 pair/step bindings, 4 scalar / 8 index / 16 inactive
+/// comparisons. Invalid supplied m never determines work. Arithmetic follows
+/// validation; errors omit suffixes.
+///
+/// Conservative LOGICAL source-slot expression; aliases are NOT new Rust types
+/// or API. With sz<T> = size_of::<T>(), the logical envelope L is:
+///
+/// ```text
+/// I = std::slice::Iter<'a, ReciprocalStepError>
+/// J = std::iter::Enumerate<I>
+/// P = (usize, &'a ReciprocalStepError)
+/// A = Option<u128>
+/// R = Result<u128, Error>
+/// O = Result<ReciprocalBound, Error>
+/// L = sz<&ReciprocalBoundSpec>
+///   + sz<&[ReciprocalStepError; 8]> + sz<&[ReciprocalStepError]>
+///   + 3*sz<I> + sz<J> + sz<P> + sz<Option<P>>
+///   + 2*sz<&ReciprocalStepError> + sz<Option<&ReciprocalStepError>>
+///   + sz<std::ops::RangeTo<usize>> + 3*sz<usize>
+///   + 4*sz<u8> + sz<u32> + 13*sz<bool>
+///   + 76*sz<u128> + 11*sz<A> + 15*sz<R>
+///   + 17*sz<O> + 27*sz<Error> + sz<ReciprocalBound>
+/// ```
+///
+/// The 76 magnitudes cover 20 named main/helper argument/local slots, 3 operand/
+/// result slots for each of 16 conservative expression sites, and 8 extra helper
+/// call argument slots. The 16 sites are 11 distinct checked-arithmetic
+/// expressions, 4 ceiling-call source sites and 1 final bound construction:
+/// source-audited conservative operand/result allowance, NOT a new fee. Sum-type
+/// allowances cover checked operations, helper returns and propagated error
+/// outputs, intentionally conservatively overlapping payloads. Sequential
+/// iterations/helper calls reuse SOURCE-SITE slots.
+///
+/// Spec view extent size_of::<ReciprocalBoundSpec>() is contained in, NOT billed
+/// additionally over, caller-charged FULL original backing; borrow references
+/// are separate logical slots. Caller entry/work/original backing must be funded
+/// externally BEFORE validation. Source-call slots EXCLUDE private standard
+/// library internals; fixed width/bounded iteration do not establish physical
+/// costs. No stack/RSS/payment/tariff/quote API/admitted-execution claim follows.
+/// Independent caller binding is still required.
+pub fn reciprocal_bound(spec: &ReciprocalBoundSpec) -> Result<ReciprocalBound, Error> {
+    if spec.fraction_bits > 127 || spec.iterations > 8 || spec.xmin == 0 || spec.xmin > spec.xmax {
+        return Err(Error::Bounds);
+    }
+    for (index, step) in spec.steps.iter().enumerate() {
+        if index >= usize::from(spec.iterations) && (step.delta_d != 0 || step.delta_n != 0) {
+            return Err(Error::Bounds);
+        }
+    }
+    // This checked shift cannot fail after f<=127; S and xmin are positive.
+    let scale = 1u128
+        .checked_shl(u32::from(spec.fraction_bits))
+        .ok_or(Error::Bounds)?;
+    let mut e = spec.e0;
+    let mut w = spec.w0;
+    for step in &spec.steps[..usize::from(spec.iterations)] {
+        let square = e.checked_mul(e).ok_or(Error::Bounds)?;
+        let next_e = reciprocal_ceil(square, scale)?
+            .checked_add(step.delta_d)
+            .ok_or(Error::Bounds)?;
+        // After E^2 succeeds, E<=2^64-1, so S+E cannot overflow for S<=2^127.
+        let gain = scale.checked_add(e).ok_or(Error::Bounds)?;
+        let product = gain.checked_mul(w).ok_or(Error::Bounds)?;
+        let propagated_w = reciprocal_ceil(product, scale)?;
+        let with_delta = propagated_w
+            .checked_add(step.delta_d)
+            .ok_or(Error::Bounds)?;
+        let numerator_error = spec
+            .xmax
+            .checked_mul(step.delta_n)
+            .ok_or(Error::Bounds)?;
+        let scaled_error = reciprocal_ceil(numerator_error, scale)?;
+        let next_w = with_delta.checked_add(scaled_error).ok_or(Error::Bounds)?;
+        e = next_e;
+        w = next_w;
+    }
+    let sum = e.checked_add(w).ok_or(Error::Bounds)?;
+    let numerator = sum.checked_mul(scale).ok_or(Error::Bounds)?;
+    let code = reciprocal_ceil(numerator, spec.xmin)?;
+    Ok(ReciprocalBound {
+        code,
+        fraction_bits: spec.fraction_bits,
+    })
+}
+
+#[cfg(test)]
+mod reciprocal_tests;
+
 #[cfg(test)]
 mod tests {
     use super::*;
