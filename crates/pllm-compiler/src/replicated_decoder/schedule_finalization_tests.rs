@@ -1005,10 +1005,14 @@ fn borrowed_comparison_replays_independently_frozen_full_prefix_identities() {
             );
         }
         reset_factories();
+        let before_compile = FINALIZATION_FACTORY_ENTRIES.with(|n| n.get());
+        assert_eq!(before_compile, 0);
         let mut program = Program::compile(&config, 2, 2, &sources).unwrap();
         // Default compilation deliberately keeps its original inline finalizer;
-        // Builder::finish's comparison hook is not default-route enablement.
-        assert_eq!(FINALIZATION_FACTORY_ENTRIES.with(|n| n.get()), 0);
+        // Builder::finish already runs the test-only borrowed comparison.
+        // This counter counts admitted helper entries, not lifetime finalization callbacks.
+        let after_compile = FINALIZATION_FACTORY_ENTRIES.with(|n| n.get());
+        assert_eq!(after_compile, before_compile + 1);
         let mut prefix = Sha256::new();
         prefix.update(b"pllm.replicated-decoder.source-q18.full-prefix-final-ids.v1");
         prefix.update(&config);
@@ -1020,6 +1024,7 @@ fn borrowed_comparison_replays_independently_frozen_full_prefix_identities() {
         assert_eq!(literal.1, program.retire);
         assert_eq!(literal.2, program.work_budget());
         let quote = quote(program.nodes.as_slice(), &program.outputs, 0).unwrap();
+        assert_eq!(FINALIZATION_FACTORY_ENTRIES.with(|n| n.get()), after_compile);
         let replay = finalize(
             program.nodes.as_slice(),
             &program.outputs,
@@ -1031,7 +1036,7 @@ fn borrowed_comparison_replays_independently_frozen_full_prefix_identities() {
         assert_eq!(replay.digest, literal.0);
         assert_eq!(replay.retire, literal.1);
         assert_eq!(replay.work, literal.2);
-        assert_eq!(FINALIZATION_FACTORY_ENTRIES.with(|n| n.get()), 1);
+        assert_eq!(FINALIZATION_FACTORY_ENTRIES.with(|n| n.get()), after_compile + 1);
         assert_eq!(program.source_binding, source_binding(&sources));
         program.bind([7; 32], [9; 32]);
         use std::fmt::Write as _;
