@@ -9,8 +9,31 @@ qualifies for the complete-system comparison.** The earlier completed conformanc
 milestones below cover specified framework and component slices, not this larger
 study. The manuscript remains a draft, not a submission-ready paper.
 
+The matching-wheel results immediately below cover the frozen CPU cohort tested before the later source-only PUMA metadata candidate. They do not qualify the current whole source tree. That candidate remains uncompiled, unpriced and unissuable; its refusal barriers remain intact.
+
 Completed foundations:
 
+- That pre-candidate matching-wheel CPU validation passed **576 GKM checks, zero skips**:
+  368 source/native, 92 decoder-state, 88 SDK and 28 interface checks. All 48
+  generated full/seeded two-worker state cases complete with two genuine distinct
+  worker PIDs. Prepared-prompt integration, native batch calls and request-end
+  acceptance are exercised. Interface checks emit a Starlette warning; their
+  persistence checks do not qualify report reload. This does not establish fit
+  or authorize the twelve-prompt diagnostic, broader quality or publication
+  comparisons. The November 7 bounded trained 14-input/2-output result remains
+  historical, closed evidence; it was not rerun here.
+- The adjacent SourceFP32/ClientOnly encoder and legacy shared-runtime validation
+  passes 127 JSON, 408 forward, four genuine benchmark, 353 shared-owner and 340
+  legacy checks; preserved Rust checks cover 253 models, 57 compiler and 14 native
+  tests. The ordinary
+  [generated encoder factory](../examples/benchmarks/generated_encoder.py) passes
+  CLI preflight/execution and an actual execution `BenchmarkRun.load(...).to_dict()`
+  roundtrip. Outputs `target/generated-encoder/preflight-post-legacy.json` and
+  `target/generated-encoder/benchmark-post-legacy.json` are local ignored files,
+  not durable evidence artifacts. Preflight is descriptive, not execution,
+  finiteness or performance evidence; bounded hashing can read weight bodies and
+  does not imply zero I/O. This qualifies a source clear-reference slice, not
+  THOR/NEXUS, the full comparison, security, quality ranking or Metal.
 - Source-locked method specifications and CPU-first decisions are recorded in
   [methods/README.md](methods/README.md) and
   [methods/DECISIONS.md](methods/DECISIONS.md).

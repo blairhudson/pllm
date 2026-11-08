@@ -127,8 +127,16 @@ whole-request peak/fit, installed SDK or checkpoint execution. The old 30-row
 Bounds baseline was **unrun**, not an executed before/after result.
 
 **26 October 2026 — D51 candidate and bounded stochastic oracle, separate scopes.**
-The eight-production-Python-file prompt correction remains **unlanded**, with
-115 pure passes and source review; the older c634 prompt cohort is not its proof.
+The earlier eight-production-Python-file D51 candidate had 115 pure passes and
+source review; those results retain historical candidate scope.
+[`TEN-METHOD-COVERAGE.md`](TEN-METHOD-COVERAGE.md) records the shared prepared-prompt
+integration as subsequently landed in `bcde781d`; current GKM transport consumes
+shared prepared prompts. FSS/PUMA inherit that implementation. The historical D51
+results do not qualify later revisions. The separately tested pre-candidate GKM CPU
+cohort passed 576 checks as recorded in TEN-METHOD-COVERAGE; FSS/PUMA execution and
+the combined current source tree are not thereby qualified. The coverage packet
+separately records the present-empty-template correction as uncommitted with no
+claimed test result; the older c634 prompt cohort qualifies neither change.
 Main `2308ca1ffb4faed12e5b0d4dbf6c60acb3bea39b` adds one pure integer-oracle test
 file: five tests and Ruff pass; six authorings and six replays are internal work,
 not 12 additional test passes. Explicit residue tapes give complete accepted

@@ -85,13 +85,81 @@ Source descriptors, bookkeeping and generated correctness controls alone do not
 complete this chain. The table names the first executable gap, not merely the
 next approval. Factory paths are relative to the repository root.
 
+**Source-only prerequisite status:** The historical canonical native-command slot remains **HOLD**
+and lifecycle-41 cleanup **UNKNOWN** under the linked
+[policy](../docs/plans/raw-check-prepayment-contract.md). The later PUMA metadata candidate
+and the combined current source tree remain execution-unqualified. This does not negate
+the separately tested pre-candidate GKM CPU cohort below. Historical retained-control
+custody is separate from the ordinary direct Cargo/uv/Maturin workflow. Independent Astra
+production and regression source reviews approve the uncommitted shared GKM/FSS/
+replicated `_Peers`/`_IOOwner` shell-before-start repair in
+[`delegated_transport.py`](../python/pllm/runtime/delegated_transport.py): it
+retains failed/ambiguous shells under the original reservation and preserves the
+construction error. The original [construction-custody regression cohort](../tests/test_transport_construction_custody.py)
+has 11 authored test functions / 29 static cases. The file now has 12 functions /
+38 static cases: the additional constructor-only FSS test,
+[`test_fss_post_start_constructor_preserves_primary_and_original_custody`](../tests/test_transport_construction_custody.py#L665),
+adds nine cases (`ValueError` / `KeyboardInterrupt` / `SystemExit` × successful
+cleanup / peer-close failure / peer-close plus handoff failure). All 38 remain
+**UNRUN**. Independent source review only clears the
+[`fss_transport.py` constructor-error precedence repair](../python/pllm/runtime/fss_transport.py#L492)
+and these regression sources, not runtime behavior. Independent Astra63 source
+review clears **only the narrow direct `CompactPublisher::seal` guard**:
+[`compact_publisher.rs:538–545`](../crates/pllm-compiler/src/replicated_decoder/source/compact_publisher.rs#L538)
+checks readiness, non-Collecting stage and missing payload before stage extraction,
+without changing the resident owner. The genuine generated-fixture
+[`repeated-seal regression:368–403`](../crates/pllm-compiler/src/replicated_decoder/source/compact_publisher_tests.rs#L368)
+asserts unchanged owner/program/payload/directory identities and exact original-budget
+charges. Static authored totals are **21 Rust tests / 47 Python test functions**
+(prior 20 Rust plus this one); all remain **UNRUN**. The missing-payload guard
+branch has no dedicated new regression. Parent independently verified SHA-256
+`3511a31416a0085a4f46983a988c28786d3172e07f0395cbbf224e4858a4298f`
+for the guard source and
+`5ec00a720cf01f538ac296c022e34d194afff563ea88162825f44d840e690a9d`
+for its Rust regression module; scoped whitespace was clean. This clears neither
+the outer `Publisher` error path nor full seal, unwind or cleanup behavior.
+
+Compact directory identity and consuming seal/lowering/unwind repair remain
+**OPEN**: independent Astra19 found identity replacement could report wrong
+success and consuming seal could lose payload/charges. The older directory-only
+Drop helper proves a weaker directory-charge oracle, not full failed-payload
+retention. User 73539's compact-directory **fail-closed design and quotation only**
+approval remains unchanged, without stronger parent-mutation trust or directory
+implementation permission. User 73582 explicitly extends prerequisite approval
+to **private shared-allocation and `original_source` lowering/model-construction
+source repair and regression authoring if necessary**, contingent on a complete
+resource/owner/failure/lifetime inventory and independent design review **before
+implementation**. Existing consuming APIs, error precedence/destruction order,
+original ledgers, attempts and caps remain unchanged. Fallible work must borrow
+resident ownership; partial owners and split guards must be retained immediately;
+interruption must make Entering terminal, with failure burn independent of Drop.
+Astra40/Astra53 complete inventory, full retained seal/model construction, and typed-config factory remain **OPEN**; bounded prerequisites have advanced:
+
+- [Shared allocation](../crates/pllm-garble/src/shared_allocation.rs): split source/oracle cleared, **11 unit + 3 compile-fail UNRUN**; typed resident admission source/oracle cleared, **16 unit + 3 additional compile-fail UNRUN**.
+- [BlockScan resident finish](../crates/pllm-compiler/src/replicated_decoder/source_norms.rs): source/oracle cleared, **13 tests UNRUN**; no charge/backing-identity or full-funding claim.
+- [Native resident Builder](../crates/pllm-core/src/puma/tensor_resident_builder.rs): production and updated regression-oracle sources cleared, **20 tests UNRUN**. Scope covers simple public Builder operations, not all native constructors, end-to-end integration, or guard custody.
+- [Resident parameter custody](../crates/pllm-core/src/puma/tensor_resident_parameters.rs): production and repaired regression-oracle sources separately cleared, including the public-export/nameability repair; **23 unit tests + 1 gamma compile-fail example + 1 positive nameability doctest, ALL UNRUN**. Original full/tail rotary backing is retained across binding, pricing, admission and build failure; RMS gamma remains borrowed. This is parameter-only source API clearance, not execution qualification, initial-acquisition/native-construction-local/full-result/workspace/whole-model custody or integration, funding, cleanup or **HOLD** clearance. Other cohort counts and the historical lifecycle count of 29 remain separate.
 - [Post-recipe rotary finalization custody](../crates/pllm-core/src/puma/tensor_resident_parameters.rs#L127): independent Astra production and all [10 new regression-oracle sources](../crates/pllm-core/src/puma/tensor_rotary_finish_regressions.rs) are **SOURCE-CLEAR; all 10 tests UNRUN**. Only after recipe success, the actual Builder and both affine tables are installed in resident storage before finish; full output is installed before tail construction. Finish error/unwind retains owners, and burn-before-refusal is preserved. This clears only the post-recipe finish cut, not earlier geometry/preparation, pending second-table acquisition, all native construction locals, whole-attempt custody, abort/OOM or retirement; these remain **OPEN**. Added inline full/tail finish-slot layout, prepayment and temporary/result overlap remain **UNFUNDED** composition blockers. Source clearance is not compile/runtime qualification or independent numerical, digest, instruction-order or PRSS proof; legacy shared-helper comparisons are not independent numerical proof. The 23 parameter tests, 20 Builder tests, doctest counts and historical 29 remain separate and unchanged; no funding, cleanup or **HOLD** clearance follows.
+
+- [PUMA retirement diagnostics](../crates/pllm-compiler/src/replicated_decoder/compact_lowering.rs): `lower_next` snapshots attempted operation before inner lowering; outer retirement Err retains correct `FailureSite` without cursor rollback. [Regressions](../crates/pllm-compiler/src/replicated_decoder/compact_norm_tests.rs): expanded existing repeat/retirement/unwind **8-case matrix + 1 new exhausted-sequence test**; independently **SOURCE-CLEAR, ALL UNRUN**. Non-request fixtures prove neither funding/custody nor full runtime; original counters/caps/numerics/custody unchanged. Original root-entry funding remains unproved.
+- [Failed-retirement ACTUAL-ASGI cohort](../tests/test_delegated_worker_failed_retirement_custody.py): **2 functions / 4 static cases**, backend-exit RuntimeError/KeyboardInterrupt/SystemExit and native-abort RuntimeError; independently **SOURCE-CLEAR, ALL UNRUN**. Checks send versus app-return lease timing, first-attempt owner-locked backend exit, sticky 409 preserving original token/owner/charge, and no retry, refund, body consumption, source loading or native dispatch. No production worker changes; existing HTTP-success cohort unchanged. New counts remain separate from historical totals/other cohorts. Neither cut grants matched-wheel/runtime/security/funding/cleanup or **HOLD** clearance.
+- [Shared D61 conditional reciprocal leaf](/crates/pllm-core/src/integer_bounds.rs): static math and resource reviews **SOURCE-PASS**; [7 Rust test functions AUTHORED/UNRUN](/crates/pllm-core/src/integer_bounds/reciprocal_tests.rs), including 2,268 tiny-integer oracle cases, not 2,268 pytest nodes. Reference `f<=127, m<=8` are not evaluated settings. External premises, pre-funded entry, full original backing and caller admission remain unproved; no refresh, tolerance, HE route, profile/backend or whole-method qualification follows. Counts remain **1/10 trained, 0/10 qualified**; caps and **HOLD** unchanged.
+
+- [Shared fixed-error selection and dense preflight](../docs/plans/raw-check-prepayment-contract.md#fixed-core-independent-source-review-status): independent Astra production34 and repaired oracle50 reviews are **SOURCE-CLEAR** for this prerequisite only; **18 new unit tests, 0 doctests, ALL UNRUN**, no compiler/runtime proof. Controller/capture, custody and funding remain **OPEN**; cleanup **UNKNOWN** and **HOLD** unchanged.
+
+These bounded source clearances establish neither complete custody nor funding or launch readiness.
+No execution, funding, directory implementation, recovery or cleanup clearance
+follows; historical slot **HOLD** and cleanup **UNKNOWN** remain unchanged.
+GKM/FSS/expanded native-constructor audits found local-owner unwind paths, not a
+qualified opaque-constructor leak finding. No blanket opaque-constructor leak
+claim follows; neither source review nor this status correction qualifies
+historical cleanup or confers launch, recovery, or new design approval.
 
 | Method | Actual entry point and current status | First executable gap / distinct approval gates |
 | --- | --- | --- |
-| GKM | `examples/papers/gkm.py:experiment` / `seeded`, `compiled_gkm_v1`; existing complete ordinary two-worker SDK/benchmark chain. `examples/papers/gkm_quality.py:experiment` / `seeded` configures paired quality. | Qualify a coherent current wheel against landed prepared-prompt integration and the `lookup_batch`/`linear_batch`/`accept_batch` calls still required by current Python transport. The earlier 18 October installed-native mismatch is historical evidence, not a fresh installed-wheel finding; current matching-wheel qualification remains **unproven**. No launch/resource fit is established. Then resource-admit the **unrun** twelve-prompt FP32 diagnostic. Historical 4+2 full/seeded Q11 state checks and three-prompt FP32 smoke remain bounded; this is not a garbling/security hold or broader publication qualification. |
+| GKM | `examples/papers/gkm.py:experiment` / `seeded`, `compiled_gkm_v1`; existing complete ordinary two-worker SDK/benchmark chain. `examples/papers/gkm_quality.py:experiment` / `seeded` configures paired quality. | The frozen pre-candidate matching-wheel CPU cohort passed **576 generated checks, zero skips** (368 source/native, 92 decoder-state, 88 SDK, 28 interfaces). All 48 genuine two-PID full/seeded SDK state cases complete; prepared prompts, native batch calls and request-end acceptance are exercised. The earlier 18 October installed-native mismatch remains historical. This establishes neither resource fit nor authorization for the **unrun** twelve-prompt FP32 diagnostic. The November 7 trained 14-input/2-output check is already complete and was not rerun; historical 4+2 full/seeded Q11 checks and three-prompt FP32 smoke remain bounded. Broader quality and publication qualification are separate; this is not a garbling/security hold. |
 | Maverick | `MaverickDelegatedLinear` and bounded batch primitives; no complete method SDK factory. | Implement source-bound fixed-eight protected continuation, including client-local nonlinear operations and original-dot window lifecycle with Protocol 2 trust. M-X/M-D adoption, actual-code security and no-wrap gates remain separate. |
-| SIGMA | Bounded native arithmetic/activation/normalization components; no trained method executor. | Implement the frozen four-lane LayerNorm → private-matrix handoff with consuming leases; current clarifications are source/design only. This is neither joint-view security qualification nor complete trained execution. |
+| SIGMA | Bounded native arithmetic/activation/normalization components; no trained method executor. | The [LayerNorm → matrix plan](../docs/plans/sigma-layernorm-matrix-handoff.md) remains a held historical conditional design, not implementation-approved. An authentic share-to-common-mask primitive and transitive dealer/evaluator separation are required before issuance. Joint security and complete original-ledger layout, work, and cleanup funding remain OPEN. Receiver custody acceptance does not confer joint publication authority; that requires separately approved authority or an explicitly weakened contract. Existing components do not constitute trained execution. |
 | FuseFSS | `examples/papers/fusefss.py:experiment` and checked smoke factories; complete generated dealer/two-holder SDK path. Three selections already have generic decoder support (limit four); shared prepared-prompt source integration is landed. | Qualify the current corrected cohort and ordinary oversize refusal with a coherent matching wheel under unchanged caps. Historically cached source-template `hello` had 30 tokens: default `fss_decoder` sequence ≤16 and `fss_source._contract` rows+outputs−1 ≤16 reject that cohort before tape pricing. Historical legacy `user: hi` had three tokens; current corrected `hi` is unknown. The old one-selection pressure stop never accepted and supplies no corrected-cohort evidence or trained fit. |
 | BumbleBee | `PrivateEmbeddingLookup(repacking="interleave")` is a bounded component; no complete method SDK factory. | Supply full encrypted OLT, distributed OT and nonlinear execution; B-N1 source/numerical mapping and backend/security selection remain held. Lookup controls do not complete the transformer. |
 | PUMA | `examples/papers/puma.py:experiment`; complete compact three-worker generated SDK/gateway path, not trained-qualified pinned full-prefix execution. | Execute an admitted actual trained prefix through accepted private feedback/output. Expanded private-fixture second-RMS refusal is valid for its propagated interval, not a proved propagation bug; compact gateway success does not remove trained-source/range gates. |
@@ -105,12 +173,15 @@ current HEAD). Current `DelegatedClient._encode` consumes shared prepared prompt
 FSS/PUMA inherit this integration, not the legacy rendering path. Shared GKM/FSS
 source-descriptor policies are also landed; zero BOS/EOS false fallback was fixed
 in `23ff55f1`, with isolated regression source in `067994a3` (both ancestors).
-These are source findings, not executed qualification. The present-empty-template
-correction is separate uncommitted work; no test result is claimed for it.
+These source findings alone are not executed qualification. That pre-candidate GKM execution
+qualification is the bounded matching-wheel 576-check CPU cohort above, not a
+qualification of FSS/PUMA cohorts or other unexecuted custody tests. The
+present-empty-template correction remains separate; no result for that correction
+is inferred from the GKM cohort.
 D51's earlier eight-file candidate passed 115 pure checks and 5/6 matching SDK
 checks, including both compact cases: **historical candidate evidence only**, not
-qualification of the landed revision or current dirty source. Current coherent
-matching-wheel qualification remains **unproven**. Expanded private-fixture
+qualification of the landed revision or current dirty source. That
+576-check qualification is separate from that historical candidate. Expanded private-fixture
 second-RMS refusal is sound for its declared interval; trained execution remains
 unqualified. Historically cached Qwen `hello` had **30 source-template tokens**
 versus legacy three; neither count establishes current corrected `hi` or a fit.
