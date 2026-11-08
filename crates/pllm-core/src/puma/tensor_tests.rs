@@ -1564,9 +1564,49 @@ fn partitioned_rms_norm_preserves_stochastic_recipe_work_and_payload() {
         assert_eq!(program.admitted_bytes(), legacy.admitted_bytes());
         assert_eq!(program.instructions(), legacy.instructions());
         assert_eq!(program.numeric_profile(), legacy.numeric_profile());
+        assert_eq!(program.len, legacy.len);
+        for (a, b) in program.nodes[..program.len]
+            .iter()
+            .zip(&legacy.nodes[..legacy.len])
+        {
+            let a = a.unwrap();
+            let b = b.unwrap();
+            assert_eq!((a.lanes, a.bit), (b.lanes, b.bit));
+            match (a.instruction, b.instruction) {
+                (
+                    Instruction::Product {
+                        left: a_left,
+                        right: a_right,
+                        rescale: a_rescale,
+                        certified: a_certified,
+                    },
+                    Instruction::Product {
+                        left: b_left,
+                        right: b_right,
+                        rescale: b_rescale,
+                        certified: b_certified,
+                    },
+                ) => {
+                    assert_eq!((a_left, a_right, a_rescale), (b_left, b_right, b_rescale));
+                    assert_eq!(a_certified.is_some(), b_certified.is_some());
+                }
+                (a, b) => assert_eq!(a, b),
+            }
+        }
         assert_ne!(program.digest(), legacy.digest());
-        assert!(program.output_bounds().lower() > legacy.output_bounds().lower());
-        assert!(program.output_bounds().upper() < legacy.output_bounds().upper());
+        // Bounded-cell and static Bernstein proofs independently enclose the
+        // same stochastic recipe; neither generally contains the other. These
+        // fixtures have reciprocal-width coefficient >= 292 and |gamma| <= 2Q,
+        // so check an absolute bound, not universal relative tightening.
+        assert!(program.output_bounds().lower() > -128 * ONE);
+        assert!(program.output_bounds().upper() < 128 * ONE);
+        if lanes == 1 {
+            // The 256-word cell U=65536..65791 gives P_upper=529616,
+            // versus static Bernstein P_upper<=524410. Thus the partitioned
+            // enclosure is strictly wider here, despite identical arithmetic.
+            assert!(program.output_bounds().lower() < legacy.output_bounds().lower());
+            assert!(program.output_bounds().upper() > legacy.output_bounds().upper());
+        }
         if width >= 128 {
             let scalar = program
                 .output_bounds()
@@ -1603,10 +1643,24 @@ fn partitioned_rms_norm_preserves_stochastic_recipe_work_and_payload() {
             assert!(actual.iter().all(|v| (program.output_bounds().lower()
                 ..=program.output_bounds().upper())
                 .contains(v)));
+            assert!(usage
+                .iter()
+                .all(|u| u.peak_bytes() + FIXED_RESERVE_BYTES <= program.admitted_bytes()));
             drop(output);
             assert!(usage.iter().all(|u| u.live_bytes() == 0));
         }
     }
+}
+
+#[test]
+fn partitioned_rms_norm_zero_input_bounds_match_legacy_with_signed_gamma() {
+    let bounds = Interval::new(0, 0).unwrap();
+    let gamma = [ONE, -ONE];
+    let legacy = Program::rms_norm(1, 2, bounds, &gamma).unwrap();
+    let (program, _) = Program::rms_norm_certified(1, 2, bounds, &gamma).unwrap();
+    assert_eq!(legacy.output_bounds(), bounds);
+    assert_eq!(program.output_bounds(), bounds);
+    assert_eq!(program.digest(), legacy.digest());
 }
 
 // All-party reconstruction is confined to this test oracle.
