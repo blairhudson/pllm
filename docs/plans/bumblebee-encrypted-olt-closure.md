@@ -1253,8 +1253,10 @@ Independent **Astra46** (`ses_e7b86a27fffeSQk9kViA9Gracx`) clears this candidate
 algebra only. Fix N=8192, t=2^64, packing, full-U, trace, 31 switches and two
 directions. Consider distinct prospective NTT primes `q_i in [2^59,2^60)`
 (i=1,2,3), `p in [2^34,2^35)`, all 1 modulo 16384. Then
-`q=product_i q_i>=2^177`, `Q=p*q<2^215`. Existence, primality, construction,
-context legality and backend acceptance are NOT established. The substantially
+`q=product_i q_i>=2^177`, `Q=p*q<2^215`. Section 16.1 supplies an unadopted
+concrete integer witness for these ranges, including primality and roots.
+Native construction, context legality and backend acceptance remain
+unestablished. The substantially
 changed widths are selected as a design family only; concrete profile adoption
 and implementation still require separate approval.
 
@@ -1361,13 +1363,88 @@ all-body/hash verification or HTTP acquisition is claimed. Distinct context
 validity, compatible lifts and backend reproduction remain unproved; no generic
 fully qualified source path or issuer/funding/implementation approval follows.
 
-Actual prime existence/construction, successful native constructor/context checks
-and optional backend qualification remain open. Independent 128-bit security,
-Galois and joint-privacy review remain
-required; neither `Q<2^215` nor a 218-bit table threshold certifies security.
+Section 16.1 supplies a proposed prime/root tuple as an integer-design witness.
+Concrete profile adoption, successful native constructor/context checks and
+optional backend qualification remain open. Independent 128-bit security, Galois
+and joint-privacy review remain required; neither `Q<2^215` nor a 218-bit table
+threshold certifies security.
 Wider-RNS bytes, cumulative work, funding and owner contracts remain missing.
 Beyond D67's design-family selection, no concrete parameter, security, funding,
 profile, engine or implementation approval follows; no execution is claimed.
+
+### 16.1 UNADOPTED concrete arithmetic SPECIMEN — not a production profile
+
+This finite integer-design specimen instantiates D67’s selected wider design
+family arithmetically. The search, root identities and support-bound formulas
+below specify a reproducible mathematical calculation. The concrete profile
+remains **UNADOPTED**. These integer identities establish neither native
+constructor/context acceptance nor a selected production profile, paper-calibrated
+security or ciphertext implementation. No native, project-test or ciphertext
+execution is claimed.
+
+Keep `N=8192`, `t=2^64` and ordered DATA `[q1,q2,q3]`, KEY `[q1,q2,q3,p]`:
+
+| Limb r | Exact value | Quadratic nonresidue g | psi |
+| --- | --- | --- | --- |
+| q1 | 1152921504606830593 | 5 | 527760526715669589 |
+| q2 | 1152921504606748673 | 3 | 609248293264176271 |
+| q3 | 1152921504606683137 | 5 | 353405849166470586 |
+| p | 34359410689 | 11 | 23200669761 |
+
+Reproduce the finite search by testing `r=2^b-16384*j+1`, `j=1,...,10000`
+in increasing order: first three prime hits for b=60 are j=1,6,10; first for
+b=35 is j=20. Use deterministic unsigned-64-bit Miller–Rabin with seven bases
+`[2,325,9375,28178,450775,9780504,1795265022]`, published in the
+[Sinclair listing](https://miller-rabin.appspot.com/). All four values are within
+that domain. For each prime, the listed g satisfies `g^((r-1)/2)=-1 mod r`;
+define `psi=g^((r-1)/16384) mod r`. Then `psi^8192=r-1` and `psi^16384=1`
+modulo r, so psi has order 16384. No full multiplicative-generator claim is
+needed. These integer witnesses establish a proposed tuple’s primality/root
+properties, not native constructor, context, optional-backend or
+effective-source-law acceptance.
+
+With `Qd=q1*q2*q3`, `Qk=p*Qd`, use the existing §16 Z/K/H definitions,
+`h=(p-1)/2`, and no old-profile K:
+
+```text
+Z = 13425049620
+K = 16492831785980
+H = 4057472279108622949501368243473600
+Qd = 1532495540865518635130821056977027158796330141975560193  (180 bits)
+Qk = 52655643667659537303442623938442744987389926254167950472127102977  (215 bits)
+Qd-t*H = 1457648388146630857001398187572986724832989567642222593 > 0
+floor(Qd/(t*H)) = 20
+```
+
+Thus `t*H/Qd<1` supplies **only conditional circular ±1 per reconstructed
+direction and ±2 after final assembly**, under the existing full-U, actual
+source-phase, compatible-drop, support and complete trace/469 premises. Preserve
+§2/§18.2 global U and global Down with q=Qd: no Delta, limbwise rounding,
+approximate scaler or error/64 substitute. Individual party shares gain no
+near-product claim. CBD20 here means a sum of 20 independent `(B-C)` pairs of
+fair bits, variance 10 and support ±20; it remains a **PROPOSAL**, not a
+paper-calibrated or selected sampling profile. The 215-bit product alone is no
+security certificate: differing CBD laws, related-secret/KDM Galois assumptions,
+multikey/sample inventory and joint privacy still need independent qualification.
+
+**Reuse boundary, not a new paper backend.** Existing `Rns3` accepts three
+ordered odd coprime limbs `<2^61` with product in `[2^128,2^191)`, so these
+three DATA limbs fit its numeric domain. The Down numerator fits 244 bits;
+12-bit normalization shift still fits `Wide`'s 256 bits. Four-limb Qk is outside
+`Rns3`; `t*Qk` needs 279 bits, so its Down cannot be reused at KEY level. Reuse
+shared `RoundedLimbDrop` separately for each retained limb, with preflight of
+**all** projections before any writes if whole-action atomicity is required;
+its existing guarantee is per projection only. Apply DATA CRT/Down after drop.
+This specifies reuse, not secret custody, a new backend or activation. Future
+generic 60-bit CRT/U/Down normal regressions for this specimen are explicitly
+**UNAUTHORED / UNRUN**; no profile constants or registrations change.
+
+Six **PACKED blocks** are not six RNS limbs. Twelve logical Galois keys still
+have three Garner rows over four key limbs: §6’s 18 MiB raw Galois payload is
+only that payload, not a whole-region backing quote, lifecycle proof or security
+argument. Transform/prepared storage, overlaps, transport,
+issuer/erasure, original-ledger funding and joint-privacy gates remain open.
+No source code, tests, profile adoption, cipher construction or execution follows.
 
 ## 17. Selected exact CRT/Down component design — Untimed reuse / Residue classes
 
