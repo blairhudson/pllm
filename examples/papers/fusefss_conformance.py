@@ -52,8 +52,9 @@ def experiment(path=Path("target/fusefss-conformance-qwen2"), *, requests=1, cap
         "eos_token_id": case["eos_id"],
     }
     (root / "config.json").write_text(json.dumps(config, sort_keys=True))
-    # Normal Responses rendering is "user: hello". WhitespaceSplit preserves
-    # "user:" as one word. No injected IDs, postprocessor or synthetic prefix.
+    # This generated fixture's explicit template renders "user: hello", without
+    # an assistant suffix even with add_generation_prompt=True. WhitespaceSplit
+    # preserves "user:" as one word; no injected IDs, postprocessor or BOS.
     vocab = {"zero": 0, "<unk>": 1, "user:": 2, "three": 3,
              "hello": 4, "five": 5, "six": 6}
     tokenizer = Tokenizer(WordLevel(vocab, unk_token="<unk>"))
@@ -61,6 +62,12 @@ def experiment(path=Path("target/fusefss-conformance-qwen2"), *, requests=1, cap
     tokenizer.save(str(root / "tokenizer.json"))
     (root / "tokenizer_config.json").write_text(json.dumps({
         "add_bos_token": False, "model_max_length": d["max_positions"],
+        "chat_template": (
+            "{% for message in messages %}"
+            "{{ '\\n' if not loop.first else '' }}"
+            "{{ message['role'] }}: {{ message['content'] }}"
+            "{% endfor %}"
+        ),
     }, sort_keys=True))
     _write_source(root / "model.safetensors", case)
     return Experiment(

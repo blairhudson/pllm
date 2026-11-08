@@ -1,4 +1,4 @@
-"""Frozen Qwen2 bytes/layout plus one installed-native final-only SDK regression.
+"""Frozen Qwen2 bytes/layout and installed-native final-only SDK/benchmark regressions.
 
 Cheap checks against the installed wheel:
     uv run --no-sync python -m pytest -o pythonpath= tests/test_fss_conformance_sdk.py -m 'not slow'
@@ -9,23 +9,30 @@ The generated control tests arithmetic/transport, not trained-model quality.
 """
 
 import dataclasses
+from contextlib import contextmanager
+import hashlib
 import json
 import math
 import os
 from pathlib import Path
 import struct
+import threading
 import time
 
 import httpx
+import psutil
 import pytest
 from safetensors import safe_open
 from tokenizers import Tokenizer
 
 from examples.papers.fusefss_conformance import FIXTURE_ID, INPUTS, experiment
 from pllm import OpenAI, _native
+from pllm.metrics import (BenchmarkCase, BenchmarkRun, BenchmarkSuite, BenchmarkTarget,
+                          Sampling, Scenario, benchmark_suite)
 from pllm.runtime import fss_source, fss_transport
 from pllm.runtime.fss_protocol import HOLDERS, ROLES
-from pllm.runtime.responses import normalize_input, prompt_text
+from pllm.runtime.responses import _render_prompt as shared_render_prompt
+from pllm.runtime.responses import normalize_input
 from pllm.runtime.transformer_client import TokenizersJSONTokenizer
 
 
@@ -97,16 +104,26 @@ def test_deterministic_public_experiment_and_ordinary_prompt(control, tmp_path):
     assert config["model_type"] == "qwen2"
     assert config["tie_word_embeddings"] is case["tied_head"] is True
     assert config["eos_token_id"] == case["eos_id"] == 0
+    assert config["bos_token_id"] == 1
     assert [config[k] for k in ("hidden_size", "intermediate_size", "num_hidden_layers",
                                "num_attention_heads", "num_key_value_heads", "head_dim",
                                "max_position_embeddings", "vocab_size")] == [16, 12, 2, 4, 2, 4, 6, 7]
     options = json.loads((root / "tokenizer_config.json").read_bytes())
+    document = json.loads((root / "tokenizer.json").read_bytes())
+    vocab = {"zero": 0, "<unk>": 1, "user:": 2, "three": 3,
+             "hello": 4, "five": 5, "six": 6}
+    assert document["model"] == {"type": "WordLevel", "vocab": vocab, "unk_token": "<unk>"}
+    assert document["pre_tokenizer"] == {"type": "WhitespaceSplit"}
+    assert document["added_tokens"] == []
+    assert all(document[key] is None for key in ("normalizer", "post_processor", "decoder"))
     inner = Tokenizer.from_file(str(root / "tokenizer.json"))
-    assert set(inner.get_vocab().values()) == set(range(case["dimensions"]["vocab"]))
+    assert inner.get_vocab() == vocab
     assert inner.post_processor is None
     assert options["add_bos_token"] is False
     tokenizer = TokenizersJSONTokenizer(inner, config["bos_token_id"], config["eos_token_id"])
-    rendered = prompt_text(normalize_input("hello"))
+    source = fss_source.resolve_client_source(exp)
+    assert source.tokenizer_descriptor["chat_template"] == options["chat_template"]
+    rendered = shared_render_prompt(normalize_input("hello"), source.tokenizer_descriptor)
     assert rendered == "user: hello"
     assert tokenizer.encode(rendered, add_bos=options["add_bos_token"]) == case["prefix"] == [2, 4]
 
@@ -169,6 +186,159 @@ def assert_retired(core):
             return
         time.sleep(0.02)
     raise AssertionError("Qwen2 FSS role owners did not retire")
+
+
+@contextmanager
+def _observe_fss_benchmark_children():
+    """Observe fresh owned processes only; exit is not graceful provider drain."""
+    parent = psutil.Process()
+    existing = set()
+    for child in parent.children(recursive=True):
+        try:
+            existing.add((child.pid, child.create_time()))
+        except psutil.NoSuchProcess:
+            pass
+    workers, roles, errors = {}, {}, []
+    stop = threading.Event()
+    deadline = time.monotonic() + 600
+
+    def module_args(command, module):
+        for index in range(len(command) - 1):
+            if command[index:index + 2] == ["-m", module]:
+                return command[index + 2:]
+        return None
+
+    def observe():
+        try:
+            while not stop.is_set():
+                if time.monotonic() >= deadline:
+                    errors.append("observer_deadline")
+                    return
+                for child in parent.children(recursive=True):
+                    try:
+                        identity = (child.pid, child.create_time())
+                        if identity in existing:
+                            continue
+                        command = child.cmdline()
+                        if module_args(command, "pllm._benchmark_worker") is not None:
+                            if "-I" not in command:
+                                errors.append("benchmark_worker_not_isolated")
+                                return
+                            workers[identity] = child
+                    except psutil.NoSuchProcess:
+                        continue
+                for worker in tuple(workers.values()):
+                    try:
+                        children = worker.children(recursive=True)
+                    except psutil.NoSuchProcess:
+                        continue
+                    for child in children:
+                        try:
+                            args = module_args(child.cmdline(), "pllm.runtime.fss_worker")
+                            if args is None:
+                                continue
+                            if len(args) < 2 or args[0] != "--role" or args[1] not in ROLES:
+                                errors.append("unexpected_fss_role_command")
+                                return
+                            identity = (child.pid, child.create_time())
+                            roles[identity] = (args[1], child)
+                        except psutil.NoSuchProcess:
+                            continue
+                stop.wait(0.02)
+        except Exception as error:
+            errors.append(type(error).__name__)
+
+    observer = threading.Thread(target=observe, daemon=True)
+    observer.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        observer.join(timeout=2)
+        assert not observer.is_alive(), "FSS benchmark observer did not stop"
+        assert not errors, errors
+        assert len(workers) == 1, "expected one fresh benchmark worker"
+        assert sorted(role for role, _ in roles.values()) == sorted(ROLES), "missing or duplicate FSS roles"
+        # Ordinary runner already terminates survivors. This checks observed exit,
+        # not graceful shutdown, security, custody or a parent qualification proof.
+        _, alive = psutil.wait_procs(
+            [*workers.values(), *(child for _, child in roles.values())], timeout=10)
+        assert not alive, "observed benchmark worker or FSS role survived runner cleanup"
+
+
+@pytest.mark.slow
+@pytest.mark.integration
+@pytest.mark.rust
+def test_qwen2_ordinary_response_target_oracle_and_report_reload(control, tmp_path):
+    case, exp, root = control
+    assert root.is_absolute()
+    source = fss_source.resolve_client_source(exp)
+    oracle = json.loads(INPUTS.with_name("semantic-expected.json").read_bytes())
+    expected, = [row for row in oracle["results"] if row["fixture_id"] == case["id"]]
+    assert expected["profile"] == case["profile"]
+    assert case["prefix"] == [2, 4]
+    final = expected["final"]
+    assert final["generated_ids"] == [4, 4, 4]
+    assert final["token_ids"] == case["prefix"] + final["generated_ids"]
+    assert final["selection_count"] == 3
+    # Fixed independent vocabulary, never candidate Tokenizer.decode as oracle.
+    reverse_vocab = {0: "zero", 1: "<unk>", 2: "user:", 3: "three",
+                     4: "hello", 5: "five", 6: "six"}
+    expected_text = " ".join(reverse_vocab[token] for token in final["generated_ids"])
+    assert expected_text == "hello hello hello"
+    expected_digest = hashlib.sha256(json.dumps(expected_text, sort_keys=True).encode()).hexdigest()
+    aggregate_digest = hashlib.sha256(json.dumps(
+        [expected_digest], sort_keys=True, separators=(",", ":"),
+        ensure_ascii=False, allow_nan=False).encode()).hexdigest()
+    target = BenchmarkTarget.response(exp, scenario=Scenario.cold(max_output_tokens=3),
+        backend="native", expected_input_tokens=2, expected_output_tokens=3)
+    benchmark_case = BenchmarkCase("fss-qwen2-response", target)
+    # Functional admission envelope, not an RSS bound or memory qualification.
+    suite = BenchmarkSuite([benchmark_case], Sampling(processes=1, repetitions=1,
+        warmups=0, timeout_seconds=300, memory_bytes=2 << 30))
+    output = tmp_path / "benchmark.json"
+    with _observe_fss_benchmark_children():
+        result = benchmark_suite(suite, inputs={benchmark_case.name: {"prompt": "hello"}},
+                                 output=output)
+    value, = [row.to_dict() for row in result.results]
+    assert value["status"] == "completed", value
+    execution = value["execution"]
+    assert execution["case"] == benchmark_case.to_spec()
+    assert execution["isolation"]["fresh_process"] is True
+    report = execution["details"]["report"]
+    assert report["checks"]["passed"] is True, report["checks"]
+    for key in ("expected_input_tokens", "expected_output_tokens", "fixed_count_final_ids_delivery"):
+        assert report["checks"][key] is True
+    request, = report["runs"]
+    assert request["status"] == "completed"
+    assert request["tokens"]["authoritative"] is True
+    assert request["tokens"]["input_tokens"] == 2
+    assert request["tokens"]["output_tokens"] == 3
+    assert request["privacy"]["plaintext_prompt_bytes_sent"] == 0
+    assert request["privacy"]["plaintext_token_ids_sent"] == 0
+    assert request["measurement"]["output_delivery"] == "buffered_final_ids"
+    contract = report["runtime_contract"]
+    assert contract["runtime_kind"] == "fss"
+    assert contract["output_delivery"] == "buffered_final_ids"
+    assert contract["generation_policy"] == "fixed_length_greedy"
+    assert contract["decode_tps_supported"] is False
+    assert report["summary"]["median_tokens_per_second"] is None
+    metrics = {entry["id"]: entry for entry in value["metrics"]}
+    assert metrics["response.decode_tps"]["value"] is None
+    assert metrics["response.decode_tps"]["unavailable_reason"] == "final_only_private_token_disclosure"
+    for role in ROLES:
+        assert metrics[f"{role}.cold_cpu"]["value"] > 0
+        assert metrics[f"{role}.peak_rss"]["value"] > 0
+    assert report["configuration"]["source_lock_digest"] == source.source_lock_digest
+    assert execution["comparison"]["source_digest"] == source.source_lock_digest
+    assert request["generation"]["output_text_digest"] == expected_digest
+    assert execution["comparison"]["output_digest"] == aggregate_digest
+    loaded = BenchmarkRun.load(output)
+    assert loaded.digest == result.digest
+    assert loaded.to_dict() == result.to_dict()
+    assert loaded.to_dict()["complete"] is True
+    assert loaded.to_dict()["results"] == [value]
+    assert loaded.to_dict()["results"][0]["execution"]["case"] == benchmark_case.to_spec()
 
 
 @pytest.mark.slow
