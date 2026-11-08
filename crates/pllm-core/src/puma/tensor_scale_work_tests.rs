@@ -47,15 +47,69 @@ fn rescale_query_matches_literal_native_metadata_work_and_full_tail_widths() {
                 workspace.assert_native_metadata(&expected);
                 let actual = Program::rescale(lanes, input, shift).unwrap();
                 assert_eq!(actual.digest(), expected.digest());
-                assert_eq!(actual.instructions(), 2, "input plus rescale only");
+                assert_eq!(actual.len, 2, "input plus rescale nodes only");
+                assert_eq!(actual.nodes[0].unwrap().instruction, Instruction::Input);
+                assert_eq!(
+                    actual.nodes[1].unwrap().instruction,
+                    Instruction::Rescale {
+                        input: Value(0),
+                        shift,
+                    }
+                );
+                assert_eq!(actual.instructions(), 1, "Input is not executable");
                 assert_eq!(actual.output_lanes(), lanes);
                 assert_eq!(actual.validity_lanes(), None);
                 assert_eq!(actual.output_bounds(), expected.output_bounds());
                 assert_eq!(work, expected.work_budget());
                 assert_eq!(actual.work_budget(), work);
                 assert_eq!(work, WorkBudget::rescale(lanes).unwrap());
+                // Literal PRSS draw schedule, independent of the work helper.
+                let n = lanes as u64;
+                let q = (n + 1) / 2;
+                let cursors = work.cursors();
+                assert_eq!(work.operations(), 1);
+                assert_eq!(cursors.public_blocks, 1);
+                assert_eq!(cursors.pair_blocks, 2 * q);
+                assert_eq!(cursors.private_blocks, n);
+                assert_eq!(cursors.aes_work, 1 + 4 * q + n);
             }
         }
+        for shift in [1, 18, 31, 62] {
+            // Each invocation rounds its own full/tail draw schedule.
+            let mut total = WorkBudget::default();
+            for lanes in [128, 128, 3] {
+                total = total
+                    .checked_add(
+                        Program::rescale_work(lanes, input, shift, &mut workspace).unwrap(),
+                    )
+                    .unwrap();
+            }
+            let cursors = total.cursors();
+            assert_eq!(total.operations(), 3);
+            assert_eq!(cursors.public_blocks, 3);
+            assert_eq!(cursors.pair_blocks, 260);
+            assert_eq!(cursors.private_blocks, 259);
+            assert_eq!(cursors.aes_work, 782);
+        }
+    }
+}
+
+#[test]
+fn input_metadata_has_no_work_but_is_not_a_rescale_program() {
+    for lanes in [1, 3, 4, 64, 127, 128] {
+        let builder = Builder::new(lanes, Interval::new(0, 0).unwrap()).unwrap();
+        let input = builder.input();
+        let work = builder
+            .0
+            .instruction_work(builder.0.nodes[0].unwrap())
+            .unwrap();
+        let cursors = work.cursors();
+        assert_eq!(work.operations(), 0);
+        assert_eq!(cursors.public_blocks, 0);
+        assert_eq!(cursors.pair_blocks, 0);
+        assert_eq!(cursors.private_blocks, 0);
+        assert_eq!(cursors.aes_work, 0);
+        assert_eq!(builder.finish(input).err(), Some(Error::Binding));
     }
 }
 

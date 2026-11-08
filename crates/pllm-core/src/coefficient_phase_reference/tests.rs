@@ -235,7 +235,48 @@ fn complete_8192_both_directions_all_cells_actual_phase_and_residual() {
         crypto_error: CryptoError::ExplicitZero,
     };
     assert_eq!(quote.convolution_pairs(), 9_513_234);
-    assert_eq!(quote.arithmetic(), 258_503_359);
+    // Shared scheduling changed conservative scalar-work envelopes, not
+    // measured operation counts. Derive the adjustment independently of Quote.
+    let schedule_call = 256_u64 + (1 + 8 * 3 + 7 + 1 + 1) * 128;
+    let constructor_delta = 13 * 41 * 16 * 5;
+    let kernel_delta = 6 * schedule_call - 6 * (24 + 7 + 8 + 3) * 12;
+    let helper_delta = (3 * 15 + 2) * schedule_call;
+    let expected = 258_503_359 + constructor_delta + kernel_delta + helper_delta;
+    assert_eq!(expected, 258_787_199);
+    assert_eq!(quote.arithmetic(), expected);
+    // Independent finite-helper envelope: small traces, legacy comparisons,
+    // schedule control, divider replay, constructors, visibility and coordinates.
+    let helper_envelope = 840_u64 * 31 * 18
+        + 840 * 7 * 19
+        + 840 * 39 * 3
+        + 64 * 31 * 40
+        + 47 * 4608
+        + 256 * 7691
+        + 10 * 3348
+        + 8192 * 40
+        + 201 * 46;
+    assert_eq!(helper_envelope, 3_313_958);
+    for (name, visits, units_per_visit) in [
+        ("quote/predebit construction", 13, 46_728),
+        ("trace schedule construction/iterator/control", 6, 4608),
+        ("registered finite helper observers", 1, 3_313_958),
+        ("convolution pairs", 9_513_234, 17),
+        ("all 31 automorphisms", 6 * 31 * 8192, 18),
+        ("seven merge prepasses", 6 * 7 * 8192, 19),
+        ("all masks plus visible result Down", 2 * (8192 + 387), 763),
+    ] {
+        let term = quote
+            .inventory()
+            .terms()
+            .iter()
+            .find(|term| term.name() == name)
+            .unwrap();
+        assert_eq!(
+            (term.visits(), term.units_per_visit()),
+            (visits, units_per_visit),
+            "{name}"
+        );
+    }
     assert_eq!(quote.inventory().terms().len(), 40);
     assert!(quote.arithmetic() <= MAX_WORK);
     let independent_total = quote
