@@ -1,10 +1,12 @@
-//! Dedicated single-test allocator probe, separate from JSON/oracle reporters.
+//! Thread-scoped allocator probe, separate from JSON/oracle reporters.
+//! Path-imported unit tests may run concurrently without entering observation.
 //! Actual null-return failure sweeps live in maverick_batch_failures.rs.
 #[allow(dead_code, unused_imports)]
 #[path = "../src/maverick_batch/mod.rs"]
 mod maverick_batch;
 
 use std::alloc::{GlobalAlloc, Layout, System};
+use std::cell::Cell;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use maverick_batch::testing::{self, Fixture};
@@ -19,7 +21,33 @@ static PROBE: AtomicUsize = AtomicUsize::new(0);
 static PROBE_BYTES: AtomicUsize = AtomicUsize::new(0);
 static ERASED: AtomicBool = AtomicBool::new(false);
 
+thread_local! {
+    static OBSERVE: Cell<bool> = const { Cell::new(false) };
+}
+
+fn observing() -> bool {
+    OBSERVE.try_with(Cell::get).unwrap_or(false)
+}
+
+struct Observation;
+
+impl Observation {
+    fn start() -> Self {
+        assert!(!OBSERVE.with(|flag| flag.replace(true)));
+        Self
+    }
+}
+
+impl Drop for Observation {
+    fn drop(&mut self) {
+        OBSERVE.with(|flag| flag.set(false));
+    }
+}
+
 fn allocated(size: usize) {
+    if !observing() {
+        return;
+    }
     CALLS.fetch_add(1, Ordering::Relaxed);
     let current = CURRENT.fetch_add(size, Ordering::Relaxed) + size;
     if TRACK.load(Ordering::Relaxed) {
@@ -28,7 +56,8 @@ fn allocated(size: usize) {
 }
 
 // SAFETY: every request is forwarded unchanged to System. Accounting touches
-// only atomics; the erasure probe inspects a still-live allocation before free.
+// only a thread-local flag and atomics; the erasure probe inspects a still-live
+// allocation before free.
 unsafe impl GlobalAlloc for Tracking {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let p = unsafe { System.alloc(layout) };
@@ -45,23 +74,25 @@ unsafe impl GlobalAlloc for Tracking {
         p
     }
     unsafe fn dealloc(&self, p: *mut u8, layout: Layout) {
-        if PROBE
-            .compare_exchange(p as usize, 0, Ordering::AcqRel, Ordering::Acquire)
-            .is_ok()
-        {
-            let size = PROBE_BYTES.load(Ordering::Acquire);
-            if size <= layout.size() {
-                // SAFETY: p remains allocated for layout.size() bytes here.
-                let bytes = unsafe { std::slice::from_raw_parts(p, size) };
-                ERASED.store(bytes.iter().all(|&b| b == 0), Ordering::Release);
+        if observing() {
+            if PROBE
+                .compare_exchange(p as usize, 0, Ordering::AcqRel, Ordering::Acquire)
+                .is_ok()
+            {
+                let size = PROBE_BYTES.load(Ordering::Acquire);
+                if size <= layout.size() {
+                    // SAFETY: p remains allocated for layout.size() bytes here.
+                    let bytes = unsafe { std::slice::from_raw_parts(p, size) };
+                    ERASED.store(bytes.iter().all(|&b| b == 0), Ordering::Release);
+                }
             }
+            CURRENT.fetch_sub(layout.size(), Ordering::Relaxed);
         }
-        CURRENT.fetch_sub(layout.size(), Ordering::Relaxed);
         unsafe { System.dealloc(p, layout) };
     }
     unsafe fn realloc(&self, p: *mut u8, old: Layout, new_size: usize) -> *mut u8 {
         let next = unsafe { System.realloc(p, old, new_size) };
-        if !next.is_null() {
+        if !next.is_null() && observing() {
             CURRENT.fetch_sub(old.size(), Ordering::Relaxed);
             allocated(new_size);
         }
@@ -125,6 +156,7 @@ fn retention_inventory(plan: AllocationPlan) -> (usize, usize) {
 
 #[test]
 fn admission_and_all_retained_wire_output_owners_fit_exact_planned_ceiling() {
+    let _observation = Observation::start();
     let calls = CALLS.load(Ordering::Acquire);
     let overflow = AllocationPlan::for_shape(usize::MAX, 64, 2, ALLOCATION_CEILING);
     let undersized = AllocationPlan::for_shape(64, 64, 2, 1024);
