@@ -10,7 +10,9 @@ import copy
 import gc
 import hashlib
 import json
+import math
 import os
+import struct
 import threading
 import weakref
 from contextlib import ExitStack, contextmanager
@@ -33,6 +35,54 @@ PIN = "7ae557604adf67be50417f59c2c2f167def9a775"
 MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
 PROMPT = "Hello world"
 OUTPUTS = 2
+
+
+def _decode_source_words(encoded, dtype):
+    """Finite source words, independent of NumPy float16/BF16 casts and runtime readers."""
+    size = 4 if dtype == "F32" else 2
+    assert dtype in {"F32", "F16", "BF16"} and len(encoded) % size == 0
+    values = []
+    for offset in range(0, len(encoded), size):
+        word = int.from_bytes(encoded[offset:offset + size], "little")
+        if dtype == "F16":
+            sign, exponent, fraction = word >> 15, (word >> 10) & 31, word & 1023
+            if exponent == 31:
+                raise ValueError("oracle requires finite source words")
+            value = (math.ldexp(fraction, -24) if exponent == 0 else
+                     math.ldexp(1024 + fraction, exponent - 25))
+            value = -value if sign else value  # Preserve negative zero.
+        else:
+            bits = word << 16 if dtype == "BF16" else word
+            value, = struct.unpack("<f", bits.to_bytes(4, "little"))
+            if not math.isfinite(value):
+                raise ValueError("oracle requires finite source words")
+        values.append(value)
+    result = np.array(values, dtype="<f4")
+    result.setflags(write=False)
+    return result
+
+
+@pytest.mark.parametrize("dtype,words,expected", [
+    ("F16", (0x0000, 0x8000, 0x0001, 0x03ff, 0x0400, 0x3c00, 0x3c01, 0xbc01),
+     (0.0, -0.0, 2**-24, 1023 * 2**-24, 2**-14, 1.0, 1 + 2**-10, -1 - 2**-10)),
+    ("BF16", (0x0000, 0x8000, 0x0001, 0x007f, 0x0080, 0x3f80, 0x3f81, 0xbf81),
+     (0.0, -0.0, 2**-133, 127 * 2**-133, 2**-126, 1.0, 1 + 2**-7, -1 - 2**-7)),
+    ("F32", (0x00000000, 0x80000000, 0x00000001, 0x007fffff, 0x00800000,
+             0x3f800000, 0x3f800001, 0xbf800001),
+     (0.0, -0.0, 2**-149, (2**23 - 1) * 2**-149, 2**-126,
+      1.0, 1 + 2**-23, -1 - 2**-23)),
+])
+def test_independent_source_word_decoder_fixed_constants(dtype, words, expected):
+    size = 4 if dtype == "F32" else 2
+    decoded = _decode_source_words(b"".join(word.to_bytes(size, "little") for word in words), dtype)
+    assert decoded.tobytes() == np.array(expected, dtype="<f4").tobytes()
+    assert not decoded.flags.writeable and np.signbit(decoded[1])
+    nonfinite = {"F16": (0x7c00, 0xfc00, 0x7e01),
+                 "BF16": (0x7f80, 0xff80, 0x7fc1),
+                 "F32": (0x7f800000, 0xff800000, 0x7fc00001)}
+    for word in nonfinite[dtype]:
+        with pytest.raises(ValueError, match="finite source words"):
+            _decode_source_words(word.to_bytes(size, "little"), dtype)
 
 
 def python_contract(inputs, weights):
@@ -365,17 +415,86 @@ def test_inprocess_audit_matches_single_reference_observer(family):
 
 @pytest.mark.parametrize("sharing", ["full", "seeded"])
 @pytest.mark.parametrize("execution", [None, "source_stage_batch_v1"])
+@pytest.mark.parametrize("stored_dtype", ["F32", "F16", "BF16"])
 def test_generated_sdk_accepted_result_matches_bounded_checkpoint_reader(tmp_path, sharing, execution,
-                                                                       record_property):
+                                                                       stored_dtype, record_property):
     from pllm import OpenAI
     from pllm.runtime import benchmark_response_audit as audit
-    from pllm.runtime.responses import normalize_input, prompt_text
     from test_delegated_sdk import active_sessions, experiment_fixture
+    from test_delegated_source import write_source_fixture
 
     experiment, cfg, _ = experiment_fixture(tmp_path, family="qwen3", tied=False, sharing=sharing,
                                            execution=execution)
+    root = tmp_path / "source"
+    _, _, original, _ = write_source_fixture(root, family="qwen3", tied=False,
+                                             stored_dtype=stored_dtype)
+    # Fixed rounding ties, signed zero, normal/subnormal boundaries and Q11 ties.
+    # Only the generator uses casts; the expected decoder never does.
+    boundary = np.array([
+        -0.0, 2**-25, 3 * 2**-25, 2**-14 - 2**-25,
+        1 + 2**-11, 1 + 3 * 2**-11, 1 + 2**-8, 1 + 3 * 2**-8,
+        2**-133, 3 * 2**-133, 2**-24, 2**-14,
+        0.5 / 2048, 1.5 / 2048, -0.5 / 2048, -1.5 / 2048,
+    ], dtype="<f4")
+    encoded = bytearray((root / "model.safetensors").read_bytes())
+    header_size = int.from_bytes(encoded[:8], "little")
+    header = json.loads(encoded[8:8 + header_size])
+    payload = 8 + header_size
+    itemsize = 4 if stored_dtype == "F32" else 2
+    dtype = {"F32": np.dtype("<f4"), "F16": np.dtype("<f2"),
+             "BF16": np.dtype("bfloat16")}[stored_dtype]
+    boundary_bytes = boundary.astype(dtype).tobytes()
+    fixed_words = {
+        "F16": (0x8000, 0x0000, 0x0002, 0x0400, 0x3c00, 0x3c02, 0x3c04, 0x3c0c,
+                0x0000, 0x0000, 0x0001, 0x0400, 0x0c00, 0x1200, 0x8c00, 0x9200),
+        "BF16": (0x8000, 0x3300, 0x33c0, 0x3880, 0x3f80, 0x3f80, 0x3f80, 0x3f82,
+                 0x0001, 0x0003, 0x3380, 0x3880, 0x3980, 0x3a40, 0xb980, 0xba40),
+    }
+    if stored_dtype != "F32":
+        assert boundary_bytes == b"".join(word.to_bytes(2, "little")
+                                           for word in fixed_words[stored_dtype])
+    for name, begin, count in (("model.embed_tokens.weight", 16, 16),
+                               ("lm_head.weight", 0, 16), ("model.norm.weight", 0, 8)):
+        original[name].reshape(-1)[begin:begin + count] = boundary[:count]
+        start = payload + header[name]["data_offsets"][0] + begin * itemsize
+        encoded[start:start + count * itemsize] = boundary_bytes[:count * itemsize]
+    (root / "model.safetensors").write_bytes(encoded)
+    frozen_source = (root / "model.safetensors").read_bytes()
+    assert frozen_source == bytes(encoded)  # Freeze actual stored words before SDK construction.
+    assert header["__metadata__"] == {"format": "pt"}
+    arrays, ranges = {}, []
+    for name, array in original.items():
+        entry = header[name]
+        begin, end = entry["data_offsets"]
+        assert entry["dtype"] == stored_dtype and entry["shape"] == list(array.shape)
+        assert end - begin == array.size * itemsize
+        if array.ndim == 2:
+            assert end - begin == array.shape[0] * (array.shape[1] * itemsize)
+        ranges.append((begin, end))
+        words = frozen_source[payload + begin:payload + end]
+        arrays[name] = _decode_source_words(words, stored_dtype).reshape(array.shape)
+    ranges.sort()
+    assert ranges[0][0] == 0 and ranges[-1][1] == len(frozen_source) - payload
+    assert all(left[1] == right[0] for left, right in zip(ranges, ranges[1:]))
+    table = arrays["model.embed_tokens.weight"]
+    assert table[2:4].tobytes() == _decode_source_words(boundary_bytes, stored_dtype).tobytes()
+    assert np.signbit(table[2, 0])
+    assert np.any(table[2:4] != encode_weight_q11(table[2:4]).astype(np.float32) / np.float32(2048))
+    if stored_dtype != "F32":
+        assert table[2:4].tobytes() != boundary.tobytes()
+        assert np.any(encode_weight_q11(arrays["lm_head.weight"]) !=
+                      encode_weight_q11(original["lm_head.weight"]))
+        assert arrays["model.norm.weight"].tobytes() != original["model.norm.weight"].tobytes()
+    # Literal WordLevel IDs include the ordinary user/assistant boundary. Oracle
+    # state and conversion-sensitive changes are established before SDK execution.
+    ids = (2, 2, 2, 4, 2, 2)
     salt = os.urandom(32)
     observer = SelectionCommitments(salt, max_selections=OUTPUTS)
+    expected = clear_decoder(cfg, arrays, ids, OUTPUTS - 1, row_block=3,
+                             selection_observer=observer)
+    if stored_dtype != "F32":
+        unconverted = clear_decoder(cfg, original, ids, OUTPUTS - 1, row_block=3)
+        assert expected[0] != unconverted[0] and expected[1] != unconverted[1]
     captured = []
     with audit.response_state_audit(salt, runtime_kind="gkm") as records:
         with OpenAI(experiment=experiment) as client:
@@ -383,9 +502,8 @@ def test_generated_sdk_accepted_result_matches_bounded_checkpoint_reader(tmp_pat
             source = client._core._ensure_source()
             tensors = AdmittedTensors(source)
             tensors.verify_lock()
-            ids = tuple(source.tokenizer().encode(prompt_text(normalize_input(PROMPT)), add_bos=False))
-            expected = clear_decoder(cfg, tensors, ids, OUTPUTS - 1, row_block=3,
-                                     selection_observer=observer)
+            assert tuple(source.tokenizer().encode(
+                "user: Hello world\nassistant:", add_bos=False)) == ids
             client._core._result_hook = captured.append
             response = client.responses.create(input=PROMPT, max_output_tokens=OUTPUTS)
             result, = captured
@@ -404,6 +522,7 @@ def test_generated_sdk_accepted_result_matches_bounded_checkpoint_reader(tmp_pat
         assert records == []
     assert records == [observer.expected_record(source.contract)]
     record_property("sharing", sharing)
+    record_property("stored_dtype", stored_dtype)
     record_property("execution", execution or "scalar")
     record_property("input_tokens", len(ids))
     record_property("output_tokens", OUTPUTS)

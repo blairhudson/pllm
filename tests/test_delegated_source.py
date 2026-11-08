@@ -24,8 +24,8 @@ from test_delegated_decoder import config as decoder_config, fixture as decoder_
 
 
 def write_source_fixture(path, *, family="qwen2", tied=True, capacity="capsule", vocabulary=32,
-                         config_overrides=None):
-    """Independent GKM tensors plus a genuine complete 32-token WordLevel model."""
+                         config_overrides=None, stored_dtype="F32"):
+    """GKM source; returned arrays/tensors remain original F32 before storage conversion."""
     path.mkdir(parents=True, exist_ok=True)
     config = {**decoder_config(family, tied), "bos_token_id": 0, "eos_token_id": 1,
               "vocab_size": vocabulary, **(config_overrides or {})}
@@ -41,7 +41,12 @@ def write_source_fixture(path, *, family="qwen2", tied=True, capacity="capsule",
         "bos_token": "<bos>", "eos_token": "<eos>", "add_bos_token": False,
         "model_max_length": config["max_position_embeddings"],
     }), encoding="utf-8")
-    save_file(arrays, path / "model.safetensors", metadata={"format": "pt"})
+    dtype = {"F32": np.dtype("<f4"), "F16": np.dtype("<f2"),
+             "BF16": np.dtype("bfloat16")}[stored_dtype]
+    stored = arrays if stored_dtype == "F32" else {
+        name: value.astype(dtype) for name, value in arrays.items()
+    }
+    save_file(stored, path / "model.safetensors", metadata={"format": "pt"})
     return config, contract, arrays, tensors
 
 
