@@ -8,7 +8,7 @@ use std::{
     },
 };
 
-pub const MAX_ALLOCATION_BYTES: usize = 64 * 1024 * 1024;
+pub const MAX_ALLOCATION_BYTES: usize = pllm_types::resource_limits::MAX_ALLOCATION_BYTES;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
@@ -19,6 +19,115 @@ pub enum Error {
     Randomness,
     Context,
     Consumed,
+}
+
+/// Public admission metadata only. No source values or ownership cross failure.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AdmissionStage {
+    SourceSeal,
+    CompileOwnership,
+    SourceCompile,
+    RuntimePreflight,
+    ResourceQuote,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AdmissionGate {
+    SourceAssembly,
+    Ownership,
+    ProgramConstruction,
+    KernelConstruction,
+    ResourceAccounting,
+    Kernels,
+    Work,
+    MaterialBytes,
+    FrameBytes,
+    PublicCopyBytes,
+    NativeBytes,
+}
+
+/// Fixed inline evidence; absent quantities mean unknown, not zero. `used` must
+/// be captured at the rejecting comparison, never reconstructed after unwind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AdmissionContext {
+    pub stage: AdmissionStage,
+    pub gate: AdmissionGate,
+    pub node: Option<usize>,
+    pub kernel: Option<usize>,
+    pub required: Option<usize>,
+    pub used: Option<usize>,
+    pub limit: Option<usize>,
+}
+
+impl AdmissionContext {
+    pub const fn new(stage: AdmissionStage, gate: AdmissionGate) -> Self {
+        Self { stage, gate, node: None, kernel: None, required: None, used: None, limit: None }
+    }
+}
+
+impl std::fmt::Display for AdmissionContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let stage = match self.stage {
+            AdmissionStage::SourceSeal => "source_seal",
+            AdmissionStage::CompileOwnership => "compile_ownership",
+            AdmissionStage::SourceCompile => "source_compile",
+            AdmissionStage::RuntimePreflight => "runtime_preflight",
+            AdmissionStage::ResourceQuote => "resource_quote",
+        };
+        let gate = match self.gate {
+            AdmissionGate::SourceAssembly => "source_assembly",
+            AdmissionGate::Ownership => "ownership",
+            AdmissionGate::ProgramConstruction => "program_construction",
+            AdmissionGate::KernelConstruction => "kernel_construction",
+            AdmissionGate::ResourceAccounting => "resource_accounting",
+            AdmissionGate::Kernels => "kernels",
+            AdmissionGate::Work => "work",
+            AdmissionGate::MaterialBytes => "material_bytes",
+            AdmissionGate::FrameBytes => "frame_bytes",
+            AdmissionGate::PublicCopyBytes => "public_copy_bytes",
+            AdmissionGate::NativeBytes => "native_bytes",
+        };
+        write!(f, "stage={stage} gate={gate}")?;
+        for (name, value) in [("node", self.node), ("kernel", self.kernel),
+            ("required", self.required), ("used", self.used), ("limit", self.limit)] {
+            if let Some(value) = value { write!(f, " {name}={value}")?; }
+        }
+        Ok(())
+    }
+}
+
+/// Stack-returned diagnostic envelope, not a reservation or admission token.
+/// Generic because backends have distinct original error enums.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AdmissionFailure<E> {
+    pub error: E,
+    pub context: Option<AdmissionContext>,
+}
+
+impl<E> From<E> for AdmissionFailure<E> {
+    fn from(error: E) -> Self { Self { error, context: None } }
+}
+
+impl<E> AdmissionFailure<E> {
+    pub fn with_context_if_absent(mut self, context: AdmissionContext) -> Self {
+        if self.context.is_none() { self.context = Some(context); }
+        self
+    }
+}
+
+#[cfg(test)]
+#[path = "shared_allocation_admission_tests.rs"]
+mod admission_tests;
+
+fn resource_error<T>(_: T) -> Error {
+    Error::Resource
+}
+
+fn reserve_update(bytes: usize, limit: usize) -> impl FnMut(usize) -> Option<usize> {
+    move |used| match used.checked_add(bytes) {
+        Some(next) if next <= limit => Some(next),
+        _ => None,
+    }
 }
 
 /// Borrowed by every lease, including exported output owners.
@@ -101,10 +210,12 @@ impl Budget {
     fn reserve_bytes(&self, bytes: usize) -> Result<(), Error> {
         let previous = self
             .used
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |used| {
-                used.checked_add(bytes).filter(|next| *next <= self.limit)
-            })
-            .map_err(|_| Error::Resource)?;
+            .fetch_update(
+                Ordering::SeqCst,
+                Ordering::SeqCst,
+                reserve_update(bytes, self.limit),
+            )
+            .map_err(resource_error)?;
         // The successful update checked this exact sum. Do not reload `used`:
         // another owner may already have released storage before this point.
         self.admitted_peak
@@ -295,6 +406,18 @@ pub struct OwnedBudgetResources {
     pub initial_reserved_bytes: usize,
 }
 
+impl OwnedBudgetResources {
+    /// Actual reservation-update closure and reference widths, without invoking it.
+    pub fn reserve_update_layout() -> (usize, usize) {
+        let closure = reserve_update(0, 0);
+        reserve_update_widths(&closure)
+    }
+}
+
+fn reserve_update_widths<C>(_: &C) -> (usize, usize) {
+    (size_of::<C>(), size_of::<&C>())
+}
+
 /// Lifetime-independent accounting root, not a native lifetime bridge.
 ///
 /// Only a NEW budget can be created here. No existing Budget, borrowed lease or
@@ -327,7 +450,7 @@ impl OwnedBudget {
     pub fn resources() -> Result<OwnedBudgetResources, Error> {
         let arc_backing_bytes = Layout::new::<[AtomicUsize; 2]>()
             .extend(Layout::new::<Budget>())
-            .map_err(|_| Error::Resource)?
+            .map_err(resource_error)?
             .0
             .pad_to_align()
             .size();
@@ -343,12 +466,14 @@ impl OwnedBudget {
             size_of::<Result<(), Error>>(),
         ]
         .into_iter()
-        .try_fold(0usize, |sum, bytes| sum.checked_add(bytes))
+        .try_fold(0usize, usize::checked_add)
         .ok_or(Error::Resource)?;
         let owner_metadata_bytes = size_of::<Self>();
-        let initial_reserved_bytes = arc_backing_bytes
+        let subtotal = arc_backing_bytes
             .checked_add(bootstrap_transition_bytes)
-            .and_then(|bytes| bytes.checked_add(owner_metadata_bytes))
+            .ok_or(Error::Resource)?;
+        let initial_reserved_bytes = subtotal
+            .checked_add(owner_metadata_bytes)
             .ok_or(Error::Resource)?;
         Ok(OwnedBudgetResources {
             arc_backing_bytes,
@@ -404,6 +529,14 @@ impl OwnedBudget {
             budget: Arc::clone(&self.budget),
             bytes,
         })
+    }
+
+    /// Permanently reserves additional logical capacity on this counter.
+    /// Successful calls accumulate until the last strong owner retires.
+    /// This does not establish payload custody, provenance, work payment,
+    /// or execution authority. Failure leaves accounting unchanged.
+    pub fn reserve_bootstrap(&self, bytes: usize) -> Result<(), Error> {
+        self.budget.reserve_bytes(bytes)
     }
 }
 
@@ -899,12 +1032,20 @@ impl<T> AdmissionAttempt<'_, T> {
     }
 }
 
+// Crate visibility lets private consumer inventories name this shared callback's
+// actual pointer type; the mapper itself remains private to allocation.
+pub(crate) type ReserveErrorMap = fn(std::collections::TryReserveError) -> Error;
+
+fn allocation_error(_: std::collections::TryReserveError) -> Error {
+    Error::Allocation
+}
+
 pub(crate) fn allocate<T>(capacity: usize, budget: &Budget) -> Result<Vec<T>, Error> {
     budget.allocation()?;
     let mut values = Vec::new();
     values
         .try_reserve_exact(capacity)
-        .map_err(|_| Error::Allocation)?;
+        .map_err(allocation_error as ReserveErrorMap)?;
     exact_capacity(values, capacity)
 }
 pub(crate) fn exact_capacity<T>(values: Vec<T>, capacity: usize) -> Result<Vec<T>, Error> {
@@ -930,6 +1071,79 @@ mod resident_admission_tests;
 mod tests {
     use super::*;
     use std::cell::Cell;
+
+    #[test]
+    fn allocate_capacity_overflow_maps_real_reserve_error_to_allocation() {
+        let capacity = usize::MAX;
+        // Non-ZST byte count exceeds even usize::MAX, hence also the Vec
+        // isize::MAX layout bound. try_reserve_exact rejects this layout before
+        // calling the allocator; this is not an attempted huge allocation.
+        assert!(size_of::<u64>() > 1);
+        assert!(capacity.checked_mul(size_of::<u64>()).is_none());
+        assert!(Layout::array::<u64>(capacity).is_err());
+        let budget = Budget::new(1024).unwrap();
+        budget.fail_after.store(1, Ordering::SeqCst);
+
+        // One permitted allocation check reaches the real reserve failure and
+        // its shared mapper, rather than the pre-reserve permission refusal.
+        assert!(matches!(
+            allocate::<u64>(capacity, &budget),
+            Err(Error::Allocation)
+        ));
+        assert_eq!(budget.fail_after.load(Ordering::SeqCst), 0);
+        assert_eq!(budget.used_bytes(), 0);
+        assert_eq!(budget.test_accounting_updates(), 0);
+    }
+
+    #[test]
+    fn allocate_permission_refusal_precedes_reserve_and_exact_capacity() {
+        let budget = Budget::new(1024).unwrap();
+        budget.fail_after.store(0, Ordering::SeqCst);
+        // Same overflow input as the reserve-error test, but allocation()
+        // refuses first. Both paths' actual contract is Error::Allocation.
+        assert!(matches!(
+            allocate::<u64>(usize::MAX, &budget),
+            Err(Error::Allocation)
+        ));
+        // This input would instead reach Error::Resource at exact_capacity if
+        // permission were granted, making the early refusal observable too.
+        assert!(matches!(allocate::<()>(0, &budget), Err(Error::Allocation)));
+        assert_eq!(budget.fail_after.load(Ordering::SeqCst), 0);
+        assert_eq!(budget.used_bytes(), 0);
+        assert_eq!(budget.test_accounting_updates(), 0);
+    }
+
+    #[test]
+    fn allocate_zst_preserves_exact_capacity_for_zero_small_and_maximum() {
+        assert_eq!(size_of::<()>(), 0);
+        assert_eq!(Vec::<()>::new().capacity(), usize::MAX);
+
+        let zero_budget = Budget::new(1024).unwrap();
+        zero_budget.fail_after.store(1, Ordering::SeqCst);
+        assert!(matches!(allocate::<()>(0, &zero_budget), Err(Error::Resource)));
+        assert_eq!(zero_budget.fail_after.load(Ordering::SeqCst), 0);
+        assert_eq!(zero_budget.used_bytes(), 0);
+        assert_eq!(zero_budget.test_accounting_updates(), 0);
+
+        let small_budget = Budget::new(1024).unwrap();
+        small_budget.fail_after.store(1, Ordering::SeqCst);
+        assert!(matches!(allocate::<()>(1, &small_budget), Err(Error::Resource)));
+        assert_eq!(small_budget.fail_after.load(Ordering::SeqCst), 0);
+        assert_eq!(small_budget.used_bytes(), 0);
+        assert_eq!(small_budget.test_accounting_updates(), 0);
+
+        let maximum_budget = Budget::new(1024).unwrap();
+        maximum_budget.fail_after.store(1, Ordering::SeqCst);
+        let values = allocate::<()>(usize::MAX, &maximum_budget).unwrap();
+        // ZST capacity is a sentinel, not allocated backing or owned bytes.
+        // Length remains zero: no elements are produced or traversed.
+        assert_eq!(values.capacity(), usize::MAX);
+        assert!(values.is_empty());
+        drop(values);
+        assert_eq!(maximum_budget.fail_after.load(Ordering::SeqCst), 0);
+        assert_eq!(maximum_budget.used_bytes(), 0);
+        assert_eq!(maximum_budget.test_accounting_updates(), 0);
+    }
 
     #[test]
     fn borrowed_lease_alias_preserves_fields_layout_and_identity() {

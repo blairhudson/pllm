@@ -12,6 +12,7 @@ publish = false
 aes.workspace = true
 getrandom.workspace = true
 pllm-core.workspace = true
+pllm-types.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 subtle.workspace = true

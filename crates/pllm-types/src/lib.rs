@@ -8,6 +8,7 @@ use std::fmt;
 pub mod bounded_canonical;
 mod digest_storage;
 pub mod network;
+pub mod resource_limits;
 
 pub const LOGICAL_PLAN_SCHEMA_VERSION: &str = "pllm.logical_plan.v2";
 pub const EXECUTION_PLAN_SCHEMA_VERSION: &str = "pllm.execution_plan.v1";

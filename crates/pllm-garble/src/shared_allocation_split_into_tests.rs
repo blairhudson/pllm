@@ -292,6 +292,7 @@ fn capacity_accounting_borrowed_resident_slot_survives_error_and_caught_panic() 
         let parent_ref = &mut parent;
         let dst_ref = &mut dst;
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+            let parent_ref = parent_ref;
             parent_ref.split_external_into(31, dst_ref)?;
             if unwind {
                 panic!("caller operation after borrowed split-into");
