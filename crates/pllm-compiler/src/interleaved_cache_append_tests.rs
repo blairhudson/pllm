@@ -1611,11 +1611,12 @@ fn produced_capacity() -> PublicEncryptedDagCapacity {
         max_operations: 4,
         max_states: 32,
         max_frontier: 32,
-        // Independently finite fixture ceiling, tighter than the legacy input
-        // fixture's 1024. Keep repeated-fault cumulative control within the SAME
-        // original ledger; never increase its grant to make regressions pass.
+        // Independent census: complete trace 282, plus four unused release
+        // slots in the DAG envelope (3 inputs + 4 outputs versus 3 releases).
+        // This test-only ceiling is not a production cap. Keep the SAME original
+        // cumulative ledger; do not increase its grant to fit repeated faults.
         trace: PublicCiphertextTraceCapacity {
-            max_records: 256,
+            max_records: 286,
             ..capacity().trace
         },
         ..capacity()
@@ -1675,7 +1676,112 @@ fn with_produced_quote(
             < 128 << 10
     );
     let quote = quote_public_ciphertext_dag_construction(&manifest, &mut control).unwrap();
+    // Independently authored expanded census, not a production calculator:
+    // root; owner/persistent/input/op/cap/output/retained lists; step fields;
+    // releases; input values; unary/binary operations; unary/binary capabilities.
+    let complete_records = 1 + 7 + 0 + 3 + 4 + 4 + 4 + 2 + 12 + 3
+        + 3 * (9 + 1)
+        + 2 * (3 + 1 + 9 + 1)
+        + 2 * (3 + 2 + 9 + 1)
+        + 2 * (12 + 1 + 9 + 1 + 9 + 1)
+        + 2 * (12 + 2 + 9 + 1 + 2 * (9 + 1));
+    assert_eq!(complete_records, 282);
+    assert_eq!(quote.records(), 282);
+    assert_eq!(complete_records - 3 + (3 + 4), 286);
+    assert_eq!(produced_capacity().trace.max_records, 286);
     run(&f, &quote, &budget, &mut control, mf.backings.len());
+}
+
+#[test]
+fn produced_quote_trace_record_boundary_282_admits_281_refuses_without_debit() {
+    with_produced_quote(|_, quote, _, _, _| {
+        for records in [281, 282] {
+            let mut metadata = MetadataLedger::new(quote.trace_work());
+            let trace = PublicCiphertextTraceCapacity {
+                max_records: records,
+                ..produced_capacity().trace
+            };
+            let result = quote.admit_trace(Some(trace), &mut metadata);
+            if records == 281 {
+                assert!(matches!(
+                    result,
+                    Err(schedule::construction::Refusal::MetadataWorkRefused)
+                ));
+            } else {
+                assert!(result.is_ok());
+            }
+            drop(result);
+            assert_eq!(
+                metadata.remaining(),
+                if records == 281 { quote.trace_work() } else { 0 }
+            );
+        }
+    });
+}
+
+#[test]
+fn produced_trace_record_281_refusal_prepays_search_without_matching_or_factory() {
+    with_produced_quote(|f, quote, budget, control, _| {
+        let (k, v) = f.parents();
+        let p = Parents {
+            keys: &k,
+            values: &v,
+        };
+        let r = produced_replacements(f);
+        let updates = produced_updates(f);
+        let mut c = produced_capacity();
+        c.trace.max_records = 281;
+        let construction = control_allowance(&f.original, &p, &r, 281).unwrap();
+        let mut binding = bind_produced_updates(
+            produced_geometry(),
+            produced_descriptor(),
+            &f.original,
+            p,
+            &r,
+            &updates,
+        );
+        let mut metadata = MetadataLedger::new(c.max_work + quote.trace_work());
+        let before = budget.budget().used_bytes();
+        let work_before = control.core_work().remaining();
+        let control_before = control.core_work().control_remaining();
+        GRAPH_FACTORIES.with(|n| n.set(0));
+        MATCH_PREDICATES.with(|n| n.set(0));
+        assert!(matches!(
+            analyze_produced_append(&mut binding, quote, budget, &mut metadata, control, c),
+            Err(Refusal::Work)
+        ));
+        assert!(binding.pending.is_none());
+        assert_eq!(metadata.remaining(), quote.trace_work());
+        assert_eq!(control.core_work().remaining(), work_before - construction);
+        assert_eq!(
+            control.core_work().control_remaining(),
+            control_before - construction
+        );
+        assert_eq!(GRAPH_FACTORIES.with(|n| n.get()), 0);
+        assert_eq!(MATCH_PREDICATES.with(|n| n.get()), 0);
+        assert_eq!(budget.budget().used_bytes(), before);
+        // A normal-capacity retry cannot recover the consumed binding or debit.
+        assert!(matches!(
+            analyze_produced_append(
+                &mut binding,
+                quote,
+                budget,
+                &mut metadata,
+                control,
+                produced_capacity()
+            ),
+            Err(Refusal::Consumed)
+        ));
+        assert_eq!(metadata.remaining(), quote.trace_work());
+        assert_eq!(control.core_work().remaining(), work_before - construction);
+        assert_eq!(
+            control.core_work().control_remaining(),
+            control_before - construction
+        );
+        assert_eq!(GRAPH_FACTORIES.with(|n| n.get()), 0);
+        assert_eq!(MATCH_PREDICATES.with(|n| n.get()), 0);
+        assert_eq!(budget.budget().used_bytes(), before);
+    });
 }
 
 #[test]
@@ -1768,10 +1874,11 @@ fn produced_ambiguous_capability_refuses_before_factory_and_burns_binding() {
             } else {
                 Refusal::Capability
             };
-            assert!(matches!(
-                analyze_produced_append(&mut binding, quote, budget, &mut metadata, control, c),
-                Err(error) if error == refusal
-            ));
+            let error =
+                analyze_produced_append(&mut binding, quote, budget, &mut metadata, control, c)
+                    .err()
+                    .expect("ambiguous capability or short matching grant must refuse");
+            assert_eq!(error, refusal, "fault={fault}, short={short}");
             let predicates = MATCH_PREDICATES.with(|n| n.get());
             assert_eq!(predicates == 0, short);
             let spent = construction + if short { 0 } else { matching };
@@ -2206,7 +2313,39 @@ fn produced_append_retains_complete_old_families_including_unchanged_tiles() {
     let graph = emit_graph(g, a, &f.original, &bound.parents, &r).unwrap();
     assert_eq!(graph.operations[2].inputs[0], "old_k_1");
     assert_eq!(graph.operations[3].inputs[0], "old_v_1");
-    let solution = solve_public_encrypted_dag(&graph, produced_capacity()).unwrap();
+    // Independent expanded census for this larger fixture only. Nine owners,
+    // five inputs, seven outputs, five retained inputs, and one actual release
+    // (delta_1). DAG envelope allows all five input + four output releases.
+    let complete_records = 1 + 9 + 0 + 5 + 4 + 4 + 7 + 5 + 12 + 1
+        + 5 * (9 + 1)
+        + 2 * (3 + 1 + 9 + 1)
+        + 2 * (3 + 2 + 9 + 1)
+        + 2 * (12 + 1 + 9 + 1 + 9 + 1)
+        + 2 * (12 + 2 + 9 + 1 + 2 * (9 + 1));
+    assert_eq!(complete_records, 310);
+    assert_eq!(complete_records - 1 + (5 + 4), 318);
+    let mut c = produced_capacity();
+    c.trace.max_records = 318;
+    let solution = solve_public_encrypted_dag(&graph, c).unwrap();
+    let exact_trace = PublicCiphertextTraceCapacity {
+        max_records: 310,
+        ..c.trace
+    };
+    assert_eq!(
+        validate_public_ciphertext_trace(&graph, &solution.ledger.trace, exact_trace).unwrap(),
+        solution.trace_summary
+    );
+    assert!(
+        validate_public_ciphertext_trace(
+            &graph,
+            &solution.ledger.trace,
+            PublicCiphertextTraceCapacity {
+                max_records: 309,
+                ..exact_trace
+            },
+        )
+        .is_err()
+    );
     for id in k.iter().chain(&v) {
         assert!(graph.outputs.iter().any(|s| s == id));
         assert!(graph.retained_inputs.iter().any(|s| s == id));
