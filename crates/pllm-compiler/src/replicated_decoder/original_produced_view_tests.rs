@@ -13,9 +13,9 @@ struct Fixture {
 impl Fixture {
     fn new(rows: usize) -> Self {
         let config = serde_json::to_vec(&serde_json::json!({
-            "model_type":"llama", "hidden_size":2, "intermediate_size":2,
+            "model_type":"llama", "hidden_size":10, "intermediate_size":2,
             "num_hidden_layers":1, "num_attention_heads":1, "num_key_value_heads":1,
-            "head_dim":2, "vocab_size":3, "tie_word_embeddings":false,
+            "head_dim":10, "vocab_size":3, "tie_word_embeddings":false,
             "hidden_act":"silu", "attention_bias":false, "max_position_embeddings":1024,
             "rope_theta":10000, "rms_norm_eps":0.000001, "attention_dropout":0.0,
             "use_sliding_window":false, "use_cache":true, "max_window_layers":1
@@ -174,7 +174,7 @@ fn entries() -> usize {
 
 #[test]
 fn genuine_lookup_rms_projection_chain_retains_original_factories_without_expanded_nodes() {
-    let fixture = Fixture::new(65);
+    let fixture = Fixture::new(13);
     let registry = SourceRegistry::from_validated(fixture.validated()).unwrap();
     let source = fixture.source(&registry);
     let values = Vec::new();
@@ -225,7 +225,7 @@ fn genuine_lookup_rms_projection_chain_retains_original_factories_without_expand
             builder.allocated
         )
     );
-    assert_eq!(projection.geometry().dimensions(), &[1, 65, 2]);
+    assert_eq!(projection.geometry().dimensions(), &[1, 13, 10]);
     assert!(projection.preparation_peak() >= norm.preparation_peak());
     assert!(norm.preparation_peak() >= lookup.preparation_peak());
     assert!(Arc::ptr_eq(projection.source(), &source));
@@ -248,12 +248,12 @@ fn genuine_lookup_rms_projection_chain_retains_original_factories_without_expand
     let RecipeRef::Rms { program, width } = norm.recipe() else {
         panic!("RMS recipe")
     };
-    assert_eq!(width, 2);
+    assert_eq!(width, 10);
     let gamma = fixture.sources[fixture.norm().attributes["weight"].as_str().unwrap()]
         .public_q18
         .as_ref()
         .unwrap();
-    let (original, _) = rms_norm_program(true, 2, lookup.record.bounds, gamma, None).unwrap();
+    let (original, _) = rms_norm_program(true, 10, lookup.record.bounds, gamma, None).unwrap();
     assert_eq!(program.digest(), original.digest());
     let RecipeRef::Projection {
         map,
@@ -264,7 +264,7 @@ fn genuine_lookup_rms_projection_chain_retains_original_factories_without_expand
     else {
         panic!("projection recipe")
     };
-    assert_eq!((inner, columns), (2, 2));
+    assert_eq!((inner, columns), (10, 10));
     assert_eq!(map.program_at(0).unwrap().lanes(), 128);
     assert_eq!(map.program_at(128).unwrap().lanes(), 2);
     for offset in [0, 128] {
@@ -282,12 +282,12 @@ fn genuine_lookup_rms_projection_chain_retains_original_factories_without_expand
     let pending = projection.unresolved_requirements();
     assert_eq!(pending.original_input, input.owner());
     assert_eq!(pending.declared_input_domain, input.bounds());
-    assert_eq!(pending.complete_row_width, 2);
+    assert_eq!(pending.complete_row_width, 10);
 }
 
 #[test]
 fn lazy_rank_aliases_preserve_exact_owner_and_order_but_not_semantic_relabelling() {
-    let fixture = Fixture::new(65);
+    let fixture = Fixture::new(13);
     let registry = SourceRegistry::from_validated(fixture.validated()).unwrap();
     let source = fixture.source(&registry);
     let values = Vec::new();
@@ -313,8 +313,8 @@ fn lazy_rank_aliases_preserve_exact_owner_and_order_but_not_semantic_relabelling
             .same(&lookup.coordinate(index).unwrap()));
     }
     let transposed = lookup.permute(&[0, 2, 1], MAX_PROGRAM_BYTES).unwrap();
-    assert_eq!(transposed.coordinate(1).unwrap().lane(), 2);
-    assert_eq!(transposed.coordinate(65).unwrap().lane(), 1);
+    assert_eq!(transposed.coordinate(1).unwrap().lane(), 10);
+    assert_eq!(transposed.coordinate(13).unwrap().lane(), 1);
     let restored = transposed.permute(&[0, 2, 1], MAX_PROGRAM_BYTES).unwrap();
     for index in 0..130 {
         assert!(restored
@@ -443,7 +443,7 @@ fn foreign_same_ids_digest_plan_and_source_cannot_mint_continuation() {
 
 #[test]
 fn exact_and_one_short_lookup_rms_projection_quotes_refuse_before_factories() {
-    let fixture = Fixture::new(65);
+    let fixture = Fixture::new(13);
     let registry = SourceRegistry::from_validated(fixture.validated()).unwrap();
     let source = fixture.source(&registry);
     let values = Vec::new();
@@ -564,7 +564,7 @@ fn exact_and_one_short_lookup_rms_projection_quotes_refuse_before_factories() {
 
 #[test]
 fn derived_owner_keeps_native_source_and_import_lifetimes_after_callers_drop() {
-    let fixture = Fixture::new(65);
+    let fixture = Fixture::new(13);
     let registry = SourceRegistry::from_validated(fixture.validated()).unwrap();
     let source = fixture.source(&registry);
     let source_weak = Arc::downgrade(&source);
@@ -698,7 +698,7 @@ fn authentic_source_statistics_do_not_discharge_missing_general_row_contract() {
         .to_owned();
     // Genuine statistic over the exact imported nonzero coefficients, not a
     // forged certificate. Only the missing INPUT row authority is the gate.
-    fixture.sources.get_mut(&key).unwrap().row_squared_norm = Some(2 * (ONE as u128 / 4).pow(2));
+    fixture.sources.get_mut(&key).unwrap().row_squared_norm = Some(10 * (ONE as u128 / 4).pow(2));
     let registry = SourceRegistry::from_validated(fixture.validated()).unwrap();
     let source = fixture.source(&registry);
     let values = Vec::new();

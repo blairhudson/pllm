@@ -14,9 +14,9 @@ struct Fixture {
 impl Fixture {
     fn new(rows: usize) -> Self {
         let config = serde_json::to_vec(&serde_json::json!({
-            "model_type":"llama", "hidden_size":2, "intermediate_size":2,
+            "model_type":"llama", "hidden_size":10, "intermediate_size":2,
             "num_hidden_layers":1, "num_attention_heads":1, "num_key_value_heads":1,
-            "head_dim":2, "vocab_size":3, "tie_word_embeddings":false,
+            "head_dim":10, "vocab_size":3, "tie_word_embeddings":false,
             "hidden_act":"silu", "attention_bias":false, "max_position_embeddings":1024,
             "rope_theta":10000, "rms_norm_eps":0.000001, "attention_dropout":0.0,
             "use_sliding_window":false, "use_cache":true, "max_window_layers":1
@@ -126,7 +126,7 @@ impl Fixture {
         let semantic = graph
             .state_inputs
             .iter()
-            .find(|state| state.shape.last() == Some(&2))
+            .find(|state| state.shape.last() == Some(&10))
             .unwrap();
         builder
             .declare_original_input(
@@ -149,7 +149,7 @@ impl Fixture {
         // Genuine original numeric implementation, before native rescale and
         // before any finalizer. Not an artificial Code::PublicProduct wrapper.
         builder
-            .public_matrix(&view, weight, 2, false, false)
+            .public_matrix(&view, weight, 10, false, false)
             .unwrap()
             .words
             .at(0)
@@ -173,7 +173,7 @@ fn owners(values: &Vec<Option<Secret>>) -> compact_admission::RequestOwners<'_> 
 
 #[test]
 fn authenticated_original_state_product_prepares_full_tail_without_expanded_finalization() {
-    let fixture = Fixture::new(65);
+    let fixture = Fixture::new(13);
     let registry = SourceRegistry::from_validated(fixture.validated()).unwrap();
     let source = fixture.source(&registry);
     let values = Vec::new();
@@ -214,7 +214,7 @@ fn authenticated_original_state_product_prepares_full_tail_without_expanded_fina
             publication.required_checks().input_width,
             publication.required_checks().output_width
         ),
-        (65, 2, 2)
+        (13, 10, 10)
     );
     assert!(builder.row_norms.is_empty() && builder.row_energies.is_empty());
     assert!(builder.validity.is_none()); // no range/sticky authority was promoted
@@ -258,7 +258,7 @@ fn authenticated_original_state_product_prepares_full_tail_without_expanded_fina
 
 #[test]
 fn equal_digest_foreign_file_and_native_owners_never_replace_bound_owners() {
-    let fixture = Fixture::new(65);
+    let fixture = Fixture::new(13);
     let registry = SourceRegistry::from_validated(fixture.validated()).unwrap();
     let source = fixture.source(&registry);
     let foreign_source = fixture.source(&registry);
@@ -300,7 +300,7 @@ fn equal_digest_foreign_file_and_native_owners_never_replace_bound_owners() {
 
 #[test]
 fn exact_preparation_peak_and_one_short_refusal_precede_native_factories() {
-    let fixture = Fixture::new(65);
+    let fixture = Fixture::new(13);
     let registry = SourceRegistry::from_validated(fixture.validated()).unwrap();
     let source = fixture.source(&registry);
     let values = Vec::new();
@@ -482,7 +482,7 @@ fn unsupported_original_transposed_product_is_rejected_before_native_entry() {
         matches!(&node.code, Code::PublicInput { key, .. } if key.ends_with("q_proj.weight"))).unwrap();
     let view = builder.view(input.owner(), input.logical().dimensions().to_vec());
     let raw = builder
-        .public_matrix(&view, weight, 2, true, false)
+        .public_matrix(&view, weight, 10, true, false)
         .unwrap()
         .words
         .at(0)
