@@ -42,6 +42,192 @@ exchange has a different observation contract and is not claimed as passing.
 The strict semantic contract lives in
 [`paper/reproduction-contracts/fusefss/decoder/SEMANTIC_EXCHANGE.md`](../../paper/reproduction-contracts/fusefss/decoder/SEMANTIC_EXCHANGE.md).
 
+### D64 conditional full-prefix population lemma (design only)
+
+This candidate uses existing `Schedule` and compiled-node shape semantics, not a
+new execution strategy. [D64](../../paper/methods/DECISIONS.md#d64-fully-costed-fusefss-prefix-support-for-actual-request-envelopes) requires complete
+cost admission and independent review before activation; it grants no cap/source
+change or implementation. **Independent Astra review: partial documentation census PASS**
+for this subsection only; not funding, fit, whole-method, security,
+source-faithfulness or native admission qualification. Existing limits remain unchanged.
+
+For positive initial tokens `I` and selections `O`, checked arithmetic validates
+`T = I + O - 1`; selection `s` has logical prefix `p_s = I + s`, `0 <= s < O`
+([shared geometry](../../crates/pllm-models/src/lib.rs#L1495-L1545)). This metadata
+validation neither constructs a graph nor admits native execution. Current native
+hard/default sequence cap is 16, with independent graph/state checks
+([compiler](../../crates/pllm-compiler/src/fss_decoder/program.rs#L522-L574));
+[RoPE source cap](../../crates/pllm-compiler/src/fss_decoder/source.rs#L603-L621)
+and [Python early cap](../../python/pllm/runtime/fss_source.py#L554-L556) also remain 16.
+Thus D64 examples below are NOT currently admitted or constructed runs.
+
+Every selection creates fresh node arrays at full compiled shapes using extent
+`T`, not `p_s` rows to allocate or price. `Last` reads row `p_s - 1`; nonfinal
+feedback writes token position `p_s`. For `I=30,O=2`, prefixes are 30/31 and BOTH
+passes use `T=31`; for `I=32,O=2`, prefixes are 32/33 and BOTH use `T=33`
+([allocation/feedback](../../crates/pllm-compiler/src/fss_decoder/runtime.rs#L878-L953),
+[Last](../../crates/pllm-compiler/src/fss_decoder/runtime.rs#L1686-L1690)).
+This `Schedule` retains no interselection activation K/V cache. Tokens, finals,
+validity, Program/source, Driver/visitor, context, resources, obligation hash and
+source-table cache can persist; table reuse and fresh private material are distinct
+from activation K/V reuse ([Schedule](../../crates/pllm-compiler/src/fss_decoder/runtime.rs#L418-L431)).
+
+**Conditional completed-traversal population.** For each `Scores` node `n`, let
+`H_n = node.shape[1]`, `d_n = left.shape[3]`. Serial loops visit all `T*T` query/key
+pairs per head per selection: `N = O*T^2*sum_n(H_n)` scalar dot outputs and
+`M = O*T^2*sum_n(H_n*d_n)` scalar product terms. Per node, two selections give
+`1922*H_n` outputs at `T=31`, versus `2178*H_n` at `T=33`, not `30^2+31^2`
+times heads and not single-query decode. Counts apply once per completed Schedule
+traversal, not multiplied by parties, dealer or repeated preflight traversals.
+Repeated preflight traversals incur separate work; this population does not price
+them or make them free.
+[Score/softmax/value loops](../../crates/pllm-compiler/src/fss_decoder/runtime.rs#L1522-L1684)
+also give each Softmax node (`H = node.shape[1]`) `O*H*T` width-`T` rows, including
+padded queries; active key predicate is `k <= q && k < p_s`. Each Values node has
+`O*H*T*d` scalar dots of length `T`, with `H = node.shape[1]`, `d = node.shape[3]`,
+distinct from Scores' left-operand `d_n`. Wavefront `dot_lanes` has the same output population,
+but different kernels/batching: these counts are NOT Driver/material/frame counts.
+Renew checks when profile or schedule changes.
+
+**Raw node-array peak only.** Let `b_i = 8*elements(shape_i)` and `L_0 = 0`.
+Indices follow compiled node order; within one selection, `L_i` is live prior-node
+payload bytes immediately before allocating node `i`.
+Then `P = max_i(L_i+b_i)` and
+`L_{i+1} = L_i+b_i-sum_{j<i:last_use_j=i}(b_j)`: allocate current output before
+retiring earlier last-use arrays
+([compiler recurrence](../../crates/pllm-compiler/src/fss_decoder/program.rs#L1473-L1495)).
+`P` is neither total reservation nor physical peak. The
+[live-array quote](../../crates/pllm-compiler/src/fss_decoder/resource_quote.rs#L185-L207)
+adds token/output backing, gather workspace, array slots and wavefront backing;
+other Source/Driver/material/retirement owner peaks remain unproved here.
+
+Allocation, geometry, proof or Driver errors can truncate traversal: this is a
+success-population lemma, NOT an all-outcome/WVT bound, fee, fit, security,
+physical-peak, whole-method or native qualification. Signed-SiLU construction stays
+held, lifecycle remains UNSELECTED, and source-faithful execution-strategy
+qualification remains unknown. No broader approval or execution follows.
+
+### D64 conditional admission dependency map
+
+**Source census only; independent Astra review: PASS for this dependency map only.**
+Component-coefficient review and whole-D64 admission closure remain incomplete.
+Independent Astra multiplicity review: PASS for 12 walks/request, not equal phase
+costs. This map extends the reviewed fixed-`T` census above, not its review clearance.
+It connects existing owners and quote sites; it adds no rate, cap, registry, driver,
+security assumption, fit result, execution authorization or change to any HOLD.
+Unknown terms are not zero.
+
+**Call DAG, ordinary successful route.** One completed `Schedule` walk already
+contains ALL `O` selections, nodes and checks; do not multiply it by `O` again.
+The [compile tail](../../crates/pllm-compiler/src/fss_decoder/program.rs#L1491-L1507)
+calls [preflight](../../crates/pllm-compiler/src/fss_decoder/runtime.rs#L254-L287).
+[Role bind](../../python/pllm/runtime/fss_worker.py#L875-L911) constructs
+[`FssRoleRequest`](../../crates/pllm-python/src/fss_transport.rs#L590-L617), whose
+admission uses [transport `Scan`](../../crates/pllm-compiler/src/fss_decoder/transport.rs#L287-L377).
+
+| Successful request branch | Completed Schedule walks |
+| --- | ---: |
+| Three role source imports → compile/preflight | 3 |
+| Three role binds → admission Scan | 3 |
+| Dealer preparation → readmission Scan → generation | 1 + 1 |
+| Two holder runs → readmission Scan → execution | 2 + 2 |
+| Ordinary role-route total | 12 |
+| Decoder-only cold topology startup → compile/preflight + quote Scan | 2 once/startup, not per request |
+| Optional additional imported-program quote | +1 per call |
+
+Dealer/holder reentry sites are [`prepare_with_delivery`](../../crates/pllm-compiler/src/fss_decoder/transport.rs#L565)
+and [holder readmission](../../crates/pllm-compiler/src/fss_decoder/transport.rs#L928).
+[Cold qualification](../../python/pllm/runtime/servers.py#L1116-L1147) imports,
+prices, then retires its separate owner. Only [`start`'s `fss_public` AND `capacity="decoder"` branch](../../python/pllm/runtime/servers.py#L1194-L1218)
+calls `_qualify_fss_decoder`; Capsule/default uses metadata admission, without these
+two walks. Qualification uses configured MAX geometry, potentially unlike actual
+request geometry. [Optional quote](../../python/pllm/runtime/benchmark_delegated.py#L360-L375)
+reaches the [native pricing Scan](../../crates/pllm-python/src/fss_transport.rs#L807-L812).
+Program retention within a role avoids recompilation, not repeated Scan walks.
+Cost is a sum of separate phase cost vectors: three compile/preflight + six admission
+Scans + one generation + two holder executions per request, plus optional separate
+startup compile/preflight and quote vectors. Never price 12 identical costs or 14
+same-geometry walks. Driver, reads, public contractions and callbacks differ;
+No-Driver/dealer paths may skip public contractions while kernel/quote/cache/hash
+work and allocations remain. Structural counts are not observed candidate completion:
+failed `T=31/33` candidates cannot claim 12/14 completed walks. Cap 16 and signed-SiLU
+gates still refuse; count each actual failure prefix instead.
+
+**Completed node partition.** Rows below are per node, per selection; sum over
+validated metadata and selections within each phase vector; failed prefixes need their own census.
+`R = input elements / input width K`, `C = output width`; embedding has vocabulary
+`V` and width `E`. `H,d` follow each node's operands/shapes as above, not model labels.
+
+| Node/path | Work population, not primitive coefficients |
+| --- | --- |
+| Resident serial affine | `R*C` public dots, each length `K`; public coefficients are not private multiplications. |
+| File serial affine | `R*K*C` local multiply/add pairs plus `R*C` fresh floors; file/statistic reads separate. |
+| Wave/tensor affine | Same complete public contraction then floors; bounded lanes change Plan grouping. |
+| Token embedding | `T` selector Plans plus `T*V*E` local pairs; file batches also retain gather/copy work. |
+| Scores, serial | `T^2*H` private-dot Plans, each length `d`. |
+| Values, serial | `T*H*d` private-dot Plans, each length `T`, NOT `T^2*H*d` Plans. |
+| Softmax | Full output population `H*T^2`; row active width `a=min(q+1,I+s)`; profile/batch bounds determine actual Plans. |
+
+Source: [embedding/affine](../../crates/pllm-compiler/src/fss_decoder/runtime.rs#L980-L1224),
+[Scores/Softmax/Values](../../crates/pllm-compiler/src/fss_decoder/runtime.rs#L1522-L1684).
+Wave/tensor `dot_lanes` preserves contraction populations, not serial Plan counts.
+Norm, activation, selection, guards and final masking remain required; detailed
+unreviewed primitive coefficients deliberately omitted. No invented party multiplier.
+
+**Existing reservation tariff, not a disjoint-backing proof.** Reuse
+[`Quote::live_array_reservation`](../../crates/pllm-compiler/src/fss_decoder/resource_quote.rs#L185-L207):
+`L = P_arrays + 8*(T+O) + node_slots + gather + frontier`, where `P_arrays` is the
+last-use array peak above. `node_slots` prices `Option<Zeroizing<Vec<u64>>>` slots;
+`gather` is the function's capacity-dependent maximum, including Decoder reader
+buffers; `frontier` is its wavefront-only tournament/lane backing (zero otherwise).
+No replacement workspace or second ledger is introduced.
+
+[`Quote::finish`](../../crates/pllm-compiler/src/fss_decoder/resource_quote.rs#L331-L358)
+accumulates the existing tariff as
+`3*M + 2*L + max_k[max(R_k + W_k + 2*P_k, 3*D_k) + 3*C_k]`:
+
+| Symbol | Existing field/site, not a new charge |
+| --- | --- |
+| `M` | `resources.metadata_bytes`, including source, energy and compiler/validation scratch; [compiler inventory](../../crates/pllm-compiler/src/fss_decoder/program.rs#L1456-L1470). |
+| `R_k` | `native.combined_reservation_bytes`. |
+| `W_k` | Wave `additional_reservation_bytes`, zero only when absent. |
+| `P_k` | Native `plan_reservation_bytes`; unrelated to `P_arrays`. |
+| `D_k` | Native `template_construction_bytes`. |
+| `C_k` | `tables.retained_bytes + tables.metadata_reservation_bytes` at finish. |
+
+This conservative TARIFF is not RSS or unique physical backing. Unique backing,
+gather/returned-output/input/source-cache overlaps and retirement remain open;
+ordinary compiler Vectors are not automatically Budget leases. Transport's
+[separate peak](../../crates/pllm-compiler/src/fss_decoder/transport.rs#L334-L350)
+also retains worker/dealer exports, frame copies, wave and receive owners.
+
+**Material/tape dependency.** [Scan](../../crates/pllm-compiler/src/fss_decoder/transport.rs#L287-L324)
+derives `N` secret steps, `T_packet` cumulative packet bound, `P_packet` maximum
+packet and `F` peer rounds from actual Plans/waves, not scalar output counts.
+[External-AAD tape price](../../python/pllm/runtime/fss_tape.py#L170-L212) per holder:
+`D_tape = min(T_packet, N*P_packet) + 40*N`. Two holders retain two tape copies;
+live append/take buffers, metadata/AAD, exports and frames require separate overlap
+accounting. The existing 32 GiB per-tape ceiling is distinct from aggregate
+64 MiB native live admission; neither pays for the other or proves whole-host fit.
+
+**Before bootstrap.** Source IEEE payload `b*n` (`b` bytes/element) converts to Q12 `8*n` retained
+coefficient payload, not the complete source-owner size. Source import, rotary,
+hashing and preparation precede later Schedule bootstrap: [source seal/compile](../../crates/pllm-compiler/src/fss_decoder/import.rs#L187-L244),
+[`preparation_peak` / `construction_limit`](../../crates/pllm-compiler/src/fss_decoder/resource_quote.rs#L135-L175),
+[`bootstrap`](../../crates/pllm-compiler/src/fss_decoder/resource_quote.rs#L219-L250); [Q12 conversion](../../crates/pllm-compiler/src/fss_decoder/source.rs#L94-L107).
+Local phase gates are not retroactive payment for prior work; borrowing and hashing
+mint no funding. Proof/numeric workspace remains a separate admission obligation.
+
+**Lifecycle boundary.** Existing [`_CleanupSlot`](../../python/pllm/deployment/resources.py#L532-L595)
+retains callback/payload only once installed; caller must drain producers and slot.
+It proves neither constructor rollback nor final-parent policy. Worker
+[`_Attempt._close`](../../python/pllm/runtime/fss_worker.py#L226-L301) owner-clears
+and dependent tape/source-close uncertainties remain OPEN, not authorized fixes.
+Mandatory preacquisition shells and failed-parent shutdown remain UNSELECTED
+proposals, not adoption. Original-root work entry, repeated-walk prepayment,
+all-outcome overlap/retirement and independent security remain gates. No broader
+review, funding, source-faithfulness, fit or execution qualification follows.
+
 ## Ownership and transport
 
 The dealer receives no private input or masked online openings. It delivers only
@@ -160,6 +346,190 @@ Shared integer matrix/row-energy certificates tighten public admission bounds.
 Their provenance follows complete semantic rows through supported views and
 operators. They do not remove a normalization's input-domain obligation or change
 the source tables, epsilon, two affine floors, or private multiplication schedule.
+
+### Original-request custody contract (design only; activation held)
+
+This section proposes custody changes, not current implementation guarantees.
+Approval covers this design text only: source changes, tariffs, registries, trust
+changes, API selection, builds and execution remain held. Existing ownership and
+transport contracts above remain in force; no full-method qualification follows.
+
+**Sealed provenance.** The existing route is `SourceBuilder::seal_source` →
+`ImportedSource` → `seal_with_schedule` → `ImportedProgram` → `NativeProgram`.
+Imported structure fields and `SourceExecutionBinding::new` are public today;
+that binding commits semantic geometry, not actual payload. SDK publisher, file
+and tokenizer identities remain caller-authentication claims, not native proof.
+Propose a private, indivisible `ImportedProgram` retaining genuine import source
+and tying actual `Program`, input-stream digest, execution binding and
+`CompileOwnership`. Native custody would retain `Option<Arc<ImportedProgram>>`;
+no constructor could accept independently supplied Program, binding or digests.
+This supplies local provenance only, not new cryptography or external SDK
+authentication. The sealed issuer route does not exist; construction stays held
+until that route and every live caller migrate together.
+
+**One original request.** Proposed private `SourceRequestCustody` wraps the
+existing channel `Request`, authenticated source, role, delivery/receive owners,
+spend, budget roots and lifecycle/admission state. Move existing accounting from
+`Schedule`; do not add a parallel ledger. Current `Request` does NOT yet own this
+ledger or sealed import; issuer/API migration remains prerequisite.
+`Request::parse` and `ClientRequest`
+validate framing only and cannot mint authority. Proposed lifecycle is
+Pending → Admitted → Running → Terminal. Failure is terminal, with no same-owner
+retry; this does not select or approve a new API. Debits never roll back. Dropping
+a terminal owner neither resets spend through a fresh wrapper nor proves replay
+protection across wrappers or restarts.
+
+**Cumulative spend versus pass state.** `RequestSpend` would retain existing
+`work`, `public_copy_bytes`, `material_bytes` and `frame_bytes` cumulatively,
+using their exact formulas and debit order. Material/frame charges include
+conservative admission projections; they are not measured delivered bytes.
+`PassState` remains local: kernel ordinal, primitive count, transport counts,
+selection node, validity, obligation hash and transcript. Runtime invocation
+context using `resources.kernels` must keep the unchanged pass ordinal, not
+substitute cumulative spend. Metadata, live-array and source-cache inventories
+and peak overlap are live ownership terms, not sums over retired passes.
+Original `Budget` high-water evidence stays monotonic across pass-local inventory/stat resets; this neither sums retired storage nor adds a cap.
+Every pass retains a cold local cache and its own accounted statistics, preserving
+hit/miss hashes. Cache construction debits the same persistent request owner at
+the existing covered boundary; no warm-cache optimization or fabricated statistics.
+
+Budget roots would be created once before the first cache. Each pass borrows
+split roots and mutable spend fields; proposed `PassTables<'b>` owns a borrowed
+cache. All plans, material and outputs retire before pass return. No self-reference,
+unsafe lifetime extension or replacement `Budget` is permitted. Escaping owners
+use existing `OwnedBudget` only when genuinely necessary, with bootstrap funding.
+Separate guard, batch and receive capacities remain separate. Storage-lease reuse
+may release live storage, never refund work.
+
+Required order: source authentication/import → sealed join and request-role checks
+→ existing debit → covered allocation → visit/callback → execute. Source-import
+preflight precedes custody funding and remains a separate obligation. Preserve
+refusal prefixes, overflow behavior and residual budgets; identify uncovered work
+explicitly rather than claiming custody covers it. PRSS nonce, recipient, context,
+`ImportGuard` and `issue_step` remain unchanged; partial delivery cannot retry.
+
+**Constructor cancellation slot — PROPOSED, not implemented.** Slot plumbing is
+selected for FURTHER DESIGN ONLY, not API implementation/adoption or funding.
+In [`crates/pllm-python/src/fss_transport.rs`](../../crates/pllm-python/src/fss_transport.rs),
+`Control` is created AFTER admission and owns no original source/spend/admission
+payload; synchronous `__new__` returns after admission. In
+[`crates/pllm-compiler/src/fss_decoder/channel.rs`](../../crates/pllm-compiler/src/fss_decoder/channel.rs),
+`Request` carries framing/context and phase, not that custody. In
+[`python/pllm/runtime/fss_worker.py`](../../python/pllm/runtime/fss_worker.py),
+application `active` roots the longer-lived `_Attempt`, but `_close` continues
+dependent tape/source cleanup after errors, clears native/source fields, and loses
+the reservation field if its final `reservation.close()` raises. No current
+endpoint preserves all original source, spend and backing through wrapperless
+constructor failure AND true final-parent drop. A proposed one-use,
+process-bound cancellation slot and `RoleRequest` share one `Arc<Control>` and one
+Mutex state: Pending/Admitted/Running/Terminal plus separate cleanup status.
+The cancelled Atomic is only a polling flag, never publication/run authority.
+`SourceRequestCustody` retains the original `Request`, sealed source binding,
+authentic role, moved four cumulative spend fields above and original budget roots.
+Exactly one owner location exists at a time: partial-constructor guard, state
+escrow, run guard or cleanup guard; a result has no independent authority.
+`state.owner: Option<_>` is valid only with exclusive constructor/state/run/cleanup
+transfers. Reject second attach, replacement and concurrent retirement claims;
+NEVER overwrite occupied escrow.
+An admission `Option` alone misses components acquired before a complete owner:
+every partial component must enter guard custody immediately.
+
+**Independent lifecycle review — REQUIRED CORRECTIONS, not clearance.** These
+are proposed requirements, not current enforcement. Attach
+and worker registration occur under the state Mutex BEFORE source clone/acquisition,
+not merely before detachment. Cancellation winning rejects acquisition; attach
+winning obliges close to await the registered worker. Never Confirmed → attach.
+The constructor deposits its owner and completes registration atomically before
+run claim. Panic, admission failure, late publication and Python-wrapper failure
+retain partial/full candidates before worker acknowledgement, including cleanup
+unwind. Under the same Mutex, cancellation winning forbids publication: late
+candidates enter escrow only. Post-publication cancellation rejects new run,
+metadata, source-borrow and callback claims while preserving live borrowers.
+Confirmed requires closed registration gates, zero constructor/run/borrower/callback
+participants AND successful cleanup; published, None or Terminal does not mean drained.
+Count scheduled callbacks BEFORE dispatch; nested registration retains its parent
+registration or refuses. No callback, owner destruction or drain under the state
+Mutex. Python callbacks REQUIRE the GIL; blocking waits release it. Reject/defer
+dependency self-drain, including event-loop callback → close → worker → callback;
+thread-ID self-join detection alone is insufficient.
+
+**SDK ordering and failed drains.** Install the slot before scheduling bind; register
+the bind job before possible eager execution or yield. `_Attempt.signal` cancels
+the installed slot before its existing stop-flag early return. Close that slot even
+if construction raised before `attempt.native` assignment. Failed slot/native/job
+drain stops DEPENDENT tape/source close and refunds; merely retaining fields is
+insufficient. Clear each slot/native/source/tape/job/reservation manager field
+ONLY AFTER its cleanup succeeds; failed dependencies retain owners AND backing.
+Clear the reservation ONLY AFTER `reservation.close` succeeds;
+failure retains the rooted active attempt and blocks replacement. A failed cached
+close task preserves escrow; retry policy is unselected. Retain the source Arc
+through borrowers; Python bytes/HTTP copies have separate reservation obligations.
+
+**Shared parent-retirement endpoint — UNSELECTED candidate.** Reuse shared
+source/request lifecycle machinery, not a paper-specific parallel owner. Reserve
+one finite parent slot BEFORE any acquisition; the parent roots `Control`
+independently of client handles. Register the partial-constructor guard before
+acquisition; every acquired component enters its custody immediately. Exclusive
+Partial → Full transfer preserves the original source, request, cumulative spend,
+budget roots and backing; constructor/state/run/cleanup locations above never
+duplicate authority. A cancellation-winning late constructor deposits partial/full
+custody before acknowledgement and never publishes a result.
+
+Claim cleanup ONLY after bind/constructor, run, borrowers and callbacks are globally
+drained and registration gates closed. An in-place borrowing cleanup guard leaves
+the payload rooted in the slot as Failed on error or unwind; dependent owners,
+charges and reservation backing are not cleared/refunded. Release the slot only
+after ALL cleanup succeeds. No callbacks, destructors or waits under the Mutex.
+Cancellation requests retirement; it does not interrupt native execution or prove
+drain. Last client Arc requests retirement while the parent remains alive.
+
+**TRUE LAST-OWNER DROP — BLOCKER.** Parent rooting moves the final ownership
+boundary; it does not solve it. True final owner cannot return from `Drop` while
+retaining failed cleanup without an external root or deliberate leak; neither is
+selected here, nor is a leak/abort policy prescribed. Finite slot occupancy does
+not imply finite retention duration. An unresolved parent must remain owned;
+shutdown cannot claim drain. No deadline release, automatic retry or leak-as-cleanup.
+Mandatory preacquisition slots and fail-closed parent lifetime/shutdown require
+NEW DESIGN approval, beyond the existing further-design slot selection. Source,
+issuer, funding, API adoption and implementation remain held; prior approvals
+are unchanged. This candidate establishes no current survival guarantee.
+
+**Independent funding review — BLOCKERS.** `768S` covers only six `128S` lookup
+constructor allowances, not pending/control/attach/publication/drain/cleanup.
+Freeze actual native/Python representations, capacities, overlaps and last-drop
+costs. Bound TOTAL registrations/attempts, not just concurrency: constructor/worker
+dispatch, borrowers/callbacks/handlers, cancel/close and rejected attempts, drain
+participants, retries and wakes. Condvar spurious wakes, repeated public calls,
+arbitrary foreign callbacks and `to_thread`'s shared executor provide no finite
+physical-work proof. A logical event contract alone does not fund the whole
+lifecycle. Caps/tariffs remain unchanged; pass-local ordinals/transcripts/caches
+stay separate from persistent four-field spend. No refund/reset of failed work.
+
+**Migration boundary.** All live public `admit*`, `prepare*`, `execute*`,
+`visit_material` and Worker callers must become owner-bearing; pricing remains
+explicitly non-executing. SDK `fss_worker` burns IDs before work, but native direct
+reparse bypass remains unresolved; all live calls require genuine custody, with no
+ownerless compatibility bypass. No new registry/receipt supplies authentication,
+and no cross-wrapper/restart replay
+claim is approved. Migration spans channel/runtime, `fss_transport`, resource
+quotes, import, SDK, `fss_source`, Python/native and direct Rust callers/tests.
+Audit `Request`/owner size charges and Python ABI. Unchanged wire format is an
+explicit proposal, not implied ABI approval.
+
+**Held gates and future checks.** Activation requires sealed-issuer migration,
+separate cancellation API implementation/adoption approval, resolution of the
+lifecycle/funding blockers above, and feasibility under
+unchanged caps with cumulative existing charges. Proposed regression coverage:
+forged or mismatched provenance; cumulative failure without debit rollback;
+pass-local ordinal/hash/cache parity; no issuance retry after failure; cancellation
+and late-success drain; framing-only client authority; non-executing pricing.
+These are future tests, not checks run or results established by this design.
+
+The existing six constructor tariffs totaling 768S are already source-cleared;
+this proposal does not claim they are absent or newly implemented. An extra six
+and new +768S remain held. No approval or funding claim covers the whole twelve,
+source import or preconstruction work. Implementation, tariff/registry/trust edits,
+concrete API adoption and execution require separate approval; this design activates none.
 
 ## SDK and benchmark interface
 
