@@ -321,13 +321,12 @@ fn legacy_rsqrt_identity_matches_independent_pre_b2_recipe() {
             assert_eq!(old.nodes[first].unwrap().instruction, refined.nodes[first].unwrap().instruction);
             assert_ne!(old.digest, refined.digest);
         }
-        // PRE-REPAIR DIAGNOSTIC: today's public default is refined, NOT legacy
-        // compatible. The separately approved compatibility fix must flip these
-        // public-default identity assertions to the independent legacy oracle.
+        // The ordinary public default preserves the independent legacy identity;
+        // the tighter enclosure remains an explicit compile-time experiment.
         let public = Program::rsqrt(1, domain).unwrap();
-        assert_pre_b2_identity(&public, &refined);
+        assert_pre_b2_identity(&public, &old);
         if domain == actual_denominator {
-            assert_ne!(public.digest, old.digest);
+            assert_ne!(public.digest, refined.digest);
         }
     }
     for domain in [Interval::new(0, 1).unwrap(), Interval::new(1, 1_i64 << 35).unwrap()] {
@@ -349,18 +348,22 @@ fn legacy_rsqrt_identity_matches_independent_pre_b2_recipe() {
         let refined = pre_b2_ordinary_rms(rows, width, input, &gamma,
             |b, x, d| rsqrt_ranged::<_, true>(b, x, d, false)).unwrap();
         assert_same_arithmetic_schedule(&oracle, &refined);
+        // Ordinary RMS preserves the complete independent legacy identity.
+        let public = Program::rms_norm(rows, width, input, &gamma).unwrap();
+        assert_pre_b2_identity(&public, &oracle);
+        assert_ne!(public.digest, refined.digest);
         if rows == 1 && width == 2 && input == Interval::new(-40960, 40960).unwrap()
             && gamma == vec![262144; 2]
         {
             let historical = oracle.output_bounds();
             let explicit_true = refined.output_bounds();
+            assert_eq!(oracle.output_bounds(), Interval::new(-2811009, 2811009).unwrap());
+            assert_eq!(public.output_bounds(), Interval::new(-2811009, 2811009).unwrap());
+            assert!(explicit_true.lower() > historical.lower());
+            assert!(explicit_true.upper() < historical.upper());
             println!("legacy_rsqrt_compiler_private_fixture_output_interval: historical=[{}, {}] explicit_true=[{}, {}]",
                 historical.lower(), historical.upper(), explicit_true.lower(), explicit_true.upper());
         }
-        // Same pre-repair diagnostic as above; no claim of preserved default.
-        let public = Program::rms_norm(rows, width, input, &gamma).unwrap();
-        assert_pre_b2_identity(&public, &refined);
-        assert_ne!(public.digest, oracle.digest);
         if width == 4 {
             assert_eq!(oracle.nodes[5].unwrap().bounds, actual_denominator);
             let first = (0..oracle.len).find(|&i| oracle.nodes[i] != refined.nodes[i]).unwrap();

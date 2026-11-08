@@ -10,8 +10,7 @@ fn ordinary_private_lookup_rms_scalar_inference_never_mints_energy() {
     let gamma = [262144; 2];
     let (program, energy) = rms_norm_program(false, 2, input, &gamma, None).unwrap();
     assert_eq!(energy, None);
-    assert!(program.output_bounds().lower() > -2811009);
-    assert!(program.output_bounds().upper() < 2811009);
+    assert_eq!(program.output_bounds(), Interval::new(-2811009, 2811009).unwrap());
     let (same, still_private) = rms_norm_program(false, 2, input, &gamma, Some(1)).unwrap();
     assert_eq!(still_private, None);
     assert_eq!(same.digest(), program.digest());

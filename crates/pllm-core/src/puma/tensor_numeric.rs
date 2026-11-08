@@ -861,7 +861,7 @@ pub(super) fn rms_normalization<S: rms_work::RmsSink>(
     let mean = b.rescale(raw_mean, 18)?;
     let denominator = b.affine(mean, None, affine(1, 0, RMS_NORM_EPSILON_Q18))?;
     let bounds = b.node(denominator, false)?.bounds;
-    let mut inverse = rsqrt_ranged::<_, true>(b, denominator, bounds, partitioned)?;
+    let mut inverse = rsqrt_ranged::<_, false>(b, denominator, bounds, partitioned)?;
     inverse.value = b.row_map(inverse.value, width, RowMap::Broadcast)?;
     // Correlate each row value with its own denominator before multiplying.
     // For Q=2^18, c=E(1/width)>0, S=sum(TR(x_i^2)), d=TR(S*c)+epsilon:
@@ -1044,11 +1044,12 @@ fn reciprocal_cell(d: Interval, exponent: usize) -> Result<Interval, Error> {
 }
 
 pub(super) fn rsqrt(b: &mut Builder, input: Value, bounds: Interval) -> Result<Value, Error> {
-    Ok(rsqrt_ranged::<_, true>(b, input, bounds, false)?.value)
+    Ok(rsqrt_ranged::<_, false>(b, input, bounds, false)?.value)
 }
 
-// The false monomorphization is used only by the old-sequence regression.
-// No branch or instruction is added to the executable tensor program.
+// Ordinary production preserves legacy interval metadata and program identity.
+// STATIC selects the explicit experimental compile-time enclosure; partitioned
+// proofs take precedence independently of STATIC. No runtime selector is added.
 fn rsqrt_ranged<S: attention_work::SoftmaxSink, const STATIC: bool>(
     b: &mut S,
     input: Value,
@@ -1082,8 +1083,7 @@ fn rsqrt_ranged<S: attention_work::SoftmaxSink, const STATIC: bool>(
         }
         b.refine(p.value, hull(&p.boxes)?);
     } else {
-        // STATIC is monomorphized: the admission-only legacy branch exists
-        // solely for the test oracle, not as a selectable runtime policy.
+        // STATIC is monomorphized, not a selectable runtime policy.
         p = if STATIC {
             rsqrt_static::finish(b, &scaled, &u)?
         } else {
