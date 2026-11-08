@@ -153,6 +153,216 @@ fn separate_dealer_and_workers_compute_all_material_kinds_from_real_bytes() {
 }
 
 #[test]
+fn checked_rms_material_payload_matches_quote() {
+    use super::super::wire::ENVELOPE_BYTES;
+    use super::cache::{Limits, SourceTableCache};
+
+    fn predicate_body(body: &[u8], bits: u8, shape: crate::fusefss::Shape) -> Result<(usize, usize, usize), Error> {
+        use crate::fusefss_backend::wire::Reader;
+        use crate::{compact_dcf::RingComparison, fusefss::Opcode, shared_wide_product::ring};
+        let mut input = Reader::new(body);
+        let _mask = Zeroizing::new(input.word(bits)?);
+        let mut private = 8usize;
+        let mut public = 0usize;
+        for _ in 0..shape.queries {
+            let query_bits = u8::try_from(input.word(6)?).map_err(|_| Error::Context)?;
+            if query_bits == 0 || query_bits > bits { return Err(Error::Context); }
+            let _shift = input.word(query_bits)?;
+            // Canonical encoded DCF key, not its resource quote or capacity.
+            let len = 24usize.checked_add(26usize.checked_mul(usize::from(query_bits)).ok_or(Error::Context)?).ok_or(Error::Context)?;
+            RingComparison::validate_material(input.take(len)?, query_bits, 1)?;
+            private = private.checked_add(len).ok_or(Error::Context)?;
+            public = public.checked_add(16).ok_or(Error::Context)?;
+        }
+        let mut bit_count = 0;
+        let mut gates = 0;
+        let mut count = 0;
+        for output in 0..shape.boolean_outputs {
+            let mut depth = 0usize;
+            for _ in 0..shape.program_lengths[output] {
+                let op = input.word(3)?;
+                let arg = Zeroizing::new(input.word(32)?);
+                if op == Opcode::Bit as u64 && *arg <= 1 {
+                    depth += 1;
+                    bit_count += 1;
+                    private = private.checked_add(8).ok_or(Error::Context)?;
+                    public = public.checked_add(8).ok_or(Error::Context)?;
+                } else {
+                    public = public.checked_add(16).ok_or(Error::Context)?;
+                    if op == Opcode::Query as u64 && *arg < shape.queries as u64 {
+                        depth += 1;
+                    } else if op == Opcode::Not as u64 && *arg == 0 && depth >= 1 {
+                    } else if [Opcode::Xor as u64, Opcode::And as u64, Opcode::Or as u64].contains(&op) && *arg == 0 && depth >= 2 {
+                        depth -= 1;
+                        gates += usize::from(op == Opcode::And as u64 || op == Opcode::Or as u64);
+                    } else { return Err(Error::Context); }
+                }
+                count += 1;
+                if count > shape.vm_ops { return Err(Error::Context); }
+            }
+            if depth != 1 { return Err(Error::Context); }
+        }
+        if count != shape.vm_ops || gates != shape.boolean_ands { return Err(Error::Context); }
+        for _ in 0..shape.boolean_ands {
+            let _triple = ring::TripleShare::read_material(&mut input, 1)?;
+            private = private.checked_add(ring::TRIPLE_BYTES).ok_or(Error::Context)?;
+        }
+        input.finish()?;
+        Ok((private, public, bit_count))
+    }
+
+    fn execute(
+        plans: [&Plan<'_>; 3], ctx: Context, inputs: [&[u64]; 2],
+    ) -> ([Vec<u64>; 2], [usize; 2]) {
+        let [dp, lp, rp] = plans;
+        assert_eq!(dp.digest(), lp.digest());
+        assert_eq!(dp.digest(), rp.digest());
+        let mut lg = ImportGuard::new_indexed(dp.resources().secret_steps, lp.lease.budget).unwrap();
+        let mut rg = ImportGuard::new_indexed(dp.resources().secret_steps, rp.lease.budget).unwrap();
+        let mut a = lp.runtime(0, ctx, inputs[0]).unwrap();
+        let mut b = rp.runtime(1, ctx, inputs[1]).unwrap();
+        let mut ea = a.poll().unwrap();
+        let mut eb = b.poll().unwrap();
+        let mut payload = [0usize; 2];
+        let mut steps = 0;
+        let mut predicates = 0;
+        let mut conversions = 0;
+        let mut selects = 0;
+        loop {
+            match (ea, eb) {
+                (Event::NeedMaterial { pc: pa }, Event::NeedMaterial { pc: pb }) => {
+                    assert_eq!(pa, pb);
+                    let [ma, mb] = dp.issue_step(pa, ctx).unwrap();
+                    let pa_bytes = ma.export_packet().unwrap();
+                    let pb_bytes = mb.export_packet().unwrap();
+                    assert_eq!(pa_bytes.nonce(), pb_bytes.nonce());
+                    assert_eq!(pa_bytes.as_bytes()[9], 0);
+                    assert_eq!(pb_bytes.as_bytes()[9], 1);
+                    let instruction = dp.instruction(pa).unwrap();
+                    let descriptor = match instruction {
+                        Instruction::Predicate(value, signed, threshold) => {
+                            predicates += 1;
+                            Some(crate::fusefss::Descriptor::simple_comparison(dp.register(value).unwrap().bits, signed, threshold).unwrap())
+                        }
+                        Instruction::Convert(..) => { conversions += 1; None }
+                        Instruction::Select(..) => { selects += 1; None }
+                        _ => None,
+                    };
+                    for (role, packet) in [pa_bytes.as_bytes(), pb_bytes.as_bytes()].into_iter().enumerate() {
+                        let end = packet.len().checked_sub(ENVELOPE_BYTES - crate::material_wire::HEADER).unwrap();
+                        let body = &packet[crate::material_wire::HEADER..end];
+                        let (private, public) = if let Some(descriptor) = &descriptor {
+                            let shape = descriptor.shape();
+                            let bits = descriptor.word().bits;
+                            let (private, public, bit_count) = predicate_body(body, bits, shape).unwrap();
+                            if ctx.operation[..4] == [1, 4, 0, 0] {
+                                assert_eq!((shape.queries, shape.vm_ops, bit_count, shape.boolean_ands), (2, 9, 3, 1));
+                            }
+                            assert!(predicate_body(&body[..body.len() - 1], bits, shape).is_err());
+                            let mut trailing = Zeroizing::new(body.to_vec());
+                            trailing.push(0);
+                            assert!(predicate_body(&trailing, bits, shape).is_err());
+                            let mut malformed = Zeroizing::new(body.to_vec());
+                            malformed[8..16].copy_from_slice(&0u64.to_le_bytes());
+                            assert!(predicate_body(&malformed, bits, shape).is_err());
+                            (private, public)
+                        } else { (body.len(), 0) };
+                        assert_eq!(packet.len(), ENVELOPE_BYTES + private + public);
+                        payload[role] += private;
+                    }
+                    let ma = lp.import_step_bytes(pa, ctx, 0, pa_bytes.nonce(), pa_bytes.as_bytes(), &mut lg).unwrap();
+                    let mb = rp.import_step_bytes(pb, ctx, 1, pb_bytes.nonce(), pb_bytes.as_bytes(), &mut rg).unwrap();
+                    ea = a.feed(ma).unwrap();
+                    eb = b.feed(mb).unwrap();
+                    steps += 1;
+                }
+                (Event::Frame(fa), Event::Frame(fb)) => {
+                    ea = a.advance(fb.as_bytes()).unwrap();
+                    eb = b.advance(fa.as_bytes()).unwrap();
+                }
+                (Event::Output(oa), Event::Output(ob)) => {
+                    assert_eq!(steps, dp.resources.secret_steps);
+                    if ctx.operation[..4] == [1, 4, 0, 0] {
+                        assert_eq!((steps, predicates, conversions, selects), (28, 8, 8, 12));
+                    }
+                    let quoted = dp.resources.private_material_bytes_total;
+                    assert_eq!(payload[0] + payload[1], quoted);
+                    assert_eq!(payload[0], quoted / 2);
+                    assert_eq!(payload[1], quoted / 2);
+                    return ([oa.shares().to_vec(), ob.shares().to_vec()], payload);
+                }
+                _ => panic!("public schedules diverged"),
+            }
+        }
+    }
+
+    for rows in [1usize, 2] {
+        for width in [4usize, 8] {
+            let budgets = std::array::from_fn::<_, 3, _>(|_| Budget::new(MAX_ALLOCATION_BYTES).unwrap());
+            let caches = budgets.each_ref().map(|budget| SourceTableCache::new(
+                [7; 32], Limits { max_entries: 2, max_retained_bytes: 1024 * 1024 }, budget,
+            ).unwrap());
+            let gamma = vec![4096; width];
+            let beta = vec![0; width];
+            let range = kernels::InputRange { min: -4096, max: 4096 };
+            let binding = kernels::Binding { source_digest: [5; 32], contract_digest: [6; 32] };
+            let mut validity = [vec![0], vec![1]];
+            let mut total = [0usize; 2];
+            let mut quoted_total = 0;
+            for row in 0..rows {
+                let mut ctx = context();
+                ctx.operation[..4].copy_from_slice(&[rows as u8, width as u8, row as u8, 0]);
+                let input: Vec<_> = (0..width).map(|i| {
+                    (if (i + row) % 2 == 0 { -4096i64 } else { 4096 }) as u64 & mask(50)
+                }).collect();
+                let zero = vec![0; width];
+                let plans = budgets.each_ref().map(|budget| kernels::checked_range_with_fallback(
+                    binding, &vec![range; width], range, kernels::RangeFallback::WholeRow, budget,
+                ).unwrap().0);
+                quoted_total += plans[0].resources.private_material_bytes_total;
+                let (guarded, bytes) = execute(plans.each_ref(), ctx, [&zero, &input]);
+                for role in 0..2 { total[role] += bytes[role]; }
+                drop(plans);
+                let pairs = [vec![validity[0][0], guarded[0][width]], vec![validity[1][0], guarded[1][width]]];
+                ctx.operation[3] = 1;
+                let plans = budgets.each_ref().map(|budget| kernels::validity_and(binding, budget).unwrap().0);
+                quoted_total += plans[0].resources.private_material_bytes_total;
+                let (combined, bytes) = execute(plans.each_ref(), ctx, [&pairs[0], &pairs[1]]);
+                validity = combined;
+                for role in 0..2 { total[role] += bytes[role]; }
+                drop(plans);
+                ctx.operation[3] = 2;
+                let spec = norm::Spec { kind: norm::Kind::Rms, input_min: -4096, input_max: 4096, gamma: &gamma, beta: &beta };
+                let energy = u128::try_from(width).unwrap().checked_mul(4096u128.pow(2)).unwrap();
+                let plans = caches.each_ref().map(|cache| norm::compile_cached_with_row_energy([5; 32], &spec, energy, cache).unwrap());
+                for plan in &plans {
+                    assert_eq!(plan.code.iter().filter(|op| matches!(op, Instruction::Lookup(..))).count(), 1);
+                }
+                quoted_total += plans[0].resources.private_material_bytes_total;
+                let (output, bytes) = execute(plans.each_ref(), ctx, [&guarded[0][..width], &guarded[1][..width]]);
+                for role in 0..2 { total[role] += bytes[role]; }
+                let s = u128::from(energy) + 1;
+                let exponent = 127 - s.leading_zeros();
+                let mantissa = (128 * s >> exponent) - 128;
+                let reciprocal = (( (1u128 << 55) * width as u128) / ((128 + mantissa) << exponent)).isqrt() as i128;
+                for i in 0..width {
+                    let x = if (i + row) % 2 == 0 { -4096i128 } else { 4096 };
+                    let expected = ((((x * reciprocal) >> 12) * 4096) >> 12) as u64 & mask(50);
+                    assert_eq!(output[0][i].wrapping_add(output[1][i]) & mask(50), expected);
+                }
+                assert_eq!(validity[0][0].wrapping_add(validity[1][0]) & mask(50), 1);
+            }
+            assert_eq!(total[0] + total[1], quoted_total);
+            assert_eq!(total[0], quoted_total / 2);
+            assert_eq!(total[1], quoted_total / 2);
+            for cache in &caches { assert_eq!(cache.stats().table_constructions, 1); }
+            drop(caches);
+            for budget in &budgets { assert_eq!(budget.used_bytes(), 0); }
+        }
+    }
+}
+
+#[test]
 fn substitutions_and_bad_public_steps_burn_session_claims() {
     let dealer = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
     let worker = Budget::new(MAX_ALLOCATION_BYTES).unwrap();

@@ -195,6 +195,30 @@ fn compact_one_hot_qwen_geometry_prices_native_owners_without_vector_plan_metada
         let plan = build(vocabulary, &budget).unwrap();
         let r = plan.resources();
         let native = one_hot::resources(plan.one_hot_spec(0).unwrap()).unwrap();
+        assert_eq!(
+            compact_one_hot_cost(&native).unwrap(),
+            (
+                r.plan_reservation_bytes,
+                r.register_owner_bytes_per_party,
+                r.cumulative_work,
+                r.combined_reservation_bytes,
+            )
+        );
+        assert_eq!(
+            r.plan_reservation_bytes,
+            size_of::<Plan<'_>>()
+                + 4096
+                + size_of::<u8>()
+                + size_of::<Instruction>()
+                + size_of::<Register>()
+        );
+        assert_eq!(
+            r.combined_reservation_bytes,
+            r.plan_reservation_bytes
+                + 2 * runtime::owner_bytes(1, 0)
+                + native.combined_reservation_bytes
+                + native.frame_bytes_total
+        );
         assert_eq!(plan.input_bits(), [50]);
         assert_eq!(plan.output_count(), vocabulary);
         for index in [0, vocabulary - 1] {
@@ -244,6 +268,9 @@ fn compact_one_hot_qwen_geometry_prices_native_owners_without_vector_plan_metada
                 + 8 * native.derivative_rows_per_party
                 + 1
         );
+        if vocabulary == 1 {
+            assert_eq!(r.cumulative_work, 9);
+        }
         assert!(native.party_reservation_bytes < native.output_bytes_per_party + 64 * 1024);
         assert_eq!(r.triples_total, 0);
         assert_eq!(r.frames_total, 2);
@@ -309,6 +336,107 @@ fn compact_one_hot_qwen_geometry_prices_native_owners_without_vector_plan_metada
         &budget
     )
     .is_err());
+}
+
+#[test]
+fn compact_one_hot_cost_domain_rejection_precedes_constructor_allocations() {
+    let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    budget.fail_after.store(0, Ordering::SeqCst);
+    for (vocabulary, source, contract) in [
+        (0, [13; 32], [17; 32]),
+        (one_hot::MAX_VOCABULARY + 1, [13; 32], [17; 32]),
+        (5, [0; 32], [17; 32]),
+        (5, [13; 32], [0; 32]),
+    ] {
+        assert_eq!(
+            one_hot::resources(one_hot::Spec {
+                vocabulary,
+                source_digest: source,
+                profile_digest: contract,
+            }),
+            Err(Error::Domain)
+        );
+        assert!(matches!(
+            Plan::compact_token_one_hot(source, contract, vocabulary, &budget),
+            Err(Error::Domain)
+        ));
+        assert_eq!(budget.used_bytes(), 0);
+        assert_eq!(budget.fail_after.load(Ordering::SeqCst), 0);
+    }
+}
+
+#[test]
+fn compact_one_hot_cost_exact_constructor_budget_and_three_allocation_failures_refund() {
+    let bound = binding();
+    let native = one_hot::resources(one_hot::Spec {
+        vocabulary: 5,
+        source_digest: bound.source_digest,
+        profile_digest: bound.contract_digest,
+    })
+    .unwrap();
+    let (plan_bytes, _, _, combined) = compact_one_hot_cost(&native).unwrap();
+    let short = Budget::new(combined - 1).unwrap();
+    assert!(matches!(build(5, &short), Err(Error::Resource)));
+    assert_eq!(short.used_bytes(), 0);
+    let exact = Budget::new(combined).unwrap();
+    let plan = build(5, &exact).unwrap();
+    assert_eq!(exact.used_bytes(), plan_bytes);
+    drop(plan);
+    assert_eq!(exact.used_bytes(), 0);
+    for fail in 0..3 {
+        exact.fail_after.store(fail, Ordering::SeqCst);
+        assert!(matches!(build(5, &exact), Err(Error::Allocation)));
+        assert_eq!(exact.used_bytes(), 0);
+        assert_eq!(exact.fail_after.load(Ordering::SeqCst), 0);
+    }
+}
+
+#[test]
+fn compact_one_hot_digest_transcript_and_scalar_metadata_unchanged() {
+    // Fixed kernel inputs; reconstruct each transcript without constructor helpers.
+    let contract: [u8; 32] = Sha256::new()
+        .chain_update(b"pllm.fusefss.bounded-kernels.ring50.q12.v1\0")
+        .chain_update([17; 32])
+        .chain_update(29u64.to_le_bytes())
+        .chain_update(b"compact-token-one-hot-raw-dcf")
+        .chain_update(1u64.to_le_bytes())
+        .chain_update(0i64.to_le_bytes())
+        .chain_update(4i64.to_le_bytes())
+        .chain_update(5u64.to_le_bytes())
+        .finalize()
+        .into();
+    let native_digest: [u8; 32] = Sha256::new()
+        .chain_update(b"pllm.fusefss.d9-one-hot.raw-dcf.cyclic-derivative.a50.v1\0")
+        .chain_update(b"uniform-plus-mask;independent-split;full-natural-dfs19;role0-public-z0;one-lane;compiler-promised-token-domain\0")
+        .chain_update([13; 32])
+        .chain_update(contract)
+        .chain_update(5u64.to_le_bytes())
+        .chain_update([50, 3, 50])
+        .chain_update(8u64.to_le_bytes())
+        .finalize()
+        .into();
+    let digest: [u8; 32] = Sha256::new()
+        .chain_update(b"pllm.fusefss.composition.compact-token-one-hot.v1\0")
+        .chain_update(native_digest)
+        .finalize()
+        .into();
+    let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let plan = build(5, &budget).unwrap();
+    assert_eq!(plan.source, [13; 32]);
+    assert_eq!(plan.digest(), digest);
+    assert_eq!(plan.inputs, [50]);
+    assert!(matches!(
+        plan.code.as_slice(),
+        [Instruction::CompactTokenOneHot(5)]
+    ));
+    assert_eq!(plan.registers.len(), 1);
+    assert_eq!(plan.registers[0].bits, 50);
+    assert_eq!(plan.registers[0].domain, Domain::Arithmetic);
+    assert!(plan.outputs.is_empty());
+    assert!(plan.tables.is_empty());
+    assert_eq!(plan.lanes, 0);
+    drop(plan);
+    assert_eq!(budget.used_bytes(), 0);
 }
 
 #[test]

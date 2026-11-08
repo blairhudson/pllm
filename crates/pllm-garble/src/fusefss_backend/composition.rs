@@ -760,6 +760,31 @@ impl<'a> Builder<'a> {
     }
 }
 
+fn compact_one_hot_cost(native: &one_hot::Resources) -> Result<(usize, usize, usize, usize), Error> {
+    let plan_bytes = size_of::<Plan<'_>>()
+        + 4096 // Arc counters, hashing and fixed owner/alignment scratch.
+        + size_of::<u8>()
+        + size_of::<Instruction>()
+        + size_of::<Register>();
+    let owner = runtime::owner_bytes(1, 0);
+    let work = native
+        .dcf_evaluations_per_party
+        .checked_mul(usize::from(native.input_bits))
+        .and_then(|n| n.checked_add(native.prg_blocks_per_party))
+        .and_then(|n| n.checked_add(8 * native.derivative_rows_per_party))
+        .and_then(|n| n.checked_add(1))
+        .ok_or(Error::Resource)?;
+    let combined = plan_bytes
+        .checked_add(2 * owner)
+        .and_then(|n| n.checked_add(native.combined_reservation_bytes))
+        .and_then(|n| n.checked_add(native.frame_bytes_total))
+        .ok_or(Error::Resource)?;
+    if plan_bytes > MAX_PLAN_BYTES || work > MAX_WORK || combined > MAX_ALLOCATION_BYTES {
+        return Err(Error::Resource);
+    }
+    Ok((plan_bytes, owner, work, combined))
+}
+
 impl<'a> Plan<'a> {
     /// Called only by the declared-range-validating kernel entrypoint. The native
     /// primitive owns the complete output and its lease; no per-vocabulary Plan
@@ -784,27 +809,7 @@ impl<'a> Plan<'a> {
             .chain_update(spec.digest()?)
             .finalize()
             .into();
-        let plan_bytes = size_of::<Self>()
-            + 4096 // Arc counters, hashing and fixed owner/alignment scratch.
-            + size_of::<u8>()
-            + size_of::<Instruction>()
-            + size_of::<Register>();
-        let owner = runtime::owner_bytes(1, 0);
-        let work = native
-            .dcf_evaluations_per_party
-            .checked_mul(usize::from(native.input_bits))
-            .and_then(|n| n.checked_add(native.prg_blocks_per_party))
-            .and_then(|n| n.checked_add(8 * native.derivative_rows_per_party))
-            .and_then(|n| n.checked_add(1))
-            .ok_or(Error::Resource)?;
-        let combined = plan_bytes
-            .checked_add(2 * owner)
-            .and_then(|n| n.checked_add(native.combined_reservation_bytes))
-            .and_then(|n| n.checked_add(native.frame_bytes_total))
-            .ok_or(Error::Resource)?;
-        if plan_bytes > MAX_PLAN_BYTES || work > MAX_WORK || combined > MAX_ALLOCATION_BYTES {
-            return Err(Error::Resource);
-        }
+        let (plan_bytes, owner, work, combined) = compact_one_hot_cost(&native)?;
         // Preflight the entire live envelope before even allocating metadata.
         // Online constructors and native issuance independently reserve again.
         let mut reservation = budget.reserve(combined)?;
