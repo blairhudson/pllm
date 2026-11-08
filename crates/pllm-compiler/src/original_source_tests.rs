@@ -2244,10 +2244,12 @@ fn native_bootstrap_root_and_phase_exact_short_foreign_preserve_unentered_ledger
 fn native_bootstrap_carries_exact_preconfig_debits_into_configured_and_lowered_siblings() {
     let budget = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
     let baseline = budget.budget().used_bytes();
-    let probe = prepared(&budget, RAW, 4, limits());
+    let mut limits = limits();
+    limits.max_working_payload = MAX_ALLOCATION_BYTES;
+    let probe = prepared(&budget, RAW, 4, limits);
     let model_work = probe.prepared.work.total_work();
     drop(probe);
-    let probe = prepared(&budget, RAW, 5, limits());
+    let probe = prepared(&budget, RAW, 5, limits);
     let lower_work = probe.prepared.work.total_work();
     drop(probe);
     let mut admission = native_admission(&budget);
@@ -2257,16 +2259,16 @@ fn native_bootstrap_carries_exact_preconfig_debits_into_configured_and_lowered_s
     prepared.prepay_policy(13).unwrap();
     let preconfig = 38 + u64::try_from(bootstrap_json_limits().max_work).unwrap() + 13;
     assert_eq!(actual_root.payload().ledger.as_ref().unwrap().lock().unwrap().used, preconfig);
-    let bytes = prepared.bootstrap_bytes(limits()).unwrap();
+    let bytes = prepared.bootstrap_bytes(limits).unwrap();
     let before = attempts();
-    let source = admission.configure(prepared, budget.charge_external(bytes).unwrap(), limits()).unwrap();
+    let source = admission.configure(prepared, budget.charge_external(bytes).unwrap(), limits).unwrap();
     assert_eq!(attempts(), before + 1);
     assert!(Arc::ptr_eq(source.root(), &actual_root));
     // Observation of the retained allocation, NOT a source-authority predicate.
     assert_eq!(source.raw_configuration().as_ptr(), raw_backing);
     assert_eq!(source.resources().prepaid_work, preconfig + model_work);
     assert_eq!(actual_root.payload().ledger.as_ref().unwrap().lock().unwrap().used, preconfig + model_work);
-    let sibling = source.lower(budget.charge_external(source.lower_bootstrap_bytes(limits()).unwrap()).unwrap(), workload(5), limits()).unwrap();
+    let sibling = source.lower(budget.charge_external(source.lower_bootstrap_bytes(limits).unwrap()).unwrap(), workload(5), limits).unwrap();
     assert!(source.same_origin(&sibling));
     assert_eq!(actual_root.payload().ledger.as_ref().unwrap().lock().unwrap().used, sibling.resources().prepaid_work);
     assert_eq!(sibling.resources().prepaid_work, preconfig + model_work + lower_work);
@@ -2321,6 +2323,8 @@ fn native_bootstrap_work_exhaustion_and_overflow_burn_before_factory() {
 fn native_bootstrap_drop_error_and_unwind_never_install_configured_authority() {
     let budget = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
     let baseline = budget.budget().used_bytes();
+    let mut limits = limits();
+    limits.max_working_payload = MAX_ALLOCATION_BYTES;
     for failure in 0..3 {
         let mut admission = native_admission(&budget);
         let actual_root = Arc::clone(&admission.root);
@@ -2331,13 +2335,13 @@ fn native_bootstrap_drop_error_and_unwind_never_install_configured_authority() {
             drop(admission);
             assert_eq!(attempts(), before);
         } else {
-            let bytes = prepared.bootstrap_bytes(limits()).unwrap();
+            let bytes = prepared.bootstrap_bytes(limits).unwrap();
             if failure == 1 {
-                assert!(matches!(admission.configure(prepared, budget.charge_external(bytes).unwrap(), limits()), Err(Error::Factory)));
+                assert!(matches!(admission.configure(prepared, budget.charge_external(bytes).unwrap(), limits), Err(Error::Factory)));
             } else {
                 PANIC_FACTORY.with(|flag| flag.set(true));
                 let working = budget.charge_external(bytes).unwrap();
-                assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| admission.configure(prepared, working, limits()))).is_err());
+                assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| admission.configure(prepared, working, limits))).is_err());
             }
             assert_eq!(attempts(), before + 1);
         }
@@ -2371,15 +2375,17 @@ fn native_bootstrap_short_config_control_refuses_before_factory_without_install(
 #[test]
 fn native_bootstrap_prior_sibling_failure_cannot_be_cleared_by_configure() {
     let budget = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let mut limits = limits();
+    limits.max_working_payload = MAX_ALLOCATION_BYTES;
     let mut admission = native_admission(&budget);
     let prepared = native_prepared(&budget, &mut admission, RAW, 0);
     let actual_root = Arc::clone(&admission.root);
-    let bytes = prepared.bootstrap_bytes(limits()).unwrap();
+    let bytes = prepared.bootstrap_bytes(limits).unwrap();
     let sibling = begin_attempt(&actual_root,
         budget.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 0).unwrap();
     drop(sibling);
     let before = attempts();
-    assert!(matches!(admission.configure(prepared, budget.charge_external(bytes).unwrap(), limits()), Err(Error::Burned)));
+    assert!(matches!(admission.configure(prepared, budget.charge_external(bytes).unwrap(), limits), Err(Error::Burned)));
     assert_eq!(attempts(), before);
     assert!(actual_root.payload().configured.get().is_none());
     assert!(actual_root.payload().ledger.as_ref().unwrap().lock().unwrap().burned);
@@ -2406,13 +2412,15 @@ fn native_bootstrap_quote_admitted_before_failure_rechecks_before_factory() {
 #[test]
 fn native_bootstrap_configured_payload_retires_before_root_lease() {
     let budget = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let mut limits = limits();
+    limits.max_working_payload = MAX_ALLOCATION_BYTES;
     RETIREMENT_BUDGET.with(|slot| *slot.borrow_mut() = Some(budget.try_clone().unwrap()));
     let baseline = budget.budget().used_bytes();
     let mut admission = native_admission(&budget);
     let root_charge = admission.root.charged_bytes();
     let prepared = native_prepared(&budget, &mut admission, RAW, 0);
-    let bytes = prepared.bootstrap_bytes(limits()).unwrap();
-    let source = admission.configure(prepared, budget.charge_external(bytes).unwrap(), limits()).unwrap();
+    let bytes = prepared.bootstrap_bytes(limits).unwrap();
+    let source = admission.configure(prepared, budget.charge_external(bytes).unwrap(), limits).unwrap();
     RETIRED_BYTES.with(|value| value.set(None));
     drop(source);
     // Production Context::drop retired Configured, imported Value, and raw owner
