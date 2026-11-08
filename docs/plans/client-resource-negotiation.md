@@ -222,6 +222,216 @@ Tile-aware pricing may reduce proven intermediate owners only. Existing full-sta
 codec checks and unsupported composition rejection remain active until separately
 implemented and validated.
 
+#### Bounded observer lifecycle (design only)
+
+The bounded observer design is SELECTED prospectively, not implemented or authoring-ready.
+Callback allowance R is finite, prepaid and NONRENEWABLE; exhaustion permanently refuses
+observations/admissions, with NO weaker fallback. Existing thresholds, caps and HOLD stay unchanged.
+Numeric R, rates, API/owner types, source/test authoring and execution remain unapproved.
+
+The selected embedding responsibility requires an authentic ALREADY FUNDED external entry and
+retained return destination, covering bootstrap/query/result controls through CONSUMPTION and actual
+retirement; original ledgers and backing remain charged. Narrow checked-publication exclusions are
+NOT selected. Establishing the first external issuer is a trust boundary, not recursive self-funding.
+
+| Category | Existing contribution or missing semantic join |
+| --- | --- |
+| Existing native primitives | [original_source.rs](../../crates/pllm-compiler/src/original_source.rs):108–145, 836–848 provides actual Context/config custody, distinct from controller-transition funding. Prepay (751–786) uses the same budget capacity and original CUMULATIVE LOGICAL W with failure burn, NOT CPU time. Commit Drop/install concerns its own source ledger, not Python F/P. In [shared_allocation.rs](../../crates/pllm-garble/src/shared_allocation.rs), `OwnedExternalCharge` preserves original counter identity; `OwnedCharged` orders direct payload destruction before charge destruction; this is not an all-alias backing-retirement witness. Charge alone is not backing custody. These are STRUCTURAL CONTRIBUTIONS, not a Host-purpose grant. |
+| Existing Python capacity retention | `_CleanupSlot` supplies a process-rooted charge but observes BEFORE admission and binds payload LATER. `_MemoryReservation`'s explicit `retain_failed`/`drain_failed` protocol retains original token/custody and seals its backend attempt against retry after uncertain failure; not pre-entry Host funding or a guarantee for ordinary `__exit__`. Partial-publication/release hazards remain; no standalone keeper/registry or slot self-bootstrap follows. |
+| Unrepresented semantic join | The authentic EXTERNAL original owner must authorize Host-observer PURPOSE, distinct original work W/backing-byte B extents and ledger identities, retained destination/witness, and the specific calling process's monitor identity/epoch and exhaustion. Token lookup, parser, budget pointer, capacity or disk coordinates are not authority substitutes. Current API binding is ABSENT; no concrete original-issuer binding or complete funding is proved. |
+
+For entire `LocalTopology` constructor/startup coverage, entry must already exist before construction
+(servers.py:308–348): helpers, startup callbacks, imports and preparation precede sampling; line 1092
+DEFINES observation, while 1110 CALLS it. Qualification benchmarking also samples before model
+inspection. Earlier caller preflight needs a prior entry too; no universal outermost-caller boundary
+is proved. Later qualification/graph reservations are not retroactive payment.
+
+Conditionally, when an authentic OUTER entry ALREADY exists, preserve the actual original root,
+W/B extents, destination and witness BEFORE in-scope construction/preparation, validate observer
+purpose/instance INSIDE that funded region, then initialize or qualifiedly reuse the observer,
+or deliver a FUNDED refusal in the ORIGINAL destination.
+Without ANY authentic outer entry, controlled-contract embedding MUST NOT CALL: library validation
+or refusal cannot fund itself.
+
+**SELECTED DESIGN ONLY: host provider and reserve-only issuer**
+- Proposed native owner: `crates/pllm-python/src/host_entry.rs` (NEW PROPOSED file, not existing/adopted);
+  integrate with existing `crates/pllm-bench/src/host_memory.rs`. Reuse/extract method-neutral cumulative W ledger/checks
+  from compiler `original_source.rs`, WITHOUT source-purpose authority; shared-allocation counters/charged payloads prove neither all-alias backing nor payment.
+- Four PRIVATE opaque roles express SELECTED ownership semantics; concrete names/types and bank representation remain PROPOSED UNADOPTED: `HostOwner` is the actual retained native identity-bearing original host-bank allocation,
+  not reconstructible from labels/counter snapshots, with distinct B accounting/genuine custody, process/epoch and original outcome cells; `HostEntry` records original-bank debit, operation and destination.
+  `HostObserver` immutably binds original lifecycle owner/purpose/process/epoch and actual lifecycle W-debit witness, nonrenewable R, backing/terminal D, monotone callback use and sticky exhaustion; query/failure/partial initialization cannot reset owner/epoch/bank or replenish R.
+  `HostOutcome` retains success/refusal/unresolved resources through consumption/qualified cleanup; the original `HostOwner` itself retains outcomes, not a standalone registry. Preallocated cells are not authenticated/live destinations until actually bound.
+  No public numeric self-authorization or standalone keeper. Host-purpose genesis/entry semantic DESIGN is SELECTED—not implemented authority or proof of actual funding; private roles do not guarantee protection from hostile native code.
+  Native-authoritative WHOLE publication with nonauthoritative Python projections is additionally SELECTED DESIGN ONLY; the inline-M profile remains UNADOPTED, and no concrete primitive/storage layout or actual funding is proved.
+- Ordinary Python route: NEW PROPOSED `python/pllm_host_entry/` bootstrap package alongside `pllm`, using normal Maturin
+  `python-packages`; optional normal console alias `pllm-controlled -> pllm_host_entry:main`. Names are NOT adopted.
+  The pre-import obligation is SELECTED; the unadopted concrete route locates sibling `pllm/_native` by installed layout WITHOUT importing/querying `pllm`, with ctypes loading restricted exports BEFORE `PyInit__native`/`pllm` import.
+  Single SUPPORTED NATIVE LIBRARY IMAGE/PROCESS identity and funded dispatch are SELECTED obligations: ctypes and later Python import must use the same pinned image. Dispatch current CLI/permit SDK imports only after actual first-entry debit and authenticated retained-outcome binding.
+  Importing `pllm` first is unsupported as a CONTROLLED route; legacy stays unchanged. No new build system or bespoke attestation/qualification driver.
+  SELECTED child fail-closed obligation: parent-controlled dispatch does not qualify child processes or existing `-m pllm` launches. Each child requires authentic funded entry, original-owner/destination binding
+  and qualified native-image identity BEFORE covered imports; otherwise refuse before unsupported launch. Parent frames, charges, banks and observer state imply no inherited authority.
+  Child issuance/IPC/grant transport remain unadopted.
+- SELECTED narrow FIRST-ISSUER GENESIS direction places minimal bootstrap/stdlib loader, native-image load and restricted original-owner
+  establishment at a TRUST BOUNDARY, not already-paid runtime. Arbitrary initializers, framework packages, native Python registration,
+  config and benchmark preparation are not silently free. This precise boundary requires concrete loader/image/initializer audit; ABI/implementation remain unadopted. Creating a bank proves no payment, and genesis failure/reentry must not create a replacement bank.
+  Covered imports/preparation/query/result controls THROUGH consumption follow real W debit; B charge alone is not custody.
+- SELECTED DESIGN ONLY reserve-only issuer requires authentic unused ALREADY-PAID E_control, bounded native Request, authentic BodyAuthority and live original D_control/D_body; missing/exhausted parent slice means NO CALL.
+  Consume one finite operation-specific issuance slice BEFORE inspection/quote/authority/metadata/reservation/publication/refusal/consumption; it must already fund issuance, refusal, consumption and metadata-retirement tail. Parent W pays validation/quoting.
+  Control-entry authority alone does not confer lifecycle creation authority. Only first-root establishment is genesis; later issuance is not. Each entry preserves ITS OWN bank, not a universal payer.
+  Retain actual acquired handles and partial outcome state, not just charges; partial W/B commit remains in original custody, with no invented rollback/substitute bank.
+- SELECTED issuer-core/parent-metadata design: allocate/stage metadata under an EXPLICITLY AUTHORIZED ORIGINAL PARENT B context with an owning guard and authentic body-owner references, NOT body-budget storage.
+  Metadata remains under its actual original parent owner/root; D_body holds an authenticated loan/reference retaining parent guard/counter identity, not transferred credit/custody or a new keeper. Contract requires the prepaid parent metadata-retirement tail to outlive issuance-outcome consumption until actual retirement.
+  Under the SAME actual body-ledger guard, parent-paid checks establish usability and checked-add/ceiling BEFORE commit: SELECTED healthy ordinary overflow/over-limit refusal yields QuotaRefused with NO FURTHER body W debit or health change; prior parent fees stay spent, and poison is never cleared.
+  SELECTED success semantics irreversibly debit the original body bank ONCE; later body-B refusal cannot refund W. Poison/uncertain commit retains originals and sticky unresolved state, never reset; its uncertainty failure domain remains UNSELECTED.
+  This narrows selected Host quota-refusal design, NOT existing PrimitiveAttempt::debit (original_source.rs:162–171 burn-before-check stays unchanged). Reuse/extract guarded arithmetic, not a recursive lock-taking adapter.
+  Reserve original body B and a prearmed PENDING resource holder only: no future body backing is claimed owned. Publish authority/holder in D_body, retaining the D_control issuance outcome through consumption/uncertainty; staged ownership survives failure.
+  Arbitrary body builders, foreign construction and initialization run ONLY LATER under E_body, outside this core; attach actual backing owners before publication.
+  Issuer-core/body separation and the parent-tail requirement are SELECTED design obligations requiring proof, not existing implementation or adopted APIs.
+- SELECTED Host-only logical-helper boundary: scope is ENUMERATED issuer-core PREPARATION/ADMISSION metadata-B and body-B reservations ONLY, not all Host operations.
+  Budget.reserve_bytes (shared_allocation.rs:112–120) used.fetch_update counts ONE semantic atomic invocation, including ONLY unchanged reserve_update (28–33) captured bytes/limit, checked-add/ceiling Some/None and implementation reinvocations; changed callbacks require review.
+  Preparation/project arithmetic, branches, copies, calls, map_err/resource_error and previous+bytes remain separate; admitted_peak.fetch_max (120–124) and release fetch_sub (129–132) are separate atomics.
+  Count identified HostMutex lock invocations and EACH actual guard retirement, including poison, separately; wrappers/moves/unlock do not double-count. Identified STANDARD allocation invocations abstract ONLY private standard internals; requested size, actual capacity/backing, admission, initialization, copying and cleanup remain separate.
+  OwnedExternalCharge.try_build (669–685) does not collapse an arbitrary builder; body builders stay outside the core. Iterator/Eq vocabulary applies only to explicitly identified Host operations.
+  Finite outer-call enumeration COULD support finite LOGICAL demand, not actual CAS-retry, CPU/RSS, wait, allocator-work, progress or termination bounds; no PUMA/Maverick transfer follows.
+  Counts, rates, complete W/B extents, authentic actual prepayment, custody and publication proofs remain prerequisites for complete fees or source authoring.
+  Concrete bank representation, API/types/ABI/names remain UNADOPTED; uncertainty failure domain, numeric R, rates and endpoint remain UNSELECTED. No source/test authoring, execution, cap or HOLD grant follows.
+- E/L may default to the same owner; distinct E_query requires an explicit authentic Host-query(E, L, epoch) grant and fee-owner map: no credit/custody transfer, new R or callback double debit;
+  current native same-budget source checks are NOT a foreign-ledger adapter. R = 0 refuses before acquisition; refusal cannot fund/own
+  an old unqualified source. Preserve genuinely existing owners/destinations only; no new ordinary legacy `__exit__` retry policy.
+- Before source authoring, prove finite issuer/bootstrap/import/child/result/refusal quotes/rates and backing overlap; authentic retained
+  original destination/debit and partial-failure publication; identical native image/state across ctypes/Python import, pin/unload tail;
+  and complete F/P mutations. Endpoint/destination liveness remains UNSELECTED; a process-local root does not survive exit.
+  Actual genesis/image qualification is not proved. No numeric R, rates, API/type/endpoint, source/test authoring, code/execution, cap or HOLD adoption follows; independent review remains required.
+
+**UNADOPTED inline-M issuer-only profile**
+
+- C is actual exclusive FIXED-CAPACITY storage containing ALL inline M metadata, Gq pending-guard storage and authenticated native C/Dctrl/Dbody cells. Original P guard Gc covers WHOLE actual C backing.
+  Gc, prepaid P-tail permit and reference-release controls survive OUTSIDE C in EXISTING funded P-rooted control storage: no new keeper/registry/backedge/cycle or reading/dropping through destroyed C.
+- An EARLIER authentic ALREADY-PAID P entry E_parent funds COMPLETE C construction/admission/initialization, failures/partials/unreturned C and eventual tail BEFORE construction starts; gap-free actual custody handoff is required.
+  C cannot self-fund; later provisioning is NOT genesis. Capacity covers ALL admitted fixed native Requests; a mismatch after funded A/Q causes P-paid refusal, never resize/fallback/another P charge.
+  Post-F C preparation may ONLY suballocate authentically COMPLETED PRE-F original P capacity whose purpose/remaining extent covers simultaneous C/temporary/Hparent/guard peak WITHOUT new/increased capacity publication. E_parent W prepayment/Gc/native-used counters are NOT capacity authority; no metadata/cleanup exemption permits fresh observations/body admission, R renewal or bank reset.
+  Pre-import qualification does NOT require a Python `_capacity` token: external original admission requires actual owner/extent/purpose/process/epoch/retained destination AND an actual ordering witness binding completed admission to the SAME controlled F domain, not unrelated timestamps/epochs/bank birth/counters/labels. Covered fresh/increased external OR Python admission after F refuses at ordered actual joint publication; RLock/snapshots alone are insufficient.
+  Outside Python `_capacity`, an actual original reservation/subledger relationship must encumber the WHOLE outstanding native peak; disjoint-pool labels/observed bytes/fresh budgets do not prove coverage or prevent double spending. A preallocated slab PLUS default-Global C allocation is not one backing/suballocation; no new allocator is adopted. Unknown coverage/publication retains original owner/witness/charges/backing/funded resolution tail, without inferred admission/rollback/new root/replay; external-owner/admission → native-P/resource-accounting/F binding remains uninstantiated and a proof gate.
+  UNADOPTED Host.prepare-holder purpose requires actual external owner, real original P work ledger/B counter, retained destination and ALREADY-FUNDED existing P-owned outcome cell Hparent; metadata/control purpose alone grants no observer-lifecycle creation authority.
+  Conditionally under the selected narrow genesis direction, initial establishment binds trusted external owner, actual original-P ledger and live root controls BEFORE committing E_parent; Hparent failure custody/authority already exist, with establishment/failure cost covered independently of the NOT-YET-COMMITTED E_parent. Failed/reentered genesis preserves original-bank identity, spent work and applicable failure state: no replacement bank/reset/later-credit bootstrap. Subsequent preparation is ordinary original-P entry, not an actually qualified root/image/ABI proof.
+  Conditional flow: paid E_parent before quote → Hparent receives ONE original P charge_external with complete C payload ONLY (including inline Gq storage); the helper ITSELF adds OwnedExternalCharge wrapper overhead for Gc ONCE (or authentically reuse the original guard already covering WHOLE C, without duplication/reparenting) → ONE standard C allocation/capacity check/initialization under gap-free Hparent custody, including failed/unreturned C → Gc/tail controls outside C → unused funded E_control BEFORE core A/inspection. Actual Gc/external-control physical storage is separately funded OUTSIDE C; logical wrapper charge is not another physical backing, and no body backing is claimed owned now.
+  Before core entry, actual authenticated coverage binds the specific C/original Gc/Host-issuer purpose/outstanding obligations and actual operation/extent/lifetime/capacity to Hparent's EXISTING retained original tail permit; E_control BORROWS coverage without consumption/transfer/duplication/refund. Shared P or equal amounts prove nothing.
+  Hparent/permit outlive parent issuance/consumption and ALL C/unreturned-child/outcome/retirement obligations; ambiguous publication retains originals without debit replay. Any Gq-to-Gc reuse requires explicit original-authority/capacity/purpose/lifetime/fee joins: ONE release, ONE fee, not relabeling.
+  Actual constructor/handoff/capacity/helper scope must independently qualify; the enumerated issuer-helper boundary does not blanket-approve preparation allocation or prove actual funding/native APIs/rates/authoring readiness.
+- Authority binds actual current caller/process/image/epoch and noninheritable original E_control roots/paid extents through actual-use witness or trusted lifecycle through use, not PID/address/digest/fork copies; fork confers no child-bank/reset.
+  Current OS checks require paid qualified slots, not assumed qualification. External noncyclic bindings keep ALL borrowed actual P/Q owners, ledgers, HostOwner/destinations alive through ALL loans/tail; Gq counter retention alone is insufficient.
+  Missing lifetime bindings make this profile INAPPLICABLE; additional reference retains are stage-local work, not bounded by the wrapper Arc count.
+- Fixed native Request has operation/purpose/process-epoch, owner/destination references and bounded W/B/capacity fields; no callbacks/strings/arbitrary traits/body code.
+  Pipeline: A consumes unused already-paid slice/arms existing C → Q pure grant/identity/bounds quote → M bounded IN-PLACE request writes → W same-Q-work-guard healthy checked preflight → B one Q chargeExternal → P single NONCLONE authenticated C loan/bounded authenticated borrow drain → Dctrl consumption → qualified tail.
+  Ordinary quota refusal changes no used W/health; success commits W once irreversibly, including after B refusal. Early initialization AND distinct later request writes count if performed, never twice for the SAME event.
+  No core metadata allocation/P-B reservation/try_clone/try_build/resize/reentry or recursive lock-taking debit. Actual future builders/backing remain outside the E_control core under E_body.
+- `crates/pllm-garble/src/shared_allocation.rs:425–433`: payload.checked_add(size_of::<OwnedExternalCharge>()) → reserve → successful Arc clone. Overflow means zero reserve/clone; zero payload STILL charges guard metadata.
+  Wrapper/project arithmetic/refcounts remain separate. Granted counter TOTAL includes metadata; inventory whole C physically under P once. Q reservation is NOT future body backing, additive physical accounting or RSS proof.
+- CONDITIONAL CORE call slots: chargeExternal/fetchUpdate/successful-WRAPPER-ArcClone ≤ 1 each; Q lock/actual guard retirement/publication/consumption ≤ 1 each; successful peakFetchMax and actual Gq-release fetchSub count separately.
+  No CORE metadata allocation/parent-B reserve does NOT mean zero WHOLE-CALLER allocations/reservations. Outer P-paid C provisioning/admission/staging/retirement/Gc/reference/drop/root vectors remain separate and uninstantiated, not a free prefix.
+- Tail requires original Q release authority if Gq exists, ACTUAL body backing retired, ALL borrows drained and all C-owned report/outcome obligations qualified complete.
+  Then Gq releases ONCE → actual inline M/C destruction/deallocation → original Gc release OUTSIDE C → surviving outer bookkeeping → P-tail/root last. Dctrl consumption alone proves neither drain nor backing retirement.
+  Ambiguous branches retain actual originals without retry or a newly selected failure domain. Proposed P-paid Gq reservation/release fee map remains UNADOPTED, requiring Q authorization and a body quote EXCLUDING release; body/lifecycle pays actual future builders/backing retirement.
+- UNADOPTED disjoint event sets: V_pre[P] (C provisioning/initialization/admission/failed handoff), V_issue[P] (reached core writes/work-debit machinery/guards/reservation/publication/consumption), V_tail[P] (authorized Gq release/actual C retirement/Gc release/surviving controls), V_body[Q/lifecycle] (future builders/backing retirement, excluded from issuer); prior P coverage must contain V_pre ⊎ V_issue ⊎ V_tail, with separately authorized Q/lifecycle coverage of V_body before execution.
+  E_parent prepays V_pre and V_tail PLUS its DISTINCT issuance/refusal/consumption obligations; E_control's NEW debit covers ONLY V_issue. E_parent funds its own issuance machinery; later Q body W funds none of this prefix.
+  Demand includes reached prefixes plus qualified tail only; uncertainty retains outstanding obligations, without refund/replay. P pays debit MACHINERY, not body work credit W: the original Q debit remains irreversible. Count actual inline-M C backing once; separately inventory actual temporaries and funded external controls. Q payload-plus-guard-metadata reservation is not physical backing. Only initial owner birth is genesis; C preparation is not free. No coefficients/rates/complete-fee claim follows.
+- Proposed reuse/extraction: shared_allocation.rs:945–957 is allocation-only (budget.allocation(), Vec::new/one try_reserve_exact/error mapping), with NO logical charge/Arc clone. Existing exact_capacity consumes Vec and drops mismatches: do NOT reuse unchanged for retained uncertainty; use a SHARED borrowed/staged check with the ACTUAL Vec already Hparent-rooted before validation, not a parallel charged container/duplicate P guard. Hook 134–145 is production Ok/test-only failure injection, not physical evidence.
+  rust-toolchain.toml:2 pins 1.85.1; proposed source profile is default-Global Vec<C>, empty length/capacity zero, non-ZST C, isize-fitting layout, additional one: try_reserve_exact → grow_exact/finish_grow allocation, NOT reallocation → reported capacity one/requested Layout C. Own requested buffer bytes size_of(C) BEFORE calling; API-only equality after allocation cannot fund an oversized prefix. See pinned [raw_vec.rs](https://raw.githubusercontent.com/rust-lang/rust/1.85.1/library/alloc/src/raw_vec.rs) and [alloc.rs](https://raw.githubusercontent.com/rust-lang/rust/1.85.1/library/alloc/src/alloc.rs).
+  Under allocator-contract/no-unwind assumptions, allocation success → Result → pointer/capacity update has no PROJECT callback/fallible operation; this is not crash atomicity or OS/runtime proof. Private allocator block/cache/RSS and transitive deployed allocator/image remain unproved; the repository toolchain pin is not actual build proof, and typed C/layout/adoption remain unqualified.
+  Proposed initial C fields are ONLY explicit fixed native tags/counters/arrays and genuine plain borrowed P/destination references; optional Q/Gq/body backing/loans are ABSENT. No Default/conversion/trait/clone/string/heap/callback/custom constructor-destructor behavior; C_temp acquires NO owning body resource. These constraints adopt no Rust type/layout or infallible C::empty.
+  E_parent EXCLUSIVE initialization authority spans len-zero/cap-one/non-ZST-layout/live-external-owner prechecks → accounted metadata C_temp construction/staging/move → ONE pinned [Vec::push](https://github.com/rust-lang/rust/blob/1.85.1/library/alloc/src/vec/mod.rs#L2416-L2428), growth skipped → ptr::write(value) → len one. Actual Vec/Gc remain Hparent-rooted, tail controls outside C; no reentry/competing access. Expose unused authentic E_control ONLY after full initialization/length publication.
+  Nonowning metadata moves add no owning-resource gap, but write-before-length is NOT crash atomic: unknown initialization retains original obligations, without retry/reinitialization/blind drop; cleanup must know ACTUAL initialized fields. Initial None neither removes generated C drop glue nor qualifies later Some(Gq) destruction. Heap size_of(C) excludes temporaries/control storage/RSS; qualify E_parent temporary extents separately. Earlier zeroing/initialization and later request writes are distinct paid events, never double-billed; qualify move/write accounting without inventing tariffs.
+  Concrete fields/destructors/temporary bounds, actual constructor/Hparent handoff, allocator image/no-unwind assumptions, helper scope/fees/rates and actual funding remain proof gates; no native C constructor exists here or is adopted/automatically approved for standard-allocation private-internal collapse, and no native grant follows.
+- Profile/layout/API/types/fee map remain UNADOPTED. Source census, complete fees/prepayment, native provenance/custody, failure prefixes, layout, tail and F/P proofs remain outstanding.
+  No physical CPU/RSS/progress/termination or source/test authoring, execution, cap or HOLD claim/grant follows; all existing gates remain unchanged.
+
+Current `host_memory()` has no owner argument; native OnceLock stores only initialization result.
+The source has raw self-context, not an original funder. Epoch reuse requires the same original authority
+and exhaustion history; it never refills R. The creation paragraph below excludes retrofunding.
+
+The minimal future extension is shared OBSERVER-PURPOSE/entry binding expressing these joins,
+NOT a concrete API/type, implemented authority, endpoint, new funder/keeper or tariff/readiness grant.
+
+CURRENT LEGACY publication sites are [resources.py:139–245](../../python/pllm/deployment/resources.py#L139):
+cleanup writes the owner charge at 150, constructs the slot at 152, then publishes its root at 153;
+its exception handler ATTEMPTS charge rollback at 155. Other owner publications occur at 204 and 245.
+These Python owner/cleanup paired writes are source evidence, NOT the selected future controlled P.
+In that legacy audit, whole cleanup publication requires both ledgers and an authoritative original
+outcome; charge alone or the last store alone cannot establish completion or backdate publication.
+
+SELECTED DESIGN ONLY: opt-in native AUTHORITATIVE WHOLE capacity/cleanup publication roots the actual
+original owner, charge, cleanup-custody root and authoritative original outcome, ordered with observer F.
+A native permit/shadow counter alone is NOT whole publication. Python maps are NONAUTHORITATIVE views
+outside the gate: absent/failed/stale/deleted projections cannot grant capacity, refund or prove retirement.
+Unknown projection retains the original native authoritative owners/charges. ALL controlled admissions,
+observations, cleanup and release must use native authority or fail closed, without legacy bypass;
+UNCONTROLLED legacy mode remains unchanged. No implementation or actual native-root/funding proof follows.
+F and actual P share ordering, including observation/read admission, with no F between admission mutations: before-P partials or F-first mean NO admission; retain only genuine grants/resources, original witness/custody/charges and funded failure tail. P-first qualifies ONLY FULL native owner/charge/cleanup-root/authoritative-original-outcome publication, never inferred completion or rollback.
+Authenticate/deliver the ORIGINAL result/witness BEFORE body activation; uncertain delivery/consumption permits no replay/regrant. Projection failure leaves native P/charges intact, not renewed authority; failed/unknown retirement retains originals without release/retry or selecting an uncertainty domain.
+Qualified success releases EACH original BODY charge only after ITS backing/borrow/alias obligations retire; metadata/root/tail/reference-release owners and charges survive until THEIR OWN obligations retire, even with coincident banks. C/M destruction precedes Gc release; Gc-release references/P-tail controls survive OUTSIDE C; successful W stays burned. Projection deletion proves none of these transitions.
+Actual retirement remains outside the gate under qualified ORIGINAL contracts; release must remain
+possible after F. External reservation/subledger/F binding, original-root lifetimes/funding, temporaries,
+construction, noninheritance and uncertain-publication proofs remain prerequisites, not established facts.
+
+One UNSELECTED candidate orders capacity lock → short native gate, never the reverse.
+Selection, imports, telemetry, Python/public callbacks, allocation AND construction remain outside that gate,
+under authentic already-funded preparation; current constructor-between-writes prevents simply gating the whole method.
+No concrete API, transaction, rollback guarantee or existing native commit primitive is selected or proved.
+Observations precede ledger installation; Python RLock does not govern native callbacks. Watcher/probe, reentry,
+retained-reference, interruption and partial-failure proofs remain required. Python SetItem/insertion-allocation and paired-write atomicity analysis belongs to legacy/alternative commits; selected native P does NOT require a Python-map transaction.
+Projection allocation/work/failure custody needs separate funded coverage OUTSIDE the gate and confers no authority; earlier deletion proof cannot transfer to SetItem.
+
+The entire callback prefix, including gate entry, must be prefunded BEFORE activation; ordinal
+spending and F occur inside the gate, not before handler entry. R = 0 means no activation.
+Same-source nonreentrancy and cancellation INSIDE the Rth callback BEFORE any return must exclude
+R+1/coalesced late callbacks. No early unwind may bypass this; nonreturn retains custody, not drain.
+These are conceptual requirements, not existing code.
+
+A durable original parent must precede source creation; record the returned handle without an
+allocation gap and fully root a stable context before installation/activation. Current
+[host_memory.rs:167–205](../../crates/pllm-bench/src/host_memory.rs#L167) stores only a result in
+OnceLock AFTER resume: callbacks may precede publication, and late publication must NOT reopen F.
+Prove no duplicate initialization after panic; old unqualified monitors cannot be retrofunded.
+Inactive last-reference release is undefined, so ordinary Drop is not qualified partial cleanup.
+
+The owner holds the creation reference to the source with its raw context association; callbacks
+and readers borrow context. A nonowning source pointer in context avoids a retain cycle. Couple
+reader fencing/drain. Cancel-handler quiescence, source release, context finalization and actual
+physical backing retirement are DISTINCT; release/finalizer ENTRY proves no backing retirement.
+The original funded tail retains charges until actual retirement; its exact endpoint is UNPROVED,
+not an invented acknowledgement.
+
+E_init + R * E_callback + E_exhaust + E_cancel + E_sync + E_final + E_tail is a CONDITIONAL component
+envelope only. Unknown expansions, backing, concurrent readers or terminal storage preclude fee,
+admission and CPU/RSS claims. Samples and repeated refusals need EACH authentic new entry's funding;
+R is not a process-work bound, and new entries do not refill the callback quota.
+
+The controlled profile must apply PROCESS-WIDE across observer/admission routes, including startup,
+direct selection and benchmark watchdogs; unopted legacy behavior stays unchanged. Existing callback
+sysctl-error fallback uses dispatch flags, not automatic sticky failure for all errors; fresh-sample
+errors already propagate. Exhaustion has no fallback. Retirement/release MUST remain possible:
+exhaustion fences NEW observations/admissions, not reclamation.
+
+A prearmed, protected original witness must bind the actual original owner, monitor identity/epoch,
+distinct W/B funding extents, retained destination, ledger/token/amount, payload and operation.
+Epoch labels/booleans authorize neither reset nor ownership. Distinguish F, P, public return,
+quiescence and retirement; wrapper exceptions consult the original witness, NOT token absence.
+Interrupted partial commit retains original custody as required above.
+
+The documentary source pin is Swiftlang/libdispatch 2078b9d4a2853b8b07a61e3d460e9dfd9d3c3454:
+[source.h](https://raw.githubusercontent.com/swiftlang/swift-corelibs-libdispatch/2078b9d4a2853b8b07a61e3d460e9dfd9d3c3454/dispatch/source.h) and
+[object.h](https://raw.githubusercontent.com/swiftlang/swift-corelibs-libdispatch/2078b9d4a2853b8b07a61e3d460e9dfd9d3c3454/dispatch/object.h).
+Same-source handlers are nonreentrant; cancellation prevents future event handlers but running ones
+continue. The cancel handler follows event-handler return and underlying handle-reference release.
+Release is asynchronous; finalization requires all references. event_f captures context when set;
+cancel_f reads it when called. No additional blanket finalizer/cancel ordering, OS/deployment
+qualification or dependency adoption follows from this source pin.
+
+UNAUTHORED prose oracles cover races/concurrency, coalesced Rth events, zero/partial/unknown cancel,
+delayed finalization/lost parents, old unqualified monitors/refill attempts, repeated refusals and
+gate reentry. APIs, mechanisms, R, rates and error presentation remain UNSELECTED. Finite coverage,
+commit, cancellation, reader drain and backing-retirement proofs are prerequisites before authoring.
+
 ### CPU and WAN
 
 Create scoped cost evidence bound to source/numeric/schedule, workload bucket,
@@ -263,6 +473,10 @@ to the client, never an implicit expensive trial run.
    and search coverage.
 5. Recheck and reserve; refresh at request boundaries when observations expire,
    workload changes, capacity fails or client limits change.
+
+Controlled-profile observer exhaustion cannot refresh or refill its callback allowance.
+A cached observation cannot serve as a weaker-monitoring fallback after exhaustion.
+Request-boundary refresh does not override the bounded observer lifecycle above.
 
 Retain a feasible incumbent unless improvement clears switching cost and
 uncertainty. Never retain an infeasible incumbent. A request's plan is fixed once

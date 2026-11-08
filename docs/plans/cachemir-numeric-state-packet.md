@@ -39,6 +39,31 @@ binds three separate Zenodo releases, not a moving concept DOI:
 | `10.5281/zenodo.23189548`, v0.1.1-ae | `3457613fddd4b78a34f765f391a5a4d7b489741f5f99af1d396d978f309be006` | Separate immutable release, not evaluated-run identity. |
 | `10.5281/zenodo.23377151`, v0.1.2-ae | `4462530bb49ba7b4cbdbf13d7d64f7304ccabf401e3f05b8f7f75cf92846d451` | Source comparison only; no recovered commit for this archive. |
 
+**Released caller-definition recovery is closed, not evaluated-method recovery.**
+Independent static inspection of the official [v0.1.2-ae archive](https://zenodo.org/api/records/23377151/files/Cachemir_ae.zip/content)
+(63,073 bytes, matching SHA-256 above) recovered `Cachemir_ae/llama.go`:
+`DecoderThor`, `DecoderMsg` and `Model`. `Model` unconditionally repeats
+`DecoderThor` with the same object/weights/cache, conditionally calling entry
+`BootTo` at the original input level; no per-layer binding or token feedback follows.
+`Cachemir_ae/main.go` defaults `test` to `Decoder`, which calls `DecoderThor`
+and decrypts for comparison with `DecoderMsg`. Its `Model`/`Softmax`/`Norm`/`SiLU`
+branches call the same helpers, not an alternate CacheMir/THOR/Moai decoder
+dispatcher. Names alone establish neither evaluated-method nor ablation identity.
+The released synthetic default uses adaptive `Inv`, conflicting with selected
+Appendix E standard Goldschmidt; neither automatic reconciliation nor adoption follows.
+Archive identity is not evaluated-run or commit identity; the unverified 40-hex
+ZIP comment is not adopted. Synthetic hidden inputs/random weights/KV and colocated
+key generation/decryption establish neither a trained checkpoint nor party separation.
+In the same archive, `go.mod` declares module `cachemir`, Go `1.24.2` and direct
+`github.com/tuneinsight/lattigo/v6 v6.1.1`, with no replace/toolchain directive;
+`README` corroborates the version and `go.sum` includes module and go.mod hashes.
+This recovers a release declaration, not evaluated-run/build-graph identity.
+There is now partial excerpt-based default resolution; Standard/PREC64 and
+construction remain unverified. See [caller/refresh and default-resolution details](/docs/plans/cachemir-source-capability-join.md#4-concrete-operator-dependencies-and-exact-missing-evidence).
+This does not select Lattigo v6.1.1 for PLLM.
+Evaluated checkpoint, per-layer binding, token feedback, paper-aligned numerics,
+backend/runtime security and funding remain open; caps and HOLDs are unchanged.
+
 All three implement adaptive reciprocal correction, not the paper's stated
 standard-Goldschmidt schedule. The latest release also uses fixed THOR ranges,
 centered normalization with generated gamma/beta, and one Chebyshev SiLU fit.

@@ -6,7 +6,7 @@
 
 - **N**: final NDSS 2025 paper, DOI `10.14722/ndss.2025.230868`, [`papers/r21-nexus.pdf`](../../papers/r21-nexus.pdf), SHA-256 `c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2`; lock [`source-lock.v1.json:71–78`](../../paper/methods/source-lock.v1.json#L71). Citations below use printed pages. N §II.B p.3, §III pp.4–7, §IV pp.7–9, §V p.9, Table IV p.12, Appendices B–D pp.16–17 govern source facts.
 - **A**: pre-publication artifact `zju-abclab/NEXUS@e15058c7f8f58fcf037c4709211109cb1be7d1e0`, not final-paper numeric identity. Recovered function/line anchors are recorded in [`nexus-numeric-contract-audit.md:49–150`](../research/nexus-numeric-contract-audit.md#L49); no network/source execution performed here. Artifact formulas below are explicitly recovered-artifact alternatives, not silently adopted N rules.
-- **M**: [`crates/pllm-models/src/lib.rs`](../../crates/pllm-models/src/lib.rs): `ModelOperator`/`ModelOperation`/`StateTensor`/`DecoderGraph`/`DecoderPlan` at 251–350; actual dense lowering at 1636–2079; RoPE attrs at 2081–2096; cache update/view at 2100–2193; weight/bias binding at 2195–2218; tail validation at 4273–4357. These are graph semantics and structural checks, not authenticated checkpoint tensors or HE kernels.
+- **M**: current [`crates/pllm-models/src/lib.rs`](../../crates/pllm-models/src/lib.rs): `ModelOperator`/`ModelOperation`/`StateTensor`/`DecoderGraph`/`DecoderPlan`; `lower_dense_decoder`, `dense_rope_attributes`, `full_kv_cache_update`, `full_kv_cache_view`, `linear` and `validate_dense_qwen_graph_tail`. Current Q/K graph edges are at 1817–1937, RoPE attrs at 2133–2149 and cache helpers at 2152–2245. These are graph semantics and structural checks, not authenticated checkpoint tensors or HE kernels. The historical preparation HEAD above is not a claim that these current anchors were present at that HEAD.
 - **O**: [`original_source.rs:1–17,81–225`](../../crates/pllm-compiler/src/original_source.rs#L1), `OriginalSourcePlan`: immutable actual factory result, original root custody, cumulative nonrefundable construction work and sticky failure; no adoption of an arbitrary plan/hash.
 - **R**: [`row_fold_reference.rs:85–189`](../../crates/pllm-compiler/src/row_fold_reference.rs#L85), `CENTERED_ENERGY_REFERENCE_POLICY`; **C**: [`commutable_projection_reference.rs:1–20,158–233`](../../crates/pllm-core/src/commutable_projection_reference.rs#L158), `add_client_layer`; **D**: [`encrypted_level_dag.rs:1–24,54–124`](../../crates/pllm-compiler/src/encrypted_level_dag.rs#L54), `PublicEncryptedDagSelection` and checked DAG.
 - Existing governing [`NEXUS contract §§4.1–4.5`](../../paper/methods/encrypted-computation-contracts.md#4-nexus-contract), [source audit](../research/nexus-numeric-contract-audit.md), [N-G proposal](nexus-gelu-acceptance.md) and [original normalization track](nexus-centered-energy-prefix.md) remain unchanged. Preserve original GELU/LayerNorm BERT track and reported one-word Llama extension; table labels do not establish Qwen RMSNorm/SiLU/RoPE/GQA fidelity. N-G candidates are **not adopted**, and none implements Qwen SiLU.
@@ -54,6 +54,12 @@ Do not conflate ideal function, clear numerical implementation and encrypted rea
 | Selection | N §II.D p.4: public difference normalization, degree-nine f/g with `(dg,df)=(2,2)`, `alpha=20`; Alg.2–3 pp.7–8: `max(a,b)=(a+b+(a-b)*SGN(a-b))/2`, `b_i=SGN(a_i-max)+1`, packing `2m<S`. For logits `[L,U]`, pair differences lie in `[L-U,U-L]`, so magnitude bound `U-L` (nondegenerate case) follows. | Missing actual logit/intermediate-max bounds, near-tie separation, thresholds, tie-to-ID rule, padding and multi-ciphertext tournament layout. Normalized `2^-20` means original-unit width `Delta*2^-20`, not absolute `2^-20`. Options: recover author whole-vocabulary layout; separately derive a checked shard/tournament with original policy and total error. Exact ties need distinct semantics, not assumed separation. |
 | HE realization | N §VI.A pp.9–10/p.12: ring degree `65536`, slots `32768`, modulus 1763 bits, depth `35`, bootstrap depth `14`, nominal usable `21`, `q0≈2^60`, others `≈2^50`, scale `≈2^50`, sigma `3.2`, secret weight `192`. N §V favors refresh after width reduction. | Missing exact Q/P/bootstrap chains, encoding, evaluation keys/security treatment, per-node rescale/refresh/error and layout ledger. Source rounded values are not executable parameters. Options: source recovery or separately approved qualification; no Poulpy/new backend/parameter adoption here. Table IV `20→21` matmul is unresolved, not a refresh rule. |
 
+**Conditional softmax branch feasibility** ([source audit](../research/nexus-numeric-contract-audit.md)): for paper `E(z)=(1+z/256)^256`, requiring the positive-base, nonpositive-input branch and a uniform `e_min>0` on certified `[L-c,U-c]` requires `-256<L-c<=U-c<=0`.
+Equivalently, `U<=c<L+256`, feasible iff `U-L<256`; width `256` cannot supply a uniform strictly positive lower bound under this sufficient branch assumption, since `E(-256)=0`.
+Here `E'(z)=(1+z/256)^255` is negative for `z<-256`; exact wrong-branch control is `E(-768)=2^256 > E(-512)=1` despite the lower input.
+This is conditional branch/domain derivation, not approximation accuracy, HE underflow, denominator-reciprocal qualification or full numeric-profile acceptance; it chooses no public shift/default and does not claim all wider intervals impossible for every different profile.
+The table's missing lower bound remains unresolved; existing `ckks_softmax.evaluate` fixed `BOUND` path is unchanged, and artifact `/128`/seven-squaring identity is neither adopted nor mixed with the paper formula. Native HOLD remains unchanged.
+
 Selection caveats: printed f/g literals recovered from Cheon–Kim–Kim are in [audit:196–224](../research/nexus-numeric-contract-audit.md#L196); A `.h:98`, `.cpp:181–211` instead inserts intermediate `0.5` factors. Four degree-nine compositions have formal degree `6561`, not `36`; N p.12 error discussion cannot certify them. Existing N-G clear studies do not supply a selection or SiLU acceptance budget. Reported average errors (`1e-5` exponential, `1e-4` GELU) and Table VI noise estimates are not uniform whole-decoder guarantees.
 
 **N-N is not RMSNorm.** R's exact policy string is `row_head_ascending_tree_binary64_no_epsilon_reference_v1`; accepts `LayerNorm` only, shape `[32,1024]`, active width **768**, public gamma/beta owners, centered energy and `none_reject_zero_energy`. N Eq.(5) computes `z=n*x-sum(x)`, `v=sum(z²)`, `gamma*sqrt(n)*z/sqrt(v)+beta`. Width/padding and “no epsilon” belong to this clear reference only. They do not establish a checkpoint normalization or authorize any RMSNorm epsilon loss, zero-energy rule or numeric adoption.
@@ -84,13 +90,182 @@ Appendix D's pads are **uniform one-time polynomials in `R_Q`**, not small real 
 
 ## 6. Admission, planner and concrete follow-up boundary
 
-Retain original `OriginalSourcePlan` root and first factory plan plus configuration/raw owners throughout derived lowering; debit its **same cumulative consumed-work ledger**, including failed attempts and preceding work. Keep sticky burn/nonrefundable reservations and actual backing guard coverage; a fresh caller ledger, equal digest or byte count cannot replace source custody. Full-prefix epochs, branching gate/up/residual values, persistent KV, original weight/key publication, preprocessing/masks, conversions and refresh require cumulative admission and peak live backing including old/new overlap. Logical source/planner quotes are not RSS, physical capacity, crypto work or whole-request admission.
+Retain original `OriginalSourcePlan` root and first factory plan plus configuration/raw owners throughout derived lowering; debit its **same cumulative construction-work ledger** for construction, including failed attempts and preceding work. This construction quota is not the retained original reader/controller execution ledger and cannot fund or authorize a new selector or derived execution. Keep sticky burn/nonrefundable reservations and actual backing guard coverage; a fresh caller ledger, equal digest or byte count cannot replace source custody. Full-prefix epochs, branching gate/up/residual values, persistent KV, original weight/key publication, preprocessing/masks, conversions and refresh require cumulative admission and peak live backing including old/new overlap. Logical source/planner quotes are not RSS, physical capacity, crypto work or whole-request admission.
 
 Shared backend planner/ROSETTA work owns HE qualification. Lower semantic operations into existing typed `PublicCiphertextGraph` with explicit ordered parents, per-value owner/key/scheme/layout/level/error and declared capabilities; no shadow NEXUS planner. D's `PublicEncryptedDagSelection { operation_index, capability_index }` selects an existing capability for a **graph operation**, not a vocabulary token. Checked DAG establishes declared metadata consistency only, not ciphertext execution/security/capacity. Do not mint executable authority from this document, method labels, source hashes or checked metadata; do not adopt Poulpy or change default/backend/parameters.
 
 **CANDIDATES ONLY, not independently scoped implementation tickets:** model-neutral exact semantic binding/checker for existing M DTO inputs/attrs/state/output; conditional reciprocal residual derivation `rho^32/a`; or original-source centered-energy/commutable **clear** algebra reuse. These candidates have explicit source formulas and require no invented numerical profile, but existing implementations must be reused, not duplicated. Astra62 holds numerical-join/checker dispatch until a concrete existing-validator join is frozen; parent review and a separate scoped implementation instruction remain required. No complete Qwen SiLU/RMSNorm/softmax/selection HE unit is fully source-supported yet. A future refusal/obligation checker must leave unknowns unresolved and must not silently become method execution.
 
 Outstanding decision records must name values, source gap and selected option: (1) exact RMS/SiLU/softmax operand intervals, inverse scaling/seed/count and coefficient/evaluation identities from §3; (2) per-op mathematical and HE total error targets/statistics and full-model quality criteria—**no numeric tolerances proposed here**; (3) complete-vocabulary layout, selection tie/separation/decoding rule compatible with execution policy; (4) roles, history, disclosure/termination/interaction and state profile from §§4–5; (5) concrete mask/security and backend capability/chain/rescale/refresh/admission contracts. Missing values block the dependent unit; do not invent defaults, broaden domains or substitute sampled errors.
+
+### 6.1 Current factual Q/K producer contract — no authenticated derived join
+
+The authentic source → lookup → first-normalization prefix already exists. An authentic derived Q/K join does **not** follow from it. This bounded current-source inspection records the required producer relation, not a new implementation, numerical profile, capability or live request instance. Reading the source-factory contract is not authenticating an instantiated request.
+
+Use `S=maximum_key_sequence` below (the visible-domain bound called `K` in §2), not cache capacity `C`:
+
+- **Q** is `layer.l.rope_q`: `RotaryEmbedding([q_input,input.positions])` → `[B,Nq,T,d]`. `q_input` is the actual `q_norm` when configured, otherwise `q_heads` reshaped from the original `q_linear`; it is not the first norm directly. Bind `theta`, `rotary_dimensions=d`, `pairing=split_half`, `position_policy=sequential_absolute`, both layouts `batch_heads_sequence_feature`, and `tail_policy=unchanged`. Unscaled coefficient identity is `pllm.numeric.rope.q30.libm.v1`. `dense_rope_attributes` changes coefficient profile when `frequency_scaling` is present and copies the **complete object**; bind both exactly. No silent scaled/unscaled selection or numerical adoption.
+- **K** consumed by attention is `layer.l.key_view`, not `rope_k` alone: `CacheSuffix([key_append,input.positions,input.attention_mask,input.sequence_lengths])` → `[B,Nk,S,d]`, `state_kind=Key`, `axis=2`, `maximum_sequence=S`, `semantics=visible_valid_prefix`. Bind the exact auxiliary-name attrs `absolute_write_positions_input=input.positions`, `padding_mask_input=input.attention_mask`, `valid_lengths_input=input.sequence_lengths` and their ordered edges.
+- `key_append` consumes `[rope_k,input.positions,input.attention_mask,input.sequence_lengths]` in prefill; decode prepends the **original named Key state**. `rope_k` itself consumes configured `k_norm` or reshaped `k_heads`, plus original positions. Bind initialize/append mode, state identity/kind, `[B,Nk,C,d]`, capacity and `state_layout=batch_kv_heads_sequence_feature`; retain the **full** `attention_domain` object (`layout`, `maximum_sequence=S`, `includes_current=true`). Shape/length equality is not cache-history custody.
+- **Consumer** is `AttentionScores([rope_q,key_view])` → `[B,Nq,T,S]`, `group_size=Nq/Nk`, with the exact GQA head mapping in §2. Following `AttentionScale` stores `head_dim=d`, **not** a source-supplied binary64 scale factor. Source BF16 → binary64/protected-scaling conversion is not defined by these edges. N's existing one-head square Algorithm 5 cannot automatically become rectangular GQA/cache-faithful attention.
+
+### 6.2 Existing custody and held authority
+
+Current private ownership is
+`RawFirstNormActivation → AdmittedRawNormSpec → OriginalReservation<RawLookupActivation> → RawLookupActivation → PrivateSourceInstance → AdmittedRawInput`.
+See [`raw_first_norm.rs`](../../crates/pllm-compiler/src/replicated_decoder/raw_first_norm.rs) (`RawFirstNormActivation`, `first_bf16_norm`, `validate`) and [`raw_clear_producer.rs`](../../crates/pllm-compiler/src/replicated_decoder/raw_clear_producer.rs) (`AdmittedRawNormSpec`, `AdmittedRawInput`, `token_lookup`, `reserve_original_key`). The chain retains actual gamma/lookup output, ordered tokens, reader root, selected prefill/decode graph and immutable original plan; borrowed words or matching labels cannot reconstruct it. Output/gamma/lookup payloads wipe and free before their covering charges and upstream owners retire.
+
+`OriginalReservation` and `reserve_original_key` at `raw_clear_producer.rs:270–323` remain **TokenLookup-associated**. New funding does not authorize Linear, RoPE, cache or attention. [`raw_owner.rs`](../../crates/pllm-compiler/src/verified_source/raw_owner.rs) `original_weight`/`RawReader::weight` can resolve original weights within their existing scope; this does not authenticate a first-norm → Linear producer relation. Original construction provenance in [`original_source.rs`](../../crates/pllm-compiler/src/original_source.rs) explicitly does not certify weights, tokens, feedback, runtime or drain.
+
+Existing protocol-specific `Invocation` ownership is not a raw Q/K issuer. For example, [`rotary_handoff.rs`](../../crates/pllm-compiler/src/replicated_decoder/rotary_handoff.rs) retains `Compiled`, `SuspendedWorker` and `Executor`; `CoordinatorDrained<Invocation>::restore` finishes the executor and restores owned outputs into the original worker. [`body_handoff.rs`](../../crates/pllm-compiler/src/replicated_decoder/body_handoff.rs) retains original runtime/source/last-use custody and requires global drain. Compiled-program identity and drained runtime `Values` authority remain specific to that protocol and restoration path; neither supplies arbitrary raw Q/K, positions, masks, lengths or cache-history authority.
+
+### 6.3 Minimum shared successor selector — selected lifetime direction, proposed implementation
+
+**No selector construction is approved here.** USER71554 selects the common
+lifetime DESIGN direction now recorded in [Maverick's selected selector lifetime
+direction](maverick-qwen-extension-contract.md#selected-selector-lifetime-direction);
+both documents are updated in this tranche. That shared design, its exact ordered
+sequence and five open gates govern the model-/method-neutral norm → Linear
+contract; it is neither funded/proven construction nor an existing API. Do not
+create a parallel NEXUS helper or treat standalone `projection_custody`/
+`window_linear` as authority. The following retain requirements on proposed
+implementation, not a construction ticket:
+
+1. Consume the **whole original first-norm owner**. Authenticate requested Linear successor in its retained original graph, including the original norm input edge, ordered inputs, shape and exact weight/bias semantics. Bind requested weight, optional bias and direct sealed scale indices to that same original source inventory and backing owners. Caller indices are untrusted selection data; names, digests and token authority are insufficient.
+2. Selection performs **no source DATA read, numeric execution or publication** and grants no such authority. One bounded lock-aware metadata `check_header` is explicit, not tensor/source-payload access. Retain the complete first-norm/gamma/lookup/tokens/reader/controller chain through selection retirement; never extract/re-attach a reservation or replace it with budget membership. `OriginalReservation` remains TokenLookup-associated. A later reader/executor needs its own authentic, separately scoped admission.
+3. Original COLLECTION funding must cover frame/control/refusal/post-charge cleanup slots before construction; EACH authentic issuer separately prepays selector ENTRY on the original reader/controller EXECUTION `WorkLedger` (currently absent). Neither collection funding, `OriginalSourcePlan` construction quota nor a fresh caller ledger replaces that credit. Debit original cumulative work before byte reservation/semantic construction; fund all simultaneous controls and cleanup. [`raw_owner.rs`](../../crates/pllm-compiler/src/verified_source/raw_owner.rs) `admit_reader` and `admit_primitive` are existing scoped ingredients, not a new successor license or permission to invoke relocking/scanning helpers wholesale. Preserve earlier debits and sticky refusal; no ledger reset or work refund.
+4. Bound original graph count `G`, source tensor count `T` (distinct from query length in §2), and complete attributes before scans. Candidate form `C0 + Cg*G + Ct*T` requires a frozen complete control/validation/cleanup census and rates; **neither census nor rates is frozen or approved**. Extra backing/file traversal and containing layouts must be covered, not hidden in those symbols. Logical work is not a physical CPU/RSS bound.
+5. Follow the shared proposed `RawHost`/`NativePublisher` confinement: private non-Clone borrowed `SelectorFrame<'h>` plus `selection_live` under the SAME original-root mutex, authentic frame/activation/root and entry-credit checks before latching, genuine native owner AND actual outer lease retained through cleanup. Non-Clone is not Arc uniqueness; native aliases and multicall retirement require root exclusion beyond a Python gate. Unlock **before any relocking destructor**; guard/closure → transient root alias → partial handles → completed selection → remaining activation. `reader_live` may clear earlier, but retirement must check BOTH flags before Ready; clear `selection_live` only after scoped aliases/destructors end. New-charge refund may precede outer partials, so collection coverage continues through final aliases/control tail. Exclusive lifecycle APIs and this cleanup discipline are proposed, not compiled or approved construction; ambiguous cleanup proves no release/recovery.
+
+USER71483's logical-atomic reservation-call choice remains narrowly accounting:
+internal `fetch_update` retries/callbacks belong to one invocation, not separate
+calls/peak updates/`fetch_sub`/loops/destruction; no physical retry bound or blanket
+NEXUS rates follow. USER71554 separately selects the common lifetime direction,
+not complete cleanup funding, frozen layout/census or implementation approval.
+Even a future approved selector would establish only authentic successor
+selection. The real consumer remains `AttentionScores([rope_q,key_view])`:
+authentic RoPE/cache/history custody and a separately approved numeric producer
+join are required, including projection, conversion/scaling and genuine positions/
+mask/lengths owners from §6.1. Common norm → Linear lifetime grants NONE of that
+derived-Q/K execution. Token custody alone is insufficient. No numerical profile,
+cap, security/source-ownership claim, weights, route, implementation or execution
+is selected here.
+
+**Evidence boundary:** existing reported 1088/13740 regression figures are unchanged and **UNRUN** in this documentation task; no fresh regression result is claimed. Source inspection is not execution evidence. All selector construction and derived-Q/K authority remain held pending separate approval and evidence.
+
+### 6.4 Proposed original-request ordered Q/K issuer — DESIGN ONLY
+
+**Selected DESIGN direction only:** a private consuming transaction retains the
+original request, source/controller, execution ledger, compiled graph and backing
+owners. It publishes one inseparable, non-Clone pair only after both authentic
+producer chains, authentic key-view construction, successful global drain and
+original-worker restore. Original source and cumulative ledger are never
+reconstructed or replaced. The representation candidate below remains UNSELECTED;
+no issuer implementation, overlap contract, adoption, funding or execution is approved.
+
+**Existing mechanics; not finished authority.**
+[`rotary_creation`:22–108](../../crates/pllm-compiler/src/replicated_decoder/rotary_creation.rs#L22)
+captures original identity and ordered projection/reshape creation, NOT completed
+Q/K chains or authentic KV. An original-execution adapter binding the following
+entire relation is still **MISSING**.
+[`lower_dense_decoder`:1720–1842](../../crates/pllm-models/src/lib.rs#L1720)
+uses the SAME layer input norm → separate Q/K projections → **head reshape** →
+optional Q/K RMSNorm over head width `d` → RoPE. K then follows authentic
+`key_append` → `key_view` before `AttentionScores([rope_q,key_view])`
+([1843–1937](../../crates/pllm-models/src/lib.rs#L1843)). Proposed issuer must bind:
+
+- Original ordered inputs and operation ordinals at EVERY step; original request,
+  layer, epoch, selected prefill/decode graph and generation/history identity.
+  Retain source weight, explicit optional bias and all gamma owners, exact shapes,
+  reshape coordinate order, norm attributes and complete RoPE coefficient/scaling
+  objects. Same names, dimensions or digests cannot substitute for these owners.
+- Full original positions, masks, valid lengths and prior history/state custody.
+  Prefill key append is `[rope_k,positions,mask,lengths]`; decode is
+  `[original_Key_state,rope_k,positions,mask,lengths]`; key view is
+  `[key_append,positions,mask,lengths]`. Bind complete state/attention-domain attrs
+  ([helpers:2133–2245](../../crates/pllm-models/src/lib.rs#L2133)); no parallel NEXUS cache.
+- GQA mapping `floor(qhead/(Nq/Nk))`; capacity `C`, visible extent `S`, actual
+  valid length and per-query causal visibility are DISTINCT. Current/future,
+  padding and unwritten cells need authentic visibility checks, not shape inference.
+
+[`compact_request_history`:1–2](../../crates/pllm-compiler/src/replicated_decoder/compact_request_history.rs#L1)
+explicitly issues no completion bit or executable storage; growing-prefix history
+is NOT KV-completion authority. Key-view history and every physical backing and
+coordinate map must be authenticated, including views spanning multiple owners.
+
+[`ValueEdge`:1–36](../../crates/pllm-compiler/src/clear_value_binding.rs#L1)
+checks retained owner/graph identity, leaving semantic checks to adapters;
+[`Words`:1–20](../../crates/pllm-compiler/src/replicated_decoder/views.rs#L1)
+contains references, not shares. Neither these, compiled spans, digests nor actual
+exported words mint standalone source or finished-producer authority. Existing
+[`raw_first_norm`:1–14,59–103](../../crates/pllm-compiler/src/replicated_decoder/raw_first_norm.rs#L59)
+has a fixed first-norm profile; it does NOT authorize head-width Q/K norm,
+BF16/binary64/protected conversions or scaled RoPE. Source identity, producer
+completion, numerical qualification and security remain separate obligations.
+
+**MISSING production drain issuer:**
+[`rotary_handoff`:1–13,243–281,319–341](../../crates/pllm-compiler/src/replicated_decoder/rotary_handoff.rs#L1)
+has private `CoordinatorDrained`/consuming invocation mechanics, not a production
+router-drain issuer. Proposed issuer must authenticate three DISTINCT roles AND
+actual router lease, globally fence new traffic and drain queues, in-flight work
+and native callbacks at matching boundaries, retaining lease through begin AND
+restore. Local-ready checks and caller assertions cannot mint this authority.
+[`body_handoff`:1–15,125–151](../../crates/pllm-compiler/src/replicated_decoder/body_handoff.rs#L1)
+explicitly separates local readiness from global drain. Proposed private
+`SuccessfulDrained` and `CancelledDrained` authorities must remain distinct:
+cancelled global quiescence NEVER permits Q/K publication. Existing
+[`Invocation::cancel`:290–293](../../crates/pllm-compiler/src/replicated_decoder/rotary_handoff.rs#L290)
+removes the executor before cancelling the suspended Worker. Exact funding,
+numerics and cache/position policies remain **OPEN**; reuse shared admission/transport.
+
+**UNSELECTED representation candidate: owning exports snapshot.**
+[`Executor::finish`:739–753](../../crates/pllm-compiler/src/replicated_decoder/body_machine.rs#L739)
+consumes a completed executor and returns original runtime plus owned `Values`.
+[`Values`:802–825](../../crates/pllm-compiler/src/replicated_decoder/body_machine.rs#L802)
+owns `Arc<Plan>` and `Vec<Option<Secret>>`; the whole aggregate can move, with
+`Secret` zeroizing its storage. This is not a borrow across restore or cloned
+`Words` labels. Existing
+[`rotary_handoff::restore`:319–341](../../crates/pllm-compiler/src/replicated_decoder/rotary_handoff.rs#L319)
+uses finish plus its compiled output map; it does NOT retain these exports.
+[`body_handoff`:33–53,230–283](../../crates/pllm-compiler/src/replicated_decoder/body_handoff.rs#L230)
+copies ALL exports, replays original retirement, erases output `Values`, then
+releases Worker. Reusing that helper cannot establish retained-export custody.
+
+A NEW, separately approved consuming restoration contract would keep an ordered
+guard owning **Values → original runtime → suspension**, with original compiled,
+source and request roots continuously held outside it. Fallible copy of ALL
+exports and original-ledger replay only BORROW guard fields; move fields ONLY
+after success. As with existing `RestoreOwners`, no custom `Drop` is needed to
+move whole fields on success; on failure/unwind exports erase before runtime,
+Worker cancellation and source cleanup. Never expose a partially restored Worker.
+
+On success, proposed non-Clone `RestoredPair` would own **Values first, Worker
+second, then original compiled/source/request roots**, with authenticated Q/K
+output maps and consumer interval. Publish Q/K inseparably only after successful
+global drain AND restore. No independent Worker advance, extraction of either
+value or Worker, or detached coordinate authority; a private consuming consumer
+transition must retain the complete pair. These names/APIs are schematic private
+proposals, not implemented authority. Common restore boundary must precede the
+EARLIEST consumer of EITHER value; refuse otherwise. Original retirement is
+replayed unchanged, not delayed or replaced by pinning.
+
+Retaining Values alongside restored Worker adds overlap, not free aliasing.
+Separate approval and full-layout funding must cover retained Plan, all live
+Secret backings, coordinate maps, restored copies, guard/transition/result slots,
+consumer lifetime and failure cleanup, without discounting existing owners or
+debits. This documentation edit does NOT select or approve that overlap.
+
+Existing [`View`:37–79](../../crates/pllm-compiler/src/replicated_decoder/body.rs#L37)
+and [`Builder::scores`:965–1015](../../crates/pllm-compiler/src/replicated_decoder/body_families.rs#L965)
+accept layout/dimension inputs, no execution-pair authority. **Private consuming
+adapter is MISSING.** Partial-copy failure must drop outputs → runtime →
+suspension/cancel Worker before source custody release; existing ordered guard
+and invocation field order supply reusable mechanics, not Q/K completion proof
+([guard:33–53](../../crates/pllm-compiler/src/replicated_decoder/body_handoff.rs#L33),
+[invocation:276–281](../../crates/pllm-compiler/src/replicated_decoder/rotary_handoff.rs#L276)).
+
+**Evidence:** source reread only; tests/builds **UNRUN**. No HE execution,
+backend/default change, activation or implementation/adoption approval.
 
 ## 7. Independent review and future tests (not results)
 

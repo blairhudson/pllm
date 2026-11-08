@@ -183,12 +183,69 @@ semantics remain to be verified. Recovered artifact locations refer only to
 | E2 `z` + `q_proj/k_proj/v_proj` weights → `q,k,v` | Source rectangular projections and dtype/accumulation; exact packed input/output states and conversion capabilities | Tensor identities/dimensions/bias semantics/precision; rectangular slot maps, actual projection/placement kernels, approximation/encoding/error bounds, cost and peak quotes. Dummy `util.go:521–541` is not weight provenance. |
 | E3 `q,k` + position → RoPE `qr,kr`; `kr,v` → staged KV | Verified pairing, frequency, position and precision; then independently typed K/V placement, legal alignment, fresh paired outputs | Pinned RoPE semantics and physical rotations/masks; GQA map; source-prefill/new-token producer; retained level/scale/error targets and native staged owner/commit protocol. Artifact `linear.go:237–278` fixed-position K-first mutation is not transactional append. |
 | E4 `qr` + all retained/new K → scores | Query/KV head map, active masks, score scaling `1/sqrt(p)` as source semantics; immutable aligned reads or charged copies; no parent mutation | Exact QK kernel/address/permutation proof and reduction order, score domain/error/cost/owners. Artifact `QK_T:289–392` alone does not establish trained source mapping. |
-| E5 scores → fitted exponentials → one denominator per Q head | Complete exp stage coefficients/scaling/order and positive-domain certificate; mask inactive **exponentials** before all-active-group reduction | Per-node calibration and certified domain including upstream CKKS error; complete polynomial bytes/evaluation graph, positivity and reduction errors. Artifact `SoftmaxThor:1125–1206` includes `1/8` prescaling/fixed fits, not a selected paper-aligned record. |
+| E5 scores → fitted exponentials → one denominator per Q head | Complete exp stage coefficients/scaling/order and positive-domain certificate; mask inactive **exponentials** before all-active-group reduction | Per-node calibration and certified domain including upstream CKKS error; complete polynomial bytes/evaluation graph, positivity and reduction errors. Artifact `nonlinear_thor.go`, `SoftmaxThor:1125–1206`, requires level ≥6, prescales by `1/(8*sqrt(dHead))`, evaluates the polynomial on token slots `0..seqLen` inclusive per head, then reduces, conditionally masks lanes, broadcasts and calls whole-ciphertext `BootTo(13)`. Fixed THOR fits are not a selected paper-aligned record. |
 | E6 denominator → reciprocal; reciprocal + exponentials → probabilities | Standard Goldschmidt fork `r_next=r*(1+e)`, `e_next=e*e`, old values, fixed public count; exact aligned/scalar-broadcast capabilities after explicit alignment | Certified `0<a<=denom<=b`, selected `m,tau`, encoded `1/b`, full per-step CKKS/refresh error proof and domain, states/owners/costs. Adaptive `Inv:620–806` cannot fill any standard-Goldschmidt field. |
 | E7 probabilities + all retained/new V → context → `L.self_attn.o_proj` → attention residual `x+a` | All-active-group weighted V, source head-order restore, rectangular output projection, explicit state-aligning transforms before residual `Aligned` join | Distributed-V/BSGS/GQA equivalence and real weighted-V kernel (`AttnV:404–496` is only artifact lead); output weights, source order, propagated domain/error, residual join states and live-`x` owner overlap. |
 | E8 residual → `L.post_attention_layernorm`; `gate_proj/up_proj` → SiLU(gate) × up | Source RMSNorm followed by separately certified SiLU and product; explicit shared-input fork and aligned joins | Source norm/MLP dimensions/weights; SiLU coefficients/stages/evaluation and domains including norm/projection error. Artifact `nonlinear_moai.go:13–35` single Chebyshev fit is not approved composite/per-layer calibration. |
-| E9 product → `L.mlp.down_proj` → second residual → next block | Exact source projection plus charged level/scale alignment retaining original residual; output error certificate covers downstream reuse | Down-projection tensor/kernel/map, full branch error/cost/owner join, next-block admitted domain and repeated decode horizon. Hardcoded `DecoderThor:49–78` refresh 9/7/13/7 is not planner input or numerical authority. |
+| E9 product → `L.mlp.down_proj` → second residual → next block | Exact source projection plus charged level/scale alignment retaining original residual; output error certificate covers downstream reuse | Down-projection tensor/kernel/map, full branch error/cost/owner join, next-block admitted domain and repeated decode horizon. Released `llama.go`, `DecoderThor`, has caller refresh targets 9/7/13/7 plus internal nonlinear refreshes described below, not an optimized planner or numerical qualification. |
 | E10 final blocks → final norm/head/token loop | Final norm needs its own record; stop before unresolved private head/output boundary | Actual private head, tie/error policy, selection/EOS, feedback/re-embedding, allowed disclosure and decoder conversion contracts **MISSING and not invented**. No client logits/decrypt/argmax fallback. |
+
+**Recovered released wiring, not a selected execution graph.** Member/function
+citations here refer to the official [v0.1.2-ae archive](https://zenodo.org/api/records/23377151/files/Cachemir_ae.zip/content),
+with immutable byte identity and caller scope in [numeric packet §1](/docs/plans/cachemir-numeric-state-packet.md#1-governing-evidence-and-the-conflict-this-proposal-preserves).
+`Cachemir_ae/llama.go`, `DecoderThor`, copies the residual before incoming
+`DropLevel(x,2)`, then connects QKV/RoPE/cache/QKT → `BootTo(9)` → enabled
+`SoftmaxThor` → AttnV → `BootTo(7)` → output projection/residual →
+`NormThorLane0(...,0)` → UpGate → **gate-only** `BootTo(13)` → SiLU →
+up×gate/rescale/down projection/residual → `BootTo(7)` → `NormThorLane0`.
+`Cachemir_ae/nonlinear_moai.go`, `BootTo`, calls `btpEval.Bootstrap(x)` on
+the whole ciphertext on every valid invocation, even already at target level;
+it guards the upper output level/error/nil and drops only below the returned
+level. Negative target levels are not explicitly guarded. The wrapper performs
+no active-slot extraction/reduction/masking or scale adjustment; library behavior
+is not qualified by this inspection, nor is comprehensive validation established.
+`Cachemir_ae/nonlinear_thor.go`, `Inv`, uses adaptive `k=2/(en+1)` and
+`en=k*en*(2-k*en)` (`eps=2^-11`, `alpha=.001`, cap 15), not selected standard
+Goldschmidt. If either accumulator falls below level 2, both refresh to maximum;
+an epsilon multiply/rescale occurs only above level 0, with gain restored in the
+next coefficient. These internal refreshes do not establish optimized placement,
+certified errors, trained per-layer numerics or evaluated-method/ablation identity.
+The same archive's `README` describes placement search using **synthetic**
+`data.csv`, not measured planner inputs. Its `go.mod` declares Lattigo v6.1.1
+(Go 1.24.2; no replace/toolchain directive), corroborated by `README` and module/
+go.mod hashes in `go.sum`. Resolved dependency contents/build graph remain
+unverified; `main.go` supplies only a partial literal. No backend is selected.
+
+**Partial excerpt-based default resolution.** Retained excerpts partially resolve
+released defaults against Lattigo `refs/tags/v6.1.1`, whose retained matching-ref
+JSON identifies commit `37a34b4676e987795949a795f0ce9d0893763c96`. This is static
+excerpt resolution, not independent verification of complete dependency bodies,
+resolved build identity or successful construction. Released `PrepareContext`
+discards parameter/key/evaluator errors. The CKKS precision-selection body was
+truncated; the `Ring.Standard` zero-value definition was not retained.
+Standard-ring/PREC64 consequences therefore remain conditional. Requested scale
+is not certified precision. No evaluated configuration, exact prime arrays,
+generated approximation coefficients, error/security guarantee or backend
+adoption follows.
+
+| Source cut | Excerpt-resolved request/default or conditional consequence |
+| --- | --- |
+| Released explicit caller | CLI defaults `logN=8`, `test=Decoder`, input level 6; requested Q bit sizes `[53, 41×13]`, P `[61×4]`, scale `2^41`, `Xs=Ternary{H:192}`. Bootstrap receives the same logN/secret/P; message ratio 11 overrides default 8. Flags are not invariants of every run: a user logN override changes conditional geometry. |
+| Omitted bootstrap getters | Ephemeral weight 32; Gaussian CONFIG sigma 3.2/bound 19.2, not achieved noise; iterations nil/no reserved iteration prime; CtS depth/scale 4/56, StC 3/39. Caller logN pointer overrides library default 16. |
+| Mod1 | Zero-value type `CosDiscrete`, K=16, degree 30, double angle 3, inverse degree 0, scale 60; depth `bits.Len64(31)+3+bits.Len64(0)=8`. |
+| CONDITIONAL Standard/PREC64 and successful construction at CLI defaults | N=256, slots=128; residual Q count 14/P count 4/max level 13. Append Q bit sizes `[39×3, 60×8, 56×4]`, since `39+41<61` is FALSE; total Q count 29/max level 28, declared stages `28→24→16→13`, four P primes of 61 bits. These are constructor-derived sizes/levels, not observed ciphertexts or verified construction; no actual 41-bit precision certificate. |
+| Retained Standard prime-generation branch | 61-bit requests use downstream generation, other bit sizes alternating; bootstrap uses alternating generation excluding existing primes. Exact arrays remain unresolved. |
+
+Immutable source links for these retained excerpts:
+[`parameters_literal.go` (getters)](https://raw.githubusercontent.com/tuneinsight/lattigo/37a34b4676e987795949a795f0ce9d0893763c96/circuits/ckks/bootstrapping/parameters_literal.go),
+[`parameters.go` (constructor Q/levels)](https://raw.githubusercontent.com/tuneinsight/lattigo/37a34b4676e987795949a795f0ce9d0893763c96/circuits/ckks/bootstrapping/parameters.go),
+[`mod1_parameters.go` (depth)](https://raw.githubusercontent.com/tuneinsight/lattigo/37a34b4676e987795949a795f0ce9d0893763c96/circuits/ckks/mod1/mod1_parameters.go),
+[`security.go` (default Xe)](https://raw.githubusercontent.com/tuneinsight/lattigo/37a34b4676e987795949a795f0ce9d0893763c96/core/rlwe/security.go),
+[`params.go` (prime generation)](https://raw.githubusercontent.com/tuneinsight/lattigo/37a34b4676e987795949a795f0ce9d0893763c96/core/rlwe/params.go).
+
+Acquisition accounting: eight-attempt cap exhausted; seven counted response bodies
+total 88,479 bytes, first response unmeasured. Aggregate byte-limit compliance
+remains **UNVERIFIED**. No further acquisition performed for this review.
 
 Each edge additionally requires original backend preparation, real input/output
 capacity/alignment, full temporary/recovery/serialization/retirement overlap,
