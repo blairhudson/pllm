@@ -132,7 +132,7 @@ impl<'a> JointBasis<'a> {
             if let Some(result) = super::joint_basis_test_hooks::fill(
                 super::joint_basis_test_hooks::Kind::JointEntropy, bytes,
             ) {
-                return result;
+                return result.map_err(primitive_error);
             }
             #[cfg(test)]
             if let Some(result) = tests::fill_override(bytes) {
