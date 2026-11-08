@@ -14,6 +14,8 @@ mod execution_capsule;
 mod fss_channel;
 mod fss_source;
 mod fss_transport;
+mod forward;
+mod source_json;
 mod head_index;
 mod logrow;
 mod logrow_product;
@@ -58,6 +60,15 @@ use zeroize::Zeroizing;
 
 fn invalid(error: String) -> PyErr {
     PyValueError::new_err(error)
+}
+
+/// Native decimal-to-FP32 rounding, transported exactly as a Python float.
+/// Pure conversion only; does not grant source or execution authority.
+#[pyfunction]
+fn parse_positive_f32(text: &str) -> PyResult<f64> {
+    pllm_models::parse_positive_f32(text)
+        .map(f64::from)
+        .map_err(PyValueError::new_err)
 }
 
 fn checked_byte_sequence(
@@ -1814,6 +1825,9 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     polynomial_shift::register(module)?;
     network::register(module)?;
     continuation::register(module)?;
+    forward::initialize_publication_abi(module.py());
+    source_json::register(module)?;
+    forward::register(module)?;
     execution_capsule::register(module)?;
     stage_kernel_plan::register(module)?;
     module.add_class::<Matrix>()?;
@@ -1836,6 +1850,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(assurance_report, module)?)?;
     module.add_function(wrap_pyfunction!(assurance_results, module)?)?;
     module.add_function(wrap_pyfunction!(lower_model, module)?)?;
+    module.add_function(wrap_pyfunction!(parse_positive_f32, module)?)?;
     module.add_function(wrap_pyfunction!(decoder_coverage, module)?)?;
     module.add_function(wrap_pyfunction!(decoder_runtime_schedule, module)?)?;
     module.add_function(wrap_pyfunction!(decoder_matrix_inventory, module)?)?;
@@ -1859,4 +1874,49 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(prepare_freivalds, module)?)?;
     module.add_function(wrap_pyfunction!(import_freivalds, module)?)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod positive_f32_binding_tests {
+    use super::*;
+    use pyo3::types::PyFloat;
+
+    #[test]
+    fn native_decimal_rounding_crosses_pyo3_as_exact_python_scalar() {
+        Python::initialize();
+        Python::attach(|py| {
+            // Exercise the real PyO3 wrapper without running module startup or
+            // creating any execution/transport state.
+            let module = PyModule::new(py, "positive_f32_binding_test").unwrap();
+            module.add_function(wrap_pyfunction!(parse_positive_f32, &module).unwrap()).unwrap();
+            let function = module.getattr("parse_positive_f32").unwrap();
+            let text = "1.0000000596046447753906250000000001";
+            let scalar = function.call1((text,)).unwrap();
+            assert!(scalar.is_instance_of::<PyFloat>());
+            let transported: f64 = scalar.extract().unwrap();
+            let expected = f32::from_bits(0x3f80_0001);
+            assert_eq!(transported.to_bits(), f64::from(expected).to_bits());
+            assert_eq!((transported as f32).to_bits(), expected.to_bits());
+            assert_ne!((text.parse::<f64>().unwrap() as f32).to_bits(), expected.to_bits());
+            for text in ["1e-45", "0.00001", "3.4028235e38"] {
+                let value: f64 = function.call1((text,)).unwrap().extract().unwrap();
+                assert_eq!(value.to_bits(), f64::from(pllm_models::parse_positive_f32(text).unwrap()).to_bits());
+            }
+        });
+    }
+
+    #[test]
+    fn native_positive_f32_wrapper_rejects_invalid_values_and_nontext_without_fallback() {
+        Python::initialize();
+        Python::attach(|py| {
+            let module = PyModule::new(py, "positive_f32_binding_errors_test").unwrap();
+            module.add_function(wrap_pyfunction!(parse_positive_f32, &module).unwrap()).unwrap();
+            let function = module.getattr("parse_positive_f32").unwrap();
+            for text in ["", "bad", "1e-1000", "1e-46", "1e1000", "NaN", "inf", "-inf", "0", "-0", "-1"] {
+                assert!(function.call1((text,)).unwrap_err().is_instance_of::<PyValueError>(py));
+            }
+            assert!(function.call1((1.0_f64,)).unwrap_err().is_instance_of::<PyTypeError>(py));
+            assert!(function.call1((py.None(),)).unwrap_err().is_instance_of::<PyTypeError>(py));
+        });
+    }
 }

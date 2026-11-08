@@ -14,9 +14,23 @@ fn invalid(message: impl ToString) -> PyErr {
     crate::invalid(message.to_string())
 }
 
+fn strict_observe_peer_frames(value: &Bound<'_, PyAny>) -> PyResult<bool> {
+    if !value.is_instance_of::<PyBool>() {
+        return Err(invalid("FuseFSS observe_peer_frames requires bool"));
+    }
+    value.extract::<bool>()
+}
+
 fn native_error(error: pllm_compiler::fss_decoder::Error) -> PyErr {
-    let message = format!("FuseFSS native admission failed: {error:?}");
-    if error == pllm_compiler::fss_decoder::Error::Domain {
+    native_error_context(error.into())
+}
+
+fn native_error_context(failure: pllm_compiler::fss_decoder::AdmissionFailure<pllm_compiler::fss_decoder::Error>) -> PyErr {
+    let message = match failure.context {
+        Some(context) => format!("FuseFSS native admission failed: {:?}; {context}", failure.error),
+        None => format!("FuseFSS native admission failed: {:?}", failure.error),
+    };
+    if failure.error == pllm_compiler::fss_decoder::Error::Domain {
         crate::replicated_transport::NumericDomainRejected::new_err(message)
     } else {
         invalid(message)
@@ -34,6 +48,127 @@ fn hex(value: [u8; 32]) -> String {
             ]
         })
         .collect()
+}
+
+fn description_context<'py>(
+    py: Python<'py>, context: Option<pllm_compiler::fss_decoder::AdmissionContext>,
+) -> PyResult<Py<PyAny>> {
+    let Some(context) = context else { return Ok(py.None()); };
+    let record = PyDict::new(py);
+    // Enum names are fixed public labels, never source strings or private data.
+    record.set_item("stage", format!("{:?}", context.stage))?;
+    record.set_item("gate", format!("{:?}", context.gate))?;
+    record.set_item("node", context.node)?;
+    record.set_item("kernel", context.kernel)?;
+    record.set_item("required", context.required)?;
+    record.set_item("used", context.used)?;
+    record.set_item("limit", context.limit)?;
+    Ok(record.into_any().unbind())
+}
+
+fn source_description<'py>(py: Python<'py>, description: pllm_compiler::fss_decoder::import::SourceDescription)
+    -> PyResult<Bound<'py, PyDict>> {
+    use pllm_compiler::fss_decoder::import::DescriptionExtent;
+    let record = PyDict::new(py);
+    record.set_item("schema", "pllm.fss.source_description.v1")?;
+    let resources = PyDict::new(py);
+    let r = description.resources;
+    // Direct Python integer conversion: no JSON integer narrowing.
+    for (name, value) in [
+        ("kernels", r.kernels), ("primitive_requests_per_party", r.primitive_requests_per_party),
+        ("work", r.work), ("private_material_cumulative_bytes", r.material_bytes),
+        ("peer_frame_bytes", r.frame_bytes), ("public_copy_bytes", r.public_copy_bytes),
+        ("metadata_bytes", r.metadata_bytes), ("live_array_bytes_per_party", r.live_array_bytes_per_party),
+        ("source_table_cache_bytes_per_role", r.source_table_cache_bytes_per_role),
+        ("peak_native_bytes", r.peak_native_bytes), ("combined_reservation_bytes", r.combined_reservation_bytes),
+    ] { resources.set_item(name, value)?; }
+    record.set_item("resources", resources)?;
+    record.set_item("first_material_refusal", description_context(py, description.first_material)?)?;
+    record.set_item("first_material_selection", description.first_material_selection)?;
+    record.set_item("selection", description.selection)?;
+    record.set_item("node", description.node)?;
+    record.set_item("material_wire_bytes", description.material_wire_bytes)?;
+    if description.observe_peer_frames {
+        record.set_item("observe_peer_frames", true)?;
+        record.set_item("first_frame_refusal", description_context(py, description.first_frame_refusal)?)?;
+        record.set_item("first_frame_selection", description.first_frame_selection)?;
+    }
+    if let Some((name, ceiling)) = description.work_policy {
+        record.set_item("work_policy", name)?;
+        record.set_item("work_ceiling", ceiling)?;
+    }
+    match description.extent {
+        DescriptionExtent::Complete => {
+            record.set_item("extent", "complete")?;
+            record.set_item("stop_error", py.None())?;
+            record.set_item("stop_context", py.None())?;
+        }
+        DescriptionExtent::Partial(failure) => {
+            record.set_item("extent", "partial")?;
+            record.set_item("stop_error", format!("{:?}", failure.error))?;
+            record.set_item("stop_context", description_context(py, failure.context)?)?;
+        }
+    }
+    Ok(record)
+}
+
+#[cfg(test)]
+mod description_tests {
+    use super::*;
+    use pllm_compiler::fss_decoder::{AdmissionContext, AdmissionFailure, AdmissionGate, AdmissionStage, Error, Resources};
+    use pllm_compiler::fss_decoder::import::{DescriptionExtent, SourceDescription};
+
+    #[test]
+    fn scalar_description_maps_partial_and_full_width_counters() {
+        Python::initialize();
+        Python::attach(|py| {
+            // DTO conversion only: no synthetic Source or public limit setter.
+            let context = AdmissionContext::new(AdmissionStage::ResourceQuote, AdmissionGate::FrameBytes);
+            let description = SourceDescription {
+                resources: Resources { material_bytes: usize::MAX, ..Resources::default() },
+                first_material: Some(AdmissionContext::new(AdmissionStage::ResourceQuote, AdmissionGate::MaterialBytes)),
+                first_material_selection: Some(0),
+                extent: DescriptionExtent::Partial(AdmissionFailure::from(Error::Resource).with_context_if_absent(context)),
+                selection: 0, node: 1, material_wire_bytes: None, work_policy: None,
+                observe_peer_frames: false, first_frame_refusal: None, first_frame_selection: None,
+            };
+            let record = source_description(py, description).unwrap();
+            assert_eq!(record.get_item("extent").unwrap().unwrap().extract::<String>().unwrap(), "partial");
+            assert_eq!(record.get_item("stop_error").unwrap().unwrap().extract::<String>().unwrap(), "Resource");
+            let resources = record.get_item("resources").unwrap().unwrap();
+            assert_eq!(resources.get_item("private_material_cumulative_bytes").unwrap().extract::<usize>().unwrap(), usize::MAX);
+            assert!(record.get_item("material_wire_bytes").unwrap().unwrap().is_none());
+            assert!(!record.contains("work_policy").unwrap());
+            assert!(!record.contains("work_ceiling").unwrap());
+            assert!(!record.contains("observe_peer_frames").unwrap());
+            assert!(!record.contains("first_frame_refusal").unwrap());
+            assert!(!record.contains("first_frame_selection").unwrap());
+            let mut frame_context = AdmissionContext::new(AdmissionStage::ResourceQuote, AdmissionGate::FrameBytes);
+            frame_context.required = Some(usize::MAX);
+            frame_context.limit = Some(8usize << 30);
+            frame_context.node = Some(7);
+            frame_context.kernel = Some(3);
+            let observed = source_description(py, SourceDescription {
+                observe_peer_frames: true, first_frame_refusal: Some(frame_context),
+                first_frame_selection: Some(0), ..description
+            }).unwrap();
+            assert!(observed.get_item("observe_peer_frames").unwrap().unwrap().extract::<bool>().unwrap());
+            let frame = observed.get_item("first_frame_refusal").unwrap().unwrap();
+            assert_eq!(frame.get_item("required").unwrap().extract::<usize>().unwrap(), usize::MAX);
+            assert_eq!(frame.get_item("node").unwrap().extract::<usize>().unwrap(), 7);
+            assert_eq!(observed.get_item("first_frame_selection").unwrap().unwrap().extract::<usize>().unwrap(), 0);
+            let adopted = source_description(py, SourceDescription {
+                work_policy: Some(("mixed-work-40", 1usize << 40)), ..description
+            }).unwrap();
+            assert_eq!(adopted.get_item("work_policy").unwrap().unwrap().extract::<String>().unwrap(), "mixed-work-40");
+            assert_eq!(adopted.get_item("work_ceiling").unwrap().unwrap().extract::<usize>().unwrap(), 1usize << 40);
+            assert!(!adopted.contains("observe_peer_frames").unwrap());
+            let stop = record.get_item("stop_context").unwrap().unwrap();
+            assert_eq!(stop.get_item("gate").unwrap().extract::<String>().unwrap(), "FrameBytes");
+            let first = record.get_item("first_material_refusal").unwrap().unwrap();
+            assert_eq!(first.get_item("gate").unwrap().extract::<String>().unwrap(), "MaterialBytes");
+        });
+    }
 }
 
 fn arguments<'py, const N: usize>(
@@ -235,9 +370,9 @@ impl NativeSourceBuilder {
         let owner = self.take()?;
         let imported = py
             .detach(|| {
-                owner.seal_with_schedule(pllm_compiler::fss_decoder::OnlineSchedule::TensorV1)
+                owner.seal_with_schedule_context(pllm_compiler::fss_decoder::OnlineSchedule::TensorV1)
             })
-            .map_err(native_error)?;
+            .map_err(native_error_context)?;
         Ok(NativeProgram {
             program: Some(Arc::new(imported.program)),
             input_digest: imported.input_digest,
@@ -245,6 +380,25 @@ impl NativeSourceBuilder {
             ownership: imported.ownership,
             pid: self.pid,
         })
+    }
+
+    /// Scalar description only. Complete is NOT execution admission; Partial
+    /// counters may reflect different intra-kernel progress after overflow.
+    #[pyo3(signature = (*, work_policy=None, observe_peer_frames=false))]
+    fn describe_tensor<'py>(&mut self, py: Python<'py>, work_policy: Option<&str>,
+        #[pyo3(from_py_with = strict_observe_peer_frames)] observe_peer_frames: bool,
+    ) -> PyResult<Bound<'py, PyDict>> {
+        use pllm_compiler::fss_decoder::import::SourceDescriptionWorkPolicy;
+        let policy = match work_policy {
+            None => SourceDescriptionWorkPolicy::Default,
+            Some("mixed-work-40") => SourceDescriptionWorkPolicy::MixedWork40,
+            Some(_) => return Err(invalid("FuseFSS unsupported source-description work policy")),
+        };
+        let owner = self.take()?;
+        let description = py.detach(|| owner.describe_with_options_context(
+            pllm_compiler::fss_decoder::OnlineSchedule::TensorV1, policy, observe_peer_frames,
+        )).map_err(native_error_context)?;
+        source_description(py, description)
     }
 }
 
@@ -388,6 +542,10 @@ pub fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(fss_source_contract, module)?)?;
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "fss_source_admission_context_tests.rs"]
+mod admission_context_tests;
 
 #[cfg(test)]
 mod tests {

@@ -65,10 +65,16 @@ type SourceChunk = (String, usize, Vec<Py<PyBytes>>);
 type PeerBatch = (bool, Vec<(usize, Py<PyBytes>)>);
 
 impl NativePublisher {
+    fn retained_compact(&mut self) -> PyResult<Option<&mut Publisher>> {
+        if self.pid != std::process::id() {
+            return Err(error("replicated publisher cannot cross fork"));
+        }
+        Ok(self.owner.as_mut().filter(|owner| owner.has_retained_compact()))
+    }
     fn take(&mut self) -> PyResult<Publisher> {
         // A raw host is borrowed in place through BOTH explicit cleanup phases.
         // Legacy consuming paths may never discard it, even on an error/fork.
-        if self.owner.as_ref().is_some_and(Publisher::has_raw_host) {
+        if self.owner.as_ref().is_some_and(|o| o.has_raw_host() || o.has_retained_compact()) {
             return Err(error("raw host requires explicit retained-owner cleanup"));
         }
         let owner = self
@@ -213,8 +219,9 @@ impl NativePublisher {
         let owner = self.raw_owner()?;
         py.detach(|| owner.raw_release_final_charges()).map_err(error)
     }
-    /// Same opaque owner as the ordinary constructor. Compiler admission owns
-    /// policy, config/source custody and all collection; no Python storage flag.
+    /// Resource-free, close-ready pending compact owner. Python adopts this
+    /// exact object before _compact_start may acquire a directory or anchor.
+    /// Compiler admission owns policy/config/source; no Python storage authority.
     #[staticmethod]
     #[pyo3(signature=(*args,**kwargs))]
     fn _from_compact_source_request(
@@ -244,7 +251,7 @@ impl NativePublisher {
         let composition = pin(composition.cast_exact::<PyBytes>()?.as_bytes())?;
         let owner = py
             .detach(|| {
-                Publisher::from_compact_source_request(
+                Publisher::prepare_compact_source_request(
                     experiment,
                     config,
                     rows,
@@ -258,6 +265,11 @@ impl NativePublisher {
             owner: Some(owner),
             pid: std::process::id(),
         })
+    }
+    /// Private second phase: Python has adopted this exact pending owner.
+    fn _compact_start(&mut self, py: Python<'_>) -> PyResult<()> {
+        let owner = self.retained_compact()?.ok_or_else(|| error("no pending compact owner"))?;
+        py.detach(|| owner.compact_start()).map_err(error)
     }
     #[getter]
     fn _storage_kind(&self) -> PyResult<Option<&'static str>> {
@@ -287,6 +299,7 @@ impl NativePublisher {
     /// PyO3 self borrow keeps the actual native directory owner alive until the
     /// returned borrowed str has been converted to a Python string. No native
     /// path copy/cache or ambient temporary-directory lookup is involved.
+    /// Pending compact owners report the fixed parent, not live backing.
     #[getter]
     fn collection_disk_directory(&self) -> PyResult<&str> {
         let owner = self
@@ -386,6 +399,14 @@ impl NativePublisher {
         args: &Bound<'_, PyTuple>,
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<()> {
+        if let Some(owner) = self.retained_compact()? {
+            let [key, offset, data] = arguments(args, kwargs, ["key", "offset", "data"])?;
+            let key: &str = key.extract()?;
+            if key.len() > 512 { return Err(error("replicated key too long")); }
+            let offset = integer(&offset)?;
+            let data = bytes(&data, 16384)?;
+            return py.detach(|| owner.append(key, offset, data)).map_err(error);
+        }
         let mut owner = self.take()?;
         let [key, offset, data] = arguments(args, kwargs, ["key", "offset", "data"])?;
         let key: &str = key.extract()?;
@@ -406,6 +427,15 @@ impl NativePublisher {
         args: &Bound<'_, PyTuple>,
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Py<PyBytes>> {
+        if let Some(owner) = self.retained_compact()? {
+            let [ids] = arguments(args, kwargs, ["ids"])?;
+            let raw = bytes(&ids, 128)?;
+            if raw.len() % 4 != 0 { return Err(error("replicated IDs require u32 bytes")); }
+            let ids = Zeroizing::new(raw.chunks_exact(4)
+                .map(|v| u32::from_le_bytes(v.try_into().unwrap())).collect::<Vec<_>>());
+            let manifest = py.detach(|| { owner.seal(&ids)?; owner.manifest_checked() }).map_err(error)?;
+            return Ok(PyBytes::new(py, &manifest).unbind());
+        }
         let mut owner = self.take()?;
         let [ids] = arguments(args, kwargs, ["ids"])?;
         let raw = bytes(&ids, 128)?;
@@ -434,6 +464,12 @@ impl NativePublisher {
         args: &Bound<'_, PyTuple>,
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Option<SourceChunk>> {
+        if let Some(owner) = self.retained_compact()? {
+            arguments(args, kwargs, [])?;
+            return Ok(py.detach(|| owner.next_chunk()).map_err(error)?.map(|v| (
+                v.key, v.offset, v.shares.iter().map(|b| PyBytes::new(py, b).unbind()).collect(),
+            )));
+        }
         let mut owner = self.take()?;
         arguments(args, kwargs, [])?;
         let result = py.detach(|| owner.next_chunk()).map_err(error)?.map(|v| {
@@ -456,6 +492,12 @@ impl NativePublisher {
         args: &Bound<'_, PyTuple>,
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Vec<u32>> {
+        if let Some(owner) = self.retained_compact()? {
+            let [a, b, c] = arguments(args, kwargs, ["first", "second", "third"])?;
+            let frames = [bytes(&a, 145)?, bytes(&b, 145)?, bytes(&c, 145)?];
+            return py.detach(|| owner.compact_finish_numeric_outcome(frames)).map_err(error)?
+                .ok_or_else(|| NumericDomainRejected::new_err("replicated request failed protected range checks"));
+        }
         let owner = self.take()?;
         let [a, b, c] = arguments(args, kwargs, ["first", "second", "third"])?;
         let frames = [bytes(&a, 145)?, bytes(&b, 145)?, bytes(&c, 145)?];
@@ -471,6 +513,12 @@ impl NativePublisher {
         args: &Bound<'_, PyTuple>,
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<()> {
+        if let Some(owner) = self.retained_compact()? {
+            arguments(args, kwargs, [])?;
+            owner.compact_retire().map_err(error)?;
+            // Keep final native charges until Python releases the exact leases.
+            return Ok(());
+        }
         if self.owner.as_ref().is_some_and(Publisher::has_raw_host) {
             return Err(error("raw host requires explicit retained-owner cleanup"));
         }
