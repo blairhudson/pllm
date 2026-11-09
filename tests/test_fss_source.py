@@ -119,6 +119,37 @@ def test_describe_source_reuses_import_without_client_or_manifest(tmp_path, work
         assert not {"observe_peer_frames", "first_frame_refusal", "first_frame_selection"} & description.keys()
 
 
+@pytest.mark.skipif(not REAL_BRIDGE, reason="requires native FSS source bridge")
+def test_describe_source_native_request_override_preserves_saved_envelope(tmp_path):
+    write_checkpoint(tmp_path, vocabulary=3, all_f32=True)
+    exp = experiment(tmp_path, rows=15, outputs=1, online_schedule="tensor-v1")
+    saved = exp.canonical_bytes()
+    phases = []
+
+    description = source.describe_source(
+        exp, input_rows=14, outputs=1, lifecycle=phases.append,
+    )
+
+    assert exp.canonical_bytes() == saved
+    assert exp.budget.max_input_tokens == 15
+    assert exp.budget.max_new_tokens == 1
+    assert exp.pipeline.components["linear"].params["numeric_profile"] == GPT
+    assert type(description) is dict
+    assert description["schema"] == "pllm.fss.source_description.v1"
+    assert description["extent"] == "complete"
+    assert description["stop_error"] is None
+    assert description["stop_context"] is None
+    assert description["resources"]["private_material_cumulative_bytes"] > 0
+    assert description["resources"]["peak_native_bytes"] > 0
+    assert description["material_wire_bytes"] is None
+    assert "work_policy" not in description
+    assert "work_ceiling" not in description
+    assert "source_recheck" in phases
+    assert phases[-1] == "source_description"
+    assert "source_manifest" not in phases
+    assert "qualification_seal" not in phases
+
+
 @pytest.mark.parametrize("work_policy", ["default", "mixed-work-41", "", True, 40])
 def test_description_invalid_work_policy_precedes_cold_load(monkeypatch, work_policy):
     def forbidden_load(*args, **kwargs):
