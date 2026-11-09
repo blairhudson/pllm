@@ -77,6 +77,15 @@ def _corrected_prompt_abort(stopped, clients):
     return abort
 
 
+def _corrected_prompt_discover(client, experiment, source, check):
+    check()
+    listed, = client.models.list()["data"]
+    check()
+    assert listed["id"] == experiment.resolve().model
+    for attribute in ("checkpoint_digest", "source_lock_digest", "tokenizer_digest"):
+        assert listed["runtime"][attribute] == getattr(source, attribute)
+
+
 def _corrected_prompt_dispatch(client, adapter, deadline):
     """Refresh the supported core timeout at the actual adapter boundary."""
     if adapter == "sdk":
@@ -1507,6 +1516,65 @@ def test_corrected_prompt_extra_allowance_retires_after_protected_work(
                       "owners-retired-still-charged", "allowance-retired"]
 
 
+@pytest.mark.parametrize("case", [
+    "success", "listing_error", "checkpoint_digest", "source_lock_digest",
+    "tokenizer_digest", "model_id",
+])
+def test_corrected_prompt_discovery_contract(case):
+    """Check discovery ordering, identity gates and context unwind only."""
+    events = []
+    source = SimpleNamespace(checkpoint_digest="checkpoint", source_lock_digest="source-lock",
+                             tokenizer_digest="tokenizer")
+    experiment = SimpleNamespace(resolve=lambda: SimpleNamespace(model=MODEL))
+    listed = {"id": MODEL, "runtime": {
+        attribute: getattr(source, attribute)
+        for attribute in ("checkpoint_digest", "source_lock_digest", "tokenizer_digest")
+    }}
+    if case == "model_id":
+        listed["id"] = "wrong-model"
+    elif case in listed["runtime"]:
+        listed["runtime"][case] = "wrong-digest"
+    listing_error = RuntimeError("discovery listing failed")
+
+    class Models:
+        def list(self):
+            events.append("list")
+            if case == "listing_error":
+                raise listing_error
+            return {"data": [listed]}
+
+    class Client:
+        models = Models()
+
+        def __enter__(self):
+            events.append("enter")
+            return self
+
+        def __exit__(self, *exc):
+            events.append("close")
+
+    def check():
+        events.append("check")
+
+    def discover_then_dispatch():
+        with Client() as client:
+            _corrected_prompt_discover(client, experiment, source, check)
+            events.append("dispatch_sentinel")
+
+    if case == "success":
+        discover_then_dispatch()
+        assert events == ["enter", "check", "list", "check", "dispatch_sentinel", "close"]
+    elif case == "listing_error":
+        with pytest.raises(RuntimeError) as caught:
+            discover_then_dispatch()
+        assert caught.value is listing_error
+        assert events == ["enter", "check", "list", "close"]
+    else:
+        with pytest.raises(AssertionError):
+            discover_then_dispatch()
+        assert events == ["enter", "check", "list", "check", "close"]
+
+
 def _independent_pinned_qwen_prompt(source, prompt):
     """Render pinned source template independently; never call prepared helpers."""
     from jinja2 import StrictUndefined
@@ -1676,7 +1744,7 @@ def _pinned_qwen_corrected_prompt_adapter(tmp_path, monkeypatch, record_property
                 topology = client._owned_topology
                 clients.append(client)
                 client._core._result_hook = capture
-                check()
+                _corrected_prompt_discover(client, experiment, source, check)
                 # Ordinary one-use preparation remains runtime authority. Oracle
                 # IDs never enter request, prepared payload or transport inputs.
                 response, value = _corrected_prompt_dispatch(client, adapter, deadline)
