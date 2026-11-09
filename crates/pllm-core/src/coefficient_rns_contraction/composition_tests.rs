@@ -512,6 +512,238 @@ fn public_or_small(n: usize) -> Fixture {
     }
 }
 
+// UNADOPTED public arithmetic specimen from the closure plan, section 16.1.
+// Synthetic rows confer no backend, profile, ciphertext, or security claim.
+struct DirectFixture {
+    fixture: Fixture,
+}
+
+impl DirectFixture {
+    fn specimen8192() -> Self {
+        let n = 8192;
+        let moduli = [
+            1152921504606830593, 1152921504606748673,
+            1152921504606683137, 34359410689,
+        ];
+        let roots = [527760526715669589, 609248293264176271,
+            353405849166470586, 23200669761];
+        let targets = core::array::from_fn(|i| {
+            assert_eq!(specimen8192_power(roots[i], n as u64, moduli[i]), moduli[i] - 1);
+            assert_eq!(specimen8192_power(roots[i], 2 * n as u64, moduli[i]), 1);
+            let ring = CoefficientRing::bounded(n, moduli[i], DegreeBound::Public8192).unwrap();
+            NegacyclicNtt::new(ring, roots[i]).unwrap()
+        });
+        let sources = core::array::from_fn(|i| targets[i].clone());
+        Self { fixture: Fixture { sources, targets, roots } }
+    }
+}
+
+fn specimen8192_canonical(value: BigInt, q: u64) -> u64 {
+    let modulus = BigInt::from(q);
+    let canonical = ((value % &modulus) + &modulus) % &modulus;
+    assert!(canonical >= BigInt::from(0) && canonical < modulus);
+    let (_, words) = canonical.to_u64_digits();
+    assert!(words.len() <= 1, "canonical BigInt must fit u64");
+    words.first().copied().unwrap_or(0)
+}
+
+fn specimen8192_power(a: u64, exponent: u64, q: u64) -> u64 {
+    specimen8192_canonical(
+        BigInt::from(a).modpow(&BigInt::from(exponent), &BigInt::from(q)), q)
+}
+
+// Natural-order ordinate k evaluates at psi^(2k+1): the NTT owner twists,
+// bit-reverses, then runs ascending butterfly stages. A degree-j term starts
+// at a*psi^j and advances by psi^(2j); degree zero adds a constant, no walk.
+fn specimen8192_sparse_walk(
+    output: &mut [u64], constant: u64, amplitude: u64,
+    initial: &BigInt, step: &BigInt, q: u64,
+) {
+    assert!(constant < q && amplitude < q);
+    let modulus = BigInt::from(q);
+    let mut term = (BigInt::from(amplitude) * initial) % &modulus;
+    for value in output {
+        *value = specimen8192_canonical(&term + BigInt::from(constant), q);
+        term = (term * step) % &modulus;
+    }
+}
+
+fn specimen8192_amplitudes(p: u64) -> [[BigInt; 2]; 3] {
+    let h = BigInt::from((p - 1) / 2);
+    let twice = BigInt::from(2) * BigInt::from(p);
+    let thrice = BigInt::from(3) * BigInt::from(p);
+    [[h.clone(), h + BigInt::from(1)],
+        [twice.clone(), twice], [thrice.clone(), thrice]]
+}
+
+fn specimen8192_spectra(fixture: &Fixture) -> (Vec<u64>, Vec<u64>) {
+    let n = 8192;
+    let p = fixture.targets[3].ring().modulus();
+    let amplitudes = specimen8192_amplitudes(p);
+    let mut source = sentinels(3 * n + 5);
+    let mut rows = sentinels(24 * n + 5);
+    // Cache degree-one powers/steps once per target, not per row/ordinate.
+    let degree_one: [(BigInt, BigInt); 4] = core::array::from_fn(|limb| {
+        let q = fixture.targets[limb].ring().modulus();
+        (BigInt::from(specimen8192_power(fixture.roots[limb], 1, q)),
+            BigInt::from(specimen8192_power(fixture.roots[limb], 2, q)))
+    });
+    for i in 0..3 {
+        let q = fixture.sources[i].ring().modulus();
+        let initial = BigInt::from(specimen8192_power(fixture.roots[i], (n - 1) as u64, q));
+        let step = BigInt::from(specimen8192_power(fixture.roots[i], (2 * n - 2) as u64, q));
+        // Canonical UNSIGNED d_i = 1 + (q_i-1) X^(N-1), never -X^(N-1).
+        specimen8192_sparse_walk(&mut source[i * n..(i + 1) * n],
+            1, q - 1, &initial, &step, q);
+        for component in 0..2 {
+            for limb in 0..4 {
+                let q = fixture.targets[limb].ring().modulus();
+                let start = ((i * 2 + component) * 4 + limb) * n;
+                let amplitude = specimen8192_canonical(amplitudes[i][component].clone(), q);
+                specimen8192_sparse_walk(&mut rows[start..start + n], 0, amplitude,
+                    &degree_one[limb].0, &degree_one[limb].1, q);
+            }
+        }
+    }
+    // 27N recurrence steps; 22 initial BigInt powers including eight root
+    // checks (23 including the refusal's psi^3). No dense BigInt array,
+    // per-ordinate powers, root search, or independent primality rerun.
+    (source, rows)
+}
+
+#[test]
+fn composition_specimen8192_sparse_signed_oracle_all_components() {
+    let direct = DirectFixture::specimen8192();
+    let fixture = &direct.fixture;
+    let n = 8192;
+    assert_storage(fixture);
+    let p = fixture.targets[3].ring().modulus();
+    let amplitudes = specimen8192_amplitudes(p);
+    // Independent sparse integer product in Z[X]/(X^N+1): only W[0],W[1].
+    // Build every product as BigInt BEFORE multiplying, including q_i-1.
+    let whole: [[BigInt; 2]; 2] = core::array::from_fn(|component| {
+        let mut constant = BigInt::from(0);
+        let mut linear = BigInt::from(0);
+        for i in 0..3 {
+            constant -= BigInt::from(fixture.sources[i].ring().modulus() - 1)
+                * &amplitudes[i][component];
+            linear += &amplitudes[i][component];
+        }
+        assert!(constant < BigInt::from(0));
+        [constant, linear]
+    });
+    let mut expected = vec![0; 6 * n];
+    for component in 0..2 {
+        // Cross-check canonical per-limb sparse convolution against W mod q;
+        // these residues are NOT the production rounded-output expectation.
+        for limb in 0..4 {
+            let q = fixture.targets[limb].ring().modulus();
+            let mut convolution = [BigInt::from(0), BigInt::from(0)];
+            for i in 0..3 {
+                let digit = specimen8192_canonical(
+                    BigInt::from(fixture.sources[i].ring().modulus() - 1), q);
+                let row = specimen8192_canonical(amplitudes[i][component].clone(), q);
+                convolution[0] -= BigInt::from(digit) * BigInt::from(row);
+                convolution[1] += BigInt::from(row);
+            }
+            for at in 0..2 {
+                assert_eq!(specimen8192_canonical(convolution[at].clone(), q),
+                    specimen8192_canonical(whole[component][at].clone(), q));
+            }
+        }
+        for at in 0..2 {
+            let v = specimen8192_canonical(whole[component][at].clone(), p);
+            if at == 1 { assert_eq!(v, (p - 1) / 2 + component as u64); }
+            let r = if v <= (p - 1) / 2 { BigInt::from(v) }
+                else { BigInt::from(v) - BigInt::from(p) };
+            let numerator = &whole[component][at] - r;
+            assert_eq!(&numerator % BigInt::from(p), BigInt::from(0));
+            let quotient = numerator / BigInt::from(p);
+            for limb in 0..3 {
+                let q = fixture.targets[limb].ring().modulus();
+                expected[(component * 3 + limb) * n + at] =
+                    specimen8192_canonical(quotient.clone(), q);
+            }
+        }
+        for limb in 0..3 {
+            assert_eq!(expected[(component * 3 + limb) * n + 1], 5 + component as u64);
+        }
+    }
+    let (source, rows) = specimen8192_spectra(fixture);
+    let source_before = source.clone();
+    let rows_before = rows.clone();
+    let mut backing = sentinels(3 + 6 * n + 5 + 19 * n + 7 + 4);
+    let before = backing.clone();
+    {
+        let (_, rest) = backing.split_at_mut(3);
+        let (output_backing, rest) = rest.split_at_mut(6 * n + 5);
+        let (output, _) = output_backing.split_at_mut(6 * n);
+        let (scratch, _) = rest.split_at_mut(19 * n + 7);
+        let ceiling = expected_work(n);
+        assert_eq!(fixture.plan().work(Evaluation::Contract).unwrap(), ceiling.contraction);
+        assert_eq!(fixture.plan().composition_extra_work().unwrap(), ceiling.extra);
+        // One full composition: 15 contraction + 8 extra inverse NTTs = 23.
+        fixture.plan().contract_drop_into(
+            SourceSpectra { contexts: &fixture.sources, values: &source[..3 * n] },
+            RowSpectra { contexts: &fixture.targets, values: &rows[..24 * n] },
+            output, scratch, ceiling,
+        ).unwrap();
+        assert_eq!(output, expected.as_slice()); // All 6N words, both components.
+        for component in 0..2 {
+            for limb in 0..3 {
+                let q = fixture.targets[limb].ring().modulus();
+                let values = &output[(component * 3 + limb) * n..(component * 3 + limb + 1) * n];
+                assert!(values.iter().all(|&value| value < q));
+                assert_eq!(values[1], 5 + component as u64);
+            }
+        }
+    }
+    assert_eq!(source, source_before);
+    assert_eq!(rows, rows_before);
+    assert_eq!(&backing[..3], &before[..3]);
+    assert_eq!(&backing[3 + 6 * n..3 + 6 * n + 5],
+        &before[3 + 6 * n..3 + 6 * n + 5]);
+    assert_eq!(&backing[3 + 6 * n + 5 + 19 * n..],
+        &before[3 + 6 * n + 5 + 19 * n..]);
+    // Explicit inventory: source/row backings + snapshots 54N+20, expected
+    // 6N, output/scratch backing + snapshot 50N+38 = 110N+58 u64 words.
+    // Seven fixed-size NTT descriptors plus bounded BigInt temporaries/caches;
+    // comfortably <256N words, NOT a measured physical-peak claim.
+}
+
+#[test]
+fn composition_specimen8192_preflight_identity_and_final_limb_atomicity() {
+    let direct = DirectFixture::specimen8192();
+    let fixture = &direct.fixture;
+    let n = 8192;
+    assert_storage(fixture);
+    let (source, mut rows) = specimen8192_spectra(fixture);
+    let source = &source[..3 * n];
+    let rows = &mut rows[..24 * n];
+    let ceiling = expected_work(n);
+    let mut buffers = RefusalBuffers::new(n);
+    let p = fixture.targets[3].ring().modulus();
+    let mut contexts = fixture.targets.clone();
+    contexts[3] = NegacyclicNtt::new(fixture.targets[3].ring(),
+        specimen8192_power(fixture.roots[3], 3, p)).unwrap();
+    buffers.refuse(fixture, &fixture.sources, &contexts, source, rows,
+        6 * n, 19 * n + 7, ceiling, CompositionError::Contraction(Error::ContextMismatch));
+    contexts = fixture.targets.clone();
+    contexts.swap(0, 3);
+    buffers.refuse(fixture, &fixture.sources, &contexts, source, rows,
+        6 * n, 19 * n + 7, ceiling, CompositionError::Contraction(Error::ContextMismatch));
+    for bad in [p, u64::MAX] {
+        rows[24 * n - 1] = bad;
+        buffers.refuse(fixture, &fixture.sources, &fixture.targets, source, rows,
+            6 * n, 19 * n + 7, ceiling, CompositionError::Contraction(Error::NonCanonical));
+    }
+    // RefusalBuffers compares ENTIRE output/scratch allocation and immutable
+    // input backings, including guard gaps and unpassed tails. No panic claim.
+    // Inventory including helper snapshots: original inputs 27N+10, copied
+    // inputs + snapshots 54N+24, mutable backing + snapshot 50N+68 = 131N+102
+    // u64 words; eleven fixed descriptors and bounded BigInts still <256N.
+}
+
 #[test]
 fn composition_isolated_lengths_small_and_public_entire_reused_buffers_unchanged() {
     for n in [4, 8192] {

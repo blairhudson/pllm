@@ -1,4 +1,215 @@
 use super::*;
+use num_bigint::BigUint;
+
+// Sampled CLEAR arithmetic coverage only: not adopted Bumblebee parameters,
+// four-limb KEY/279-bit Down, backend/security/funding or peak qualification.
+const GENERIC_60BIT_LIMBS: [u64; 3] = [
+    1152921504606830593,
+    1152921504606748673,
+    1152921504606683137,
+];
+
+fn generic_60bit_permutations() -> [[u64; 3]; 6] {
+    let [a, b, c] = GENERIC_60BIT_LIMBS;
+    [
+        [a, b, c],
+        [a, c, b],
+        [b, a, c],
+        [b, c, a],
+        [c, a, b],
+        [c, b, a],
+    ]
+}
+
+fn generic_60bit_modulus() -> BigUint {
+    GENERIC_60BIT_LIMBS
+        .into_iter()
+        .fold(BigUint::from(1_u64), |q, p| q * BigUint::from(p))
+}
+
+fn biguint_to_wide(x: &BigUint) -> Wide {
+    let digits = x.to_u64_digits();
+    assert!(digits.len() <= 4, "integer exceeds Wide capacity");
+    let mut words = [0; 4];
+    words[..digits.len()].copy_from_slice(&digits);
+    Wide(words)
+}
+
+fn wide_to_biguint(x: Wide) -> BigUint {
+    x.0.into_iter().rev().fold(BigUint::from(0_u64), |n, word| {
+        (n << 64_usize) + BigUint::from(word)
+    })
+}
+
+fn biguint_to_u64(x: &BigUint) -> u64 {
+    assert!(x < &(BigUint::from(1_u64) << 64_usize));
+    let digits = x.to_u64_digits();
+    assert!(digits.len() <= 1, "integer exceeds u64 capacity");
+    digits.first().copied().unwrap_or(0)
+}
+
+#[test]
+fn generic_60bit_crt_and_full_u_match_biguint() {
+    let one = BigUint::from(1_u64);
+    let q = generic_60bit_modulus();
+    let t = &one << 64_usize;
+    let h = (&q - &one) / BigUint::from(2_u64);
+    let mut values = vec![
+        BigUint::from(0_u64),
+        one.clone(),
+        h,
+        &q - BigUint::from(2_u64),
+        &q - &one,
+    ];
+    for p in GENERIC_60BIT_LIMBS {
+        let p = BigUint::from(p);
+        values.push(&p - &one);
+        values.push(&p + &one);
+    }
+    for (i, p) in GENERIC_60BIT_LIMBS.into_iter().enumerate() {
+        for other in GENERIC_60BIT_LIMBS.into_iter().skip(i + 1) {
+            let product = BigUint::from(p) * BigUint::from(other);
+            values.push(&product - &one);
+            values.push(&product + &one);
+        }
+    }
+    for primes in generic_60bit_permutations() {
+        let r = Rns3::new(primes).unwrap();
+        assert_eq!(r.primes(), primes);
+        assert_eq!(wide_to_biguint(r.modulus()), q);
+        let partials = primes.map(|p| &q / BigUint::from(p));
+        let inverses: [BigUint; 3] = std::array::from_fn(|i| {
+            let p = BigUint::from(primes[i]);
+            let residue = &partials[i] % &p;
+            let inverse = residue.modinv(&p).unwrap();
+            assert_eq!((&residue * &inverse) % &p, one);
+            inverse
+        });
+        for x in &values {
+            assert!(x < &q);
+            let residues = primes.map(|p| {
+                let residue = x % BigUint::from(p);
+                assert!(residue < BigUint::from(p));
+                biguint_to_u64(&residue)
+            });
+            assert_eq!(wide_to_biguint(r.reconstruct(residues).unwrap()), *x);
+        }
+        for residues in [
+            [0, 1, primes[2] - 1],
+            [primes[0] - 1, 0, 1],
+            [1, primes[1] - 1, 0],
+            [primes[0] / 2, primes[1] / 3, primes[2] / 5],
+        ] {
+            let mut sum = BigUint::from(0_u64);
+            for i in 0..3 {
+                assert!(residues[i] < primes[i]);
+                sum += BigUint::from(residues[i]) * &partials[i] * &inverses[i];
+            }
+            let expected = sum % &q;
+            assert!(expected < q);
+            assert_eq!(wide_to_biguint(r.reconstruct(residues).unwrap()), expected);
+        }
+        for m in [0, 1, u64::MAX] {
+            let qm = &q * BigUint::from(m);
+            let actual = wide_to_biguint(r.encode(m).unwrap());
+            assert!(actual < q);
+            assert_eq!(actual, &qm / &t);
+            let scaled_actual = &t * &actual;
+            assert!(scaled_actual <= qm);
+            let residual = &qm - scaled_actual;
+            assert!(residual < t);
+        }
+    }
+}
+
+#[test]
+fn generic_60bit_down_thresholds_match_biguint() {
+    let one = BigUint::from(1_u64);
+    let q = generic_60bit_modulus();
+    let t = &one << 64_usize;
+    let h = (&q - &one) / BigUint::from(2_u64);
+    assert_eq!(&q % BigUint::from(2_u64), one);
+    // Odd Q precludes exact half ties; T_k is the first integer crossing.
+    assert_eq!(q.bits(), 180);
+    let normalization_shift = usize::try_from(192 - q.bits()).unwrap();
+    assert_eq!(normalization_shift, 12);
+    let maximum_numerator = &t * (&q - &one) + &h;
+    assert_eq!(maximum_numerator.bits(), 244);
+    assert_eq!((&maximum_numerator << normalization_shift).bits(), 256);
+
+    let mut values = vec![BigUint::from(0_u64), one.clone(), &q - &one];
+    let mut crossings = Vec::new();
+    for k in [
+        one.clone(),
+        BigUint::from(2_u64),
+        &t / BigUint::from(2_u64),
+        &t - &one,
+        t.clone(),
+    ] {
+        let kq = &k * &q;
+        assert!(kq >= h);
+        let threshold = (&kq - &h + &t - &one) / &t;
+        let below = &threshold - &one;
+        assert!(&t * &below + &h < kq);
+        assert!(&t * &threshold + &h >= kq);
+        if k == t {
+            // Q-1 takes the early wrap. Keep T_t-1 to exercise normalized
+            // division with a full 256-bit shifted numerator instead.
+            let numerator = &t * &below + &h;
+            assert!(numerator < &t * &q);
+            assert_eq!(numerator.bits(), 244);
+            assert_eq!((&numerator << normalization_shift).bits(), 256);
+        }
+        for (x, expected) in [
+            (below, (&k - &one) % &t),
+            (threshold.clone(), &k % &t),
+            (&threshold + &one, &k % &t),
+        ] {
+            assert!(x < q);
+            values.push(x.clone());
+            crossings.push((x, expected));
+        }
+    }
+    for primes in generic_60bit_permutations() {
+        let r = Rns3::new(primes).unwrap();
+        for x in &values {
+            assert!(x < &q);
+            let expected = ((&t * x + &h) / &q) % &t;
+            assert_eq!(
+                r.down(biguint_to_wide(x)).unwrap(),
+                biguint_to_u64(&expected)
+            );
+        }
+        for (x, expected) in &crossings {
+            assert_eq!(((&t * x + &h) / &q) % &t, *expected);
+            assert_eq!(
+                r.down(biguint_to_wide(x)).unwrap(),
+                biguint_to_u64(expected)
+            );
+        }
+    }
+}
+
+#[test]
+fn generic_60bit_noncanonical_inputs_are_rejected() {
+    let q = generic_60bit_modulus();
+    for primes in generic_60bit_permutations() {
+        let r = Rns3::new(primes).unwrap();
+        for i in 0..3 {
+            for invalid in [primes[i], u64::MAX] {
+                let mut residues = [0; 3];
+                residues[i] = invalid;
+                assert_eq!(r.reconstruct(residues), Err(Error::NonCanonical));
+            }
+        }
+        for invalid in [q.clone(), &q + BigUint::from(1_u64)] {
+            assert!(invalid >= q);
+            let wide = biguint_to_wide(&invalid);
+            assert_eq!(wide_to_biguint(wide), invalid);
+            assert_eq!(r.down(wide), Err(Error::NonCanonical));
+        }
+    }
+}
 
 fn fixture(length: usize, salt: u64) -> Vec<u64> {
     (0..length)
