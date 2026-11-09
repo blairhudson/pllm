@@ -18,6 +18,8 @@ import httpx
 import psutil
 import pytest
 from fastapi.testclient import TestClient
+# Capture standard cache before per-test XDG isolation, matching conformance.
+from huggingface_hub.constants import HF_HUB_CACHE
 
 from pllm import OpenAI
 from pllm.metrics import BenchmarkCase, BenchmarkRun, BenchmarkSuite, BenchmarkTarget, Sampling, Scenario, benchmark_suite
@@ -792,6 +794,58 @@ def test_corrected_prompt_suite_builder_is_inert(monkeypatch, supplied_budget):
     assert sampling["timeout_seconds"] == 450
 
 
+@pytest.mark.parametrize("case", ["snapshot_missing", "snapshot_present"])
+def test_corrected_prompt_suite_cache_routing(tmp_path, monkeypatch, record_property, case):
+    """Check cache lookup and environment routing; stop before source admission."""
+    from pllm.metrics import benchmark_runner
+    import test_gkm_checkpoint_conformance as conformance
+
+    cache = tmp_path / "synthetic-hub"
+    cache.mkdir()
+    snapshot = cache / "models--Qwen--Qwen2.5-0.5B-Instruct" / "snapshots" / conformance.PIN
+    if case == "snapshot_present":
+        snapshot.mkdir(parents=True)
+    monkeypatch.setattr(sys.modules[__name__], "HF_HUB_CACHE", str(cache))
+    isolated_xdg = os.environ["XDG_CACHE_HOME"]
+    assert isolated_xdg == str(tmp_path / "cache-home")
+    admissions, benchmarks = [], []
+    admission_stop = RuntimeError("stop before corrected suite source admission")
+
+    def admission(experiment, actual_snapshot, **kwargs):
+        keys = ("HF_HUB_CACHE", "HF_HUB_OFFLINE", "XDG_CACHE_HOME")
+        environment = {key: os.environ.get(key) for key in keys}
+        admissions.append((actual_snapshot, environment))
+        forwarded = benchmark_runner._environment()
+        assert {key: forwarded.get(key) for key in keys} == environment
+        raise admission_stop
+
+    def forbidden_benchmark(*args, **kwargs):
+        benchmarks.append("benchmark")
+        pytest.fail("cache routing control must not execute benchmark")
+
+    monkeypatch.setattr(conformance, "_corrected_prompt_memory_admission", admission)
+    monkeypatch.setattr(benchmark_runner, "_execute", forbidden_benchmark)
+    monkeypatch.setattr(sys.modules[__name__], "benchmark_suite", forbidden_benchmark)
+    if case == "snapshot_missing":
+        with pytest.raises(pytest.skip.Exception) as caught:
+            test_pinned_qwen_corrected_prompt_suite_persists_independent_audit(
+                tmp_path, monkeypatch, record_property)
+        assert str(caught.value) == (
+            f"missing pinned offline checkpoint cache: {snapshot}; no download/fallback")
+        assert admissions == []
+    else:
+        with pytest.raises(RuntimeError) as caught:
+            test_pinned_qwen_corrected_prompt_suite_persists_independent_audit(
+                tmp_path, monkeypatch, record_property)
+        assert caught.value is admission_stop
+        assert admissions == [(snapshot, {
+            "HF_HUB_CACHE": str(cache), "HF_HUB_OFFLINE": "1",
+            "XDG_CACHE_HOME": isolated_xdg,
+        })]
+    assert benchmarks == []
+    assert os.environ["XDG_CACHE_HOME"] == isolated_xdg
+
+
 @pytest.mark.slow
 @pytest.mark.skipif(os.getenv("PLLM_RUN_GKM_CORRECTED_PROMPT") != "1",
                     reason="opt-in pinned offline GKM corrected Hello suite persistence")
@@ -800,7 +854,6 @@ def test_pinned_qwen_corrected_prompt_suite_persists_independent_audit(
     from test_gkm_checkpoint_conformance import _CorrectedPromptDeadline
 
     deadline = _CorrectedPromptDeadline()
-    from huggingface_hub.constants import HF_HUB_CACHE
     from pllm import Deployment
     from pllm.metrics import benchmark_runner
     from pllm.runtime import benchmark_memory as memory, delegated_source
