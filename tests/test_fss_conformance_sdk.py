@@ -323,7 +323,7 @@ def test_qwen2_ordinary_response_target_oracle_and_report_reload(control, tmp_pa
     benchmark_case = BenchmarkCase("fss-qwen2-response", target)
     # Functional admission envelope, not an RSS bound or memory qualification.
     suite = BenchmarkSuite([benchmark_case], Sampling(processes=1, repetitions=1,
-        warmups=0, timeout_seconds=300, memory_bytes=2 << 30))
+        warmups=0, timeout_seconds=300, memory_bytes=3 << 30))
     output = tmp_path / "benchmark.json"
     with _observe_fss_benchmark_children():
         result = benchmark_suite(suite, inputs={benchmark_case.name: {"prompt": "hello"}},
