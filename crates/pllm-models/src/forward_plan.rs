@@ -712,6 +712,67 @@ mod tests {
 
     #[test]
     fn nsp_mapping_bounds_all_names_and_separates_source_plan_identity() {
+        // Independent source spellings, not the quote helper or production
+        // descriptor table, determine the expected rendered names below.
+        let layer_paths = [
+            ("query", "attention.self.query"), ("key", "attention.self.key"),
+            ("value", "attention.self.value"), ("attention_output", "attention.output.dense"),
+            ("attention_norm", "attention.output.LayerNorm"),
+            ("intermediate", "intermediate.dense"), ("output", "output.dense"),
+            ("output_norm", "output.LayerNorm"),
+        ];
+        for (mut fixture, classifier, prefix, head) in [
+            (source(false), false, "", None),
+            (source(true), true, "bert.", Some("classifier")),
+            (nsp_source(), true, "bert.", Some("cls.seq_relationship")),
+        ] {
+            fixture["num_hidden_layers"] = json!(1);
+            let (mapping, _) = crate::source_mappings::forward_geometry(&fixture,5).unwrap();
+            let small = lower_forward_model_value(&fixture,5).unwrap();
+            let requirements = forward_checkpoint_requirements(&small).unwrap();
+            let mut globals = Vec::new();
+            for (role, path, biased) in [
+                ("tokens", "embeddings.word_embeddings", false),
+                ("positions", "embeddings.position_embeddings", false),
+                ("segments", "embeddings.token_type_embeddings", false),
+                ("embedding_norm", "embeddings.LayerNorm", true),
+                ("pooler", "pooler.dense", true),
+                ("classifier", head.unwrap_or("classifier"), true),
+            ] {
+                if role == "classifier" && head.is_none() { continue; }
+                for bias in [false, true] {
+                    if bias && !biased { continue; }
+                    let suffix = if bias { "bias" } else { "weight" };
+                    let root = if role == "classifier" { "" } else { prefix };
+                    let name = format!("{root}{path}.{suffix}");
+                    assert_eq!(mapping.artifact(classifier,None,role,bias).unwrap(),name);
+                    globals.push(name);
+                }
+            }
+            for index in [0u64, 9, 10, 99, 100, u64::MAX] {
+                let mut rendered = globals.clone();
+                for (role, path) in layer_paths {
+                    for bias in [false, true] {
+                        let suffix = if bias { "bias" } else { "weight" };
+                        let name = format!("{prefix}encoder.layer.{index}.{path}.{suffix}");
+                        assert_eq!(mapping.artifact(classifier,Some(index),role,bias).unwrap(),name);
+                        rendered.push(name);
+                    }
+                }
+                let quoted = mapping.maximum_artifact_bytes(classifier,index.to_string().len()).unwrap();
+                for name in &rendered { assert!(name.len() <= quoted, "{name}"); }
+                assert_eq!(quoted,rendered.iter().map(String::len).max().unwrap());
+                if index == 0 {
+                    rendered.sort();
+                    let actual: Vec<_> = requirements.iter().map(|r| r.name.clone()).collect();
+                    assert_eq!(actual,rendered); // Every emitted global/head/layer requirement.
+                    for requirement in &requirements {
+                        assert!(requirement.name.len() <= quoted, "{}", requirement.name);
+                    }
+                }
+            }
+            assert!(mapping.maximum_artifact_bytes(classifier,usize::MAX).is_err());
+        }
         let document = nsp_source();
         let (registry, _) = crate::source_mappings::forward_geometry(&document,5).unwrap();
         let p = lower_forward_model_value(&document,5).unwrap();

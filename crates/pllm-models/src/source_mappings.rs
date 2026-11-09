@@ -72,15 +72,17 @@ const ENCODER_LAYERS: &[(&str, &str)] = &[
 impl EncoderSource {
     pub(super) fn maximum_artifact_bytes(&self, classifier: bool, layer_digits: usize) -> Result<usize, ModelError> {
         let prefix = self.prefixes[usize::from(classifier)].len();
+        let suffix = "weight".len().max("bias".len());
+        let length = |parts: &[usize]| parts.iter().try_fold(0usize, |n, part|
+            n.checked_add(*part).ok_or_else(|| crate::forward_plan::invalid("artifact name length overflow")));
         let globals = self.globals.iter().try_fold(0usize, |maximum, (role,path)| {
-            (if *role == "classifier" { 0usize } else { prefix }).checked_add(path.len())
-                .and_then(|n| n.checked_add(".weight".len())).map(|n| maximum.max(n))
-                .ok_or_else(|| crate::forward_plan::invalid("artifact name length overflow"))
+            length(&[if *role == "classifier" { 0 } else { prefix }, path.len(), ".".len(), suffix])
+                .map(|n| maximum.max(n))
         })?;
-        let layer = self.layers.iter().map(|(_,path)| path.len()).max().unwrap_or(0);
-        prefix.checked_add(self.layer_prefix.len()).and_then(|n| n.checked_add(layer_digits))
-            .and_then(|n| n.checked_add(layer)).and_then(|n| n.checked_add("..weight".len()))
-            .map(|n| n.max(globals)).ok_or_else(|| crate::forward_plan::invalid("artifact name length overflow"))
+        self.layers.iter().try_fold(globals, |maximum, (_,path)| {
+            length(&[prefix, self.layer_prefix.len(), ".".len(), layer_digits,
+                ".".len(), path.len(), ".".len(), suffix]).map(|n| maximum.max(n))
+        })
     }
     pub(super) fn artifact(&self, classifier: bool, layer: Option<u64>, role: &str, bias: bool)
         -> Result<String, ModelError> {
