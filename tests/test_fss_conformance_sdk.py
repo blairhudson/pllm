@@ -18,6 +18,7 @@ from pathlib import Path
 import struct
 import threading
 import time
+from types import SimpleNamespace
 
 import httpx
 import psutil
@@ -209,16 +210,24 @@ def _observe_fss_benchmark_children():
         return None
 
     def observe():
+        operation = "observer"
         try:
-            while not stop.is_set():
+            while True:
+                operation = "observer.is_set"
+                if stop.is_set():
+                    break
+                operation = "observer.clock"
                 if time.monotonic() >= deadline:
                     errors.append("observer_deadline")
                     return
+                operation = "parent.children"
                 for child in parent.children(recursive=True):
                     try:
+                        operation = "discovery.create_time"
                         identity = (child.pid, child.create_time())
                         if identity in existing:
                             continue
+                        operation = "discovery.cmdline"
                         command = child.cmdline()
                         if module_args(command, "pllm._benchmark_worker") is not None:
                             if "-I" not in command:
@@ -229,24 +238,28 @@ def _observe_fss_benchmark_children():
                         continue
                 for worker in tuple(workers.values()):
                     try:
+                        operation = "worker.children"
                         children = worker.children(recursive=True)
                     except psutil.NoSuchProcess:
                         continue
                     for child in children:
                         try:
+                            operation = "role.cmdline"
                             args = module_args(child.cmdline(), "pllm.runtime.fss_worker")
                             if args is None:
                                 continue
                             if len(args) < 2 or args[0] != "--role" or args[1] not in ROLES:
                                 errors.append("unexpected_fss_role_command")
                                 return
+                            operation = "role.create_time"
                             identity = (child.pid, child.create_time())
                             roles[identity] = (args[1], child)
                         except psutil.NoSuchProcess:
                             continue
+                operation = "observer.wait"
                 stop.wait(0.02)
         except Exception as error:
-            errors.append(type(error).__name__)
+            errors.append(f"{operation}:{type(error).__name__[:48]}")
 
     observer = threading.Thread(target=observe, daemon=True)
     observer.start()
@@ -294,6 +307,164 @@ def _observe_fss_benchmark_children():
             raise AssertionError(diagnostic)
 
 
+@pytest.fixture
+def observer_doubles(monkeypatch):
+    """Run the existing observer synchronously against a bounded fake tree."""
+    denied, vanished = psutil.AccessDenied, psutil.NoSuchProcess
+    state = SimpleNamespace(operation=None, fail_iteration=1, iteration=0, phase="discovery",
+        baseline=True, events=[], calls=[], waited=None, cleanup_failure=False,
+        secret="sensitive observer exception message", cleanup_secret="sensitive cleanup message",
+        clocks=0, checks=0, waits=0, thread=None)
+
+    def call(operation, process):
+        state.calls.append((state.iteration, operation, process))
+        if operation == state.operation and state.iteration == state.fail_iteration:
+            raise denied(pid=process.pid, msg=state.secret)
+
+    class Process:
+        def __init__(self, pid, command):
+            self.pid, self.command = pid, command
+
+        def create_time(self):
+            call(f"{state.phase}.create_time", self)
+            return float(self.pid)
+
+        def cmdline(self):
+            call(f"{state.phase}.cmdline", self)
+            return list(self.command)
+
+        def children(self, *, recursive):
+            assert recursive is True
+            if self is state.parent:
+                if state.baseline:
+                    state.baseline = False
+                    state.calls.append((0, "baseline.children", self))
+                    return []
+                state.iteration += 1
+                assert state.iteration <= 2, "unexpected observer iteration"
+                state.phase = "discovery"
+                call("parent.children", self)
+                return [state.worker, *state.roles]
+            assert self is state.worker
+            state.phase = "role"
+            call("worker.children", self)
+            return list(state.roles)
+
+    state.parent = Process(100, [])
+    state.worker = Process(101, ["python", "-I", "-m", "pllm._benchmark_worker"])
+    state.roles = [Process(102 + index,
+        ["python", "-m", "pllm.runtime.fss_worker", "--role", role])
+        for index, role in enumerate(ROLES)]
+    assert len(state.roles) == 3
+
+    class Event:
+        def __init__(self):
+            self.stopped = False
+
+        def is_set(self):
+            state.checks += 1
+            assert state.checks <= 2, "observer did not reach injected failure"
+            return self.stopped
+
+        def wait(self, seconds):
+            assert seconds == 0.02
+            state.waits += 1
+            assert state.waits <= 1, "observer did not reach injected failure"
+            return self.stopped
+
+        def set(self):
+            self.stopped = True
+            state.events.append("stop.set")
+
+    class Thread:
+        def __init__(self, *, target, daemon):
+            assert daemon is True
+            self.target, self.alive = target, False
+            state.thread = self
+
+        def start(self):
+            state.events.append("thread.start")
+            self.alive = True
+            try:
+                self.target()
+            finally:
+                self.alive = False
+                state.events.append("thread.done")
+
+        def join(self, *, timeout):
+            assert not self.alive
+            state.events.append(("join", timeout))
+
+        def is_alive(self):
+            state.events.append("thread.is_alive")
+            return self.alive
+
+    def clock():
+        state.clocks += 1
+        assert state.clocks <= 3, "unexpected observer clock call"
+        return float(state.clocks)
+
+    def wait_procs(processes, *, timeout):
+        state.waited = list(processes)
+        state.events.append(("wait", timeout))
+        if state.cleanup_failure:
+            raise denied(msg=state.cleanup_secret)
+        return list(processes), []
+
+    monkeypatch.setitem(globals(), "psutil", SimpleNamespace(Process=lambda: state.parent,
+        AccessDenied=denied, NoSuchProcess=vanished, wait_procs=wait_procs))
+    monkeypatch.setitem(globals(), "threading", SimpleNamespace(Event=Event, Thread=Thread))
+    monkeypatch.setitem(globals(), "time", SimpleNamespace(monotonic=clock))
+    return state
+
+
+@pytest.mark.parametrize("operation", ["parent.children", "discovery.create_time", "discovery.cmdline",
+    "worker.children", "role.cmdline", "role.create_time"])
+def test_fss_benchmark_observer_labels_access_denied(observer_doubles, operation):
+    state = observer_doubles
+    state.operation = operation
+    with pytest.raises(AssertionError) as caught:
+        with _observe_fss_benchmark_children():
+            pass
+    diagnostic = str(caught.value)
+    assert f"{operation}:AccessDenied" in diagnostic
+    assert state.secret not in diagnostic
+    assert "survivor_count=0" in diagnostic and "thread_alive=False" in diagnostic
+    assert state.waited == ([] if operation in (
+        "parent.children", "discovery.create_time", "discovery.cmdline") else [state.worker])
+    assert state.events == ["thread.start", "thread.done", "stop.set",
+        ("join", 2), "thread.is_alive", ("wait", 10)]
+    assert state.thread.alive is False
+    assert state.iteration == state.checks == 1 and state.waits == 0
+    assert state.calls[0] == (0, "baseline.children", state.parent)
+    assert state.calls[-1][1] == operation
+
+
+def test_fss_benchmark_observer_preserves_primary_failure(observer_doubles):
+    state = observer_doubles
+    state.operation, state.fail_iteration = "parent.children", 2
+    state.cleanup_failure = True
+    primary = RuntimeError("primary context failure")
+    with pytest.raises(RuntimeError) as caught:
+        with _observe_fss_benchmark_children():
+            raise primary
+    assert caught.value is primary
+    note, = primary.__notes__
+    assert "parent.children:AccessDenied" in note
+    assert "cleanup_errors=[('wait', 'AccessDenied')]" in note
+    assert state.secret not in note and state.cleanup_secret not in note
+    assert "workers=1" in note and "thread_alive=False" in note
+    assert all(f"'{role}': 1" in note for role in ROLES)
+    assert state.waited == [state.worker, *state.roles]
+    assert state.events == ["thread.start", "thread.done", "stop.set",
+        ("join", 2), "thread.is_alive", ("wait", 10)]
+    assert state.thread.alive is False
+    assert state.iteration == state.checks == 2 and state.waits == 1
+    assert [process for iteration, operation, process in state.calls
+        if iteration == 1 and operation == "role.create_time"] == state.roles
+    assert state.calls[-1] == (2, "parent.children", state.parent)
+
+
 @pytest.mark.slow
 @pytest.mark.integration
 @pytest.mark.rust
@@ -338,6 +509,7 @@ def test_qwen2_ordinary_response_target_oracle_and_report_reload(control, tmp_pa
                 "status": value["status"],
                 "failure_code": execution.get("failure_code"),
                 "admission": execution.get("admission"),
+                "controller_memory_watchdog": details.get("controller_memory_watchdog"),
                 "topology_admitted": topology.get("admitted"),
                 "native": {
                     key: native.get(key)
