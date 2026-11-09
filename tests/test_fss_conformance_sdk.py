@@ -329,7 +329,26 @@ def test_qwen2_ordinary_response_target_oracle_and_report_reload(control, tmp_pa
         result = benchmark_suite(suite, inputs={benchmark_case.name: {"prompt": "hello"}},
                                  output=output)
         value, = [row.to_dict() for row in result.results]
-        assert value["status"] == "completed", value
+        if value["status"] != "completed":
+            execution = value.get("execution") or {}
+            details = execution.get("details") or {}
+            topology = details.get("topology_admission") or {}
+            native = (topology.get("candidates") or {}).get("native") or {}
+            diagnostic = {
+                "status": value["status"],
+                "failure_code": execution.get("failure_code"),
+                "admission": execution.get("admission"),
+                "topology_admitted": topology.get("admitted"),
+                "native": {
+                    key: native.get(key)
+                    for key in (
+                        "admitted", "reasons", "required_host_bytes",
+                        "required_disk_bytes",
+                    )
+                },
+            }
+            raise AssertionError(json.dumps(diagnostic, sort_keys=True))
+        assert value["status"] == "completed"
         execution = value["execution"]
         assert execution["case"] == benchmark_case.to_spec()
         assert execution["isolation"]["fresh_process"] is True
