@@ -49,6 +49,13 @@ def _cancelled(cancelled):
         raise FssSourceError("FuseFSS source import cancelled")
 
 
+def _request_envelope(experiment, rows, outputs):
+    if (type(rows) is not int or type(outputs) is not int
+            or not 1 <= rows <= experiment.budget.max_input_tokens
+            or not 1 <= outputs <= experiment.budget.max_new_tokens):
+        raise FssSourceError("FuseFSS request exceeds saved envelope")
+
+
 def _notify_failure(observer):
     if observer is not None:
         try:
@@ -380,10 +387,7 @@ class FrozenFssSource:
         encoded, _, _, _ = _experiment(experiment)
         if encoded != self.experiment_bytes:
             raise FssSourceError("FuseFSS requires exact admitted Experiment")
-        if (type(rows) is not int or type(outputs) is not int
-                or not 1 <= rows <= experiment.budget.max_input_tokens
-                or not 1 <= outputs <= experiment.budget.max_new_tokens):
-            raise FssSourceError("FuseFSS request exceeds saved envelope")
+        _request_envelope(experiment, rows, outputs)
         if io._canonical(_document(self.config_source_bytes, "original config", 16384)) != self.config_bytes:
             raise FssSourceError("FuseFSS canonical config differs from original snapshot")
         _unchanged(self.path, self.contract["source_float32_bytes"], self._identities, self.capacity)
@@ -531,13 +535,15 @@ def load_role_source(experiment, *, expected_pins, input_rows=None, outputs=None
 
 
 def describe_source(experiment, *, cancelled=None, lifecycle=None, on_failure=None, work_policy=None,
-                    observe_peer_frames=False):
+                    observe_peer_frames=False, input_rows=None, outputs=None):
     """Import/recheck actual source and describe tensor-v1 without a Client.
 
     Returns scalars only, before any manifest or executable capsule is created.
     Complete means the walk finished despite any material refusal, not admission
     or trained fit. Partial counters can reflect different intra-kernel progress.
     This performs real source I/O and compilation; it is not a geometry estimate.
+    Optional request geometry stays within the unchanged saved Experiment envelope;
+    an omitted dimension inherits its budget, without granting serving admission.
     mixed-work-40 is a finite description-only mixed-work ceiling, not funding
     or an execution limit change. Default serialization remains unchanged.
     observe_peer_frames records the first predicted cumulative peer-frame refusal
@@ -547,6 +553,11 @@ def describe_source(experiment, *, cancelled=None, lifecycle=None, on_failure=No
         raise FssSourceError("FuseFSS unsupported source-description work policy")
     if type(observe_peer_frames) is not bool:
         raise FssSourceError("FuseFSS observe_peer_frames requires bool")
+    if input_rows is not None or outputs is not None:
+        return _load_source(experiment, expected_pins=None, input_rows=input_rows, outputs=outputs,
+                            cancelled=cancelled, lifecycle=lifecycle, on_failure=on_failure,
+                            describe_only=True, work_policy=work_policy,
+                            observe_peer_frames=observe_peer_frames)
     return _load_source(experiment, expected_pins=None, cancelled=cancelled,
                         lifecycle=lifecycle, on_failure=on_failure, describe_only=True,
                         work_policy=work_policy, observe_peer_frames=observe_peer_frames)
@@ -584,6 +595,7 @@ def _load_source(experiment, *, expected_pins, input_rows=None, outputs=None, ca
             if describe_only and expected_pins is None:
                 expected_pins = source.snapshot_pins
             _check_pins(source, expected_pins)
+        check_envelope = describe_only and (input_rows is not None or outputs is not None)
         rows = experiment.budget.max_input_tokens if input_rows is None else input_rows
         outputs = experiment.budget.max_new_tokens if outputs is None else outputs
         # Scalar refusal only: no source/config/native work is needed to know
@@ -592,6 +604,8 @@ def _load_source(experiment, *, expected_pins, input_rows=None, outputs=None, ca
         if (type(rows) is not int or type(outputs) is not int or not 1 <= outputs <= 4
                 or not 1 <= rows <= rows + outputs - 1 <= 16):
             raise FssSourceError("FuseFSS invalid request geometry")
+        if check_envelope:
+            _request_envelope(experiment, rows, outputs)
         if source is None:
             source = resolve_client_source(
                 experiment, expected_pins=expected_pins, lifecycle=lifecycle, on_failure=notify_failure_once)

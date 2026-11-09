@@ -137,6 +137,264 @@ def test_description_invalid_frame_observer_precedes_cold_load(monkeypatch, obse
         source.describe_source(object(), observe_peer_frames=observe_peer_frames)
 
 
+class _DescriptionInt(int):
+    pass
+
+
+@pytest.fixture
+def description_boundary(tmp_path, monkeypatch):
+    """Pure loader-boundary spies; no source acquisition or native fixture."""
+    def install(*, rows=3, outputs=3, online_schedule="tensor-v1"):
+        exp = experiment(tmp_path, rows=rows, outputs=outputs, online_schedule=online_schedule)
+        events = []
+
+        def validate(actual):
+            assert actual is exp
+            events.append("experiment")
+            return b"admitted", None, GPT, "capsule"
+
+        def no_acquisition(*args, **kwargs):
+            events.append("acquisition")
+            pytest.fail("geometry refusal must precede resolver/store/builder acquisition")
+
+        monkeypatch.setattr(source, "_experiment", validate)
+        monkeypatch.setattr(source, "resolve_client_source", no_acquisition)
+        monkeypatch.setattr(source, "_store", no_acquisition)
+        monkeypatch.setattr(_native, "FssSourceBuilder", no_acquisition, raising=False)
+        return exp, events
+    return install
+
+
+@pytest.mark.parametrize("geometry", [{}, {"input_rows": None, "outputs": None}])
+def test_description_default_geometry_preserves_exact_loader_kwargs(monkeypatch, geometry):
+    exp, result = object(), object()
+    cancelled, lifecycle, on_failure = object(), object(), object()
+    calls = []
+
+    def load(actual, **kwargs):
+        assert actual is exp
+        calls.append(kwargs)
+        return result
+
+    monkeypatch.setattr(source, "_load_source", load)
+    assert source.describe_source(exp, cancelled=cancelled, lifecycle=lifecycle,
+                                  on_failure=on_failure, **geometry) is result
+    assert calls == [{"expected_pins": None, "cancelled": cancelled, "lifecycle": lifecycle,
+                      "on_failure": on_failure, "describe_only": True,
+                      "work_policy": None, "observe_peer_frames": False}]
+
+
+@pytest.mark.parametrize("geometry", [
+    {"input_rows": 14, "outputs": 1}, {"input_rows": 15, "outputs": 1},
+    {"input_rows": 14}, {"outputs": 1},
+    {"input_rows": 14, "outputs": None}, {"input_rows": None, "outputs": 1},
+])
+def test_description_override_forwards_options_unchanged(monkeypatch, geometry):
+    exp, result = object(), object()
+    cancelled, lifecycle, on_failure = object(), object(), object()
+    calls = []
+
+    def load(actual, **kwargs):
+        assert actual is exp
+        calls.append(kwargs)
+        return result
+
+    monkeypatch.setattr(source, "_load_source", load)
+    assert source.describe_source(exp, cancelled=cancelled, lifecycle=lifecycle,
+        on_failure=on_failure, work_policy="mixed-work-40", observe_peer_frames=True,
+        **geometry) is result
+    assert calls == [{"expected_pins": None, "input_rows": geometry.get("input_rows"),
+        "outputs": geometry.get("outputs"), "cancelled": cancelled, "lifecycle": lifecycle,
+        "on_failure": on_failure, "describe_only": True, "work_policy": "mixed-work-40",
+        "observe_peer_frames": True}]
+
+
+@pytest.mark.parametrize("budget_outputs,geometry,expected", [
+    (1, {"input_rows": 14, "outputs": 1}, (14, 1)),
+    (1, {"input_rows": 15, "outputs": 1}, (15, 1)),
+    (2, {"input_rows": 14}, (14, 2)),
+    (2, {"input_rows": 14, "outputs": None}, (14, 2)),
+    (2, {"outputs": 1}, (15, 1)),
+    (2, {"input_rows": None, "outputs": 1}, (15, 1)),
+])
+def test_description_override_inherits_budget_at_loader_boundary(
+        monkeypatch, description_boundary, budget_outputs, geometry, expected):
+    exp, events = description_boundary(rows=15, outputs=budget_outputs)
+    budget = exp.budget
+    envelope = source._request_envelope
+
+    def check(actual, rows, outputs):
+        assert actual is exp
+        assert (rows, outputs) == expected
+        events.append("envelope")
+        return envelope(actual, rows, outputs)
+
+    def resolve(actual, **kwargs):
+        assert actual is exp and actual.budget is budget
+        assert (budget.max_input_tokens, budget.max_new_tokens) == (15, budget_outputs)
+        assert kwargs["expected_pins"] is None
+        assert kwargs["lifecycle"] is None
+        events.append("resolver")
+        raise source.FssSourceError("test resolver boundary")
+
+    monkeypatch.setattr(source, "_request_envelope", check)
+    monkeypatch.setattr(source, "resolve_client_source", resolve)
+    with pytest.raises(source.FssSourceError, match="^test resolver boundary$"):
+        source.describe_source(exp, **geometry)
+    assert events == ["experiment", "envelope", "resolver"]
+
+
+@pytest.mark.parametrize("dimension", ["input_rows", "outputs"])
+@pytest.mark.parametrize("value", [True, False, _DescriptionInt(1), 1.0, "1", 0, -1])
+def test_description_invalid_override_precedes_acquisition(
+        monkeypatch, description_boundary, dimension, value):
+    exp, events = description_boundary()
+    monkeypatch.setattr(source, "_request_envelope", forbidden)
+    phases, failures = [], []
+    with pytest.raises(source.FssSourceError, match="^FuseFSS invalid request geometry$"):
+        source.describe_source(exp, **{dimension: value}, lifecycle=phases.append,
+                               on_failure=lambda: failures.append("failure"))
+    assert events == ["experiment"]
+    assert phases == ["qualification_metadata"]
+    assert failures == ["failure"]
+
+
+@pytest.mark.parametrize("geometry", [
+    {"input_rows": 4}, {"outputs": 4}, {"input_rows": 4, "outputs": 4},
+])
+def test_description_saved_envelope_precedes_acquisition(description_boundary, geometry):
+    exp, events = description_boundary()
+    phases, failures = [], []
+    with pytest.raises(source.FssSourceError, match="^FuseFSS request exceeds saved envelope$"):
+        source.describe_source(exp, **geometry, lifecycle=phases.append,
+                               on_failure=lambda: failures.append("failure"))
+    assert events == ["experiment"]
+    assert phases == ["qualification_metadata"]
+    assert failures == ["failure"]
+
+
+@pytest.mark.parametrize("geometry", [
+    {"input_rows": 17, "outputs": 1}, {"input_rows": 16, "outputs": 2},
+    {"input_rows": 1, "outputs": 5},
+])
+def test_description_scalar_overflow_precedes_envelope_and_acquisition(
+        monkeypatch, description_boundary, geometry):
+    exp, events = description_boundary()
+    monkeypatch.setattr(source, "_request_envelope", forbidden)
+    with pytest.raises(source.FssSourceError, match="^FuseFSS invalid request geometry$"):
+        source.describe_source(exp, **geometry)
+    assert events == ["experiment"]
+
+
+@pytest.mark.parametrize("geometry", [{}, {"input_rows": None, "outputs": None}])
+def test_description_default_skips_early_envelope(monkeypatch, description_boundary, geometry):
+    exp, events = description_boundary()
+    monkeypatch.setattr(source, "_request_envelope", forbidden)
+
+    def resolve(*args, **kwargs):
+        events.append("resolver")
+        raise source.FssSourceError("test resolver boundary")
+
+    monkeypatch.setattr(source, "resolve_client_source", resolve)
+    with pytest.raises(source.FssSourceError, match="^test resolver boundary$"):
+        source.describe_source(exp, **geometry)
+    assert events == ["experiment", "resolver"]
+
+
+@pytest.mark.parametrize("stage,message,expected_events,expected_phases,expected_failures", [
+    ("work_policy", "unsupported source-description work policy", [], [], []),
+    ("peer_frames", "observe_peer_frames requires bool", [], [], []),
+    ("lifecycle", "test lifecycle failure", [], ["qualification_metadata"], ["failure"]),
+    ("cancelled", "source import cancelled", [], ["qualification_metadata"], ["failure"]),
+    ("experiment", "test Experiment failure", ["experiment"], ["qualification_metadata"], ["failure"]),
+    ("schedule", "description requires tensor-v1", ["experiment"], ["qualification_metadata"], ["failure"]),
+])
+def test_description_override_preserves_error_precedence(
+        monkeypatch, description_boundary, stage, message, expected_events, expected_phases,
+        expected_failures):
+    exp, events = description_boundary(online_schedule="serial" if stage == "schedule" else "tensor-v1")
+    phases, failures = [], []
+
+    def lifecycle(phase):
+        phases.append(phase)
+        if stage == "lifecycle":
+            raise source.FssSourceError("test lifecycle failure")
+
+    def validate(actual):
+        assert actual is exp
+        events.append("experiment")
+        raise source.FssSourceError("test Experiment failure")
+
+    if stage == "experiment":
+        monkeypatch.setattr(source, "_experiment", validate)
+    monkeypatch.setattr(source, "_request_envelope", forbidden)
+    with pytest.raises(source.FssSourceError, match=f"^FuseFSS {message}$" if stage in {
+            "work_policy", "peer_frames", "cancelled", "schedule"} else f"^{message}$"):
+        source.describe_source(exp, input_rows=0, outputs=0, lifecycle=lifecycle,
+            cancelled=lambda: stage == "cancelled", on_failure=lambda: failures.append("failure"),
+            work_policy="unknown" if stage == "work_policy" else None,
+            observe_peer_frames=None if stage in {"work_policy", "peer_frames"} else False)
+    assert events == expected_events
+    assert phases == expected_phases
+    assert failures == expected_failures
+
+
+@pytest.fixture
+def inert_frozen_source():
+    """Inert metadata object for runtime gate order; never touches source files."""
+    return source.FrozenFssSource(None, Path("unused"), b"admitted", b"{}", b"{}", b"{}",
+                                  "a" * 64, "b" * 64, "c" * 64, b"", b"{}", b"{}", (), ())
+
+
+def test_runtime_contract_identity_precedes_shared_envelope(
+        monkeypatch, description_boundary, inert_frozen_source):
+    exp, events = description_boundary()
+    monkeypatch.setattr(source, "_experiment", lambda actual: (b"different", None, GPT, "capsule"))
+    monkeypatch.setattr(source, "_request_envelope", forbidden)
+    monkeypatch.setattr(source, "_document", forbidden)
+    with pytest.raises(source.FssSourceError, match="^FuseFSS requires exact admitted Experiment$"):
+        inert_frozen_source.runtime_contract(exp, 0, 0)
+    assert events == []
+
+
+@pytest.mark.parametrize("rows,outputs", [
+    (True, 1), (1, False), (_DescriptionInt(1), 1), (1, _DescriptionInt(1)),
+    (1.0, 1), (1, 1.0), ("1", 1), (1, "1"),
+    (0, 1), (1, 0), (-1, 1), (1, -1), (4, 1), (1, 4),
+])
+def test_runtime_contract_shared_envelope_precedes_source_integrity(
+        monkeypatch, description_boundary, inert_frozen_source, rows, outputs):
+    exp, events = description_boundary()
+    monkeypatch.setattr(source, "_document", forbidden)
+    monkeypatch.setattr(source, "_unchanged", forbidden)
+    monkeypatch.setattr(source, "_contract", forbidden)
+    with pytest.raises(source.FssSourceError, match="^FuseFSS request exceeds saved envelope$"):
+        inert_frozen_source.runtime_contract(exp, rows, outputs)
+    assert events == ["experiment"]
+
+
+def test_runtime_contract_shared_envelope_then_source_integrity(
+        monkeypatch, description_boundary, inert_frozen_source):
+    exp, events = description_boundary()
+    envelope = source._request_envelope
+
+    def check(actual, rows, outputs):
+        events.append("envelope")
+        return envelope(actual, rows, outputs)
+
+    def document(*args, **kwargs):
+        events.append("source_integrity")
+        raise source.FssSourceError("test integrity boundary")
+
+    monkeypatch.setattr(source, "_request_envelope", check)
+    monkeypatch.setattr(source, "_document", document)
+    monkeypatch.setattr(source, "_unchanged", forbidden)
+    monkeypatch.setattr(source, "_contract", forbidden)
+    with pytest.raises(source.FssSourceError, match="^test integrity boundary$"):
+        inert_frozen_source.runtime_contract(exp, 2, 2)
+    assert events == ["experiment", "envelope", "source_integrity"]
+
+
 def inventory(config, profile):
     """Independent source-storage fixture: complete one-block GPT-2/Qwen3 shapes."""
     h, v = config.get("n_embd", config.get("hidden_size")), config["vocab_size"]
