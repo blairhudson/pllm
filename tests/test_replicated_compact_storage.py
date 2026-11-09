@@ -4,6 +4,7 @@ from contextlib import contextmanager
 import gc
 import inspect
 import json
+from pathlib import Path
 import sys
 import threading
 from types import SimpleNamespace
@@ -977,7 +978,7 @@ def test_raw_bridge_early_drain_defers_entire_preparation_without_cleanup(raw_br
             assert len(raw_bridge.disk._owners) == 1
             lease = next(iter(raw_bridge.disk._owners.values()))
             assert type(lease) is resources.DiskLease and not lease.closed
-            observed = raw_bridge.disk.observe(raw_bridge.directory, 1)
+            observed = raw_bridge.disk.observe(Path(raw_bridge.directory), 1)
             assert observed.pending_disk_bytes == 4096 and observed.backed_disk_bytes == 0
     finally:
         resume.set()
@@ -1075,7 +1076,7 @@ def test_raw_bridge_baseexception_during_cm_entry_stays_sticky(raw_bridge, monke
     if acquired:
         lease = next(iter(raw_bridge.disk._owners.values()))
         assert type(lease) is resources.DiskLease and not lease.closed
-        assert raw_bridge.disk.observe(raw_bridge.directory, 1).pending_disk_bytes == 4096
+        assert raw_bridge.disk.observe(Path(raw_bridge.directory), 1).pending_disk_bytes == 4096
 
 
 def test_raw_bridge_exit_raises_after_real_exit_never_retries_or_releases(raw_bridge, monkeypatch):
@@ -1109,7 +1110,7 @@ def test_raw_bridge_exit_raises_after_real_exit_never_retries_or_releases(raw_br
     assert cm.exits == 1 and not raw_bridge.disk._owners
     assert raw_bridge.events.count("retire") == raw_bridge.events.count("lease_exit") == 1
     assert "release" not in raw_bridge.events
-    observed = raw_bridge.disk.observe(raw_bridge.directory, 1)
+    observed = raw_bridge.disk.observe(Path(raw_bridge.directory), 1)
     assert observed.reserved_disk_bytes == observed.pending_disk_bytes == 0
 
 
