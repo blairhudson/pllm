@@ -1,4 +1,4 @@
-//! Bounded party-local bindings; parse failures retire the complete owner.
+//! Bounded party-local bindings; retained compact parse failures cancel in place.
 use pllm_compiler::replicated_decoder::sdk::{SourceRequestImport, SourceRequestProgram};
 use pllm_compiler::replicated_decoder::{
     ExecutionPolicy, LookupPolicy, Manifest, PeerTransport, Program, PublicSource,
@@ -20,6 +20,18 @@ pyo3::create_exception!(
 
 fn error(message: impl ToString) -> PyErr {
     crate::invalid(message.to_string())
+}
+// Conversion failures burn logical use, not the borrowed owner's custody or
+// charges. Operational failures remain the compiler's responsibility. PyO3 self
+// borrowing and Python call construction fail outside this body-level guard.
+fn compact_conversion<T>(owner: &mut Publisher, result: PyResult<T>) -> PyResult<T> {
+    match result {
+        Ok(value) => Ok(value),
+        Err(primary) => {
+            owner.cancel();
+            Err(primary)
+        }
+    }
 }
 fn arguments<'py, const N: usize>(
     args: &Bound<'py, PyTuple>,
@@ -267,8 +279,15 @@ impl NativePublisher {
         })
     }
     /// Private second phase: Python has adopted this exact pending owner.
-    fn _compact_start(&mut self, py: Python<'_>) -> PyResult<()> {
+    #[pyo3(signature=(*args,**kwargs))]
+    fn _compact_start(
+        &mut self,
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<()> {
         let owner = self.retained_compact()?.ok_or_else(|| error("no pending compact owner"))?;
+        compact_conversion(owner, arguments(args, kwargs, []))?;
         py.detach(|| owner.compact_start()).map_err(error)
     }
     #[getter]
@@ -400,11 +419,11 @@ impl NativePublisher {
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<()> {
         if let Some(owner) = self.retained_compact()? {
-            let [key, offset, data] = arguments(args, kwargs, ["key", "offset", "data"])?;
-            let key: &str = key.extract()?;
-            if key.len() > 512 { return Err(error("replicated key too long")); }
-            let offset = integer(&offset)?;
-            let data = bytes(&data, 16384)?;
+            let [key, offset, data] = compact_conversion(owner, arguments(args, kwargs, ["key", "offset", "data"]))?;
+            let key: &str = compact_conversion(owner, key.extract())?;
+            compact_conversion(owner, if key.len() > 512 { Err(error("replicated key too long")) } else { Ok(()) })?;
+            let offset = compact_conversion(owner, integer(&offset))?;
+            let data = compact_conversion(owner, bytes(&data, 16384))?;
             return py.detach(|| owner.append(key, offset, data)).map_err(error);
         }
         let mut owner = self.take()?;
@@ -428,9 +447,9 @@ impl NativePublisher {
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Py<PyBytes>> {
         if let Some(owner) = self.retained_compact()? {
-            let [ids] = arguments(args, kwargs, ["ids"])?;
-            let raw = bytes(&ids, 128)?;
-            if raw.len() % 4 != 0 { return Err(error("replicated IDs require u32 bytes")); }
+            let [ids] = compact_conversion(owner, arguments(args, kwargs, ["ids"]))?;
+            let raw = compact_conversion(owner, bytes(&ids, 128))?;
+            compact_conversion(owner, if raw.len() % 4 != 0 { Err(error("replicated IDs require u32 bytes")) } else { Ok(()) })?;
             let ids = Zeroizing::new(raw.chunks_exact(4)
                 .map(|v| u32::from_le_bytes(v.try_into().unwrap())).collect::<Vec<_>>());
             let manifest = py.detach(|| { owner.seal(&ids)?; owner.manifest_checked() }).map_err(error)?;
@@ -465,7 +484,7 @@ impl NativePublisher {
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Option<SourceChunk>> {
         if let Some(owner) = self.retained_compact()? {
-            arguments(args, kwargs, [])?;
+            compact_conversion(owner, arguments(args, kwargs, []))?;
             return Ok(py.detach(|| owner.next_chunk()).map_err(error)?.map(|v| (
                 v.key, v.offset, v.shares.iter().map(|b| PyBytes::new(py, b).unbind()).collect(),
             )));
@@ -493,8 +512,12 @@ impl NativePublisher {
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Vec<u32>> {
         if let Some(owner) = self.retained_compact()? {
-            let [a, b, c] = arguments(args, kwargs, ["first", "second", "third"])?;
-            let frames = [bytes(&a, 145)?, bytes(&b, 145)?, bytes(&c, 145)?];
+            let [a, b, c] = compact_conversion(owner, arguments(args, kwargs, ["first", "second", "third"]))?;
+            let frames = [
+                compact_conversion(owner, bytes(&a, 145))?,
+                compact_conversion(owner, bytes(&b, 145))?,
+                compact_conversion(owner, bytes(&c, 145))?,
+            ];
             return py.detach(|| owner.compact_finish_numeric_outcome(frames)).map_err(error)?
                 .ok_or_else(|| NumericDomainRejected::new_err("replicated request failed protected range checks"));
         }
@@ -514,7 +537,7 @@ impl NativePublisher {
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<()> {
         if let Some(owner) = self.retained_compact()? {
-            arguments(args, kwargs, [])?;
+            compact_conversion(owner, arguments(args, kwargs, []))?;
             owner.compact_retire().map_err(error)?;
             // Keep final native charges until Python releases the exact leases.
             return Ok(());

@@ -90,6 +90,68 @@ fn pending_compact_cancel_is_terminal_until_explicit_retirement() {
     assert_eq!(budget.budget().used_bytes(), observer_only_bytes());
 }
 #[test]
+fn started_compact_cancel_preserves_exact_owner_payload_directory_and_charges_until_retirement() {
+    let mut publisher = pending_fixture();
+    let budget = counter(&publisher);
+    let (key, shape) = publisher.shapes().first().unwrap().clone();
+    let (_, _, values) = crate::replicated_decoder::tests::fixture_sources("qwen2", false);
+    let bytes = values[&key].iter()
+        .flat_map(|value| (*value as f32 / ONE as f32).to_le_bytes())
+        .collect::<Vec<_>>();
+    assert_eq!(bytes.len(), shape.iter().product::<usize>() * 4);
+    assert!(!bytes.is_empty() && bytes.len() <= CHUNK * 4);
+    publisher.compact_start().unwrap();
+    let path = publisher.collection_disk_directory().unwrap().to_path_buf();
+    assert!(path.is_dir());
+    let identity = |p: &Publisher| {
+        let compact = p.compact.as_deref().unwrap();
+        let custody = compact.custody.as_ref().unwrap();
+        let Stage::Collecting(owner) = &compact.stage else { panic!("lost collecting stage") };
+        assert!(std::ptr::eq(budget.budget(), owner.payload().unwrap().root.budget()));
+        (
+            compact as *const _ as usize,
+            custody as *const _ as usize,
+            owner as *const _ as usize,
+            owner.payload().unwrap() as *const _ as usize,
+            Arc::as_ptr(&custody.directory) as usize,
+            &owner.payload().unwrap().root as *const _ as usize,
+        )
+    };
+    let original = identity(&publisher);
+    let charged = budget.budget().used_bytes();
+    let disk = publisher.collection_disk_bytes();
+    publisher.cancel();
+    assert_eq!(identity(&publisher), original);
+    assert_eq!(budget.budget().used_bytes(), charged);
+    assert!(publisher.has_retained_compact());
+    assert!(!publisher.retired);
+    assert!(matches!(publisher.compact.as_ref().unwrap().custody.as_ref().unwrap().state,
+        CompactDirectoryState::Failed));
+    assert_eq!(publisher.compact_start().unwrap_err(), "compact acquisition already attempted");
+    assert_eq!(publisher.append(&key, 0, &bytes).unwrap_err(), "compact acquisition not ready");
+    assert_eq!(publisher.seal(&[0, 1, 1, 2]).unwrap_err(), "compact acquisition not ready");
+    assert_eq!(publisher.next_chunk().err().unwrap(), "compact acquisition not ready");
+    // finish_outcome checks readiness before decoding even well-typed frames.
+    assert_eq!(publisher.compact_finish_numeric_outcome([&[0; 145]; 3]).unwrap_err(),
+        "compact acquisition not ready");
+    assert_eq!(identity(&publisher), original);
+    assert_eq!(budget.budget().used_bytes(), charged);
+    assert_eq!(publisher.collection_disk_bytes(), disk);
+    assert!(publisher.collection_disk_directory().is_err());
+    assert!(path.is_dir());
+    assert_eq!(publisher.compact.as_ref().unwrap().custody.as_ref().unwrap()
+        .directory.pending_state_for_tests(), (true, true, false, false));
+    publisher.compact_retire().unwrap();
+    assert!(!path.exists());
+    assert!(matches!(publisher.compact.as_ref().unwrap().stage, Stage::Retired));
+    assert!(budget.budget().used_bytes() < charged);
+    let retired = budget.budget().used_bytes();
+    publisher.compact_retire().unwrap();
+    assert_eq!(budget.budget().used_bytes(), retired);
+    drop(publisher);
+    assert_eq!(budget.budget().used_bytes(), observer_only_bytes());
+}
+#[test]
 fn pending_compact_premature_append_is_terminal_until_explicit_retirement() {
     let mut publisher = pending_fixture();
     let key = publisher.shapes().first().unwrap().0.clone();
