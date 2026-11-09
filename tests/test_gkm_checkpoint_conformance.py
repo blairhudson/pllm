@@ -37,7 +37,7 @@ PIN = "7ae557604adf67be50417f59c2c2f167def9a775"
 MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
 PROMPT = "Hello world"
 OUTPUTS = 2
-CORRECTED_MEMORY_CAP = 9 * memory.GiB
+CORRECTED_MEMORY_CAP = 10 * memory.GiB
 
 
 class _CorrectedPromptDeadline:
@@ -1222,7 +1222,8 @@ def _corrected_prompt_memory_admission(experiment, snapshot, *, audit_bytes=0, c
 
 @pytest.mark.parametrize("audit_bytes", [0, 32 << 20])
 @pytest.mark.parametrize("cap_delta", [-1, 0, 1])
-def test_corrected_prompt_combined_cap_margin(monkeypatch, audit_bytes, cap_delta):
+@pytest.mark.parametrize("headroom_limited", [False, True])
+def test_corrected_prompt_combined_cap_margin(monkeypatch, audit_bytes, cap_delta, headroom_limited):
     from pllm.deployment import resources
     from pllm.runtime import delegated_source, tokenizer_admission
     from pllm.runtime.safetensors_store import SafeTensorStore
@@ -1244,7 +1245,9 @@ def test_corrected_prompt_combined_cap_margin(monkeypatch, audit_bytes, cap_delt
     assert oracle_charge == 640 * memory.MiB
     assert audit_charge == (40 * memory.MiB if audit_bytes else 0)
     assert memory._slack(1) == 2 and memory._slack(0) == 0
-    base_total = CORRECTED_MEMORY_CAP + cap_delta - oracle_charge - audit_charge
+    assert CORRECTED_MEMORY_CAP == 10 * memory.GiB
+    effective_admission_budget = CORRECTED_MEMORY_CAP - (memory.GiB if headroom_limited else 0)
+    base_total = effective_admission_budget + cap_delta - oracle_charge - audit_charge
     providers = {"worker_a": memory.GiB, "worker_b": memory.GiB}
     quoted = {"allocation_slack_percent": 25, "kernel": "cpu", "runtime_kind": "gkm",
               "limitations": [], "client_peak_bytes": base_total - sum(providers.values()),
@@ -1254,7 +1257,8 @@ def test_corrected_prompt_combined_cap_margin(monkeypatch, audit_bytes, cap_delt
                              "source_float32_bytes": 123456},
               "verification_allocation": {"native_allowance_per_role_bytes": 7654321}}
     untouched = copy.deepcopy(quoted)
-    host = memory.HostMemory(total=64 * memory.GiB, available=48 * memory.GiB,
+    host = memory.HostMemory(total=64 * memory.GiB,
+                             available=(17 if headroom_limited else 48) * memory.GiB,
                              swap_used=0, disk_free=100 * memory.GiB)
     events, reports, values = [], [], []
 
@@ -1284,7 +1288,7 @@ def test_corrected_prompt_combined_cap_margin(monkeypatch, audit_bytes, cap_delt
 
     def admit(estimate, sampled_host, **kwargs):
         assert sampled_host is host
-        assert kwargs == {"backend": "native", "memory_budget_bytes": CORRECTED_MEMORY_CAP}
+        assert kwargs == {"backend": "native", "memory_budget_bytes": 10 * memory.GiB}
         result = original_admit(estimate, sampled_host, **kwargs)
         reports.append(result)
         return result
@@ -1319,9 +1323,9 @@ def test_corrected_prompt_combined_cap_margin(monkeypatch, audit_bytes, cap_delt
     report, = reports
     estimate = report["estimate"]
     assert report["admitted"] is (cap_delta <= 0)
-    assert report["host"]["admission_budget_bytes"] == CORRECTED_MEMORY_CAP
-    assert host.available - host.reserve > CORRECTED_MEMORY_CAP
-    assert report["candidates"]["native"]["required_host_bytes"] == CORRECTED_MEMORY_CAP + cap_delta
+    assert report["host"]["admission_budget_bytes"] == effective_admission_budget
+    assert effective_admission_budget == min(host.available - host.reserve, CORRECTED_MEMORY_CAP)
+    assert report["candidates"]["native"]["required_host_bytes"] == effective_admission_budget + cap_delta
     assert estimate["client_peak_bytes"] == untouched["client_peak_bytes"] + oracle_charge + audit_charge
     assert estimate["native_total_peak_bytes"] == (
         estimate["client_peak_bytes"] + sum(estimate["provider_peak_bytes"].values()))

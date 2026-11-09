@@ -761,7 +761,8 @@ def test_corrected_prompt_deadline_expiry(tmp_path, monkeypatch, failure_phase):
     assert deadline.expires == 450 and clock.now == 451  # No stage/adapter reset.
 
 
-def test_corrected_prompt_suite_builder_is_inert(monkeypatch):
+@pytest.mark.parametrize("supplied_budget", [704 << 20, 10 << 30])
+def test_corrected_prompt_suite_builder_is_inert(monkeypatch, supplied_budget):
     from examples.benchmarks.gkm_corrected_prompt import experiment, suite
     from pllm.metrics import benchmark_runner
     from pllm.runtime import benchmark_memory, delegated_source
@@ -772,7 +773,7 @@ def test_corrected_prompt_suite_builder_is_inert(monkeypatch):
     monkeypatch.setattr(benchmark_runner, "_execute", forbidden)
     monkeypatch.setattr(benchmark_memory, "benchmark_memory", forbidden)
     monkeypatch.setattr(delegated_source, "admit_source", forbidden)
-    supplied_budget = 704 << 20  # Configuration round-trip only, not fit authority.
+    # Configuration round-trip only, not fit authority.
     spec = suite(memory_bytes=supplied_budget).to_spec()
     case, = spec["cases"]
     target = case["target"]
