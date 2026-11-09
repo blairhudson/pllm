@@ -243,7 +243,40 @@ def test_sidecar_cancellation_discards_output_and_retires_roles(tmp_path, monkey
                     json={"model": sdk._core.default_model, "input": "hello world",
                           "max_output_tokens": 2, "temperature": 0, "stream": stream})
             assert cancelled == [True]
-            assert response.status_code != 200 and "error" in response.text
+            if stream:
+                from test_sidecar_gateway import _sse
+
+                assert response.status_code == 200
+                assert response.headers["content-type"].lower() in (
+                    "text/event-stream", "text/event-stream; charset=utf-8")
+                assert response.headers["cache-control"] == "no-cache"
+                frames = response.text.split("\n\n")
+                assert len(frames) == 3 and frames[2] == ""
+                error_lines = frames[0].split("\n")
+                assert len(error_lines) == 2 and error_lines[0] == "event: error"
+                assert error_lines[1].startswith("data: ")
+                assert frames[1] == "data: [DONE]"
+                parsed = _sse(response.text)
+                assert len(parsed) == 2
+                event = parsed[0][1]
+                assert isinstance(event, dict) and set(event) == {"type", "sequence_number", "error"}
+                assert event["type"] == "error"
+                assert type(event["sequence_number"]) is int and event["sequence_number"] == 0
+                error = event["error"]
+                assert isinstance(error, dict) and set(error) == {"message", "type", "param", "code"}
+                assert error["param"] is None
+                assert (error["message"], error["type"], error["code"]) in {
+                    ("GKM request cancelled", "server_error", "runtime_error"),
+                    ("GKM request cancelled", "invalid_request_error", "invalid_request_error"),
+                    ("GKM request cancelled or timed out", "invalid_request_error", "invalid_request_error"),
+                }
+                assert parsed == [("error", event), (None, "[DONE]")]
+                # Match the source serializer too: no duplicate JSON keys or
+                # hidden SSE fields/data lines discarded by the shared parser.
+                assert error_lines[1] == "data: " + json.dumps(
+                    event, separators=(",", ":"), ensure_ascii=False)
+            else:
+                assert response.status_code != 200 and "error" in response.text
             assert not any(kind in response.text for kind in (
                 "response.created", "response.output", "response.incomplete", "response.completed"))
             assert accepted == records == [] and owner.accepted is None
