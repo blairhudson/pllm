@@ -250,20 +250,48 @@ def _observe_fss_benchmark_children():
 
     observer = threading.Thread(target=observe, daemon=True)
     observer.start()
+    primary = None
     try:
         yield
+    except BaseException as error:
+        primary = error
+        raise
     finally:
         stop.set()
-        observer.join(timeout=2)
-        assert not observer.is_alive(), "FSS benchmark observer did not stop"
-        assert not errors, errors
-        assert len(workers) == 1, "expected one fresh benchmark worker"
-        assert sorted(role for role, _ in roles.values()) == sorted(ROLES), "missing or duplicate FSS roles"
+        cleanup_errors = []
+        try:
+            observer.join(timeout=2)
+        except BaseException as error:
+            cleanup_errors.append(("join", type(error).__name__[:80]))
+        thread_alive = observer.is_alive()
+        observed_workers, observed_roles = workers.copy(), roles.copy()
+        observer_errors = tuple(errors)
+        processes = [*observed_workers.values(),
+                     *(child for _, child in observed_roles.values())]
         # Ordinary runner already terminates survivors. This checks observed exit,
         # not graceful shutdown, security, custody or a parent qualification proof.
-        _, alive = psutil.wait_procs(
-            [*workers.values(), *(child for _, child in roles.values())], timeout=10)
-        assert not alive, "observed benchmark worker or FSS role survived runner cleanup"
+        survivor_count = None
+        try:
+            _, alive = psutil.wait_procs(processes, timeout=10)
+            survivor_count = len(alive)
+        except BaseException as error:
+            cleanup_errors.append(("wait", type(error).__name__[:80]))
+        role_counts = {role: sum(name == role for name, _ in observed_roles.values())
+                       for role in ROLES}
+        failed = (observer_errors or cleanup_errors or thread_alive
+                  or len(observed_workers) != 1
+                  or any(count != 1 for count in role_counts.values())
+                  or survivor_count != 0)
+        diagnostic = (
+            f"FSS benchmark observer: errors={tuple(name[:80] for name in observer_errors[:4])} "
+            f"cleanup_errors={cleanup_errors} workers={len(observed_workers)} "
+            f"roles={role_counts} worker_samples={tuple(observed_workers)[:1]} "
+            f"role_samples={tuple(observed_roles)[:3]} "
+            f"survivor_count={survivor_count} thread_alive={thread_alive}")
+        if primary is not None:
+            primary.add_note(diagnostic)
+        elif failed:
+            raise AssertionError(diagnostic)
 
 
 @pytest.mark.slow
@@ -300,45 +328,45 @@ def test_qwen2_ordinary_response_target_oracle_and_report_reload(control, tmp_pa
     with _observe_fss_benchmark_children():
         result = benchmark_suite(suite, inputs={benchmark_case.name: {"prompt": "hello"}},
                                  output=output)
-    value, = [row.to_dict() for row in result.results]
-    assert value["status"] == "completed", value
-    execution = value["execution"]
-    assert execution["case"] == benchmark_case.to_spec()
-    assert execution["isolation"]["fresh_process"] is True
-    report = execution["details"]["report"]
-    assert report["checks"]["passed"] is True, report["checks"]
-    for key in ("expected_input_tokens", "expected_output_tokens", "fixed_count_final_ids_delivery"):
-        assert report["checks"][key] is True
-    request, = report["runs"]
-    assert request["status"] == "completed"
-    assert request["tokens"]["authoritative"] is True
-    assert request["tokens"]["input_tokens"] == 2
-    assert request["tokens"]["output_tokens"] == 3
-    assert request["privacy"]["plaintext_prompt_bytes_sent"] == 0
-    assert request["privacy"]["plaintext_token_ids_sent"] == 0
-    assert request["measurement"]["output_delivery"] == "buffered_final_ids"
-    contract = report["runtime_contract"]
-    assert contract["runtime_kind"] == "fss"
-    assert contract["output_delivery"] == "buffered_final_ids"
-    assert contract["generation_policy"] == "fixed_length_greedy"
-    assert contract["decode_tps_supported"] is False
-    assert report["summary"]["median_tokens_per_second"] is None
-    metrics = {entry["id"]: entry for entry in value["metrics"]}
-    assert metrics["response.decode_tps"]["value"] is None
-    assert metrics["response.decode_tps"]["unavailable_reason"] == "final_only_private_token_disclosure"
-    for role in ROLES:
-        assert metrics[f"{role}.cold_cpu"]["value"] > 0
-        assert metrics[f"{role}.peak_rss"]["value"] > 0
-    assert report["configuration"]["source_lock_digest"] == source.source_lock_digest
-    assert execution["comparison"]["source_digest"] == source.source_lock_digest
-    assert request["generation"]["output_text_digest"] == expected_digest
-    assert execution["comparison"]["output_digest"] == aggregate_digest
-    loaded = BenchmarkRun.load(output)
-    assert loaded.digest == result.digest
-    assert loaded.to_dict() == result.to_dict()
-    assert loaded.to_dict()["complete"] is True
-    assert loaded.to_dict()["results"] == [value]
-    assert loaded.to_dict()["results"][0]["execution"]["case"] == benchmark_case.to_spec()
+        value, = [row.to_dict() for row in result.results]
+        assert value["status"] == "completed", value
+        execution = value["execution"]
+        assert execution["case"] == benchmark_case.to_spec()
+        assert execution["isolation"]["fresh_process"] is True
+        report = execution["details"]["report"]
+        assert report["checks"]["passed"] is True, report["checks"]
+        for key in ("expected_input_tokens", "expected_output_tokens", "fixed_count_final_ids_delivery"):
+            assert report["checks"][key] is True
+        request, = report["runs"]
+        assert request["status"] == "completed"
+        assert request["tokens"]["authoritative"] is True
+        assert request["tokens"]["input_tokens"] == 2
+        assert request["tokens"]["output_tokens"] == 3
+        assert request["privacy"]["plaintext_prompt_bytes_sent"] == 0
+        assert request["privacy"]["plaintext_token_ids_sent"] == 0
+        assert request["measurement"]["output_delivery"] == "buffered_final_ids"
+        contract = report["runtime_contract"]
+        assert contract["runtime_kind"] == "fss"
+        assert contract["output_delivery"] == "buffered_final_ids"
+        assert contract["generation_policy"] == "fixed_length_greedy"
+        assert contract["decode_tps_supported"] is False
+        assert report["summary"]["median_tokens_per_second"] is None
+        metrics = {entry["id"]: entry for entry in value["metrics"]}
+        assert metrics["response.decode_tps"]["value"] is None
+        assert metrics["response.decode_tps"]["unavailable_reason"] == "final_only_private_token_disclosure"
+        for role in ROLES:
+            assert metrics[f"{role}.cold_cpu"]["value"] > 0
+            assert metrics[f"{role}.peak_rss"]["value"] > 0
+        assert report["configuration"]["source_lock_digest"] == source.source_lock_digest
+        assert execution["comparison"]["source_digest"] == source.source_lock_digest
+        assert request["generation"]["output_text_digest"] == expected_digest
+        assert execution["comparison"]["output_digest"] == aggregate_digest
+        loaded = BenchmarkRun.load(output)
+        assert loaded.digest == result.digest
+        assert loaded.to_dict() == result.to_dict()
+        assert loaded.to_dict()["complete"] is True
+        assert loaded.to_dict()["results"] == [value]
+        assert loaded.to_dict()["results"][0]["execution"]["case"] == benchmark_case.to_spec()
 
 
 @pytest.mark.slow
@@ -383,11 +411,18 @@ def test_qwen2_three_child_sdk_final_oracle_and_large_tape(
     assert estimate["fss_admission"]["source_pins_verified"] is True
 
     captured, calls, records = [], [], {}
-    post, receipt = fss_transport._Peers.post, fss_transport._receipt
+    calls_overflow = False
+    post, receipt = fss_transport._Peers._post, fss_transport._receipt
 
-    def observe_post(self, index, action, *args, **kwargs):
-        calls.append((index, action, kwargs.get("phase")))  # Public control metadata only.
-        return post(self, index, action, *args, **kwargs)
+    async def observe_post(self, index, action, *args, **kwargs):
+        nonlocal calls_overflow
+        # Record invocation before awaiting; concurrent finish completion may vary.
+        # Public control metadata only, bounded by the successful 17-call schedule.
+        if len(calls) < 17:
+            calls.append((index, action, kwargs.get("phase")))
+        else:
+            calls_overflow = True
+        return await post(self, index, action, *args, **kwargs)
 
     def observe_receipt(raw, role, **options):
         result = receipt(raw, role, **options)
@@ -396,7 +431,7 @@ def test_qwen2_three_child_sdk_final_oracle_and_large_tape(
             records[role] = (storage["records_written"], storage["records_read"])
         return result
 
-    monkeypatch.setattr(fss_transport._Peers, "post", observe_post)
+    monkeypatch.setattr(fss_transport._Peers, "_post", observe_post)
     monkeypatch.setattr(fss_transport, "_receipt", observe_receipt)
     with OpenAI(experiment=exp, timeout=300) as client:
         topology = client._owned_topology
@@ -422,6 +457,8 @@ def test_qwen2_three_child_sdk_final_oracle_and_large_tape(
         assert set(records) == set(HOLDERS)
         assert all(written == read and read > 4096 for written, read in records.values())
         assert_retired(client._core)
+        assert not calls_overflow, "FSS control call observation exceeded 17 calls"
+        assert len(calls) == 17
         online = [(index, action) for index, action, phase in calls if phase == "online"]
         assert online == [(0, "input"), (1, "input"), (0, "start"), (1, "start"),
                           (0, "finish"), (1, "finish")]
