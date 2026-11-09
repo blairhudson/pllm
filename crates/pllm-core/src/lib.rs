@@ -1,8 +1,9 @@
 //! Numeric primitives for private language model inference.
 //!
 //! This crate owns integer arithmetic, wire codecs, quantization, and mask
-//! sampling. It has no Python dependency and does not implement an HE scheme.
-//! Encryption and decryption remain the responsibility of the HE backend.
+//! sampling. It has no Python dependency and does not provide an owned HE backend.
+//! Private caller-buffered raw RLWE equations exist; backend ownership, key
+//! issuance, protected execution, and security qualification remain external.
 pub mod activation;
 mod attention;
 mod attention_values;
@@ -59,6 +60,7 @@ pub mod puma;
 pub mod residual_silu_reference;
 pub mod retained_kv;
 pub mod rms_norm;
+mod rlwe_kernel;
 pub mod rope;
 pub mod row_memo;
 pub mod row_fold;
