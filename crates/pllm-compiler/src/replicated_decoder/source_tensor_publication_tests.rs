@@ -173,7 +173,7 @@ fn owners(values: &Vec<Option<Secret>>) -> compact_admission::RequestOwners<'_> 
 
 #[test]
 fn authenticated_original_state_product_prepares_full_tail_without_expanded_finalization() {
-    let fixture = Fixture::new(13);
+    let fixture = Fixture::new(12);
     let registry = SourceRegistry::from_validated(fixture.validated()).unwrap();
     let source = fixture.source(&registry);
     let values = Vec::new();
@@ -258,7 +258,7 @@ fn authenticated_original_state_product_prepares_full_tail_without_expanded_fina
 
 #[test]
 fn equal_digest_foreign_file_and_native_owners_never_replace_bound_owners() {
-    let fixture = Fixture::new(13);
+    let fixture = Fixture::new(12);
     let registry = SourceRegistry::from_validated(fixture.validated()).unwrap();
     let source = fixture.source(&registry);
     let foreign_source = fixture.source(&registry);
@@ -300,7 +300,7 @@ fn equal_digest_foreign_file_and_native_owners_never_replace_bound_owners() {
 
 #[test]
 fn exact_preparation_peak_and_one_short_refusal_precede_native_factories() {
-    let fixture = Fixture::new(13);
+    let fixture = Fixture::new(12);
     let registry = SourceRegistry::from_validated(fixture.validated()).unwrap();
     let source = fixture.source(&registry);
     let values = Vec::new();
