@@ -618,18 +618,71 @@ def _fss_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, check
             "fss_tape_file_per_holder_bytes": tape_limit}}
 
 
+def _bound_envelope_contract(experiment, source, *, rows: int, outputs: int) -> bytes:
+    """Check an internally admitted metadata owner; price its full saved envelope.
+
+    This is not checkpoint continuity or execution admission. Later source
+    load/import checks remain mandatory; this owner has no close/liveness claim.
+    """
+    from .delegated_source import AdmittedSource
+    from .replicated_source import ReplicatedSource
+    from pllm.profiles import resolve_runtime_composition
+
+    runtime = resolve_runtime_composition(experiment.pipeline).client_runtime
+    owner = {"compiled_gkm_v1": AdmittedSource,
+             "compiled_replicated_v1": ReplicatedSource}.get(runtime)
+    if owner is None or type(source) is not owner:
+        raise ValueError("memory source owner differs from Experiment runtime")
+    if (type(source.experiment_bytes) is not bytes
+            or source.experiment_bytes != experiment.canonical_bytes()
+            or type(source.runtime_contract_bytes) is not bytes
+            or type(source.contract_bytes) is not bytes):
+        raise ValueError("memory source requires its exact admitted Experiment and native bytes")
+    budget = experiment.budget
+    if any(type(value) is not int or not 1 <= value <= 32768 for value in (rows, outputs)):
+        raise ValueError("memory admission requires bounded positive workload counts")
+    if rows > budget.max_input_tokens or outputs > budget.max_new_tokens:
+        raise ValueError("memory request exceeds saved workload envelope")
+    # Existing concrete binders regenerate from config/geometry/pins, not from
+    # retained runtime bytes. Exact equality preserves native float spelling.
+    rebound = source.runtime_contract(experiment, budget.max_input_tokens, budget.max_new_tokens)
+    retained = source.runtime_contract_bytes
+    if type(rebound) is not bytes or rebound != retained:
+        raise ValueError("memory native contract differs from saved source envelope")
+    runtime_contract = json.loads(retained)
+    decoder = json.loads(source.contract_bytes)
+    if runtime == "compiled_gkm_v1":
+        if runtime_contract["decoder"] != decoder:
+            raise ValueError("memory runtime decoder differs from admitted source")
+    elif source.contract_bytes != retained:
+        raise ValueError("memory replicated contract differs from admitted source")
+    if (decoder["input_rows"] != budget.max_input_tokens
+            or decoder["decode_steps"] + 1 != budget.max_new_tokens):
+        raise ValueError("memory source geometry differs from saved workload envelope")
+    if (rows, outputs) != (budget.max_input_tokens, budget.max_new_tokens):
+        source.runtime_contract(experiment, rows, outputs)
+    return retained
+
+
 def _replicated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, checkpoint_bytes,
-                       memory_safety_margin_percent=25):
+                       memory_safety_margin_percent=25, *, runtime_contract: bytes | None = None,
+                       experiment=None):
     from pllm import _native
     from pllm.configuration import Deployment, ExecutionBudget, Experiment
 
     if cache_bytes or cache_bound is not None:
         raise BenchmarkMemoryError("replicated response does not admit client cache reuse")
     try:
-        experiment = Experiment("replicated-admission", pipeline, Deployment.local(root="."),
-            budget=ExecutionBudget(requests=1, max_input_tokens=rows, max_new_tokens=outputs))
-        contract = json.loads(_native.replicated_source_contract(experiment.canonical_bytes(),
-            json.dumps(config).encode(), rows, outputs, "0" * 64, "0" * 64))
+        if runtime_contract is None:
+            # Geometry-only estimate, never source or execution authority.
+            experiment = Experiment("replicated-admission", pipeline, Deployment.local(root="."),
+                budget=ExecutionBudget(requests=1, max_input_tokens=rows, max_new_tokens=outputs))
+            contract = json.loads(_native.replicated_source_contract(experiment.canonical_bytes(),
+                json.dumps(config).encode(), rows, outputs, "0" * 64, "0" * 64))
+        else:
+            if not isinstance(experiment, Experiment) or experiment.pipeline != pipeline:
+                raise ValueError("replicated bound memory requires its actual Experiment")
+            contract = json.loads(runtime_contract)
         from .replicated_source import validate_execution
         validate_execution(experiment, contract)
     except (ValueError, TypeError, OverflowError) as error:
@@ -664,7 +717,7 @@ def _replicated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound
 
 
 def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, checkpoint_bytes,
-                      memory_safety_margin_percent=25):
+                      memory_safety_margin_percent=25, *, runtime_contract: bytes | None = None):
     """Price the bounded source/verified-window owners, never an int8 schedule."""
     from .delegated_decoder import decoder_contract
     from .delegated_protocol import BATCH_EXECUTION, batch_memory_bytes
@@ -675,11 +728,16 @@ def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound,
             or cache_bytes or cache_bound is not None):
         raise BenchmarkMemoryError("GKM requires a bounded full-KV response without cache reuse")
     try:
-        raw_contract = (decoder_contract(config, input_rows=rows, decode_steps=outputs - 1,
-                                        capacity=capacity, streamed=True) if expanded else
-                        decoder_contract(config, input_rows=rows, decode_steps=outputs - 1,
-                                         streamed=True))
-        contract = json.loads(raw_contract)
+        if runtime_contract is None:
+            # Geometry-only estimate, never source or execution authority.
+            raw_contract = (decoder_contract(config, input_rows=rows, decode_steps=outputs - 1,
+                                            capacity=capacity, streamed=True) if expanded else
+                            decoder_contract(config, input_rows=rows, decode_steps=outputs - 1,
+                                             streamed=True))
+            contract = json.loads(raw_contract)
+        else:
+            runtime = json.loads(runtime_contract)
+            contract = runtime["decoder"]
     except (ValueError, TypeError, OverflowError) as exc:
         raise BenchmarkMemoryError("GKM source or workload exceeds native numerical admission") from exc
     source = contract["source_float32_bytes"]
@@ -693,12 +751,12 @@ def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound,
         if execution != BATCH_EXECUTION:
             raise BenchmarkMemoryError("GKM unsupported execution selector")
         try:
-            experiment = Experiment("gkm-memory-estimate", pipeline, Deployment.local(root="."),
-                                    ExecutionBudget(requests=1, max_input_tokens=rows, max_new_tokens=outputs))
-            # Geometry-only quote: nonzero placeholders satisfy native pin syntax.
-            # Neither pin authorizes source loading, role admission or execution.
-            runtime = json.loads(_native.gkm_runtime_contract(experiment.canonical_bytes(),
-                _encode_config(config), rows, outputs, "1" * 64, "2" * 64))
+            if runtime_contract is None:
+                experiment = Experiment("gkm-memory-estimate", pipeline, Deployment.local(root="."),
+                                        ExecutionBudget(requests=1, max_input_tokens=rows, max_new_tokens=outputs))
+                # Geometry-only quote: placeholders never authorize execution.
+                runtime = json.loads(_native.gkm_runtime_contract(experiment.canonical_bytes(),
+                    _encode_config(config), rows, outputs, "1" * 64, "2" * 64))
             if runtime.get("decoder") != contract or "batch_execution" not in runtime:
                 raise ValueError("native batch memory contract differs")
             batch_prices = batch_memory_bytes(runtime, capacity)
@@ -1291,6 +1349,7 @@ def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, in
     source = pipeline.model
     checkpoint_bytes = 0
     store = None
+    bound_runtime = None
     if options.client_runtime == "compiled_fss_v1":
         if not isinstance(model, Experiment):
             raise BenchmarkMemoryError("FuseFSS source preflight requires complete Experiment")
@@ -1347,9 +1406,17 @@ def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, in
 
         if isinstance(model, Experiment):
             admitted = admit_source(model)
-            if (max_input_tokens > model.budget.max_input_tokens
-                    or max_output_tokens > model.budget.max_new_tokens):
-                raise BenchmarkMemoryError("GKM measurement exceeds its saved workload envelope")
+            try:
+                if any(type(value) is not int or not 1 <= value <= 32768
+                       for value in (max_input_tokens, max_output_tokens)):
+                    raise ValueError("memory admission requires bounded positive workload counts")
+                if (max_input_tokens > model.budget.max_input_tokens
+                        or max_output_tokens > model.budget.max_new_tokens):
+                    raise BenchmarkMemoryError("GKM measurement exceeds its saved workload envelope")
+                bound_runtime = _bound_envelope_contract(model, admitted,
+                    rows=max_input_tokens, outputs=max_output_tokens)
+            except (ValueError, TypeError, KeyError, OverflowError) as error:
+                raise BenchmarkMemoryError("source-bound memory envelope rejected") from error
         else:
             admitted = admit_source(source, input_rows=max_input_tokens,
                                     decode_steps=max_output_tokens - 1)
@@ -1379,11 +1446,19 @@ def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, in
         # Header validation below checks required shapes and dtypes. Counting
         # source bytes does not read tensor values into model arrays.
         checkpoint_bytes = sum(p.stat().st_size for p in path.glob("*.safetensors"))
-    estimate = estimate_memory(config, pipeline, max_input_tokens=max_input_tokens,
-                                max_output_tokens=max_output_tokens, inventory_rows=inventory_rows,
-                                cache_bytes=cache_bytes, cache_bound_tokens=cache_bound_tokens,
-                                checkpoint_bytes=checkpoint_bytes, store=store,
-                                memory_safety_margin_percent=memory_safety_margin_percent)
+    if bound_runtime is not None:
+        estimator = (_delegated_memory if options.client_runtime == "compiled_gkm_v1"
+                     else _replicated_memory)
+        estimate = estimator(config, pipeline, max_input_tokens, max_output_tokens,
+            cache_bytes, cache_bound_tokens, checkpoint_bytes, memory_safety_margin_percent,
+            runtime_contract=bound_runtime,
+            **({"experiment": model} if options.client_runtime == "compiled_replicated_v1" else {}))
+    else:
+        estimate = estimate_memory(config, pipeline, max_input_tokens=max_input_tokens,
+                                   max_output_tokens=max_output_tokens, inventory_rows=inventory_rows,
+                                   cache_bytes=cache_bytes, cache_bound_tokens=cache_bound_tokens,
+                                   checkpoint_bytes=checkpoint_bytes, store=store,
+                                   memory_safety_margin_percent=memory_safety_margin_percent)
     if options.client_runtime == "compiled_gkm_v1":
         # Keep the saved full-envelope admission explicit even when a benchmark
         # requests fewer rows/outputs. These pins come from bounded source reads.

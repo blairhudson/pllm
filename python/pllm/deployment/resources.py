@@ -320,12 +320,12 @@ class _MemoryReservation:
     def __exit__(self, *exc):
         # retain_failed/drain_failed still exclusively own their committed
         # protocol. Ordinary ExitStack callbacks must not wait on that backend.
-        if self._token.retained is not None:
+        if self._retained_custody():
             return False
         ident = threading.get_ident()
         previous_generation = None
         with self._finish_lock:
-            if self._token.retained is not None:
+            if self._retained_custody():
                 return False  # NOT retirement, including on caller GC.
             if self._exited:
                 return False
@@ -368,15 +368,40 @@ class _MemoryReservation:
                 self._exit_thread = None
                 event.set()
 
+    def _retained_custody(self):
+        with self._capacity.lock:
+            if self._token.retained is self:
+                return True  # Includes explicit drain's post-refund bookkeeping.
+            if self._token.retained is not None:
+                raise NetworkError("CLIENT_FAILED_RETIREMENT_CUSTODY_INVALID")
+            if type(self._failed) is tuple and len(self._failed) == 0:
+                return False
+            # Repair precommit publication only. A rootless postcommit tuple
+            # must fail closed; only explicit drain recovery finishes that state.
+            if (type(self._failed) is not tuple or not 1 <= len(self._failed) <= 2
+                    or type(self._amount) is not int or self._amount < 64 << 10
+                    or self._capacity is not _capacity or self._exited
+                    or self._token not in self._capacity._owners
+                    or self._capacity._owners[self._token] != self._amount):
+                raise NetworkError("CLIENT_FAILED_RETIREMENT_CUSTODY_INVALID")
+            self._token.retained = self
+            return True
+
     def retain_failed(self, owners):
-        if type(owners) is not tuple or not 1 <= len(owners) <= 2 or self._amount < 64 << 10:
+        if (type(owners) is not tuple or not 1 <= len(owners) <= 2
+                or type(self._amount) is not int or self._amount < 64 << 10):
             raise NetworkError("CLIENT_FAILED_RETIREMENT_CUSTODY_INVALID")
         with self._capacity.lock:
             if (self._capacity is not _capacity or self._exited
-                    or self._token not in self._capacity._owners or self._token.retained is not None):
+                    or self._token not in self._capacity._owners or self._token.retained is not None
+                    or self._capacity._owners[self._token] != self._amount
+                    or type(self._failed) is not tuple or len(self._failed) != 0):
                 raise NetworkError("CLIENT_FAILED_RETIREMENT_CUSTODY_INVALID")
-            self._failed = owners
-            self._token.retained = self  # actual module admission-token root
+            try:
+                self._failed = owners
+            finally:
+                if self._failed is owners:
+                    self._token.retained = self  # actual module admission-token root
 
     @property
     def pending_retirement(self):
