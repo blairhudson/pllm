@@ -417,14 +417,21 @@ def test_inprocess_audit_matches_single_reference_observer(family):
 @pytest.mark.parametrize("execution", [None, "source_stage_batch_v1"])
 @pytest.mark.parametrize("stored_dtype", ["F32", "F16", "BF16"])
 def test_generated_sdk_accepted_result_matches_bounded_checkpoint_reader(tmp_path, sharing, execution,
-                                                                       stored_dtype, record_property):
+                                                                        stored_dtype, record_property):
+    _generated_accepted_result_matches_bounded_checkpoint_reader(
+        tmp_path, sharing, execution, stored_dtype, record_property, adapter="sdk")
+
+
+def _generated_accepted_result_matches_bounded_checkpoint_reader(
+        tmp_path, sharing, execution, stored_dtype, record_property, *, adapter):
     from pllm import OpenAI
     from pllm.runtime import benchmark_response_audit as audit
     from test_delegated_sdk import active_sessions, experiment_fixture
     from test_delegated_source import write_source_fixture
 
     experiment, cfg, _ = experiment_fixture(tmp_path, family="qwen3", tied=False, sharing=sharing,
-                                           execution=execution)
+                                           execution=execution,
+                                           requests=1 if adapter == "sidecar" else 4)
     root = tmp_path / "source"
     _, _, original, _ = write_source_fixture(root, family="qwen3", tied=False,
                                              stored_dtype=stored_dtype)
@@ -497,6 +504,13 @@ def test_generated_sdk_accepted_result_matches_bounded_checkpoint_reader(tmp_pat
         assert expected[0] != unconverted[0] and expected[1] != unconverted[1]
     captured = []
     with audit.response_state_audit(salt, runtime_kind="gkm") as records:
+        audit_owner, caller_thread = audit._GKM_OWNER, threading.get_ident()
+
+        def capture(result):
+            assert audit._GKM_OWNER is audit_owner and not audit_owner.closed
+            assert (threading.get_ident() == caller_thread) == (adapter == "sdk")
+            captured.append(result)
+
         with OpenAI(experiment=experiment) as client:
             topology = client._owned_topology
             source = client._core._ensure_source()
@@ -504,8 +518,23 @@ def test_generated_sdk_accepted_result_matches_bounded_checkpoint_reader(tmp_pat
             tensors.verify_lock()
             assert tuple(source.tokenizer().encode(
                 "user: Hello world\nassistant:", add_bos=False)) == ids
-            client._core._result_hook = captured.append
-            response = client.responses.create(input=PROMPT, max_output_tokens=OUTPUTS)
+            client._core._result_hook = capture
+            if adapter == "sdk":
+                response = client.responses.create(input=PROMPT, max_output_tokens=OUTPUTS)
+                value = response.to_dict()
+            else:
+                from fastapi.testclient import TestClient
+                from pllm.runtime.sidecar import create_sidecar_app
+
+                assert adapter == "sidecar"
+                app = create_sidecar_app(client=client, local_api_key="generated-audit")
+                with TestClient(app) as http:
+                    response = http.post("/v1/responses",
+                        headers={"Authorization": "Bearer generated-audit"},
+                        json={"model": client._core.default_model, "input": PROMPT,
+                              "max_output_tokens": OUTPUTS, "temperature": 0})
+                assert response.status_code == 200, response.text
+                value = response.json()
             result, = captured
             assert_complete_result(result, expected)
             acceptance = json.loads(result.acceptance)
@@ -513,14 +542,22 @@ def test_generated_sdk_accepted_result_matches_bounded_checkpoint_reader(tmp_pat
             assert acceptance["contract"] == hashlib.sha256(
                 b"pllm.gkm.sdk-contract.v1\0" + runtime).hexdigest()
             assert acceptance["sharing"] == sharing
-            assert response.usage.input_tokens == len(ids)
-            assert response.usage.output_tokens == OUTPUTS
+            assert value["status"] == "incomplete"
+            assert value["incomplete_details"] == {"reason": "max_output_tokens"}
+            assert value["usage"]["input_tokens"] == len(ids)
+            assert value["usage"]["output_tokens"] == OUTPUTS
+            text = "".join(part["text"] for item in value["output"]
+                           for part in item.get("content", []) if part["type"] == "output_text")
+            assert text == source.tokenizer().decode(list(result.selected))
             assert active_sessions(client._core) == [0, 0]
             tensors.verify_lock()
             assert records == []
         assert all(not status.running for status in topology.statuses)
         assert records == []
     assert records == [observer.expected_record(source.contract)]
+    assert audit_owner.closed and audit._GKM_OWNER is None
+    captured.clear()
+    record_property("adapter", adapter)
     record_property("sharing", sharing)
     record_property("stored_dtype", stored_dtype)
     record_property("execution", execution or "scalar")
@@ -1296,6 +1333,17 @@ def _independent_pinned_qwen_hello(source):
 @pytest.mark.skipif(os.getenv("PLLM_RUN_GKM_CORRECTED_PROMPT") != "1",
                     reason="opt-in pinned offline GKM corrected Hello complete checkpoint")
 def test_pinned_qwen_corrected_prompt(tmp_path, monkeypatch, record_property):
+    # Two separate one-request topologies, never a stretched one-request lease.
+    # Each helper retires its oracle, accepted capture, audit and allowance before
+    # the next adapter's admission and source custody begin.
+    for adapter in ("sdk", "sidecar"):
+        with monkeypatch.context() as scoped:
+            _pinned_qwen_corrected_prompt_adapter(
+                tmp_path / adapter, scoped,
+                lambda key, value: record_property(f"{adapter}.{key}", value), adapter=adapter)
+
+
+def _pinned_qwen_corrected_prompt_adapter(tmp_path, monkeypatch, record_property, *, adapter):
     """Separate current-request qualification; legacy checkpoint cohort stays historical.
 
     Future launch requires explicit permission, coherent wheel and physical
@@ -1402,16 +1450,38 @@ def test_pinned_qwen_corrected_prompt(tmp_path, monkeypatch, record_property):
                                              * position * cfg["num_key_value_heads"] * head_dim)
         tensors.verify_lock()
         with audit.response_state_audit(salt, runtime_kind="gkm") as records:
+            audit_owner, caller_thread = audit._GKM_OWNER, threading.get_ident()
+
+            def capture(result):
+                assert audit._GKM_OWNER is audit_owner and not audit_owner.closed
+                assert (threading.get_ident() == caller_thread) == (adapter == "sdk")
+                captured.append(result)
+
             with OpenAI(experiment=experiment, timeout=600) as client:
                 topology = client._owned_topology
                 clients.append(client)
-                client._core._result_hook = captured.append
+                client._core._result_hook = capture
                 check()
                 # Ordinary one-use preparation remains runtime authority. Oracle
                 # IDs never enter request, prepared payload or transport inputs.
-                response = client.responses.create(input="Hello", max_output_tokens=OUTPUTS)
-                assert response.status == "incomplete"
-                assert response.incomplete_details == {"reason": "max_output_tokens"}
+                if adapter == "sdk":
+                    response = client.responses.create(input="Hello", max_output_tokens=OUTPUTS)
+                    value = response.to_dict()
+                else:
+                    from fastapi.testclient import TestClient
+                    from pllm.runtime.sidecar import create_sidecar_app
+
+                    assert adapter == "sidecar"
+                    app = create_sidecar_app(client=client, local_api_key="corrected-audit")
+                    with TestClient(app) as http:
+                        response = http.post("/v1/responses",
+                            headers={"Authorization": "Bearer corrected-audit"},
+                            json={"model": client._core.default_model, "input": "Hello",
+                                  "max_output_tokens": OUTPUTS, "temperature": 0})
+                    assert response.status_code == 200, response.text
+                    value = response.json()
+                assert value["status"] == "incomplete"
+                assert value["incomplete_details"] == {"reason": "max_output_tokens"}
                 actual = client._core._ensure_source()
                 for attribute in ("model", "config_bytes", "contract_bytes", "experiment_bytes",
                                   "runtime_contract_bytes", "source_lock_digest", "checkpoint_digest",
@@ -1426,9 +1496,11 @@ def test_pinned_qwen_corrected_prompt(tmp_path, monkeypatch, record_property):
                 assert acceptance["sharing"] == "full"
                 assert acceptance["contract"] == hashlib.sha256(
                     b"pllm.gkm.sdk-contract.v1\0" + runtime).hexdigest()
-                assert response.usage.input_tokens == 30
-                assert response.usage.output_tokens == OUTPUTS
-                assert response.output_text == source.tokenizer().decode(list(result.selected))
+                assert value["usage"]["input_tokens"] == 30
+                assert value["usage"]["output_tokens"] == OUTPUTS
+                text = "".join(part["text"] for item in value["output"]
+                               for part in item.get("content", []) if part["type"] == "output_text")
+                assert text == source.tokenizer().decode(list(result.selected))
                 assert active_sessions(client._core) == [0, 0]
                 roles = topology.statuses
                 assert {role.role for role in roles} == {"worker_a", "worker_b"}
@@ -1439,6 +1511,7 @@ def test_pinned_qwen_corrected_prompt(tmp_path, monkeypatch, record_property):
             assert all(not status.running for status in topology.statuses)
         tensors.verify_lock()
         assert records == [observer.expected_record(source.contract)]
+        assert audit_owner.closed and audit._GKM_OWNER is None
         check()
         for key, value in {
             "cohort": "pinned_qwen_corrected_prompt", "model_revision": PIN,
@@ -1468,6 +1541,7 @@ def test_pinned_qwen_corrected_prompt(tmp_path, monkeypatch, record_property):
                 captured.clear()
                 clients.clear()
                 expected = result = response = client = actual = tensors = source = None
+                app = http = value = text = None
                 gc.collect()  # Drop references; not proof of physical reclamation.
             finally:
                 owners.close()

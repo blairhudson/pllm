@@ -1,6 +1,8 @@
 """Installed GKM Experiment through real CLI, gateway and benchmark processes."""
 
 from contextlib import contextmanager
+import copy
+import gc
 import json
 import os
 from pathlib import Path
@@ -8,6 +10,7 @@ import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
 
 import httpx
@@ -194,6 +197,402 @@ def test_gateway_verification_failure_exposes_only_error(tmp_path, monkeypatch, 
             "response.created", "response.output", "response.incomplete", "response.completed"))
         assert not sdk._core.records and sdk._core._active is None
         assert active_sessions(sdk._core) == [0, 0]
+
+
+@pytest.mark.parametrize("stored_dtype", ["F32", "F16", "BF16"])
+def test_generated_sidecar_private_audit_matches_stored_dtype_oracle(
+        tmp_path, stored_dtype, record_property):
+    from test_gkm_checkpoint_conformance import (
+        _generated_accepted_result_matches_bounded_checkpoint_reader,
+    )
+
+    # Only missing HTTP adapter; do not repeat SDK sharing/execution matrices.
+    _generated_accepted_result_matches_bounded_checkpoint_reader(
+        tmp_path, "full", None, stored_dtype, record_property, adapter="sidecar")
+
+
+@pytest.mark.parametrize("stream", [False, True])
+def test_sidecar_cancellation_discards_output_and_retires_roles(tmp_path, monkeypatch, stream):
+    from pllm.runtime import benchmark_response_audit as audit
+
+    experiment, _, _ = experiment_fixture(tmp_path, requests=1)
+    original = delegated_transport._Peers.post
+    cancelled, accepted = [], []
+    with audit.response_state_audit(os.urandom(32), runtime_kind="gkm") as records:
+        owner = audit._GKM_OWNER
+        with OpenAI(experiment=experiment) as sdk:
+            topology = sdk._owned_topology
+            sdk._core._result_hook = accepted.append
+
+            def cancel_after_consumption(peers, role, action, *args, **kwargs):
+                value = original(peers, role, action, *args, **kwargs)
+                if not cancelled and role == 0 and action == "step":
+                    attempt = sdk._core._active
+                    assert attempt is not None
+                    attempt.cancel()
+                    assert attempt.cancelled.is_set()
+                    cancelled.append(True)
+                return value
+
+            monkeypatch.setattr(delegated_transport._Peers, "post", cancel_after_consumption)
+            app = create_sidecar_app(client=sdk, local_api_key="cancel-test")
+            with TestClient(app, raise_server_exceptions=False) as http:
+                response = http.post("/v1/responses",
+                    headers={"Authorization": "Bearer cancel-test"},
+                    json={"model": sdk._core.default_model, "input": "hello world",
+                          "max_output_tokens": 2, "temperature": 0, "stream": stream})
+            assert cancelled == [True]
+            assert response.status_code != 200 and "error" in response.text
+            assert not any(kind in response.text for kind in (
+                "response.created", "response.output", "response.incomplete", "response.completed"))
+            assert accepted == records == [] and owner.accepted is None
+            assert not sdk._core.records and sdk._core._active is None
+            assert active_sessions(sdk._core) == [0, 0]
+        assert all(not status.running for status in topology.statuses)
+    assert records == [] and owner.closed and audit._GKM_OWNER is None
+
+
+@contextmanager
+def _combined_controller_watchdog(monkeypatch, combined_report, stopped):
+    """Keep the runner's abort/drain authority; tighten only its host floor."""
+    from pllm.runtime import benchmark_memory as memory
+
+    original = memory.MemoryWatchdog
+
+    class CombinedControllerWatchdog(original):
+        def __init__(self, controller_report, abort):
+            super().__init__(combined_report, abort)
+
+        def check(self):
+            if stopped.is_set():
+                raise memory.BenchmarkMemoryError("corrected suite outer watchdog cancelled")
+            super().check()
+
+    with monkeypatch.context() as scoped:
+        scoped.setattr(memory, "MemoryWatchdog", CombinedControllerWatchdog)
+        yield
+
+
+@pytest.mark.parametrize("failure_phase", ["start", "communicate"])
+def test_corrected_suite_combined_watchdog_cancels_and_drains(tmp_path, monkeypatch, failure_phase):
+    from types import SimpleNamespace
+    from pllm._benchmark_worker import PROTOCOL
+    from pllm.metrics import benchmark_runner as runner
+    from pllm.runtime import benchmark_memory as memory, client_process_usage as usage
+
+    original_watchdog = memory.MemoryWatchdog
+    stopped = threading.Event()
+    combined_report = {"host": {"reserve_bytes": 1 << 30, "swap_used": 0,
+                                 "available": 6 << 30}, "runtime_floor_bytes": 3 << 30}
+    ordinary_floor, low_available = 1 << 30, 2 << 30
+    assert ordinary_floor < low_available < combined_report["runtime_floor_bytes"]
+    events, monitors, samples, finalized = [], [], [], []
+    phase = "start"
+
+    def host():
+        available = (low_available if samples and phase == failure_phase else 6 << 30)
+        samples.append(available)
+        return SimpleNamespace(reserve=1 << 30, swap_used=0, available=available, pressure=None)
+
+    class Event:
+        def __init__(self):
+            self.stopped = False
+
+        def set(self):
+            self.stopped = True
+
+        def is_set(self):
+            return self.stopped
+
+        def wait(self, timeout):
+            if timeout == 0.02:
+                # One deterministic real tracker iteration captures descendants.
+                self.set()
+            else:
+                assert timeout == 0.25
+            return self.stopped
+
+    class Thread:
+        def __init__(self, *, target, daemon, name=None):
+            assert daemon is True
+            self.target, self.name, self.ident = target, name, None
+            if name == "pllm-memory-guard":
+                monitors.append(target.__self__)
+
+        def start(self):
+            self.ident = 1
+            events.append("guard-start" if self.name else "tracker-start")
+            if self.name is None:
+                self.target()
+
+        def join(self, timeout=None):
+            assert timeout == (2 if self.name else None)
+            events.append("guard-join" if self.name else "tracker-join")
+
+    class Descendant:
+        pid = 2147483645
+
+        def create_time(self):
+            return 123.0
+
+        def kill(self):
+            events.append("descendant-kill")
+
+        def wait(self, timeout):
+            assert timeout == 5
+            events.append("descendant-wait")
+
+    descendant = Descendant()
+
+    class Process:
+        pid = 2147483646
+        returncode = None
+
+        def __init__(self, command, **options):
+            assert command[1:] == ["-I", "-m", "pllm._benchmark_worker"]
+            assert options["start_new_session"] is True
+            events.append("spawn")
+
+        def communicate(self, body, timeout):
+            nonlocal phase
+            assert json.loads(body)["protocol"] == PROTOCOL and timeout == 90
+            events.append("communicate")
+            phase = "communicate"
+            # Execute the inherited watchdog loop synchronously, not a fake
+            # abort/result path. A valid completed child must still be rejected.
+            monitors[0]._run()
+            self.returncode = 0
+            return json.dumps({"protocol": PROTOCOL, "status": "completed"}).encode(), b""
+
+        def poll(self):
+            return self.returncode
+
+        def wait(self, timeout=None):
+            events.append(("wait", timeout))
+            self.returncode = -signal.SIGTERM if self.returncode is None else self.returncode
+
+    def process_identity(pid):
+        if pid == Process.pid:
+            return SimpleNamespace(children=lambda recursive: [descendant])
+        assert pid == descendant.pid
+        return descendant
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("uncontrolled process, thread or host probe")
+
+    monkeypatch.setattr(memory, "host_memory", host)
+    monkeypatch.setattr(memory, "threading", SimpleNamespace(
+        Event=Event, Thread=Thread, current_thread=lambda: None))
+    monkeypatch.setattr(runner, "threading", SimpleNamespace(Event=Event, Thread=Thread))
+    monkeypatch.setattr(runner, "subprocess", SimpleNamespace(**(vars(subprocess) | {
+        "Popen": Process, "run": forbidden})))
+    monkeypatch.setattr(runner, "os", SimpleNamespace(**(vars(os) | {
+        "killpg": lambda pid, sig: events.append(("signal", pid, sig))})))
+    monkeypatch.setitem(sys.modules, "psutil", SimpleNamespace(Process=process_identity, Error=RuntimeError))
+    monkeypatch.setattr(usage, "client_popen_factory", lambda factory: factory)
+    monkeypatch.setattr(usage, "finalize_client_payload", lambda payload, process: finalized.append(payload))
+    case = BenchmarkCase("combined-watchdog", BenchmarkTarget.runtime())
+    sampling = Sampling(processes=1, timeout_seconds=90)
+    result = None
+    if failure_phase == "start":
+        with pytest.raises(memory.BenchmarkMemoryError, match="below runtime reserve"):
+            with _combined_controller_watchdog(monkeypatch, combined_report, stopped):
+                result = runner._execute(case, sampling, {}, b"s" * 32, tmp_path)
+    else:
+        with _combined_controller_watchdog(monkeypatch, combined_report, stopped):
+            result = runner._execute(case, sampling, {}, b"s" * 32, tmp_path)
+        assert result["status"] == "blocked" and result["failure_code"] == "host_pressure"
+        diagnostics = result["details"]["controller_memory_watchdog"]
+        assert diagnostics["error_class"] == "BenchmarkMemoryError"
+        assert diagnostics["failure_observation"] == {
+            "pressure": None, "available_bytes": low_available, "swap_used_bytes": 0}
+        assert diagnostics["minimum_available_bytes"] == low_available
+    monitor, = monitors
+    assert monitor.report is combined_report
+    assert type(monitor)._run is original_watchdog._run
+    assert type(monitor).start is original_watchdog.start
+    assert type(monitor).close is original_watchdog.close
+    assert monitor._stop.is_set()
+    assert monitor.abort.__qualname__.endswith("_execute.<locals>.abort")
+    assert memory.MemoryWatchdog is original_watchdog
+    assert finalized == [None] and (result is None or result["status"] != "completed")
+    prefix = ["spawn", "tracker-start"]
+    if failure_phase == "communicate":
+        prefix += ["guard-start", "communicate", ("signal", Process.pid, signal.SIGTERM), "guard-join"]
+    else:
+        # Synchronous start.check raises before _run/abort or guard thread start.
+        assert monitor.error is None and monitor.error_class is None
+        assert monitor._thread.ident is None
+        prefix += [("signal", Process.pid, signal.SIGTERM), ("wait", 10)]
+    assert events == prefix + [("signal", Process.pid, signal.SIGKILL), ("wait", None),
+                               "tracker-join", "descendant-kill", "descendant-wait"]
+    stopped.set()
+    before = list(samples)
+    with pytest.raises(memory.BenchmarkMemoryError, match="outer watchdog cancelled"):
+        monitor.check()
+    assert samples == before  # Latched outer cancellation needs no new telemetry.
+
+
+def test_corrected_prompt_suite_builder_is_inert(monkeypatch):
+    from examples.benchmarks.gkm_corrected_prompt import experiment, suite
+    from pllm.metrics import benchmark_runner
+    from pllm.runtime import benchmark_memory, delegated_source
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("suite builder executed benchmark or source admission")
+
+    monkeypatch.setattr(benchmark_runner, "_execute", forbidden)
+    monkeypatch.setattr(benchmark_memory, "benchmark_memory", forbidden)
+    monkeypatch.setattr(delegated_source, "admit_source", forbidden)
+    supplied_budget = 704 << 20  # Configuration round-trip only, not fit authority.
+    spec = suite(memory_bytes=supplied_budget).to_spec()
+    case, = spec["cases"]
+    target = case["target"]
+    assert target["kind"] == "response"
+    parameters = target["parameters"]
+    assert parameters["backend"] == "native" and parameters["state_audit"] is True
+    assert parameters["scenario"]["kind"] == "cold"
+    assert parameters["scenario"]["count"] == 1
+    assert parameters["scenario"]["max_output_tokens"] == 2
+    assert parameters["model"]["experiment"] == experiment.to_spec()
+    assert (experiment.budget.requests, experiment.budget.max_input_tokens,
+            experiment.budget.max_new_tokens) == (1, 30, 2)
+    sampling = spec["sampling"]
+    assert (sampling["processes"], sampling["repetitions"], sampling["warmups"]) == (1, 1, 0)
+    assert sampling["memory_bytes"] == supplied_budget
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(os.getenv("PLLM_RUN_GKM_CORRECTED_PROMPT") != "1",
+                    reason="opt-in pinned offline GKM corrected Hello suite persistence")
+def test_pinned_qwen_corrected_prompt_suite_persists_independent_audit(
+        tmp_path, monkeypatch, record_property):
+    from huggingface_hub.constants import HF_HUB_CACHE
+    from pllm import Deployment
+    from pllm.metrics import benchmark_runner
+    from pllm.runtime import benchmark_memory as memory, delegated_source
+    from pllm.runtime.delegated_protocol import clear_failure_frames
+    from pllm.runtime.safetensors_store import SafeTensorStore
+    from examples.benchmarks.gkm_corrected_prompt import experiment as saved, suite
+    from test_gkm_checkpoint_conformance import (
+        PIN, OUTPUTS, AdmittedTensors, SelectionCommitments, clear_decoder,
+        _corrected_prompt_extra_allowance, _corrected_prompt_memory_admission,
+        _independent_pinned_qwen_hello,
+    )
+
+    cache = Path(HF_HUB_CACHE).expanduser().resolve()
+    snapshot = cache / "models--Qwen--Qwen2.5-0.5B-Instruct" / "snapshots" / PIN
+    if not snapshot.is_dir():
+        pytest.skip(f"missing pinned offline checkpoint cache: {snapshot}; no download/fallback")
+    monkeypatch.setenv("HF_HUB_CACHE", str(cache))
+    monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+    experiment = saved.with_params(deployment=Deployment.local(root=str(tmp_path / "roles")))
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("corrected suite checkpoint values loaded before memory admission")
+
+    with monkeypatch.context() as early:
+        early.setattr(delegated_source, "_source_float_frame", forbidden)
+        early.setattr(delegated_source.AdmittedSource, "load_transport", forbidden)
+        early.setattr(SafeTensorStore, "get", forbidden)
+        early.setattr(delegated_source._AdmittedTensorStore, "get", forbidden)
+        source, estimate, combined_report, workspace, extra = _corrected_prompt_memory_admission(
+            experiment, snapshot)
+    # Suite's ordinary state-audit quote is additional to the unchanged oracle
+    # allowance and native/client quote. No fixed host-fit assumption or cap raise.
+    estimate = copy.deepcopy(estimate)
+    estimate["client_peak_bytes"] += 32 << 20
+    estimate["native_total_peak_bytes"] += 32 << 20
+    estimate["components"]["response_state_audit_bytes"] = 32 << 20
+    memory_bytes = estimate["native_total_peak_bytes"]
+    combined_report = memory.admit_memory(estimate, memory.host_memory(), backend="native",
+                                         memory_budget_bytes=memory_bytes)
+    memory.require_admission(combined_report)
+    selected = suite(memory_bytes=memory_bytes, selected=experiment)
+    assert (selected.sampling.processes, selected.sampling.repetitions,
+            selected.sampling.warmups) == (1, 1, 0)
+    expected_records, calls = [], []
+    stopped = threading.Event()
+    guard = memory.MemoryWatchdog(combined_report, lambda reason: stopped.set())
+
+    def check():
+        if stopped.is_set():
+            raise memory.BenchmarkMemoryError(guard.error or "corrected suite cancelled")
+        guard.check()
+
+    original = benchmark_runner._execute
+
+    def independently_checked_execute(case, sampling, inputs, salt, directory):
+        assert calls == [] and inputs == {"prompt": "Hello"}
+        calls.append(case.name)
+        # Observe the existing private seam; never replace salt or RNG. Oracle
+        # arrays retire BEFORE measured child starts; only commitments survive.
+        tensors = expected = observer = None
+        try:
+            check()
+            ids = _independent_pinned_qwen_hello(source)
+            gc.collect()
+            tensors = AdmittedTensors(source, check=check)
+            tensors.verify_lock()
+            observer = SelectionCommitments(salt, max_selections=OUTPUTS)
+            expected = clear_decoder(source.config, tensors, ids, OUTPUTS - 1,
+                                     check=check, selection_observer=observer)
+            tensors.verify_lock()
+            expected_records.append(observer.expected_record(source.contract))
+        except BaseException as error:
+            clear_failure_frames(error)
+            raise
+        finally:
+            tensors = expected = observer = None
+            gc.collect()
+        check()
+        with _combined_controller_watchdog(monkeypatch, combined_report, stopped):
+            return original(case, sampling, inputs, salt, directory)
+
+    monkeypatch.setattr(benchmark_runner, "_execute", independently_checked_execute)
+    output = tmp_path / "corrected-benchmark.json"
+    with _corrected_prompt_extra_allowance(extra):
+        try:
+            guard.start()
+            report = benchmark_suite(selected, inputs={"gkm-corrected-prompt": {"prompt": "Hello"}},
+                                     output=output)
+            value, = [result.to_dict() for result in report.results]
+            assert calls == ["gkm-corrected-prompt"]
+            assert value["status"] == "completed", value
+            check()
+            assert value["comparison"]["source_digest"] == source.source_lock_digest
+            assert value["details"]["runtime_contract"]["output_delivery"] == "buffered_until_verified"
+            binding = value["details"]["response_state_audit"]
+            assert binding["schema"] == "pllm.response_state_audit.gkm.v1"
+            assert binding["bindings"] == expected_records
+            assert [row["position"] for row in expected_records[0]["selections"]] == [30, 31]
+            metrics = {entry["id"]: entry for entry in value["metrics"]}
+            assert metrics["response.decode_tps"]["value"] is None
+            assert metrics["response.decode_tps"]["unavailable_reason"] == (
+                "request_end_verification_buffers_all_output")
+            for role in ("worker_a", "worker_b"):
+                assert metrics[f"{role}.cold_cpu"]["value"] > 0
+                assert metrics[f"{role}.peak_rss"]["value"] > 0
+            loaded = BenchmarkRun.load(output)
+            assert loaded.digest == report.digest and loaded.to_dict() == report.to_dict()
+            persisted = loaded.to_dict()
+            assert persisted["complete"] is True and len(persisted["results"]) == 1
+            assert persisted["results"][0] == value
+            assert value["execution"]["case"] == selected.cases[0].to_spec()
+            record_property("trained_requests", 1)
+            record_property("source_lock_digest", source.source_lock_digest)
+            record_property("checkpoint_digest", source.checkpoint_digest)
+            record_property("tokenizer_digest", source.tokenizer_digest)
+            record_property("oracle_workspace_estimate", workspace)
+            record_property("oracle_and_audit_allowance_bytes", extra)
+        except BaseException as error:
+            clear_failure_frames(error)
+            raise
+        finally:
+            guard.close()
+            source = None
+            gc.collect()
+    check()
 
 
 @pytest.mark.parametrize("benchmark", [False, True])

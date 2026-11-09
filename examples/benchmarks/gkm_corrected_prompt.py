@@ -11,6 +11,7 @@ It collects no source bodies and does not run a benchmark on import.
 """
 
 from pllm import ExecutionBudget
+from pllm.metrics import BenchmarkCase, BenchmarkSuite, BenchmarkTarget, Sampling, Scenario
 
 from examples.papers.gkm import experiment as _gkm_experiment
 
@@ -21,3 +22,16 @@ experiment = _gkm_experiment(
 
 # Retain the base factory's pinned model, full sharing, decoder capacity,
 # ring64/Q11 weights, f32 full client KV, client bias, and private-worker contracts.
+
+
+def suite(*, memory_bytes, selected=experiment):
+    """One cold measured Hello request; caller supplies ordinary admission budget.
+
+    Persistence of salted audit bindings is not independent numeric equivalence.
+    This definition grants no execution or memory-allowance authority.
+    """
+    target = BenchmarkTarget.response(selected, scenario=Scenario.cold(max_output_tokens=2),
+                                      backend="native", state_audit=True)
+    return BenchmarkSuite([BenchmarkCase("gkm-corrected-prompt", target)],
+                          Sampling(processes=1, warmups=0, repetitions=1,
+                                   timeout_seconds=1200, memory_bytes=memory_bytes))
