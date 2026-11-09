@@ -9,8 +9,8 @@
 //!
 //! Reuse audit: CoefficientRing::new is a pure nonallocating descriptor check;
 //! it preserves the legacy 4096 degree cap and admits odd composite moduli.
-//! coefficient_layout::modular and public NTT/repacking use value-dependent
-//! arithmetic and are NOT used on secret coefficients. Existing clear phase
+//! Existing public modular helpers and public NTT/repacking use value-dependent
+//! arithmetic and are NOT used on secret coefficients here. Existing clear phase
 //! Work and row_fold ledgers carry different contracts; this counter is local,
 //! not CallerWorkLedger, funding, CPU time, key purpose, or admission authority.
 //! GKM transport, seeded entropy, and source custody do not transfer here.
@@ -21,12 +21,15 @@
 //! retains input-erasure responsibility. Funded original ownership, custody,
 //! security review, RNS/CKKS, rotations, key switching, and private indexing are
 //! absent. No new dependencies, allocation, callbacks, or native constructor.
+//! Shared guard mechanics do not change this kernel's arm policy: scratch is
+//! armed after debit BEFORE value validation; destination immediately before
+//! its first write, disarmed only on success. Invalid values still wipe scratch.
 
 mod arithmetic;
 mod bfv;
 
 use crate::coefficient_layout::CoefficientRing;
-use zeroize::Zeroize;
+use crate::kernel_support::{KernelWorkLimit, WipeGuard};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum KernelError {
@@ -116,28 +119,6 @@ fn geometry(n: usize) -> Result<(usize, usize), KernelError> {
     Ok((two, three))
 }
 
-/// Local, nonrefundable computational counter; constructors mint no authority.
-#[derive(Debug)]
-pub(super) struct KernelWorkLimit {
-    remaining: u64,
-}
-
-impl KernelWorkLimit {
-    pub(super) fn new(remaining: u64) -> Self {
-        Self { remaining }
-    }
-
-    pub(super) fn remaining(&self) -> u64 {
-        self.remaining
-    }
-
-    fn debit(&mut self, units: u64) -> Result<(), KernelError> {
-        let next = self.remaining.checked_sub(units).ok_or(KernelError::Work)?;
-        self.remaining = next;
-        Ok(())
-    }
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum Operation {
     Key,
@@ -206,33 +187,7 @@ fn preflight(
         }
     }
     let units = quote(operation, params.n)?;
-    work.debit(units)
-}
-
-/// Armed scratch guard precedes coefficient validation. Destination guard is
-/// created immediately before first destination write and disarmed only on
-/// success. No production catch_unwind and no callbacks between these steps.
-struct WipeGuard<'a> {
-    words: &'a mut [u64],
-    armed: bool,
-}
-
-impl<'a> WipeGuard<'a> {
-    fn new(words: &'a mut [u64]) -> Self {
-        Self { words, armed: true }
-    }
-
-    fn finish(mut self) {
-        self.armed = false;
-    }
-}
-
-impl Drop for WipeGuard<'_> {
-    fn drop(&mut self) {
-        if self.armed {
-            self.words.zeroize();
-        }
-    }
+    work.debit(units).map_err(|_| KernelError::Work)
 }
 
 #[cfg(test)]

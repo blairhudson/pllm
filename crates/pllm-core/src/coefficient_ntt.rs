@@ -2,9 +2,20 @@
 //! Degrees above 4096 require CoefficientRing::bounded with DegreeBound::Public8192.
 //!
 //! No HE backend, protected authority, profile, ledger, tariff, or prepayment.
-//! Timing is public/value-dependent; this is NOT a constant-time primitive.
-//! Caller owns all buffers; no allocation or scratch buffer is required. Safe
-//! Rust requires output disjoint from inputs; immutable inputs may overlap.
+//! Existing public entrypoints are value-dependent, not constant-time primitives.
+//! They require no allocation or scratch. A separate crate-private fixed-source
+//! arithmetic path borrows this validated plan, caps degree at 4096, and requires
+//! caller scratch for products. Neither path claims machine constant time.
+//! Safe Rust requires mutable buffers disjoint; immutable inputs may overlap.
+
+mod fixed;
+mod schedule;
+
+pub(crate) use fixed::{
+    Error as FixedError, Operation as FixedOperation, Quote as FixedQuote,
+    forward_into as fixed_forward_into, inverse_into as fixed_inverse_into,
+    negacyclic_product_into, quote as fixed_quote,
+};
 
 use crate::coefficient_layout::CoefficientRing;
 use crate::coefficient_layout::modular::{mul, sub};
@@ -287,30 +298,21 @@ impl NegacyclicNtt {
                 twist = mul(twist, self.psi, q);
             }
         }
-        let mut reversed = 0;
-        for i in 1..n {
-            let mut bit = n >> 1;
-            while reversed & bit != 0 {
-                reversed ^= bit;
-                bit >>= 1;
-            }
-            reversed ^= bit;
-            if i < reversed {
-                out.swap(i, reversed);
-            }
+        for (i, reversed) in schedule::swaps(n) {
+            out.swap(i, reversed);
         }
         let roots = if inverse { &self.inverse_stage_roots } else { &self.forward_stage_roots };
-        for (stage, &root) in roots[..n.trailing_zeros() as usize].iter().enumerate() {
-            let len = 1 << (stage + 1);
-            for start in (0..n).step_by(len) {
+        for stage in schedule::stages(n) {
+            let root = roots[stage.index];
+            for start in stage.blocks() {
                 let mut twiddle = 1;
-                for j in 0..len / 2 {
-                    let a = out[start + j];
-                    let b = mul(out[start + j + len / 2], twiddle, q);
+                for (low, high) in stage.butterflies(start) {
+                    let a = out[low];
+                    let b = mul(out[high], twiddle, q);
                     // Canonical a,b<q; sum<2q<2^62, product<2^122.
                     let sum = a + b;
-                    out[start + j] = if sum >= q { sum - q } else { sum };
-                    out[start + j + len / 2] = sub(a, b, q);
+                    out[low] = if sum >= q { sum - q } else { sum };
+                    out[high] = sub(a, b, q);
                     twiddle = mul(twiddle, root, q);
                 }
             }
@@ -351,3 +353,7 @@ mod tests;
 #[cfg(test)]
 #[path = "coefficient_ntt_automorphism_tests.rs"]
 mod automorphism_tests;
+
+#[cfg(test)]
+#[path = "coefficient_ntt/fixed_tests.rs"]
+mod fixed_tests;

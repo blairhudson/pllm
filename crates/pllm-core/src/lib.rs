@@ -40,6 +40,7 @@ pub mod head_index;
 pub mod integer_bounds;
 pub mod interleaved_kv_layout;
 pub mod joint_gated_reference;
+mod kernel_support;
 pub mod kernels;
 pub mod kv_cache;
 pub mod logrow_numeric;

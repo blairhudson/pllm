@@ -5,6 +5,7 @@
 use super::arithmetic as ar;
 use super::bfv::{add_into, decrypt_into, encrypt_into, key_equation_into};
 use super::*;
+use crate::kernel_support::WorkExhausted;
 use num_bigint::BigInt;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
@@ -552,7 +553,7 @@ fn parameter_geometry_and_quote_overflow_rejections() {
     assert_eq!(preflight(forged, Operation::Key, &[], &mut work), Err(KernelError::Overflow));
     assert_eq!(work.remaining(), 100);
     let mut work = KernelWorkLimit::new(7);
-    assert_eq!(work.debit(u64::MAX), Err(KernelError::Work));
+    assert_eq!(work.debit(u64::MAX), Err(WorkExhausted));
     assert_eq!(work.remaining(), 7);
 }
 
