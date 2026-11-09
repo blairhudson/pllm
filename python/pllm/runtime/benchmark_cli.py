@@ -1571,6 +1571,11 @@ def _run_loopback_benchmark(
         )
     report["client_body_placement"] = client_body_placement
     report["native_process_memory"] = native_memory
+    from ._retirement_observation import UNAVAILABLE, report as retirement_report
+    try:
+        report["owned_provider_retirement"] = dashboard_app.state.dashboard_runtime.owned_provider_retirement
+    except BaseException:
+        report["owned_provider_retirement"] = retirement_report(UNAVAILABLE)
     # handle.close() has run the ordinary supervisor retirement/reap path. Read
     # only its cached wait4 results; never relabel the pre-teardown RSS sample as
     # final OS HWM or compete with the isolated client's multiprocessing owner.

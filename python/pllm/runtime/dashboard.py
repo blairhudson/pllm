@@ -525,6 +525,9 @@ class DashboardRuntime:
         self._lock = threading.Lock()
         self._temporary: tempfile.TemporaryDirectory[str] | None = None
         self._topology: LocalTopology | None = None
+        self._topology_close_identity: int | None = None
+        self._topology_close_outcome = "incomplete"
+        self._topology_close_snapshot: bytes | None = None
         self._client: OpenAI | None = None
         self._state: dict[str, Any] = {
             "phase": "starting",
@@ -1724,6 +1727,25 @@ class DashboardRuntime:
             telemetry["services"].setdefault(service, {})["status"] = status
         return {"run": state, "otel": telemetry}
 
+    @property
+    def owned_provider_retirement(self) -> dict[str, Any]:
+        from ._retirement_observation import UNAVAILABLE, report
+
+        try:
+            with self._lock:
+                topology = self._topology
+                snapshot = getattr(topology, "_retirement_snapshot", UNAVAILABLE)
+                matched = (topology is not None and id(topology) == self._topology_close_identity
+                           and snapshot is self._topology_close_snapshot)
+                outcome = self._topology_close_outcome if matched else "incomplete"
+                if not matched:
+                    snapshot = UNAVAILABLE
+            # The topology retains only immutable scalar bytes for transfer.
+            return report(snapshot, outcome,
+                          topology_error=getattr(topology, "_retirement_close_error", False))
+        except BaseException:
+            return report(UNAVAILABLE)
+
     async def stop(self) -> None:
         with self._lock:
             if self._stop_started:
@@ -1743,9 +1765,35 @@ class DashboardRuntime:
         topology = getattr(self, "_topology", None)
         if topology is not None:
             try:
+                with self._lock:
+                    self._topology_close_identity = id(topology)
+                    self._topology_close_outcome = "incomplete"
+                    self._topology_close_snapshot = None
+            except BaseException:
+                self._topology_close_snapshot = None
+            outcome = "error"
+            try:
                 await asyncio.to_thread(topology.close)
             except Exception:
                 pass
+            else:
+                outcome = "completed"
+            finally:
+                # Retain bounded metadata, not another topology/process root.
+                # Its identity also rules out reuse of an old topology's id().
+                try:
+                    from ._retirement_observation import MAX_SUMMARY_BYTES
+                    snapshot = getattr(topology, "_retirement_snapshot", None)
+                    if type(snapshot) is not bytes or len(snapshot) > MAX_SUMMARY_BYTES:
+                        snapshot = None
+                except BaseException:
+                    snapshot = None
+                try:
+                    with self._lock:
+                        self._topology_close_outcome = outcome
+                        self._topology_close_snapshot = snapshot
+                except BaseException:
+                    self._topology_close_snapshot = None
         if worker is not None and worker.is_alive():
             await asyncio.to_thread(worker.join, self._WORKER_JOIN_TIMEOUT_SECONDS)
         worker_alive = worker is not None and worker.is_alive()

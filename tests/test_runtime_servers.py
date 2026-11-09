@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+import json
 from contextlib import ExitStack, contextmanager
 from dataclasses import FrozenInstanceError
 from pathlib import Path
@@ -19,8 +20,403 @@ from pllm import (
 )
 from pllm.protocols import GuardedLinear
 from pllm.runtime import servers
+from pllm.runtime import _retirement_observation as retirement
 from pllm.runtime.servers import LocalTopology, TopologyError, build_roles, serve_local
 from pllm.sources import TinyModel
+
+
+@pytest.mark.parametrize("returncode", [0, -9])
+@pytest.mark.parametrize("natural_exit", [False, True])
+def test_retirement_observes_existing_wait_and_repeated_close_poll(
+    supervised_boundary, monkeypatch, returncode, natural_exit,
+):
+    state = supervised_boundary
+    topology = state.topology
+    topology._role_ids = ("inference",)
+    process = topology._spawn("inference", ["unused"])
+    events = []
+    process.returncode = returncode if natural_exit else None
+
+    def poll(raw):
+        assert raw is process
+        events.append("poll")
+        return raw.returncode
+
+    def wait(raw, timeout):
+        assert raw is process
+        events.append("wait")
+        raw.returncode = returncode
+        return returncode
+
+    monkeypatch.setattr(servers.UsagePopen, "poll", poll)
+    monkeypatch.setattr(servers.UsagePopen, "wait", wait)
+    topology.close()
+    value = retirement.report(topology._retirement_snapshot)
+    assert value["observation_complete"] is True
+    assert value["configured_roles"] == ["inference"]
+    assert value["owners"] == [{"ordinal": 0, "roles": ["inference"], "initialized": True,
+                                "pid": process.pid, "state": "retired", "returncode": returncode,
+                                "observation_kind": "wait"}]
+    assert events == ["poll", "wait", "poll", "wait"]
+    assert [event[0] for event in state.events] == ([] if natural_exit else ["terminate"])
+    topology.close()
+    assert events == ["poll", "wait", "poll", "wait", "poll"]
+    assert retirement.report(topology._retirement_snapshot)["owners"][0]["observation_kind"] == "poll"
+
+
+def test_retirement_raw_identity_keeps_alias_roles_and_distinct_same_role(supervised_boundary):
+    state = supervised_boundary
+    topology = state.topology
+    first = topology._spawn("inference", ["first"])
+    second = topology._spawn("preparation", ["second"])
+    topology._processes["preparation"] = first  # Published alias, distinct pending owner retained.
+    topology.close()
+    value = retirement.report(topology._retirement_snapshot)
+    assert value["observation_complete"] is True
+    assert value["owners"] == [
+        {"ordinal": 0, "roles": ["inference", "preparation"], "initialized": True,
+         "pid": first.pid, "state": "retired", "returncode": -9, "observation_kind": "wait"},
+        {"ordinal": 1, "roles": ["preparation"], "initialized": True,
+         "pid": second.pid, "state": "retired", "returncode": -9, "observation_kind": "wait"},
+    ]
+    assert [event[:2] for event in state.events if event[0] != "wait"] == [
+        ("terminate", first), ("terminate", second), ("kill", first), ("kill", second)]
+    assert len([event for event in state.events if event[0] == "wait"]) == 4
+
+
+@pytest.mark.parametrize("failure", [
+    "capture", "reconciliation", "publication", "serialization", "encoded_overflow", "generation",
+])
+@pytest.mark.parametrize("primary_error", [False, True])
+def test_retirement_diagnostic_failure_never_changes_cleanup_or_reservation(
+    supervised_boundary, topology_reservation, monkeypatch, failure, primary_error,
+):
+    state, charge = supervised_boundary, topology_reservation
+    topology = state.topology
+    topology._capacity_reservations = charge.leases
+    topology._role_ids = ("inference",)
+    process = topology._spawn("inference", ["unused"])
+    primary = RuntimeError("original signal failure")
+
+    def fail(*args, **kwargs):
+        raise MemoryError("diagnostic allocation failed")
+
+    def terminate(raw):
+        raise primary
+
+    if primary_error:
+        monkeypatch.setattr(servers.UsagePopen, "terminate", terminate)
+    with monkeypatch.context() as diagnostic:
+        if failure == "capture":
+            diagnostic.setattr(servers, "Observation", fail)
+        elif failure == "reconciliation":
+            diagnostic.setattr(retirement.Observation, "record", fail)
+        elif failure == "publication":
+            diagnostic.setattr(retirement.Observation, "finish", fail)
+        elif failure == "encoded_overflow":
+            diagnostic.setattr(retirement.json, "dumps", lambda *a, **k: "x" * ((32 << 10) + 1))
+        elif failure == "generation":
+            class Generation:
+                __add__ = fail
+
+            topology._retirement_generation = Generation()
+        else:
+            diagnostic.setattr(retirement.json, "dumps", fail)
+        if primary_error:
+            with pytest.raises(RuntimeError) as caught:
+                topology.close()
+            assert caught.value is primary
+        else:
+            topology.close()
+    assert retirement.report(topology._retirement_snapshot)["available"] is False
+    assert process.returncode == -9
+    assert [event[0] for event in state.events].count("wait") == 2
+    assert [event[0] for event in state.events].count("kill") == 1
+    if primary_error:
+        assert topology._capacity_reservations is charge.leases
+        assert charge.capacity._owners == {charge.token: 64 << 10}
+        assert not charge.reservation._exited
+        # Test hygiene uses existing known-exit fast path, not a synthetic refund.
+        topology.close()
+    assert topology._capacity_reservations is None
+    assert charge.token not in charge.capacity._owners and charge.reservation._exited
+
+
+@pytest.mark.parametrize("old_error", [False, True])
+def test_retirement_publication_waits_for_deferred_exit_and_generation(
+    supervised_boundary, monkeypatch, old_error,
+):
+    state = supervised_boundary
+    topology = state.topology
+    topology._role_ids = ("inference",)
+    state.term_exit = True
+    topology._spawn("inference", ["unused"])
+    blocked, release = threading.Event(), threading.Event()
+    scopes, errors = [], []
+    primary = RuntimeError("older deferred signal")
+
+    @contextmanager
+    def deferred():
+        first = not scopes
+        scopes.append(True)
+        yield
+        if first:
+            blocked.set()
+            assert release.wait(2)
+            if old_error:
+                raise primary
+
+    def close():
+        try:
+            topology.close()
+        except BaseException as exc:
+            errors.append(exc)
+
+    monkeypatch.setattr(servers, "defer_termination_signals", deferred)
+    worker = threading.Thread(target=close)
+    worker.start()
+    try:
+        assert blocked.wait(2)
+        assert retirement.report(topology._retirement_snapshot)["observation_complete"] is False
+        topology.close()
+        newer = topology._retirement_snapshot
+        assert retirement.report(newer)["topology_close_outcome"] == "completed"
+    finally:
+        release.set()
+        worker.join(2)
+    assert not worker.is_alive() and errors == ([primary] if old_error else [])
+    assert topology._retirement_snapshot == newer  # Older finalizer never replaces newer ownership.
+    value = retirement.report(newer, topology_error=topology._retirement_close_error)
+    assert value["topology_close_outcome"] == ("error" if old_error else "completed")
+    assert [event[0] for event in state.events] == ["terminate", "wait", "wait"]
+
+
+def test_retirement_diagnostic_role_overflow_does_not_limit_cleanup(supervised_boundary):
+    state = supervised_boundary
+    topology = state.topology
+    topology._role_ids = tuple(f"role_{index}" for index in range(17))
+    for role in topology._role_ids:
+        topology._spawn(role, ["unused"])
+    topology.close()
+    assert retirement.report(topology._retirement_snapshot)["available"] is False
+    assert len(state.processes) == 17 and all(process.returncode == -9 for process in state.processes)
+    assert len([event for event in state.events if event[0] == "wait"]) == 34
+
+
+@pytest.mark.parametrize("failure", ["poll", "wait", "lookup"])
+def test_retirement_lookup_and_failed_observations_are_not_exit_proof(
+    supervised_boundary, monkeypatch, failure,
+):
+    state = supervised_boundary
+    topology = state.topology
+    topology._role_ids = ("inference",)
+    process = topology._spawn("inference", ["unused"])
+    primary = RuntimeError("original observation error")
+    calls = []
+
+    def poll(raw):
+        calls.append("poll")
+        if failure == "poll":
+            raise primary
+        return None
+
+    def wait(raw, timeout):
+        calls.append("wait")
+        if failure == "wait":
+            raise primary
+        raise servers.subprocess.TimeoutExpired("unused", timeout)
+
+    def signal(raw):
+        calls.append("signal")
+        raise ProcessLookupError
+
+    monkeypatch.setattr(servers.UsagePopen, "poll", poll)
+    monkeypatch.setattr(servers.UsagePopen, "wait", wait)
+    monkeypatch.setattr(servers.UsagePopen, "terminate", signal)
+    monkeypatch.setattr(servers.UsagePopen, "kill", signal)
+    with pytest.raises(RuntimeError) as caught:
+        topology.close()
+    if failure != "lookup":
+        assert caught.value is primary
+    assert calls == ["poll", "signal", "wait", "poll", "signal", "wait"]
+    value = retirement.report(topology._retirement_snapshot)
+    assert value["topology_close_outcome"] == "error" and value["observation_complete"] is False
+    assert value["owners"][0]["state"] == "unknown"
+    assert value["owners"][0]["returncode"] is None
+    assert topology._processes["inference"] is process
+
+
+def test_retirement_fss_failed_reap_retains_real_capacity_until_existing_retry(
+    supervised_boundary, monkeypatch,
+):
+    from pllm.deployment import resources
+    from pllm.runtime import fss_child_status
+    from pllm.runtime.fss_protocol import ROLE_MEMORY, ROLES
+
+    state = supervised_boundary
+    topology = state.topology
+    capacity = resources._ClientCapacity()
+    monkeypatch.setattr(resources, "_capacity", capacity)
+    monkeypatch.setattr(capacity, "observe", lambda: SimpleNamespace(headroom_bytes=8 << 30))
+    reservation = resources.reserve_incremental_memory(3 * ROLE_MEMORY)
+    leases = ExitStack()
+    leases.enter_context(reservation)
+    topology._capacity_reservations = leases
+    topology._role_ids = ROLES
+    topology._privacy_mode = "fss_public"
+    monkeypatch.setattr(LocalTopology, "_environment", lambda self, role: {})
+
+    def unavailable(*args):
+        raise RuntimeError("status channel unavailable")
+
+    monkeypatch.setattr(fss_child_status, "StatusReader", unavailable)
+    for role in ROLES:
+        topology._spawn(role, ["unused"])
+    state.fail_wait = True
+    with pytest.raises(TopologyError, match="did not stop"):
+        topology.close()
+    assert capacity._owners == {reservation._token: 3 * ROLE_MEMORY}
+    assert topology._capacity_reservations is leases and not reservation._exited
+    failed = retirement.report(topology._retirement_snapshot)
+    assert failed["observation_complete"] is False and failed["topology_close_outcome"] == "error"
+    state.fail_wait = False
+    topology.close()
+    assert not capacity._owners and reservation._exited
+    known = retirement.report(topology._retirement_snapshot)
+    assert known["observation_complete"] is True
+    assert known["topology_close_outcome"] == "error"  # Later terminal results do not erase failure.
+
+
+def _retirement_boundary_value():
+    roles = [str(index).zfill(64) for index in range(16)]
+    return {"available": True, "scope": retirement.SCOPE, "configured_roles": roles,
+            "observation_complete": True, "topology_close_outcome": "completed",
+            "owners": [{"ordinal": (1 << 64) - 1 - index,
+                        "roles": [roles[index % 16], roles[(index + 1) % 16]],
+                        "initialized": True, "pid": (1 << 64) - 1,
+                        "state": "retired", "returncode": -(1 << 63), "observation_kind": "wait"}
+                       for index in range(32)]}
+
+
+@pytest.mark.parametrize("case", [
+    "equal", "roles_over", "owners_over", "associations_over", "role_over", "utf8_equal",
+    "utf8_over", "surrogate", "role_bool", "pid_bool", "pid_over", "pid_negative",
+    "ordinal_bool", "ordinal_over", "returncode_bool", "returncode_over", "returncode_under",
+    "returncode_equal", "uninitialized_terminal", "unknown_terminal", "bad_kind",
+    "bad_complete", "malformed", "encoded_equal", "encoded_over",
+])
+def test_retirement_scalar_and_encoded_bounds_fail_unavailable(case):
+    value = _retirement_boundary_value()
+    first = value["owners"][0]
+    if case == "roles_over":
+        value["configured_roles"].append("extra")
+    elif case == "owners_over":
+        value["owners"].append(dict(first, ordinal=0))
+    elif case == "associations_over":
+        first["roles"].append(value["configured_roles"][2])
+    elif case in ("role_over", "utf8_equal", "utf8_over", "surrogate", "role_bool"):
+        replacement = {"role_over": "x" * 65, "utf8_equal": "é" * 32,
+                       "utf8_over": "é" * 33, "surrogate": "\ud800", "role_bool": True}[case]
+        original = value["configured_roles"][0]
+        value["configured_roles"][0] = replacement
+        for owner in value["owners"]:
+            owner["roles"] = [replacement if role == original else role for role in owner["roles"]]
+    elif case.startswith("pid_"):
+        first["pid"] = {"pid_bool": True, "pid_over": 1 << 64, "pid_negative": -1}[case]
+    elif case.startswith("ordinal_"):
+        first["ordinal"] = True if case == "ordinal_bool" else 1 << 64
+    elif case.startswith("returncode_"):
+        first["returncode"] = {"returncode_bool": False, "returncode_over": 1 << 63,
+                               "returncode_under": -(1 << 63) - 1,
+                               "returncode_equal": (1 << 63) - 1}[case]
+    elif case == "uninitialized_terminal":
+        first["initialized"] = False
+    elif case == "unknown_terminal":
+        first["state"] = "unknown"
+    elif case == "bad_kind":
+        first["observation_kind"] = "signal"
+    elif case == "bad_complete":
+        value["observation_complete"] = False
+    raw = json.dumps(value).encode()
+    if case == "malformed":
+        raw = b"not-json"
+    elif case in ("encoded_equal", "encoded_over"):
+        raw += b" " * ((32 << 10) - len(raw) + (case == "encoded_over"))
+    result = retirement.report(raw, "completed")
+    assert result["available"] is (case in {"equal", "utf8_equal", "returncode_equal", "encoded_equal"})
+    assert retirement.RAW_PEAK_BYTES == 1 << 20
+
+
+def test_retirement_capture_checks_counts_before_iterating_or_encoding():
+    class Oversized:
+        def __len__(self):
+            return 65
+
+        def __iter__(self):
+            pytest.fail("overflow collection iterated")
+
+        def items(self):
+            pytest.fail("overflow mapping copied")
+
+    with pytest.raises(ValueError):
+        retirement.Observation(Oversized(), {}, {}, set())
+    for published, pending in ((Oversized(), {}), ({}, Oversized())):
+        with pytest.raises(ValueError):
+            retirement.Observation(("inference",), published, pending, set())
+    with pytest.raises(ValueError):
+        retirement.Observation(tuple(f"role_{index}" for index in range(17)), {}, {}, set())
+
+    class LyingList(list):
+        def __iter__(self):
+            pytest.fail("malformed diagnostic collection iterated")
+
+    with pytest.raises(ValueError):
+        retirement.Observation(LyingList(["inference"]), {}, {}, set())
+
+
+def test_retirement_capture_exact_owner_limit_and_scalar_only_storage():
+    roles = tuple(f"role_{index}" for index in range(16))
+    published = {role: SimpleNamespace(pid=index) for index, role in enumerate(roles)}
+    pending = {role: SimpleNamespace(role=role, process=SimpleNamespace(pid=16 + index))
+               for index, role in enumerate(roles)}
+    observation = retirement.Observation(roles, published, pending, set(roles))
+    assert len(observation.owners) == 32
+    assert all(type(identity) is int for identity in observation.owners)
+    for identity in observation.owners:
+        observation.record(identity, 0, "poll")
+    value = retirement.report(observation.finish("completed"))
+    assert value["observation_complete"] is True and len(value["owners"]) == 32
+    with pytest.raises(FrozenInstanceError):
+        next(iter(observation.owners.values())).pid = 7
+
+
+def test_retirement_new_unready_owner_cannot_borrow_prior_complete_observation():
+    known = SimpleNamespace(pid=7)
+    first = retirement.Observation(("inference",), {"inference": known}, {}, set())
+    first.record(id(known), 0, "poll")
+    assert retirement.report(first.finish("completed"))["observation_complete"] is True
+    unready = SimpleNamespace(pid=8, returncode=0)
+    pending = {"inference": SimpleNamespace(role="inference", process=unready)}
+    second = retirement.Observation(("inference",), {"inference": known}, pending, set())
+    second.record(id(known), 0, "poll")
+    value = retirement.report(second.finish("error"))
+    assert value["observation_complete"] is False and len(value["owners"]) == 2
+    assert value["owners"][1] == {"ordinal": 1, "roles": ["inference"], "initialized": False,
+                                 "pid": None, "state": "unknown", "returncode": None,
+                                 "observation_kind": None}
+
+
+@pytest.mark.parametrize("returncode", [True, 1 << 63, -(1 << 63) - 1])
+def test_retirement_invalid_terminal_integer_disables_diagnostic_not_cleanup(
+    supervised_boundary, returncode,
+):
+    topology = supervised_boundary.topology
+    topology._role_ids = ("inference",)
+    process = topology._spawn("inference", ["unused"])
+    process.returncode = returncode
+    topology.close()
+    assert retirement.report(topology._retirement_snapshot)["available"] is False
+    assert [event[0] for event in supervised_boundary.events] == ["wait", "wait"]
 
 
 def test_role_process_construction_has_one_implementation() -> None:
@@ -379,6 +775,13 @@ def test_supervised_role_group_partial_init_stays_unknown(
         assert topology._role_process_owners["inference"] is owner
         assert charge.capacity._owners == {charge.token: 64 << 10}
         assert not charge.reservation._exited
+        from pllm.runtime._retirement_observation import report
+        observed = report(topology._retirement_snapshot, topology_error=True)
+        assert observed["observation_complete"] is False
+        assert observed["topology_close_outcome"] == "error"
+        assert observed["owners"][0]["initialized"] is False
+        assert observed["owners"][0]["state"] == "unknown"
+        assert observed["owners"][0]["returncode"] is None
         # Apparently dead fields cannot qualify the unknown original generation.
         owner.process.pid = 9999
         owner.process.returncode = 0
@@ -766,6 +1169,8 @@ def test_supervised_deferred_scope_exit_preserves_first_cleanup_failure(
         topology.close()
     assert caught.value is expected
     assert attempts == ["stop", "scope-exit"]
+    assert topology._retirement_close_error is True
+    assert json.loads(topology._retirement_snapshot)["topology_close_outcome"] == "error"
     assert expected.__cause__ is expected_cause and expected.__context__ is expected_context
     if earlier_failure:
         assert topology._capacity_reservations is state.charge and not state.refunds

@@ -56,7 +56,7 @@ def test_streamed_transport_and_host_admission_charge_same_owner(full_geometry, 
                        "worker_a": worker - (64 << 20),
                        "worker_b": worker - (64 << 20)}
     assert estimate["allocation_slack_percent"] == 25
-    assert estimate["client_peak_bytes"] == ((256 * memory.MiB + client) * 125 + 99) // 100
+    assert estimate["client_peak_bytes"] == ((256 * memory.MiB + client + (1 << 20)) * 125 + 99) // 100
     assert estimate["provider_peak_bytes"] == {
         name: ((256 * memory.MiB + worker) * 125 + 99) // 100 for name in ("worker_a", "worker_b")}
 
@@ -65,7 +65,7 @@ def test_streamed_transport_and_host_admission_charge_same_owner(full_geometry, 
     rejected = memory.admit_memory(estimate, host(required - 1))
     assert accepted["admitted"] and not rejected["admitted"]
     assert rejected["selected_backend"] is None
-    expected = 3 * 256 * memory.MiB + client + 2 * worker
+    expected = 3 * 256 * memory.MiB + client + 2 * worker + (1 << 20)
     native = accepted["candidates"]["native"]
     assert native["expected_peak_bytes"] == expected
     assert native["safety_margin_bytes"] == required - expected

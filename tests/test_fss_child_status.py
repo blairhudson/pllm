@@ -518,14 +518,14 @@ def test_status_process_overhead_is_additive_without_cap_or_relay_credit(price_c
     progress = owners["execution_progress"]
     assert progress["python_bytes_per_holder"] == progress["supervisor_bytes_per_holder"] == 16 << 10
     supervisor_progress = 2 * progress["supervisor_bytes_per_holder"]
-    assert estimate["client_peak_bytes"] == memory._slack(base_client + (26 << 20) + supervisor_progress, margin)
+    assert estimate["client_peak_bytes"] == memory._slack(base_client + (27 << 20) + supervisor_progress, margin)
     holder_extra = max(sum(owners["each_role"].values()) + progress["python_bytes_per_holder"], preflight) - max(sum(owners["each_role"].values()), preflight)
     assert all(value == memory._slack(base_role + (1 << 20)
                + (holder_extra if role in ("worker_a", "worker_b") else 0), margin)
                for role, value in estimate["provider_peak_bytes"].items())
     baseline = memory._slack(base_client, margin) + 3 * memory._slack(base_role, margin)
     assert estimate["native_total_peak_bytes"] - baseline == memory._slack(
-        (29 << 20) + supervisor_progress + 2 * holder_extra, margin)
+        (30 << 20) + supervisor_progress + 2 * holder_extra, margin)
     assert owners["relay_workspace_bytes"] == 32 << 20
     assert owners["each_role"]["native_kernel_owner"] == 64 << 20
     assert estimate["incremental_owner_bounds"]["per_role_execution"] == worker.p.ROLE_MEMORY

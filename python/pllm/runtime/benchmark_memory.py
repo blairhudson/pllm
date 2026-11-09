@@ -19,6 +19,8 @@ import subprocess
 import threading
 from typing import Any, Callable
 
+from ._retirement_observation import MEMORY_SCOPE, RAW_PEAK_BYTES
+
 MiB = 1 << 20
 GiB = 1 << 30
 _PROCESS_BYTES = 256 * MiB
@@ -569,7 +571,7 @@ def _fss_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, check
     # SDK, supervisor, dashboard and relay can overlap, plus three role processes.
     progress_supervisor = 2 * PROGRESS_SUPERVISOR_BYTES
     client = _slack(3 * _PROCESS_BYTES + client_work + 32 * MiB + SUPERVISOR_MEMORY_BYTES
-                    + progress_supervisor, margin)
+                    + progress_supervisor + RAW_PEAK_BYTES, margin)
     return {"scope": "conservative allocation estimate; not measured peak RSS",
         "runtime_kind": "fss", "model_plan_digest": None,
         "model_config_digest": contract["plan"]["config_digest"], "pipeline_digest": pipeline.digest(),
@@ -604,7 +606,9 @@ def _fss_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, check
                 "scope": "holder subdivision checked under existing role cap; supervisor additive; no native owner"},
             "source_metadata_preflight_bytes_per_process": metadata_preflight,
             "client_sdk_supervisor_dashboard_processes": 3, "relay_workspace_bytes": 32 * MiB},
-        "components": {"checkpoint_bytes": checkpoint_bytes, "source_float32_bytes": source,
+        "components": {"owned_provider_retirement_raw_peak_bytes": RAW_PEAK_BYTES,
+            "owned_provider_retirement_scope": MEMORY_SCOPE,
+            "checkpoint_bytes": checkpoint_bytes, "source_float32_bytes": source,
             "checkpoint_byte_count_scope": "caller_supplied_or_float32_geometry_upper_bound_not_delivery",
             # The shared whole-topology gate multiplies per-engine storage by
             # all three roles, and adds its holder-transport bucket exactly once.
@@ -687,7 +691,8 @@ def _replicated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound
         validate_execution(experiment, contract)
     except (ValueError, TypeError, OverflowError) as error:
         raise BenchmarkMemoryError("replicated source exceeds native admission") from error
-    role = _slack(_PROCESS_BYTES + contract["execution_payload_estimate_bytes"], memory_safety_margin_percent)
+    role = _slack(_PROCESS_BYTES + contract["execution_payload_estimate_bytes"] + RAW_PEAK_BYTES,
+                  memory_safety_margin_percent)
     from .replicated_protocol import execution_policy, STREAM_MEMORY
     selected = execution_policy(experiment)["peer_transport"] == "streams"
     stream_memory = STREAM_MEMORY if selected else 0
@@ -706,7 +711,9 @@ def _replicated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound
         "weight_storage": "verified file-backed public Q18 weights" if public_weights else "party-local Q18 shares",
         "bundle_storage": "trusted client source publication", "mask_storage": "party-local pairwise PRSS",
         "tensor_storage": "party-local recomputed prefix, KV and Q18 activations",
-        "components": {"source_float32_bytes": contract["source_float32_bytes"],
+        "components": {"owned_provider_retirement_raw_peak_bytes": RAW_PEAK_BYTES,
+            "owned_provider_retirement_scope": MEMORY_SCOPE,
+            "source_float32_bytes": contract["source_float32_bytes"],
             "checkpoint_bytes": checkpoint_bytes,
             "per_engine_compiled_disk_bytes": contract.get("public_weight_snapshot_bytes_per_worker", 0),
             "public_weight_read_buffer_bytes": contract.get("public_weight_read_buffer_bytes", 0),
@@ -775,10 +782,12 @@ def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound,
     if expanded:
         native = contract["decoder_resources"]["client_payload_bytes"]
         source_owners = 0  # Streamed native ownership is already included above.
-    role = _slack(_PROCESS_BYTES + native + transport + source_owners, memory_safety_margin_percent)
+    role = _slack(_PROCESS_BYTES + native + transport + source_owners + RAW_PEAK_BYTES,
+                  memory_safety_margin_percent)
     worker = (_slack(_PROCESS_BYTES + contract["decoder_resources"]["worker_payload_bytes"] + transport,
                      memory_safety_margin_percent)
-              if expanded else role)
+              if expanded else _slack(_PROCESS_BYTES + native + transport + source_owners,
+                                     memory_safety_margin_percent))
     providers = {name: worker for name in ("worker_a", "worker_b")}
     if batch_prices:
         # Keep historical process/source/transport terms and margin unchanged.
@@ -786,7 +795,8 @@ def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound,
         base_client = contract["execution_payload_estimate_bytes"]
         base_worker = contract["decoder_resources"]["worker_payload_bytes"] if expanded else base_client
         role = _slack(_PROCESS_BYTES + native + transport + source_owners
-                      + batch_prices["client_payload_bytes"] - base_client, memory_safety_margin_percent)
+                      + batch_prices["client_payload_bytes"] - base_client + RAW_PEAK_BYTES,
+                      memory_safety_margin_percent)
         providers = {name: _slack(_PROCESS_BYTES + (base_worker if expanded else native)
                      + transport + source_owners + batch_prices["worker_payload_bytes"][name] - base_worker,
                      memory_safety_margin_percent) for name in providers}
@@ -823,7 +833,9 @@ def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound,
             **({key: value for key, value in batch_prices.items() if key.startswith("batch_")}
                if batch_prices else {}),
         },
-        "components": {"source_float32_bytes": source,
+        "components": {"owned_provider_retirement_raw_peak_bytes": RAW_PEAK_BYTES,
+                       "owned_provider_retirement_scope": MEMORY_SCOPE,
+                       "source_float32_bytes": source,
                        "source_import_and_retention_bytes_per_role": source_owners,
                        "checkpoint_bytes": checkpoint_bytes,
                        "per_engine_compiled_disk_bytes": 0, "raw_client_bundle_bytes": 0},
@@ -1141,7 +1153,7 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
         client += boundary_allocation["client_work_bytes"]
     if not roles:
         client += engine + loading
-    client_peak = _slack(client, memory_safety_margin_percent)
+    client_peak = _slack(client + RAW_PEAK_BYTES, memory_safety_margin_percent)
     return {
         "scope": "conservative allocation estimate; not measured peak RSS",
         "model_plan_digest": plan.digest, "pipeline_digest": pipeline.digest(),
@@ -1166,7 +1178,9 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
         **({"private_boundary_allocation": boundary_allocation} if private_boundary else {}),
         "tensor_storage": workspace["mode"] + "; completed benchmark response histories are retired",
         "native_total_peak_bytes": client_peak + sum(role_peaks.values()),
-        "components": {"per_engine_i8_and_native_bytes": cpu_weights,
+        "components": {"owned_provider_retirement_raw_peak_bytes": RAW_PEAK_BYTES,
+            "owned_provider_retirement_scope": MEMORY_SCOPE,
+            "per_engine_i8_and_native_bytes": cpu_weights,
             "per_role_i8_and_native_bytes": role_weights,
             "per_role_loading_temporary_bytes": role_loading,
             "legacy_per_engine_i8_and_native_bytes": 2 * weights,
@@ -1500,6 +1514,8 @@ def _fss_source_qualification_estimate(estimate):
     original = estimate["components"]
     source_disk = original["per_engine_compiled_disk_bytes"]
     value["components"] = {
+        "owned_provider_retirement_raw_peak_bytes": original["owned_provider_retirement_raw_peak_bytes"],
+        "owned_provider_retirement_scope": original["owned_provider_retirement_scope"],
         "checkpoint_bytes": original["checkpoint_bytes"],
         "source_float32_bytes": original["source_float32_bytes"],
         "per_engine_compiled_disk_bytes": 0, "raw_client_bundle_bytes": 0,

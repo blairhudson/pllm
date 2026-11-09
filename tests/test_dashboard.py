@@ -347,6 +347,93 @@ def test_incomplete_dashboard_stream_is_not_reported_as_success() -> None:
     assert "terminal response" in runtime._state["error"]
 
 
+@pytest.mark.parametrize("outcome", ["completed", "error", "in_progress"])
+def test_dashboard_retirement_reports_actual_topology_close_outcome(outcome):
+    from pllm.runtime._retirement_observation import Observation
+
+    runtime = DashboardRuntime(
+        SimpleNamespace(model_id="model", model_path=None, default_max_output_tokens=8), OTelStore())
+    process = SimpleNamespace(pid=7)
+    observation = Observation(("worker_a",), {"worker_a": process}, {}, set())
+    observation.record(id(process), 0, "wait")
+    entered, release = threading.Event(), threading.Event()
+    calls = []
+    primary = RuntimeError("topology close failed")
+
+    def close():
+        calls.append("close")
+        if outcome == "error":
+            raise primary
+        if outcome == "in_progress":
+            entered.set()
+            assert release.wait(2)
+
+    topology = SimpleNamespace(close=close, _retirement_snapshot=observation.finish("completed"),
+                               _retirement_close_error=outcome == "error")
+    runtime._topology = topology
+    assert runtime.owned_provider_retirement["dashboard_topology_close_outcome"] == "incomplete"
+
+    async def exercise():
+        task = asyncio.create_task(runtime.stop())
+        try:
+            if outcome == "in_progress":
+                assert await asyncio.to_thread(entered.wait, 2)
+                assert runtime._stop_started is True
+                await runtime.stop()  # Started is not completed.
+                assert runtime.owned_provider_retirement["dashboard_topology_close_outcome"] == "incomplete"
+        finally:
+            release.set()
+            await task
+
+    asyncio.run(exercise())  # Existing ordinary error swallow remains unchanged.
+    assert calls == ["close"]
+    value = runtime.owned_provider_retirement
+    assert value["dashboard_topology_close_outcome"] == ("error" if outcome == "error" else "completed")
+    assert value["topology_close_outcome"] == ("error" if outcome == "error" else "completed")
+    asyncio.run(runtime.stop())
+    assert calls == ["close"]
+    runtime._topology = SimpleNamespace(_retirement_snapshot=topology._retirement_snapshot)
+    assert runtime.owned_provider_retirement["dashboard_topology_close_outcome"] == "incomplete"
+    # Simulated object-id reuse cannot borrow a different topology's close call.
+    runtime._topology = SimpleNamespace(_retirement_snapshot=(b" " + topology._retirement_snapshot)[1:])
+    runtime._topology_close_identity = id(runtime._topology)
+    assert runtime.owned_provider_retirement["dashboard_topology_close_outcome"] == "incomplete"
+
+
+@pytest.mark.parametrize("failure", ["snapshot", "serialization"])
+def test_dashboard_retirement_diagnostic_failure_keeps_existing_close_and_guard(monkeypatch, failure):
+    from pllm.runtime import _retirement_observation as retirement
+
+    runtime = DashboardRuntime(
+        SimpleNamespace(model_id="model", model_path=None, default_max_output_tokens=8), OTelStore())
+    events = []
+    process = SimpleNamespace(pid=7)
+    observation = retirement.Observation(("worker_a",), {"worker_a": process}, {}, set())
+    observation.record(id(process), 0, "wait")
+    snapshot = observation.finish("completed")
+
+    class Topology:
+        def close(self):
+            events.append("close")
+
+        @property
+        def _retirement_snapshot(self):
+            if failure == "snapshot":
+                raise MemoryError("snapshot transfer failed")
+            return snapshot
+
+    def fail(*args, **kwargs):
+        raise MemoryError("report serialization failed")
+
+    runtime._topology = Topology()
+    runtime._memory_guard = SimpleNamespace(close=lambda: events.append("guard"))
+    if failure == "serialization":
+        monkeypatch.setattr(retirement, "_encoded", fail)
+    asyncio.run(runtime.stop())
+    assert events == ["close", "guard"]
+    assert runtime.owned_provider_retirement["available"] is False
+
+
 def test_dashboard_stop_does_not_wait_forever_for_client_close() -> None:
     release = threading.Event()
     runtime = DashboardRuntime(

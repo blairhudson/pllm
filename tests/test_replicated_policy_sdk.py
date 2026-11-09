@@ -298,9 +298,9 @@ def test_combined_stream_admission_prices_workspace_once_per_worker(tmp_path):
         workspace = STREAM_MEMORY if choice == "streams" else 0
         assert contract.get("peer_stream_workspace_bytes_per_worker", 0) == workspace
         assert estimate["components"].get("peer_stream_workspace_bytes_per_worker", 0) == workspace
-        assert estimate["client_peak_bytes"] == _slack(base, margin)
+        assert estimate["client_peak_bytes"] == _slack(base + (1 << 20), margin)
         assert estimate["provider_peak_bytes"] == {role: _slack(base + workspace, margin) for role in ROLES}
-        assert estimate["native_total_peak_bytes"] == _slack(base, margin) + 3 * _slack(base + workspace, margin)
+        assert estimate["native_total_peak_bytes"] == _slack(base + (1 << 20), margin) + 3 * _slack(base + workspace, margin)
 
 
 def test_combined_gateway_responses_stream_and_chat_keep_final_only_acceptance(tmp_path):

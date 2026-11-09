@@ -862,11 +862,40 @@ def _assert_corrected_prompt_suite_result(value, *, source_digest, expected_reco
     for role in ("worker_a", "worker_b"):
         assert metrics[f"{role}.cold_cpu"]["value"] > 0
         assert metrics[f"{role}.peak_rss"]["value"] > 0
+    retirement = execution["details"].get("report", {}).get("owned_provider_retirement", {})
+    assert retirement.get("available") is True
+    assert retirement["scope"] == "configured_topology_owned_providers"
+    # Independently declared GKM factory contract, never candidate-derived roles.
+    assert sorted(retirement["configured_roles"]) == ["worker_a", "worker_b"]
+    assert retirement["observation_complete"] is True
+    assert retirement["topology_close_outcome"] == "completed"
+    assert retirement["dashboard_topology_close_outcome"] == "completed"
+    owners = retirement["owners"]
+    assert 0 < len(owners) <= 32
+    ordinals, covered, associations = set(), set(), 0
+    for owner in owners:
+        ordinal = owner["ordinal"]
+        assert type(ordinal) is int and 0 <= ordinal < 1 << 64 and ordinal not in ordinals
+        ordinals.add(ordinal)
+        assert owner["initialized"] is True and owner["state"] == "retired"
+        assert type(owner["returncode"]) is int and -(1 << 63) <= owner["returncode"] < 1 << 63
+        assert owner["observation_kind"] in ("poll", "wait")
+        assert owner["pid"] is None or (type(owner["pid"]) is int and 0 <= owner["pid"] < 1 << 64)
+        roles = owner["roles"]
+        assert roles and len(roles) == len(set(roles)) and set(roles) <= {"worker_a", "worker_b"}
+        covered.update(roles)
+        associations += len(roles)
+    assert associations <= 64 and covered == {"worker_a", "worker_b"}
     assert execution["case"] == expected_case
 
 
 @pytest.mark.parametrize("case", [
     "valid_nested", "wrong_source", "wrong_binding", "wrong_audit_schema", "wrong_output_delivery",
+    "valid_wait", "retirement_missing", "retirement_unavailable", "retirement_empty",
+    "retirement_missing_role", "retirement_extra_role", "retirement_uninitialized",
+    "retirement_unknown", "retirement_bool_returncode", "retirement_bad_returncode",
+    "retirement_bad_kind", "retirement_incomplete", "retirement_topology_error",
+    "retirement_dashboard_error", "retirement_bad_ordinal",
 ])
 def test_corrected_prompt_suite_result_contract(case):
     """Synthetic assertion coverage only, not trained execution evidence."""
@@ -886,6 +915,16 @@ def test_corrected_prompt_suite_result_contract(case):
                     "schema": "pllm.response_state_audit.gkm.v1",
                     "bindings": copy.deepcopy(expected_records),
                 },
+                "report": {"owned_provider_retirement": {
+                    "available": True, "scope": "configured_topology_owned_providers",
+                    "configured_roles": ["worker_a", "worker_b"],
+                    "observation_complete": True, "topology_close_outcome": "completed",
+                    "dashboard_topology_close_outcome": "completed",
+                    "owners": [{"ordinal": index, "roles": [role], "initialized": True,
+                                "pid": 100 + index, "state": "retired", "returncode": 0,
+                                "observation_kind": "poll"}
+                               for index, role in enumerate(("worker_a", "worker_b"))],
+                }},
             },
             "case": copy.deepcopy(expected_case),
         },
@@ -904,7 +943,39 @@ def test_corrected_prompt_suite_result_contract(case):
         execution["details"]["response_state_audit"]["schema"] = "wrong-schema"
     elif case == "wrong_output_delivery":
         execution["details"]["runtime_contract"]["output_delivery"] = "wrong-delivery"
-    if case == "valid_nested":
+    retirement = execution["details"]["report"]["owned_provider_retirement"]
+    if case == "valid_wait":
+        retirement["owners"][0].update(returncode=-9, observation_kind="wait")
+    elif case == "retirement_missing":
+        del execution["details"]["report"]
+    elif case == "retirement_unavailable":
+        retirement["available"] = False
+    elif case == "retirement_empty":
+        retirement["owners"] = []
+    elif case == "retirement_missing_role":
+        retirement["configured_roles"] = ["worker_a"]
+        retirement["owners"].pop()
+    elif case == "retirement_extra_role":
+        retirement["configured_roles"].append("dealer")
+    elif case == "retirement_uninitialized":
+        retirement["owners"][0]["initialized"] = False
+    elif case == "retirement_unknown":
+        retirement["owners"][0].update(state="unknown", returncode=None, observation_kind=None)
+    elif case == "retirement_bool_returncode":
+        retirement["owners"][0]["returncode"] = True
+    elif case == "retirement_bad_returncode":
+        retirement["owners"][0]["returncode"] = 1 << 63
+    elif case == "retirement_bad_kind":
+        retirement["owners"][0]["observation_kind"] = "signal"
+    elif case == "retirement_incomplete":
+        retirement["observation_complete"] = False
+    elif case == "retirement_topology_error":
+        retirement["topology_close_outcome"] = "error"
+    elif case == "retirement_dashboard_error":
+        retirement["dashboard_topology_close_outcome"] = "error"
+    elif case == "retirement_bad_ordinal":
+        retirement["owners"][0]["ordinal"] = True
+    if case in ("valid_nested", "valid_wait"):
         _assert_corrected_prompt_suite_result(value, source_digest=source_digest,
             expected_records=expected_records, expected_case=expected_case)
     else:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from copy import deepcopy
 import json
 
 import pytest
@@ -11,6 +12,192 @@ from pllm.profiles import MaskedLinearCpu, TwoOnlineOffsetCpu
 from pllm.runtime import benchmark_memory as memory
 from pllm.runtime.benchmark_memory import BenchmarkMemoryError, GiB, HostMemory, MiB
 from pllm.sources import _tiny_model_config
+from test_fss_benchmark import contract as retirement_contract
+
+
+@pytest.mark.parametrize("margin", [0, 25])
+@pytest.mark.parametrize("route", [
+    "ordinary-direct", "ordinary-dispatch", "fss-direct", "fss-dispatch", "fss-program",
+    "fss-qualification", "replicated-direct", "replicated-dispatch", "gkm-direct",
+    "gkm-dispatch", "gkm-batch-direct", "gkm-batch-dispatch",
+])
+def test_retirement_raw_estimate_is_client_only_once_on_every_pricing_route(
+    tmp_path, monkeypatch, retirement_contract, route, margin,
+):
+    from pllm.modeling import lower_model
+    from pllm.profiles import FuseFssSourceCpu
+    from pllm.runtime import fss_source
+    from pllm.runtime._retirement_observation import RAW_PEAK_BYTES
+    from test_fss_benchmark import decoder_contract
+    from test_fss_batch_memory import batch_quote
+    from test_source_bound_memory_admission import make_source
+
+    assert RAW_PEAK_BYTES == memory.RAW_PEAK_BYTES == 1 << 20
+    contract, quote, source = None, None, None
+    if route.startswith("fss"):
+        config = {}
+        contract = deepcopy(retirement_contract)
+        pipeline = FuseFssSourceCpu(Model.path("unused-synthetic-source"),
+                                    numeric_profile=contract["numeric_profile"])
+        if route == "fss-qualification":
+            contract = decoder_contract(contract)
+            pipeline = pipeline.with_params(linear__capacity="decoder")
+        elif route == "fss-program":
+            contract["material_delivery"] = "batch-v1"
+            pipeline = pipeline.with_params(linear__material_delivery="batch-v1")
+            quote = batch_quote("capsule")  # Explicit native-price double, real shared repricing.
+        monkeypatch.setattr(fss_source, "_geometry", lambda *a, **k: None)
+        monkeypatch.setattr(fss_source, "_contract", lambda *a, **k: (b"", contract))
+    elif route.startswith(("gkm", "replicated")):
+        case = ("puma-public" if route.startswith("replicated") else
+                "gkm-capsule-full-batch" if "batch" in route else "gkm-capsule-full")
+        experiment, source, _ = make_source(tmp_path, case)
+        config, pipeline = source.config, experiment.pipeline
+    else:
+        config, pipeline = _tiny_model_config(), MaskedLinearCpu(Model.tiny())
+    original_config, original_pipeline = deepcopy(config), pipeline.to_spec()
+    original_contract, original_quote = deepcopy(contract), deepcopy(quote)
+
+    def price():
+        if route.endswith("dispatch"):
+            return memory.estimate_memory(config, pipeline, max_input_tokens=2,
+                max_output_tokens=3, memory_safety_margin_percent=margin)
+        if route.startswith("fss"):
+            value = memory._fss_memory(config, pipeline, 2, 3, 0, None, 0,
+                memory_safety_margin_percent=margin, contract=contract, transport_admission=quote)
+            return memory._fss_source_qualification_estimate(value) if route == "fss-qualification" else value
+        if route.startswith("replicated"):
+            return memory._replicated_memory(config, pipeline, 2, 3, 0, None, 0,
+                                             memory_safety_margin_percent=margin)
+        if route.startswith("gkm"):
+            return memory._delegated_memory(config, pipeline, 2, 3, 0, None, 0,
+                                            memory_safety_margin_percent=margin)
+        plan = lower_model(config, batch=1, max_input_tokens=2, max_new_tokens=3)
+        return memory.estimate_plan_memory(plan, pipeline, max_input_tokens=2,
+            max_output_tokens=3, memory_safety_margin_percent=margin)
+
+    actual = price()
+    with monkeypatch.context() as control:
+        control.setattr(memory, "RAW_PEAK_BYTES", 0)
+        baseline = price()
+    delta = (1 << 20) * (100 + margin) // 100
+    assert delta == (1 << 20 if margin == 0 else 1_310_720)
+    assert actual["client_peak_bytes"] - baseline["client_peak_bytes"] == delta
+    assert actual["native_total_peak_bytes"] - baseline["native_total_peak_bytes"] == delta
+    assert actual["provider_peak_bytes"] == baseline["provider_peak_bytes"]
+    assert actual["docker_provider_peak_bytes"] == baseline["docker_provider_peak_bytes"]
+    assert actual["components"]["owned_provider_retirement_raw_peak_bytes"] == 1 << 20
+    assert "not measured or hard RSS" in actual["components"]["owned_provider_retirement_scope"]
+    normalized = deepcopy(actual)
+    normalized["client_peak_bytes"] -= delta
+    normalized["native_total_peak_bytes"] -= delta
+    normalized["components"]["owned_provider_retirement_raw_peak_bytes"] = 0
+    assert normalized == baseline  # No provider, reservation, transport or VM credit/drop.
+    assert config == original_config and pipeline.to_spec() == original_pipeline
+    assert contract == original_contract and quote == original_quote
+
+
+@pytest.mark.parametrize("margin", [0, 25])
+@pytest.mark.parametrize("platform_name", ["Darwin", "Linux"])
+def test_retirement_admission_forwards_charged_client_without_vm_or_second_surcharge(
+    monkeypatch, margin, platform_name,
+):
+    monkeypatch.setattr(memory.platform, "system", lambda: platform_name)
+    estimate = memory.estimate_memory(_tiny_model_config(), MaskedLinearCpu(Model.tiny()),
+        max_input_tokens=2, max_output_tokens=2, memory_safety_margin_percent=margin)
+    before = deepcopy(estimate)
+    baseline = deepcopy(estimate)
+    delta = (1 << 20) * (100 + margin) // 100
+    baseline["client_peak_bytes"] -= delta
+    baseline["native_total_peak_bytes"] -= delta
+    baseline["components"]["owned_provider_retirement_raw_peak_bytes"] = 0
+    host = _host()
+    for backend in ("native", "docker", "auto"):
+        actual = memory.admit_memory(estimate, host, backend=backend, docker_capacity=(8 * GiB, 0))
+        control = memory.admit_memory(baseline, host, backend=backend, docker_capacity=(8 * GiB, 0))
+        for kind in ("native", "docker"):
+            value, old = actual["candidates"][kind], control["candidates"][kind]
+            assert value["required_host_bytes"] - old["required_host_bytes"] == delta
+            assert value["expected_peak_bytes"] - old["expected_peak_bytes"] == 1 << 20
+            assert value["docker"] == old["docker"]
+    assert estimate == before
+
+
+def test_retirement_report_is_read_after_handle_close_and_forwarded_by_existing_adapter(monkeypatch, tmp_path):
+    import httpx
+    from types import SimpleNamespace as NS
+    import threading
+    import pllm
+    from pllm._benchmark_worker import Measurement
+    from pllm._benchmark_contract import digest
+    from pllm.metrics import BenchmarkCase, BenchmarkSuite, BenchmarkTarget, Sampling, Scenario
+    from pllm.metrics.benchmark_runner import _result
+    from pllm.runtime import benchmark_cli, benchmark_resources, dashboard
+    from pllm.runtime.benchmark_targets import execute_target
+    from pllm.runtime._retirement_observation import Observation, report
+    from test_provider_usage_report_integration import _record
+
+    events, request_ids = [], []
+    processes = {role: NS(pid=index + 1) for index, role in enumerate(("inference", "preparation"))}
+    observation = Observation(tuple(processes), processes, {}, set())
+    for process in processes.values():
+        observation.record(id(process), 0, "wait")
+    expected = report(observation.finish("completed"), "completed")
+
+    class Runtime(NS):
+        @property
+        def owned_provider_retirement(self):
+            assert events == ["closed"]
+            events.append("reported")
+            return deepcopy(expected)
+
+    runtime = Runtime(_topology=None, _client=None, _memory_guard=None, _lock=threading.Lock(),
+        _state={"phase": "ready"}, _active_run=None, _has_started_run=True, memory_preflight=None,
+        source_lock_digest="a" * 64, store=NS(stage_body_snapshot=lambda **k: {}),
+        initial_preparation_audit=lambda: None, client_body_placement=lambda: None,
+        cold_process_cpu=lambda: {"startup": {r: .05 for r in ("client", "inference", "preparation")},
+                                 "first_response": {r: .125 for r in ("client", "inference", "preparation")}})
+
+    def transport(request):
+        if request.url.path == "/api/run":
+            request_ids.append(json.loads(request.content)["request_id"])
+            return httpx.Response(200, json={})
+        if request.url.path == "/api/snapshot":
+            return httpx.Response(200, json={"run": {"phase": "ready",
+                "run_id": request_ids[-1] if request_ids else None, "active_run": None}})
+        if request.url.path.startswith("/api/runs/"):
+            return httpx.Response(200, json=_record())
+        pytest.fail("unexpected HTTP seam")
+
+    client = httpx.Client
+    monkeypatch.setattr(benchmark_cli.httpx, "Client", lambda **kw: client(transport=httpx.MockTransport(transport), **kw))
+    monkeypatch.setattr(dashboard, "create_dashboard_app", lambda _: NS(state=NS(dashboard_runtime=runtime)))
+    monkeypatch.setattr(benchmark_cli, "_DASHBOARD_PORT", 7300)
+    monkeypatch.setattr(benchmark_cli, "_DASHBOARD_TOKEN", "fixture-only")
+    monkeypatch.setattr(benchmark_cli, "_wait_for_dashboard_listener", lambda *a: None)
+    monkeypatch.setattr(benchmark_cli, "_DashboardHandle", lambda *a: NS(
+        start=lambda: None, poll=lambda: None, close=lambda: events.append("closed"), diagnostic=lambda: ""))
+    monkeypatch.setattr(benchmark_resources, "ProcessMemorySampler", lambda _: NS(
+        start=lambda: None, stop=lambda: None, failure_snapshot=lambda: {}))
+    monkeypatch.setattr(memory, "process_memory", lambda: {"lifetime_peak_rss_bytes": 456})
+    monkeypatch.setattr(pllm.metrics, "benchmark_memory", lambda *a, **kw: {"admitted": True})
+    experiment = Experiment("report-forwarding", MaskedLinearCpu(Model.tiny()),
+        Deployment.local(root=str(tmp_path / "roles")), ExecutionBudget(1, 128, 2))
+    case = BenchmarkCase("report-forwarding", BenchmarkTarget.response(experiment,
+                         scenario=Scenario.cold(max_output_tokens=2)))
+    sampling = Sampling(processes=1, memory_bytes=2 << 30, timeout_seconds=5)
+    suite = BenchmarkSuite((case,), sampling)
+    measured = Measurement({"sampling": sampling.to_spec(), "salt": "ab" * 32,
+                            "inputs": {"prompt": "synthetic"}, "directory": str(tmp_path)})
+    execute_target(case.target, measured)
+    assert events == ["closed", "reported"]
+    assert measured.details["report"]["owned_provider_retirement"] == expected
+    measured.finalize_workload(case.target, completed=True)
+    result = _result(case, suite, 0, "d" * 64, {"attributes": {}, "digest": digest({})},
+        {"status": "completed", "details": measured.details, "comparison": measured.comparison,
+         "metrics": measured.metrics, "samples": measured.samples, "fixture": measured.fixture,
+         "oracle": measured.oracle, "admission": measured.admission, "limitations": measured.limitations})
+    assert json.loads(result.canonical_bytes())["execution"]["details"]["report"]["owned_provider_retirement"] == expected
 
 
 def _estimate(pipeline=None, config=None):

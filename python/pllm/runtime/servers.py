@@ -28,6 +28,7 @@ import httpx
 from pllm.configuration import Experiment, Model, Pipeline
 from pllm.runtime.process_usage import UsagePopen, provider_popen_factory
 from pllm.runtime.shutdown import defer_termination_signals
+from pllm.runtime._retirement_observation import Observation, UNAVAILABLE
 
 
 class TopologyError(RuntimeError):
@@ -190,7 +191,7 @@ def _spawn_role_process(
 
 
 def _stop_role_processes(processes: Iterable[subprocess.Popen[Any]], *,
-                         _owners: Iterable[_RoleProcessOwner] = ()) -> None:
+                         _owners: Iterable[_RoleProcessOwner] = (), _observe=None) -> None:
     """Signal every role before waiting, with one grace/kill budget for the graph."""
     processes = tuple(processes)
     supervised = {id(owner.process) for owner in _owners if owner.supervised}
@@ -199,7 +200,10 @@ def _stop_role_processes(processes: Iterable[subprocess.Popen[Any]], *,
         deadline = time.monotonic() + seconds
         for process in processes:
             try:
-                if process.poll() is not None:
+                returncode = process.poll()
+                if _observe is not None:
+                    _observe(process, returncode, "poll")
+                if returncode is not None:
                     continue
             except BaseException as exc:
                 if error is None:
@@ -220,7 +224,9 @@ def _stop_role_processes(processes: Iterable[subprocess.Popen[Any]], *,
                     error = exc
         for process in processes:
             try:
-                process.wait(timeout=max(0.0, deadline - time.monotonic()))
+                returncode = process.wait(timeout=max(0.0, deadline - time.monotonic()))
+                if _observe is not None:
+                    _observe(process, returncode, "wait")
             except subprocess.TimeoutExpired:
                 if sig == signal.SIGKILL and error is None:
                     error = TopologyError("local role process did not stop")
@@ -244,6 +250,9 @@ class LocalTopology:
         "_activation_bits",
         "_closed",
         "_close_lock",
+        "_retirement_generation",
+        "_retirement_snapshot",
+        "_retirement_close_error",
         "_correlation_mode",
         "_credential_prefix",
         "_engine_threads",
@@ -414,6 +423,9 @@ class LocalTopology:
         self._ready_role_owners: set[str] = set()
         self._process_lock = threading.Lock()
         self._close_lock = threading.Lock()
+        self._retirement_generation = 0
+        self._retirement_snapshot = UNAVAILABLE
+        self._retirement_close_error = False
         self._logs: dict[str, Any] = {}
         self._inference_url = ""
         self._preparation_url = ""
@@ -958,6 +970,14 @@ class LocalTopology:
 
     def _spawn(self, role: str, command: list[str]) -> subprocess.Popen[Any]:
         with self._process_lock:
+            # A new owner cannot inherit an earlier completed observation.
+            self._retirement_snapshot = UNAVAILABLE
+            try:
+                previous = getattr(self, "_retirement_generation", 0)
+                if previous is not None:
+                    self._retirement_generation = previous + 1
+            except BaseException:
+                self._retirement_generation = None  # Sticky unavailable, never reuse an older generation.
             if self._stopping.is_set():
                 raise TopologyError("local topology stopped during startup")
             supervised = getattr(self, "_supervised_role_group", False)
@@ -1497,20 +1517,48 @@ class LocalTopology:
 
     @staticmethod
     def _stop_all(processes: Iterable[subprocess.Popen[Any]], *,
-                  _owners: Iterable[_RoleProcessOwner] = ()) -> None:
-        _stop_role_processes(processes, _owners=_owners)
+                  _owners: Iterable[_RoleProcessOwner] = (), _observe=None) -> None:
+        _stop_role_processes(processes, _owners=_owners, _observe=_observe)
 
     def close(self) -> None:
         self.request_stop()
         # The pressure guard, startup rollback and foreground caller can all
         # arrive here. One owner signals/reaps; other callers wait for retirement.
         error: BaseException | None = None
+        observation = None
+        generation = None
+
+        def observe(process, returncode, kind):
+            if observation is not None:
+                try:
+                    observation.record(id(process), returncode, kind)
+                except BaseException:
+                    observation.failed = True
+
+        def terminal(process):
+            returncode = process.poll()
+            observe(process, returncode, "poll")
+            return returncode is not None
+
         try:
             with defer_termination_signals():
                 try:
                     with self._close_lock:
+                        self._retirement_snapshot = UNAVAILABLE
                         try:
                             with self._process_lock:
+                                try:
+                                    previous = getattr(self, "_retirement_generation", 0)
+                                    if previous is not None:
+                                        self._retirement_generation = previous + 1
+                                        generation = self._retirement_generation
+                                except BaseException:
+                                    self._retirement_generation = None
+                                try:
+                                    observation = Observation(self._role_ids, self._processes,
+                                        self._role_process_owners, self._ready_role_owners)
+                                except BaseException:
+                                    observation = None
                                 processes = dict(self._processes)
                                 owners = tuple(getattr(self, "_role_process_owners", {}).values())
                                 unresolved = tuple(owner for owner in owners
@@ -1529,13 +1577,15 @@ class LocalTopology:
                                             ordered.append(process)
                                             seen.add(id(process))
                             if (self._closed and not unresolved
-                                    and all(process.poll() is not None for process in ordered)):
+                                    and all(terminal(process) for process in ordered)):
                                 if self._capacity_reservations is not None:
                                     self._capacity_reservations.close()
                                     self._capacity_reservations = None
                                 return
                             self._closed = True
-                            if any(owner.supervised for owner in owners):
+                            if self._stop_all is LocalTopology._stop_all:
+                                self._stop_all(ordered, _owners=owners, _observe=observe)
+                            elif any(owner.supervised for owner in owners):
                                 self._stop_all(ordered, _owners=owners)
                             else:
                                 self._stop_all(ordered)
@@ -1604,6 +1654,22 @@ class LocalTopology:
             # leaving this handler, without linking a secondary into the primary.
             if error is None:
                 error = exc
+        finally:
+            # Deferred signal forwarding is part of the actual close outcome.
+            # A delayed finalizer must not overwrite a newer close/spawn snapshot.
+            try:
+                with self._close_lock:
+                    if error is not None:
+                        self._retirement_close_error = True
+                    with self._process_lock:
+                        if generation is not None and generation == self._retirement_generation:
+                            self._retirement_snapshot = (UNAVAILABLE if observation is None else
+                                observation.finish("error" if getattr(self, "_retirement_close_error", False)
+                                                   else "completed"))
+            except BaseException:
+                # The initial unavailable snapshot stands on diagnostic failure.
+                # Never write outside the lock over a newer generation's result.
+                pass
         if error is not None:
             raise error
 

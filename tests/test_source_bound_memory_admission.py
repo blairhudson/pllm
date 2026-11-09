@@ -163,7 +163,7 @@ def _assert_charges(report, runtime, case, margin):
     if case.startswith("puma-"):
         payload = runtime["execution_payload_estimate_bytes"]
         workspace = runtime.get("peer_stream_workspace_bytes_per_worker", 0)
-        client = rounded(process + payload)
+        client = rounded(process + payload + mib)
         workers = {role: rounded(process + payload + workspace)
                    for role in ("worker_a", "worker_b", "worker_c")}
         components = estimate["components"]
@@ -179,7 +179,7 @@ def _assert_charges(report, runtime, case, margin):
         source = 0 if expanded else 3 * decoder["source_float32_bytes"]
         native_client = decoder["decoder_resources"]["client_payload_bytes"] if expanded else 64 * mib
         native_worker = decoder["decoder_resources"]["worker_payload_bytes"] if expanded else 64 * mib
-        client_base = process + native_client + transport + source
+        client_base = process + native_client + transport + source + mib
         worker_base = process + native_worker + transport + source
         allocation = estimate["verification_allocation"]
         assert estimate["components"]["source_import_and_retention_bytes_per_role"] == source
