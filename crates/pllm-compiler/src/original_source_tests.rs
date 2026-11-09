@@ -135,6 +135,163 @@ fn prepared(root: &OwnedBudget, raw: &[u8], tokens: u64, limits: Limits) -> Sour
     .unwrap()
 }
 
+#[test]
+fn original_raw_counter_and_borrows_survive_four_to_five_and_parent_drop() {
+    use std::ptr;
+
+    const SPARE: usize = 73;
+    let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let monitor = root.try_clone().unwrap();
+    let baseline = root.budget().used_bytes();
+    let capacity = RAW.len() + SPARE;
+    let before = root.budget().used_bytes();
+    let original = root
+        .charge_external(capacity)
+        .unwrap()
+        .try_build(|counter| {
+            assert!(ptr::eq(counter, root.budget()));
+            // Admit backing and inline wrapper before the allocating factory.
+            assert_eq!(
+                counter.used_bytes(),
+                before + capacity + size_of::<OwnedCharged<Vec<u8>>>()
+            );
+            let mut bytes_owner = Vec::with_capacity(capacity);
+            bytes_owner.extend_from_slice(RAW);
+            assert_eq!(bytes_owner.capacity(), capacity);
+            Ok(bytes_owner)
+        })
+        .unwrap();
+    let raw_pointer = original.payload().as_ptr();
+    let raw_charge = original.charged_bytes();
+    let source = imported_owned(&root, original);
+    assert!(ptr::eq(source.budget(), source.payload().budget()));
+    assert_eq!(source.payload().raw().as_ptr(), raw_pointer);
+    assert_eq!(
+        source.payload().raw_owner().payload().capacity(),
+        RAW.len() + SPARE
+    );
+    assert_eq!(source.payload().raw_owner().charged_bytes(), raw_charge);
+    let control = bootstrap_bytes(&source, limits()).unwrap();
+    let quoted = quote(
+        source,
+        root.charge_external(control).unwrap(),
+        workload(4),
+        limits(),
+    )
+    .unwrap();
+    // Observe independent held guards, not resource-reported owner totals.
+    // Scalars only: no extra owners/references survive construction or drops.
+    let source_charge = quoted.source.charged_bytes() + raw_charge;
+    let root_charge = quoted.attempt.root.charged_bytes();
+    let attempt_charge = quoted.attempt.controller.as_ref().unwrap().charged_bytes();
+    let quote_charge = quoted.working.charged_bytes();
+    let predicted_working = quoted.resources().working_charge_bytes;
+    let predicted_peak = quoted.resources().original_owners_peak_bytes;
+    assert_eq!(
+        root.budget().used_bytes(),
+        baseline + source_charge + root_charge + attempt_charge + quote_charge
+    );
+    assert_eq!(
+        quoted.resources().original_owner_bytes,
+        source_charge + root_charge + attempt_charge
+    );
+    let first = quoted.construct().unwrap();
+    let working4 = first.inner.payload().configured.get().unwrap().charged_bytes();
+    assert_eq!(predicted_working, working4);
+    assert_eq!(predicted_peak, source_charge + root_charge + attempt_charge + working4);
+    assert_eq!(
+        first.resources().original_owner_bytes,
+        source_charge + root_charge + attempt_charge
+    );
+    assert_eq!(first.resources().working_charge_bytes, working4);
+    assert_eq!(first.resources().original_owners_peak_bytes, predicted_peak);
+    assert_eq!(
+        root.budget().used_bytes(),
+        baseline + source_charge + root_charge + working4
+    );
+    assert_eq!(root.budget().used_bytes(), baseline + predicted_peak - attempt_charge);
+    assert_eq!(
+        (
+            first.plan().prefill.query_sequence,
+            first.plan().decode.query_sequence,
+            first.plan().decode.maximum_key_sequence
+        ),
+        (4, 1, 5)
+    );
+    // Independent normal-model oracle is test-only, outside the named Budget;
+    // it consumes original config bytes, never a serialized/reconstructed plan.
+    assert_eq!(
+        first.plan(),
+        &pllm_models::lower_model_json_with_budget(RAW, workload(4), limits().expansion)
+            .unwrap()
+    );
+    let borrowed_plan = first.plan();
+    let borrowed_config = first.raw_configuration();
+    let resident = root.budget().used_bytes();
+    let control = first.lower_bootstrap_bytes(limits()).unwrap();
+    assert_eq!(
+        root.budget().used_bytes(),
+        resident,
+        "pure bootstrap must not reserve/drop owner bytes"
+    );
+    let second = first
+        .lower(
+            root.charge_external(control).unwrap(),
+            workload(5),
+            limits(),
+        )
+        .unwrap();
+    assert_eq!(borrowed_plan.prefill.query_sequence, 4);
+    assert_eq!(borrowed_config.as_ptr(), raw_pointer);
+    assert_eq!(
+        second.plan(),
+        &pllm_models::lower_model_json_with_budget(RAW, workload(5), limits().expansion)
+            .unwrap()
+    );
+    assert_eq!(
+        (
+            second.plan().prefill.query_sequence,
+            second.plan().decode.query_sequence,
+            second.plan().decode.maximum_key_sequence
+        ),
+        (5, 1, 6)
+    );
+    assert_eq!(second.workload(), workload(5));
+    assert!(first.same_origin(&second));
+    assert!(!first.same_plan(&second));
+    assert!(ptr::eq(first.budget(), second.budget()));
+    let root5 = second.inner.charged_bytes();
+    let working5 = second.inner.payload().configured.get().unwrap().charged_bytes();
+    // quote and public lower split the same primitive_attempt_control_bytes;
+    // neither resizes that controller. Its captured actual charge applies here.
+    let incoming5 = source_charge + root_charge + working4 + root5 + attempt_charge;
+    assert_eq!(second.resources().original_owner_bytes, incoming5);
+    assert_eq!(second.resources().working_charge_bytes, working5);
+    assert_eq!(second.resources().original_owners_peak_bytes, incoming5 + working5);
+    let resident = baseline + source_charge + root_charge + working4 + root5 + working5;
+    assert_eq!(monitor.budget().used_bytes(), resident);
+    assert_eq!(
+        monitor.budget().used_bytes(),
+        baseline + second.resources().original_owners_peak_bytes - attempt_charge
+    );
+    drop(first); // second retains the ORIGINAL plan/config root, not a copy.
+    assert_eq!(monitor.budget().used_bytes(), resident);
+    drop(root);
+    assert_eq!(
+        monitor.budget().used_bytes(),
+        resident - size_of::<OwnedBudget>()
+    );
+    assert!(ptr::eq(second.budget(), monitor.budget()));
+    assert_eq!(second.raw_configuration(), RAW);
+    assert_eq!(second.raw_configuration().as_ptr(), raw_pointer);
+    drop(second);
+    assert_eq!(
+        monitor.budget().used_bytes(),
+        baseline - size_of::<OwnedBudget>()
+    );
+    // This is source-factory workload growth, NOT accepted token feedback.
+}
+
 fn attempts() -> usize {
     FACTORIES.with(|n| n.get())
 }
