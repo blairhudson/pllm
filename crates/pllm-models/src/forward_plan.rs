@@ -444,6 +444,14 @@ mod tests {
         value
     }
     fn plan(classifier: bool) -> ForwardPlan { lower_forward_model_value(&source(classifier), 5).unwrap() }
+    fn nsp_source() -> Value {
+        let mut document = source(true);
+        document["architectures"] = json!(["BertForNextSentencePrediction"]);
+        for key in ["num_labels", "id2label", "label2id"] {
+            document.as_object_mut().unwrap().remove(key);
+        }
+        document
+    }
     fn op<'a>(plan: &'a ForwardPlan, id: &str) -> &'a ForwardOperation {
         plan.operations.iter().find(|op| op.id == id).unwrap()
     }
@@ -614,6 +622,127 @@ mod tests {
         assert_eq!(p.outputs["last_hidden_state"].value, "layer.1.output_norm");
         assert_eq!(p.outputs["logits"].tensor.shape, vec![ForwardDimension::Fixed(1),ForwardDimension::Fixed(3)]);
         assert!(!p.operations.iter().any(|op| matches!(op.operator, CausalMask|KvCacheAppend|OutputHead|TokenFeedback|LastToken)));
+    }
+
+    #[test]
+    fn nsp_explicit_dispatch_reuses_encoder_and_publishes_two_logits() {
+        let document = nsp_source();
+        let p = lower_forward_model_value(&document, 5).unwrap();
+        p.validate().unwrap();
+        assert_eq!(p.operations.len(), 50);
+        assert_eq!(p.outputs.keys().map(String::as_str).collect::<Vec<_>>(),
+            vec!["last_hidden_state", "logits", "pooler_output"]);
+        assert_eq!(p.outputs["logits"].tensor.shape,
+            vec![ForwardDimension::Fixed(1), ForwardDimension::Fixed(2)]);
+        assert_eq!(op(&p, "classifier.logits").inputs, ["pooler.output"]);
+        assert_eq!(op(&p, "classifier.logits").attributes["weight"], "cls.seq_relationship.weight");
+        assert_eq!(op(&p, "classifier.logits").attributes["bias"], "cls.seq_relationship.bias");
+        assert_eq!(op(&p, "pooler.linear").attributes["weight"], "bert.pooler.dense.weight");
+        let requirements = forward_checkpoint_requirements(&p).unwrap();
+        assert_eq!(requirements.len(), 41);
+        for (name, shape) in [("cls.seq_relationship.weight", vec![2,8]),
+            ("cls.seq_relationship.bias", vec![2])] {
+            let requirement = requirements.iter().find(|r| r.name == name).unwrap();
+            assert_eq!(requirement.shape, shape);
+            assert_eq!(requirement.dtype, ForwardDType::Float32);
+        }
+        let classifier = plan(true);
+        for (actual, expected) in p.operations.iter().zip(&classifier.operations) {
+            if actual.id == "embedding.tokens" || actual.id == "classifier.logits" { continue; }
+            assert_eq!(actual, expected);
+        }
+        let bytes = serde_json::to_vec(&document).unwrap();
+        let parsed = crate::parse_forward_source_json(&bytes, crate::default_forward_limits().unwrap()).unwrap();
+        assert_eq!(lower_forward_model(&bytes,5).unwrap(), lower_forward_model_value(&parsed,5).unwrap());
+    }
+
+    #[test]
+    fn nsp_architecture_fixes_cardinality_but_checks_supplied_metadata() {
+        for metadata in [json!({}), json!({"num_labels":2}),
+            json!({"id2label":{"0":"NEXT","1":"OTHER"}}),
+            json!({"num_labels":2,"id2label":{"0":"NEXT","1":"OTHER"},
+                "label2id":{"NEXT":0,"OTHER":1}}),
+            json!({"id2label":null,"label2id":null})] {
+            let mut document = nsp_source();
+            document.as_object_mut().unwrap().extend(metadata.as_object().unwrap().clone());
+            assert!(lower_forward_model_value(&document,5).is_ok());
+            assert!(lower_forward_model(&serde_json::to_vec(&document).unwrap(),5).is_ok());
+        }
+        for metadata in [json!({"num_labels":3}), json!({"num_labels":0}), json!({"num_labels":null}),
+            json!({"id2label":{"0":"A","1":"B","2":"C"}}),
+            json!({"id2label":{"0":"A","1":"A"}}),
+            json!({"id2label":{"00":"A","1":"B"}}),
+            json!({"label2id":{"A":0,"B":1}}),
+            json!({"id2label":{"0":"A","1":"B"},"label2id":{"A":1,"B":0}}),
+            json!({"torch_dtype":"float16"}), json!({"dtype":"float64"})] {
+            let mut document = nsp_source();
+            document.as_object_mut().unwrap().extend(metadata.as_object().unwrap().clone());
+            assert!(lower_forward_model_value(&document,5).is_err(), "{metadata}");
+            assert!(lower_forward_model(&serde_json::to_vec(&document).unwrap(),5).is_err());
+        }
+    }
+
+    #[test]
+    fn nsp_ambiguous_wrong_type_and_dual_head_sources_refused() {
+        for architectures in [json!(["BertForPreTraining"]),
+            json!(["BertForNextSentencePrediction","BertForPreTraining"]),
+            json!(["BertForSequenceClassification","BertForNextSentencePrediction"]),
+            json!(["BertForNextSentencePrediction","BertForNextSentencePrediction"]),
+            json!([]), Value::Null] {
+            let mut document = nsp_source();
+            document["architectures"] = architectures;
+            assert!(lower_forward_model_value(&document,5).is_err());
+            assert!(lower_forward_model(&serde_json::to_vec(&document).unwrap(),5).is_err());
+        }
+        for model_type in [json!("roberta"), json!("qwen2"), Value::Null] {
+            let mut document = nsp_source();
+            document["model_type"] = model_type;
+            assert!(lower_forward_model_value(&document,5).is_err());
+        }
+        let mut document = nsp_source();
+        document.as_object_mut().unwrap().remove("architectures");
+        assert!(lower_forward_model_value(&document,5).is_err());
+        // Neither label cardinality nor head-shaped artifacts select NSP.
+        document["architectures"] = json!(["BertForSequenceClassification"]);
+        assert!(lower_forward_model_value(&document,5).is_err());
+        document["num_labels"] = json!(2);
+        let classifier = lower_forward_model_value(&document,5).unwrap();
+        assert_eq!(op(&classifier,"classifier.logits").attributes["weight"], "classifier.weight");
+    }
+
+    #[test]
+    fn nsp_mapping_bounds_all_names_and_separates_source_plan_identity() {
+        let document = nsp_source();
+        let (registry, _) = crate::source_mappings::forward_geometry(&document,5).unwrap();
+        let p = lower_forward_model_value(&document,5).unwrap();
+        let bound = registry.maximum_artifact_bytes(true,1).unwrap();
+        for requirement in forward_checkpoint_requirements(&p).unwrap() {
+            assert!(requirement.name.len() <= bound, "{}", requirement.name);
+        }
+        assert!("cls.seq_relationship.weight".len() > "classifier.weight".len());
+        assert!(bound >= "cls.seq_relationship.weight".len());
+        assert!(registry.maximum_artifact_bytes(true,usize::MAX).is_err());
+        assert_eq!(p.config_digest, canonical_digest(registry.digest_domain,&document));
+        assert_ne!(p.config_digest,p.digest());
+        let shorter = lower_forward_model_value(&document,4).unwrap();
+        assert_eq!(p.config_digest,shorter.config_digest);
+        assert_ne!(p.digest(),shorter.digest());
+        let mut changed = document.clone();
+        changed["finetuning_task"] = json!("source-metadata-only");
+        let changed = lower_forward_model_value(&changed,5).unwrap();
+        assert_ne!(p.config_digest,changed.config_digest);
+        assert_ne!(p.digest(),changed.digest());
+        for (key,value) in [("weight",json!("classifier.weight")), ("bias",Value::Null),
+            ("weight_shape",json!([3,8])), ("bias_shape",json!([3])),
+            ("compute_dtype",json!("float16"))] {
+            let mut changed = p.clone();
+            changed.operations.iter_mut().find(|op| op.id == "classifier.logits").unwrap().attributes[key] = value;
+            assert!(changed.validate().is_err());
+            assert!(forward_checkpoint_requirements(&changed).is_err());
+        }
+        let mut changed = p.clone();
+        changed.operations.retain(|op| op.id != "classifier.logits");
+        assert!(changed.validate().is_err());
     }
 
     #[test]

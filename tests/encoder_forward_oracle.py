@@ -8,7 +8,8 @@ names and raw, finite float32 NumPy arrays; weights use [out, in] layout.
 No production kernel, plan, imported stage value, cache, fixture generator, or
 actual runtime output participates in this calculation.
 
-Scope: explicitly declared BertModel or BertForSequenceClassification, absolute
+Scope: explicitly declared BertModel, BertForSequenceClassification, or
+BertForNextSentencePrediction, absolute
 positions, exact GELU, encoder-only post-norm attention, evaluation mode, batch
 one, and 1 <= sequence length <= max_position_embeddings. Dimensions and all
 parameter cardinalities come from source config, never output vocabulary or a
@@ -44,14 +45,17 @@ Capture keys (all float32; metadata is documented here, not returned):
   logits: [1, labels], only for the declared classification architecture
 
 Each returned capture owns a copy. Base-model keys are unprefixed; classification
-encoder/pooler keys start with 'bert.' and classifier keys do not. Base-model
-pooler is optional (both weight and bias or neither). Classification requires
-pooler and classifier. Unknown/missing state keys are rejected, except original
+encoder/pooler keys start with 'bert.' and head keys do not. NSP head uses
+cls.seq_relationship.{weight,bias}, with architecture-fixed two logits. Base-model
+pooler is optional (both weight and bias or neither). Head architectures require
+pooler and their declared head. Unknown/missing state keys are rejected, except original
 optional embeddings.position_ids/token_type_ids buffers, which are validated
 but not used. No head is inferred from tensor dimensions.
 Classification label count comes from source num_labels or its serialized
 id2label mapping (standard HF JSON may omit the num_labels property). If both
 are declared, their cardinalities must agree.
+NSP permits absent label metadata; supplied counts/maps must agree with two.
+BertForPreTraining is unsupported: its MLM head must not be silently dropped.
 
 Numerics: separate biased linears, centered population-variance LayerNorm with
 source epsilon, noncausal QK^T / float32(sqrt(D)), binary key-only masking by
@@ -99,7 +103,7 @@ def _positive_int(config: Any, name: str) -> int:
     return int(value)
 
 
-def _label_count(config: Any) -> int:
+def _label_count(config: Any, fixed: int | None = None) -> int:
     declared = _field(config, "num_labels", None)
     id2label = _field(config, "id2label", None)
     mapped_count = None
@@ -116,6 +120,24 @@ def _label_count(config: Any) -> int:
             keys == integer_keys or keys == string_keys
         ):
             raise ValueError("Source id2label IDs must be contiguous integers or JSON integer strings")
+        labels = list(id2label.values())
+        if any(not isinstance(label, str) for label in labels) or len(set(labels)) != mapped_count:
+            raise ValueError("Source id2label labels must be unique strings")
+    inverse = _field(config, "label2id", None)
+    if inverse is not None:
+        if not isinstance(inverse, Mapping) or id2label is None or len(inverse) != mapped_count:
+            raise ValueError("Source label2id requires exact id2label inverse")
+        for index, label in id2label.items():
+            value = inverse.get(label)
+            if isinstance(value, bool) or not isinstance(value, Integral) or value != int(index):
+                raise ValueError("Source label2id must be exact inverse")
+    if fixed is not None:
+        supplied = "num_labels" in config if isinstance(config, Mapping) else hasattr(config, "num_labels")
+        if supplied and _positive_int(config, "num_labels") != fixed:
+            raise ValueError("Source num_labels contradicts architecture cardinality")
+        if mapped_count is not None and mapped_count != fixed:
+            raise ValueError("Source id2label contradicts architecture cardinality")
+        return fixed
     if declared is None:
         if mapped_count is None:
             raise ValueError("Classification source must declare num_labels or id2label")
@@ -202,9 +224,11 @@ def evaluate(
     if not isinstance(architectures, (list, tuple)) or len(architectures) != 1:
         raise ValueError("Source config must declare exactly one BERT architecture")
     architecture = architectures[0]
-    if architecture not in ("BertModel", "BertForSequenceClassification"):
-        raise ValueError("Only BertModel and BertForSequenceClassification are supported")
-    classification = architecture == "BertForSequenceClassification"
+    if architecture not in ("BertModel", "BertForSequenceClassification", "BertForNextSentencePrediction"):
+        raise ValueError("Unsupported explicit BERT architecture (including dual-head pretraining)")
+    classification = architecture != "BertModel"
+    next_sentence = architecture == "BertForNextSentencePrediction"
+    head = "cls.seq_relationship" if next_sentence else "classifier"
     prefix = "bert." if classification else ""
     if _field(config, "hidden_act") != "gelu":
         raise ValueError("Only exact hidden_act='gelu' is supported")
@@ -269,13 +293,13 @@ def evaluate(
         raise ValueError("Source pooler must contain both weight and bias")
     has_pooler = present_pooler == pooler_names
     if classification and not has_pooler:
-        raise ValueError("BertForSequenceClassification requires a source pooler")
+        raise ValueError("Declared head architecture requires a source pooler")
     if has_pooler:
         affine("pooler.dense", hidden, hidden)
     if classification:
-        labels = _label_count(config)
-        expected["classifier.weight"] = (labels, hidden)
-        expected["classifier.bias"] = (labels,)
+        labels = _label_count(config, fixed=2 if next_sentence else None)
+        expected[head + ".weight"] = (labels, hidden)
+        expected[head + ".bias"] = (labels,)
 
     buffer_names = {
         prefix + "embeddings.position_ids",
@@ -397,5 +421,5 @@ def evaluate(
         pooled_affine = capture("pooler.pre_activation", linear(hidden_state[:, 0, :], "pooler.dense"))
         pooled = capture("pooler_output", np.tanh(pooled_affine, dtype=np.float32))
         if classification:
-            capture("logits", _linear(pooled, tensors["classifier.weight"], tensors["classifier.bias"]))
+            capture("logits", _linear(pooled, tensors[head + ".weight"], tensors[head + ".bias"]))
     return result

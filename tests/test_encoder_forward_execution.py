@@ -37,10 +37,24 @@ def _experiment(root, checkpoint, *, requests):
 
 
 @pytest.fixture
-def source(tmp_path):
-    config, tensors = tiny_checkpoint()
+def source(tmp_path, request):
+    if getattr(request, "param", "sequence") == "next_sentence":
+        config, tensors = _nsp_checkpoint()
+    else:
+        config, tensors = tiny_checkpoint()
     checkpoint = write_checkpoint(tmp_path / "checkpoint", config, tensors)
     return config, tensors, checkpoint
+
+
+def _nsp_checkpoint():
+    # Generated source only; no production mapping or upstream checkpoint needed.
+    config, tensors = tiny_checkpoint()
+    config["architectures"] = ["BertForNextSentencePrediction"]
+    for key in ("num_labels", "id2label", "label2id"):
+        del config[key]
+    for suffix in ("weight", "bias"):
+        tensors[f"cls.seq_relationship.{suffix}"] = tensors.pop(f"classifier.{suffix}")[:2].copy()
+    return config, tensors
 
 
 def _expected(source, inputs):
@@ -56,14 +70,14 @@ def _expected(source, inputs):
     )
 
 
-def _assert_outputs(result, expected, sequence):
+def _assert_outputs(result, expected, sequence, *, labels=3):
     outputs = result.outputs
     assert isinstance(outputs, Mapping)
     assert set(outputs) == OUTPUT_NAMES
     shapes = {
         "last_hidden_state": (1, sequence, 8),
         "pooler_output": (1, 8),
-        "logits": (1, 3),
+        "logits": (1, labels),
     }
     for name, shape in shapes.items():
         value = outputs[name]
@@ -221,6 +235,7 @@ def test_native_failure_publishes_no_result_and_consumes_attempt(source, tmp_pat
 
 
 @pytest.mark.parametrize("sequence", range(1, 7))
+@pytest.mark.parametrize("source", ["sequence", "next_sentence"], indirect=True)
 def test_forward_whole_output_matrix(source, tmp_path, sequence):
     tokens = [0, 16, 5, 2, 11, 3][:sequence]
     positions = [7, 2, 7, 0, 5, 1][:sequence]
@@ -249,7 +264,8 @@ def test_forward_whole_output_matrix(source, tmp_path, sequence):
     with experiment.compile_forward(memory_bytes=MEMORY_BYTES) as model:
         for inputs in cases:
             expected = _expected(source, inputs)
-            _assert_outputs(model.forward(inputs), expected, sequence)
+            labels = 2 if source[0]["architectures"] == ["BertForNextSentencePrediction"] else 3
+            _assert_outputs(model.forward(inputs), expected, sequence, labels=labels)
 
 
 def test_later_visible_token_changes_earlier_hidden_state(source, tmp_path):
@@ -421,6 +437,107 @@ def test_unsupported_source_is_refused(tmp_path, variant):
         with experiment.compile_forward(memory_bytes=MEMORY_BYTES):
             pytest.fail("unsupported source reached a compiled forward owner")
     assert str(error.value).strip()
+
+
+@pytest.mark.parametrize("metadata", [
+    {}, {"num_labels": 2}, {"id2label": {"0": "NEXT", "1": "OTHER"}},
+    {"num_labels": 2, "id2label": {"0": "NEXT", "1": "OTHER"},
+     "label2id": {"NEXT": 0, "OTHER": 1}},
+    {"id2label": None, "label2id": None},
+])
+def test_nsp_fixed_two_logits_with_optional_consistent_metadata(tmp_path, metadata):
+    config, tensors = _nsp_checkpoint()
+    config.update(metadata)
+    checkpoint = write_checkpoint(tmp_path / "checkpoint", config, tensors)
+    source = config, tensors, checkpoint
+    inputs = ForwardInputs([16, 0, 4], positions=[7, 2, 7], segments=[1, 0, 1],
+                           attention_mask=[False, True, True])
+    expected = _expected(source, inputs)
+    assert expected["logits"].shape == (1, 2)
+    experiment = _experiment(tmp_path / "deployment", checkpoint, requests=1)
+    with experiment.compile_forward(memory_bytes=MEMORY_BYTES) as model:
+        result = model.forward(inputs)
+        _assert_outputs(result, expected, 3, labels=2)
+        assert result.outputs["logits"].shape == (1, 2)
+
+
+@pytest.mark.parametrize("variant", [
+    "wrong_model_type", "missing_architecture", "ambiguous_architecture", "dual_head",
+    "sequence_architecture", "wrong_count", "null_count", "wrong_map", "wrong_inverse",
+    "inverse_only", "missing_weight", "missing_bias", "wrong_head_name", "wrong_weight_shape",
+    "wrong_bias_shape", "wrong_head_dtype", "missing_pooler", "wrong_pooler_shape",
+])
+def test_nsp_source_and_head_mismatches_refused(tmp_path, variant):
+    config, tensors = _nsp_checkpoint()
+    changes = {
+        "wrong_model_type": ("model_type", "roberta"),
+        "ambiguous_architecture": ("architectures", ["BertForNextSentencePrediction", "BertForSequenceClassification"]),
+        "dual_head": ("architectures", ["BertForPreTraining"]),
+        "sequence_architecture": ("architectures", ["BertForSequenceClassification"]),
+        "wrong_count": ("num_labels", 3),
+        "null_count": ("num_labels", None),
+        "wrong_map": ("id2label", {"0": "A", "1": "B", "2": "C"}),
+        "inverse_only": ("label2id", {"A": 0, "B": 1}),
+    }
+    if variant in changes:
+        key, value = changes[variant]
+        config[key] = value
+    elif variant == "missing_architecture":
+        del config["architectures"]
+    elif variant == "wrong_inverse":
+        config.update(id2label={"0": "A", "1": "B"}, label2id={"A": 1, "B": 0})
+    elif variant in ("missing_weight", "missing_bias"):
+        del tensors["cls.seq_relationship." + variant.removeprefix("missing_")]
+    elif variant == "wrong_head_name":
+        for suffix in ("weight", "bias"):
+            tensors[f"classifier.{suffix}"] = tensors.pop(f"cls.seq_relationship.{suffix}")
+    elif variant == "wrong_weight_shape":
+        tensors["cls.seq_relationship.weight"] = np.zeros((3, 8), dtype=np.float32)
+    elif variant == "wrong_bias_shape":
+        tensors["cls.seq_relationship.bias"] = np.zeros(3, dtype=np.float32)
+    elif variant == "wrong_head_dtype":
+        tensors["cls.seq_relationship.weight"] = tensors["cls.seq_relationship.weight"].astype(np.float16)
+    elif variant == "missing_pooler":
+        del tensors["bert.pooler.dense.bias"]
+    elif variant == "wrong_pooler_shape":
+        tensors["bert.pooler.dense.weight"] = np.zeros((2, 8), dtype=np.float32)
+    # Independent raw-source oracle must reject too; no candidate self-comparison.
+    with pytest.raises(ValueError):
+        evaluate(config, tensors, [[16, 0, 4]])
+    checkpoint = write_checkpoint(tmp_path / "checkpoint", config, tensors)
+    experiment = _experiment(tmp_path / "deployment", checkpoint, requests=1)
+    with pytest.raises(PUBLIC_ERRORS) as error:
+        with experiment.compile_forward(memory_bytes=MEMORY_BYTES):
+            pytest.fail("NSP source mismatch reached compiled owner")
+    assert str(error.value).strip()
+
+
+def test_nsp_same_shape_changed_head_changes_binding_and_results(tmp_path):
+    config, tensors = _nsp_checkpoint()
+    changed = {name: value.copy() for name, value in tensors.items()}
+    # Same [2,H] and [2] geometry is legal, not grounds for rejection.
+    changed["cls.seq_relationship.weight"][0, 0] += np.float32(0.25)
+    changed["cls.seq_relationship.bias"][0] += np.float32(0.5)
+    inputs = ForwardInputs([16, 0, 4], positions=[7, 2, 7], segments=[1, 0, 1],
+                           attention_mask=[True, False, True])
+    results, identities = [], []
+    for index, parameters in enumerate((tensors, changed)):
+        checkpoint = write_checkpoint(tmp_path / f"checkpoint-{index}", config, parameters)
+        source = config, parameters, checkpoint
+        expected = _expected(source, inputs)
+        experiment = _experiment(tmp_path / f"deployment-{index}", checkpoint, requests=1)
+        with experiment.compile_forward(memory_bytes=MEMORY_BYTES) as model:
+            identities.append(dict(model.identities))
+            result = model.forward(inputs)
+            _assert_outputs(result, expected, 3, labels=2)
+            results.append(result)
+    for key in ("source_digest", "checkpoint_digest", "binding_digest"):
+        assert identities[0][key] != identities[1][key]
+    # Source config and plan are unchanged; checkpoint/binding identity is not.
+    assert identities[0]["plan_digest"] == identities[1]["plan_digest"]
+    for name in ("last_hidden_state", "pooler_output"):
+        np.testing.assert_array_equal(results[0].outputs[name], results[1].outputs[name])
+    assert np.max(np.abs(results[0].outputs["logits"] - results[1].outputs["logits"])) > DETECTABLE_MARGIN
 
 
 class _CoercionBomb:
