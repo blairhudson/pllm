@@ -34,4 +34,4 @@ def suite(*, memory_bytes, selected=experiment):
                                       backend="native", state_audit=True)
     return BenchmarkSuite([BenchmarkCase("gkm-corrected-prompt", target)],
                           Sampling(processes=1, warmups=0, repetitions=1,
-                                   timeout_seconds=1200, memory_bytes=memory_bytes))
+                                   timeout_seconds=450, memory_bytes=memory_bytes))

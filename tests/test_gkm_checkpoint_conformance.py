@@ -14,6 +14,7 @@ import math
 import os
 import struct
 import threading
+import time
 import weakref
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
@@ -22,6 +23,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 from huggingface_hub.constants import HF_HUB_CACHE
+from pllm.runtime import benchmark_memory as memory
 
 from gkm_decoder_oracle import (
     AdmittedTensors, ArrayTensors, CONTRACTION_COLUMNS, INPUT_BOUND, ROW_BLOCK, SelectionCommitments,
@@ -35,6 +37,67 @@ PIN = "7ae557604adf67be50417f59c2c2f167def9a775"
 MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
 PROMPT = "Hello world"
 OUTPUTS = 2
+CORRECTED_MEMORY_CAP = 9 * memory.GiB
+
+
+class _CorrectedPromptDeadline:
+    """One cooperative 450s work budget, not a hard completion bound.
+
+    Nominal 150s cleanup headroom below a 600s tool limit is not guaranteed:
+    synchronous native/BLAS, hashing and cleanup cannot be preempted here.
+    """
+    def __init__(self):
+        self.expires = time.monotonic() + 450
+
+    def remaining(self):
+        remaining = self.expires - time.monotonic()
+        if remaining <= 0:
+            raise memory.BenchmarkMemoryError("corrected prompt cooperative deadline expired")
+        return remaining
+
+
+def _corrected_prompt_watchdog(report, abort, deadline):
+    original = memory.MemoryWatchdog
+
+    class CorrectedPromptWatchdog(original):
+        def check(self):
+            deadline.remaining()
+            super().check()
+
+    return CorrectedPromptWatchdog(report, abort)
+
+
+def _corrected_prompt_abort(stopped, clients):
+    def abort(reason):
+        stopped.set()
+        for client in clients:
+            active = client._core._active
+            if active is not None:
+                active.cancel()
+    return abort
+
+
+def _corrected_prompt_dispatch(client, adapter, deadline):
+    """Refresh the supported core timeout at the actual adapter boundary."""
+    if adapter == "sdk":
+        client._core.timeout = deadline.remaining()
+        response = client.responses.create(input="Hello", max_output_tokens=OUTPUTS)
+        deadline.remaining()
+        return response, response.to_dict()
+    from fastapi.testclient import TestClient
+    from pllm.runtime.sidecar import create_sidecar_app
+
+    assert adapter == "sidecar"
+    app = create_sidecar_app(client=client, local_api_key="corrected-audit")
+    with TestClient(app) as http:
+        client._core.timeout = deadline.remaining()
+        response = http.post("/v1/responses",
+            headers={"Authorization": "Bearer corrected-audit"},
+            json={"model": client._core.default_model, "input": "Hello",
+                  "max_output_tokens": OUTPUTS, "temperature": 0})
+    assert response.status_code == 200, response.text
+    deadline.remaining()
+    return response, response.json()
 
 
 def _decode_source_words(encoded, dtype):
@@ -1093,21 +1156,28 @@ def test_corrected_prompt_workspace_prices_complete_owners_without_arrays():
         corrected_prompt_workspace_estimate(cfg, prefill=1)
 
 
-def _corrected_prompt_memory_admission(experiment, snapshot):
+def _corrected_prompt_memory_admission(experiment, snapshot, *, audit_bytes=0, check=lambda: None):
     """Config-only estimate first; provisional bytes never grant source custody."""
     from pllm.runtime import benchmark_memory as memory, delegated_source, tokenizer_admission
 
+    if type(audit_bytes) is not int or audit_bytes not in (0, 32 * memory.MiB):
+        raise memory.BenchmarkMemoryError("corrected audit_bytes must be exactly 0 or 32 MiB")
     assert (experiment.budget.requests, experiment.budget.max_input_tokens,
             experiment.budget.max_new_tokens) == (1, 30, OUTPUTS)
     # Existing approved bounded named-metadata reader ONLY. No HF resolution,
     # tokenizer/index/header/tensor reads or native admission in this precheck.
+    check()
     with tokenizer_admission.reserve_decoder_metadata():
+        check()
         raw_config, _ = tokenizer_admission._read_named(snapshot, "config.json", 16 << 10)
+        check()
         config = tokenizer_admission._json_metadata(raw_config,
             error=memory.BenchmarkMemoryError, label="corrected prompt provisional config")
+        check()
         geometry = config.get("text_config") if type(config.get("text_config")) is dict else config
         workspace = corrected_prompt_workspace_estimate(geometry, prefill=30, executed=31,
                                                         selections=OUTPUTS)
+        check()
         extra = 512 << 20  # Unchanged allowance cap; NOT a physical/RSS hard limit.
         if workspace["required_estimate_bytes"] > extra:
             raise memory.BenchmarkMemoryError(
@@ -1116,20 +1186,164 @@ def _corrected_prompt_memory_admission(experiment, snapshot):
                 "30 prefill/31 executed, all logits/KV/selection checks retained")
 
     # These calls may hash checkpoint bodies: never move above the precheck.
+    check()
     report = memory.benchmark_memory(experiment, backend="native")
+    check()
     estimate = copy.deepcopy(report["estimate"])
+    if type(estimate["allocation_slack_percent"]) is not int or estimate["allocation_slack_percent"] != 25:
+        raise memory.BenchmarkMemoryError("corrected prompt requires unchanged 25% safety margin")
+    check()
     source = delegated_source.admit_source(experiment)
+    check()
     assert source.path.resolve() == snapshot.resolve()
     assert source.config_source_bytes == raw_config
     assert corrected_prompt_workspace_estimate(source.config) == workspace
     # Equality after REAL source admission associates provisional geometry with
     # its owner; labels/digests/precheck results cannot mint an admitted owner.
-    estimate["client_peak_bytes"] += extra
-    estimate["native_total_peak_bytes"] += extra
-    estimate["components"]["independent_oracle_allowance_bytes"] = extra
-    report = memory.admit_memory(estimate, memory.host_memory(), backend="native")
+    oracle_charge = memory._slack(extra)
+    audit_charge = memory._slack(audit_bytes)
+    estimate["client_peak_bytes"] += oracle_charge + audit_charge
+    estimate["native_total_peak_bytes"] += oracle_charge + audit_charge
+    estimate["components"].update({
+        "independent_oracle_allowance_bytes": extra,
+        "independent_oracle_margined_bytes": oracle_charge,
+        "response_state_audit_bytes": audit_bytes,
+        "response_state_audit_margined_bytes": audit_charge,
+        "corrected_memory_cap_bytes": CORRECTED_MEMORY_CAP,
+    })
+    check()
+    report = memory.admit_memory(estimate, memory.host_memory(), backend="native",
+                                memory_budget_bytes=CORRECTED_MEMORY_CAP)
     memory.require_admission(report)
+    check()
+    extra = report["estimate"]["components"]["independent_oracle_allowance_bytes"]
     return source, estimate, report, workspace, extra
+
+
+@pytest.mark.parametrize("audit_bytes", [0, 32 << 20])
+@pytest.mark.parametrize("cap_delta", [-1, 0, 1])
+def test_corrected_prompt_combined_cap_margin(monkeypatch, audit_bytes, cap_delta):
+    from pllm.deployment import resources
+    from pllm.runtime import delegated_source, tokenizer_admission
+    from pllm.runtime.safetensors_store import SafeTensorStore
+
+    cfg = {"hidden_size": 896, "intermediate_size": 4864,
+           "num_attention_heads": 14, "num_key_value_heads": 2,
+           "num_hidden_layers": 24, "vocab_size": 151936}
+    raw_config = json.dumps(cfg).encode()
+    class Snapshot:
+        def resolve(self):
+            return self
+
+    snapshot = Snapshot()
+    source = SimpleNamespace(path=snapshot, config_source_bytes=raw_config, config=cfg)
+    experiment = SimpleNamespace(budget=SimpleNamespace(
+        requests=1, max_input_tokens=30, max_new_tokens=2))
+    raw_oracle = 512 * memory.MiB
+    oracle_charge, audit_charge = memory._slack(raw_oracle), memory._slack(audit_bytes)
+    assert oracle_charge == 640 * memory.MiB
+    assert audit_charge == (40 * memory.MiB if audit_bytes else 0)
+    assert memory._slack(1) == 2 and memory._slack(0) == 0
+    base_total = CORRECTED_MEMORY_CAP + cap_delta - oracle_charge - audit_charge
+    providers = {"worker_a": memory.GiB, "worker_b": memory.GiB}
+    quoted = {"allocation_slack_percent": 25, "kernel": "cpu", "runtime_kind": "gkm",
+              "limitations": [], "client_peak_bytes": base_total - sum(providers.values()),
+              "provider_peak_bytes": providers, "docker_provider_peak_bytes": {},
+              "native_total_peak_bytes": base_total,
+              "components": {"per_engine_compiled_disk_bytes": 0, "raw_client_bundle_bytes": 0,
+                             "source_float32_bytes": 123456},
+              "verification_allocation": {"native_allowance_per_role_bytes": 7654321}}
+    untouched = copy.deepcopy(quoted)
+    host = memory.HostMemory(total=64 * memory.GiB, available=48 * memory.GiB,
+                             swap_used=0, disk_free=100 * memory.GiB)
+    events, reports, values = [], [], []
+
+    @contextmanager
+    def reserve(amount):
+        assert amount == 384 * memory.MiB
+        events.append("metadata-enter")
+        try:
+            yield
+        finally:
+            events.append("metadata-exit")
+
+    def config_only(root, name, limit):
+        assert (root, name, limit) == (snapshot, "config.json", 16 << 10)
+        events.append("config")
+        return raw_config, None
+
+    def quote(*args, **kwargs):
+        events.append("quote")
+        return {"estimate": quoted}
+
+    def admit_source(*args, **kwargs):
+        events.append("source-metadata")
+        return source
+
+    original_admit = memory.admit_memory
+
+    def admit(estimate, sampled_host, **kwargs):
+        assert sampled_host is host
+        assert kwargs == {"backend": "native", "memory_budget_bytes": CORRECTED_MEMORY_CAP}
+        result = original_admit(estimate, sampled_host, **kwargs)
+        reports.append(result)
+        return result
+
+    def forbidden(*args, **kwargs):
+        values.append("source-values")
+        raise AssertionError("source values before combined cap admission")
+
+    monkeypatch.setattr(resources, "reserve_incremental_memory", reserve)
+    monkeypatch.setattr(tokenizer_admission, "_read_named", config_only)
+    monkeypatch.setattr(memory, "benchmark_memory", quote)
+    monkeypatch.setattr(memory, "host_memory", lambda: host)
+    monkeypatch.setattr(memory, "admit_memory", admit)
+    monkeypatch.setattr(delegated_source, "admit_source", admit_source)
+    monkeypatch.setattr(delegated_source, "_source_float_frame", forbidden)
+    monkeypatch.setattr(delegated_source.AdmittedSource, "load_transport", forbidden)
+    monkeypatch.setattr(SafeTensorStore, "get", forbidden)
+    monkeypatch.setattr(delegated_source._AdmittedTensorStore, "get", forbidden)
+    for invalid in (False, True, -1, 1, 33 << 20):
+        with pytest.raises(memory.BenchmarkMemoryError, match="audit_bytes"):
+            _corrected_prompt_memory_admission(experiment, snapshot, audit_bytes=invalid)
+        assert events == [] and reports == [] and values == []
+    if cap_delta > 0:
+        with pytest.raises(memory.BenchmarkMemoryError, match="exceeds safe headroom"):
+            _corrected_prompt_memory_admission(experiment, snapshot, audit_bytes=audit_bytes)
+    else:
+        actual, estimate, report, workspace, extra = _corrected_prompt_memory_admission(
+            experiment, snapshot, audit_bytes=audit_bytes)
+        assert actual is source and extra == raw_oracle
+        assert workspace["required_estimate_bytes"] <= extra
+        assert report is reports[0] and estimate is report["estimate"]
+    report, = reports
+    estimate = report["estimate"]
+    assert report["admitted"] is (cap_delta <= 0)
+    assert report["host"]["admission_budget_bytes"] == CORRECTED_MEMORY_CAP
+    assert host.available - host.reserve > CORRECTED_MEMORY_CAP
+    assert report["candidates"]["native"]["required_host_bytes"] == CORRECTED_MEMORY_CAP + cap_delta
+    assert estimate["client_peak_bytes"] == untouched["client_peak_bytes"] + oracle_charge + audit_charge
+    assert estimate["native_total_peak_bytes"] == (
+        estimate["client_peak_bytes"] + sum(estimate["provider_peak_bytes"].values()))
+    assert estimate["provider_peak_bytes"] == untouched["provider_peak_bytes"]
+    assert estimate["verification_allocation"] == untouched["verification_allocation"]
+    assert estimate["components"] == untouched["components"] | {
+        "independent_oracle_allowance_bytes": raw_oracle,
+        "independent_oracle_margined_bytes": oracle_charge,
+        "response_state_audit_bytes": audit_bytes,
+        "response_state_audit_margined_bytes": audit_charge,
+        "corrected_memory_cap_bytes": CORRECTED_MEMORY_CAP,
+    }
+    assert quoted == untouched and values == []
+    assert events == ["metadata-enter", "config", "metadata-exit", "quote", "source-metadata"]
+    # A different margin is refused, not silently accepted or lowered.
+    for invalid_margin in (24, 26, True):
+        events.clear()
+        quoted["allocation_slack_percent"] = invalid_margin
+        with pytest.raises(memory.BenchmarkMemoryError, match="unchanged 25%"):
+            _corrected_prompt_memory_admission(experiment, snapshot, audit_bytes=audit_bytes)
+        assert events == ["metadata-enter", "config", "metadata-exit", "quote"]
+    assert len(reports) == 1 and values == []
 
 
 @pytest.mark.parametrize("budget", [(1, 29, 2), (1, 31, 2), (1, 30, 3), (2, 30, 2)])
@@ -1333,6 +1547,7 @@ def _independent_pinned_qwen_hello(source):
 @pytest.mark.skipif(os.getenv("PLLM_RUN_GKM_CORRECTED_PROMPT") != "1",
                     reason="opt-in pinned offline GKM corrected Hello complete checkpoint")
 def test_pinned_qwen_corrected_prompt(tmp_path, monkeypatch, record_property):
+    deadline = _CorrectedPromptDeadline()
     # Two separate one-request topologies, never a stretched one-request lease.
     # Each helper retires its oracle, accepted capture, audit and allowance before
     # the next adapter's admission and source custody begin.
@@ -1340,10 +1555,11 @@ def test_pinned_qwen_corrected_prompt(tmp_path, monkeypatch, record_property):
         with monkeypatch.context() as scoped:
             _pinned_qwen_corrected_prompt_adapter(
                 tmp_path / adapter, scoped,
-                lambda key, value: record_property(f"{adapter}.{key}", value), adapter=adapter)
+                lambda key, value: record_property(f"{adapter}.{key}", value),
+                adapter=adapter, deadline=deadline)
 
 
-def _pinned_qwen_corrected_prompt_adapter(tmp_path, monkeypatch, record_property, *, adapter):
+def _pinned_qwen_corrected_prompt_adapter(tmp_path, monkeypatch, record_property, *, adapter, deadline):
     """Separate current-request qualification; legacy checkpoint cohort stays historical.
 
     Future launch requires explicit permission, coherent wheel and physical
@@ -1384,7 +1600,7 @@ def _pinned_qwen_corrected_prompt_adapter(tmp_path, monkeypatch, record_property
         early.setattr(SafeTensorStore, "get", forbidden)
         early.setattr(delegated_source._AdmittedTensorStore, "get", forbidden)
         source, estimate, report, workspace, extra = _corrected_prompt_memory_admission(
-            experiment, snapshot)
+            experiment, snapshot, check=deadline.remaining)
 
     pins = estimate["gkm_admission"]
     assert source.model == model and source.source_lock["commit"] == PIN
@@ -1412,14 +1628,8 @@ def _pinned_qwen_corrected_prompt_adapter(tmp_path, monkeypatch, record_property
 
     stopped, clients = threading.Event(), []
 
-    def abort(reason):
-        stopped.set()
-        for client in clients:
-            active = client._core._active
-            if active is not None:
-                active.cancel()
-
-    guard = memory.MemoryWatchdog(report, abort)
+    abort = _corrected_prompt_abort(stopped, clients)
+    guard = _corrected_prompt_watchdog(report, abort, deadline)
 
     def check():
         if stopped.is_set():
@@ -1436,6 +1646,7 @@ def _pinned_qwen_corrected_prompt_adapter(tmp_path, monkeypatch, record_property
         guard.start()
         check()
         ids = _independent_pinned_qwen_hello(source)
+        check()
         gc.collect()  # Independent tokenizer/template phase retired before arrays.
         check()
         tensors = AdmittedTensors(source, check=check)
@@ -1457,29 +1668,14 @@ def _pinned_qwen_corrected_prompt_adapter(tmp_path, monkeypatch, record_property
                 assert (threading.get_ident() == caller_thread) == (adapter == "sdk")
                 captured.append(result)
 
-            with OpenAI(experiment=experiment, timeout=600) as client:
+            with OpenAI(experiment=experiment, timeout=deadline.remaining()) as client:
                 topology = client._owned_topology
                 clients.append(client)
                 client._core._result_hook = capture
                 check()
                 # Ordinary one-use preparation remains runtime authority. Oracle
                 # IDs never enter request, prepared payload or transport inputs.
-                if adapter == "sdk":
-                    response = client.responses.create(input="Hello", max_output_tokens=OUTPUTS)
-                    value = response.to_dict()
-                else:
-                    from fastapi.testclient import TestClient
-                    from pllm.runtime.sidecar import create_sidecar_app
-
-                    assert adapter == "sidecar"
-                    app = create_sidecar_app(client=client, local_api_key="corrected-audit")
-                    with TestClient(app) as http:
-                        response = http.post("/v1/responses",
-                            headers={"Authorization": "Bearer corrected-audit"},
-                            json={"model": client._core.default_model, "input": "Hello",
-                                  "max_output_tokens": OUTPUTS, "temperature": 0})
-                    assert response.status_code == 200, response.text
-                    value = response.json()
+                response, value = _corrected_prompt_dispatch(client, adapter, deadline)
                 assert value["status"] == "incomplete"
                 assert value["incomplete_details"] == {"reason": "max_output_tokens"}
                 actual = client._core._ensure_source()
@@ -1500,7 +1696,9 @@ def _pinned_qwen_corrected_prompt_adapter(tmp_path, monkeypatch, record_property
                 assert value["usage"]["output_tokens"] == OUTPUTS
                 text = "".join(part["text"] for item in value["output"]
                                for part in item.get("content", []) if part["type"] == "output_text")
+                check()
                 assert text == source.tokenizer().decode(list(result.selected))
+                check()
                 assert active_sessions(client._core) == [0, 0]
                 roles = topology.statuses
                 assert {role.role for role in roles} == {"worker_a", "worker_b"}

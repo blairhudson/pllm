@@ -1,6 +1,7 @@
 """Installed GKM Experiment through real CLI, gateway and benchmark processes."""
 
 from contextlib import contextmanager
+from dataclasses import replace
 import copy
 import gc
 import json
@@ -253,7 +254,7 @@ def test_sidecar_cancellation_discards_output_and_retires_roles(tmp_path, monkey
 
 
 @contextmanager
-def _combined_controller_watchdog(monkeypatch, combined_report, stopped):
+def _combined_controller_watchdog(monkeypatch, combined_report, stopped, deadline):
     """Keep the runner's abort/drain authority; tighten only its host floor."""
     from pllm.runtime import benchmark_memory as memory
 
@@ -266,6 +267,7 @@ def _combined_controller_watchdog(monkeypatch, combined_report, stopped):
         def check(self):
             if stopped.is_set():
                 raise memory.BenchmarkMemoryError("corrected suite outer watchdog cancelled")
+            deadline.remaining()
             super().check()
 
     with monkeypatch.context() as scoped:
@@ -273,14 +275,26 @@ def _combined_controller_watchdog(monkeypatch, combined_report, stopped):
         yield
 
 
+def _corrected_prompt_sampling(sampling, deadline):
+    return replace(sampling, timeout_seconds=min(sampling.timeout_seconds, deadline.remaining()))
+
+
 @pytest.mark.parametrize("failure_phase", ["start", "communicate"])
 def test_corrected_suite_combined_watchdog_cancels_and_drains(tmp_path, monkeypatch, failure_phase):
+    from test_gkm_checkpoint_conformance import _CorrectedPromptDeadline
+
+    _corrected_controller_regression(tmp_path, monkeypatch, failure_phase,
+                                    _CorrectedPromptDeadline())
+
+
+def _corrected_controller_regression(tmp_path, monkeypatch, failure_phase, deadline, *, expire=None):
     from types import SimpleNamespace
     from pllm._benchmark_worker import PROTOCOL
     from pllm.metrics import benchmark_runner as runner
     from pllm.runtime import benchmark_memory as memory, client_process_usage as usage
 
     original_watchdog = memory.MemoryWatchdog
+    expected_timeout = min(90, deadline.remaining())
     stopped = threading.Event()
     combined_report = {"host": {"reserve_bytes": 1 << 30, "swap_used": 0,
                                  "available": 6 << 30}, "runtime_floor_bytes": 3 << 30}
@@ -290,7 +304,7 @@ def test_corrected_suite_combined_watchdog_cancels_and_drains(tmp_path, monkeypa
     phase = "start"
 
     def host():
-        available = (low_available if samples and phase == failure_phase else 6 << 30)
+        available = (low_available if expire is None and samples and phase == failure_phase else 6 << 30)
         samples.append(available)
         return SimpleNamespace(reserve=1 << 30, swap_used=0, available=available, pressure=None)
 
@@ -352,12 +366,17 @@ def test_corrected_suite_combined_watchdog_cancels_and_drains(tmp_path, monkeypa
             assert command[1:] == ["-I", "-m", "pllm._benchmark_worker"]
             assert options["start_new_session"] is True
             events.append("spawn")
+            if failure_phase == "start" and expire is not None:
+                expire()
 
         def communicate(self, body, timeout):
             nonlocal phase
-            assert json.loads(body)["protocol"] == PROTOCOL and timeout == 90
+            assert json.loads(body)["protocol"] == PROTOCOL and timeout == expected_timeout
+            assert json.loads(body)["sampling"]["timeout_seconds"] == expected_timeout
             events.append("communicate")
             phase = "communicate"
+            if expire is not None:
+                expire()
             # Execute the inherited watchdog loop synchronously, not a fake
             # abort/result path. A valid completed child must still be rejected.
             monitors[0]._run()
@@ -391,22 +410,32 @@ def test_corrected_suite_combined_watchdog_cancels_and_drains(tmp_path, monkeypa
     monkeypatch.setitem(sys.modules, "psutil", SimpleNamespace(Process=process_identity, Error=RuntimeError))
     monkeypatch.setattr(usage, "client_popen_factory", lambda factory: factory)
     monkeypatch.setattr(usage, "finalize_client_payload", lambda payload, process: finalized.append(payload))
+    monkeypatch.setattr(runner, "_interpreter", lambda python: "/mock/python")
+    monkeypatch.setattr(runner, "_environment", lambda threads: {})
     case = BenchmarkCase("combined-watchdog", BenchmarkTarget.runtime())
     sampling = Sampling(processes=1, timeout_seconds=90)
+    bounded = _corrected_prompt_sampling(sampling, deadline)
+    assert sampling.timeout_seconds == 90 and bounded is not sampling
     result = None
     if failure_phase == "start":
-        with pytest.raises(memory.BenchmarkMemoryError, match="below runtime reserve"):
-            with _combined_controller_watchdog(monkeypatch, combined_report, stopped):
-                result = runner._execute(case, sampling, {}, b"s" * 32, tmp_path)
+        with pytest.raises(memory.BenchmarkMemoryError,
+                           match="deadline expired" if expire else "below runtime reserve"):
+            with _combined_controller_watchdog(monkeypatch, combined_report, stopped, deadline):
+                result = runner._execute(case, bounded, {}, b"s" * 32, tmp_path)
     else:
-        with _combined_controller_watchdog(monkeypatch, combined_report, stopped):
-            result = runner._execute(case, sampling, {}, b"s" * 32, tmp_path)
+        with _combined_controller_watchdog(monkeypatch, combined_report, stopped, deadline):
+            result = runner._execute(case, bounded, {}, b"s" * 32, tmp_path)
         assert result["status"] == "blocked" and result["failure_code"] == "host_pressure"
         diagnostics = result["details"]["controller_memory_watchdog"]
         assert diagnostics["error_class"] == "BenchmarkMemoryError"
-        assert diagnostics["failure_observation"] == {
-            "pressure": None, "available_bytes": low_available, "swap_used_bytes": 0}
-        assert diagnostics["minimum_available_bytes"] == low_available
+        if expire is None:
+            assert diagnostics["failure_observation"] == {
+                "pressure": None, "available_bytes": low_available, "swap_used_bytes": 0}
+            assert diagnostics["minimum_available_bytes"] == low_available
+        else:
+            assert "deadline expired" in diagnostics["error_message"]
+            assert diagnostics["failure_observation"] is None
+            assert diagnostics["minimum_available_bytes"] == 6 << 30
     monitor, = monitors
     assert monitor.report is combined_report
     assert type(monitor)._run is original_watchdog._run
@@ -431,6 +460,272 @@ def test_corrected_suite_combined_watchdog_cancels_and_drains(tmp_path, monkeypa
     with pytest.raises(memory.BenchmarkMemoryError, match="outer watchdog cancelled"):
         monitor.check()
     assert samples == before  # Latched outer cancellation needs no new telemetry.
+
+
+@pytest.mark.parametrize("failure_phase", ["preflight", "oracle", "sdk", "sidecar",
+                                         "execution_start", "execution_communicate"])
+def test_corrected_prompt_deadline_expiry(tmp_path, monkeypatch, failure_phase):
+    import weakref
+    from types import SimpleNamespace
+    import fastapi.testclient as http_boundary
+    import test_gkm_checkpoint_conformance as conformance
+    from pllm.deployment import resources
+    from pllm.runtime import benchmark_memory as memory, delegated_source, sidecar, tokenizer_admission
+    from pllm.runtime.delegated_protocol import clear_failure_frames
+
+    clock = SimpleNamespace(now=0.0)
+    monkeypatch.setattr(conformance.time, "monotonic", lambda: clock.now)
+    deadline = conformance._CorrectedPromptDeadline()
+    clock.now = 410.0
+    assert deadline.remaining() == 40 and deadline.expires == 450
+    events, live, references, clients, captured, retired_roles = [], [], [], [], [], []
+
+    def expire():
+        clock.now = 451.0
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("deadline test crossed uncontrolled source/host/thread/process boundary")
+
+    monkeypatch.setattr(memory, "benchmark_memory", forbidden)
+    monkeypatch.setattr(delegated_source, "admit_source", forbidden)
+    monkeypatch.setattr(tokenizer_admission, "_read_named", forbidden)
+    monkeypatch.setattr(delegated_source, "_locked", forbidden)
+    monkeypatch.setattr(delegated_source, "_source_float_frame", forbidden)
+    capacity = resources._ClientCapacity()
+    observations, reservations, exits = [], [], []
+    original_factory = resources.reserve_incremental_memory
+    original_exit = resources._MemoryReservation.__exit__
+
+    def observe():
+        # Closed-world telemetry only. The actual capacity still owns every
+        # debit/refund, and outstanding real tokens remain in this snapshot.
+        with capacity.lock:
+            snapshot = resources.ClientResources(
+                observed_at_ms=0, available_memory_bytes=6 * memory.GiB,
+                process_memory_bytes=64 * memory.MiB, reserve_bytes=memory.GiB,
+                reserved_memory_bytes=sum(capacity._owners.values()),
+                container_headroom_bytes=5 * memory.GiB)
+            observations.append(snapshot.reserved_memory_bytes)
+            return snapshot
+
+    def observe_exit(reservation, *exc):
+        try:
+            assert reservations == [reservation] and exits == []
+            assert reservation._capacity is capacity and reservation._acquired
+            assert reservation._amount == 512 * memory.MiB
+            with capacity.lock:
+                assert capacity._owners == {reservation._token: reservation._amount}
+            assert capacity.observe().reserved_memory_bytes == reservation._amount
+            assert live == clients == captured == []
+            assert all(reference() is None for reference in references)
+            assert events[-1] == "payloads-source-exception-frames-retired"
+            events.append("retired-before-refund")
+        finally:
+            # Forward the same exception type/value/traceback exactly once;
+            # only the genuine reservation/hold_bytes machinery can refund.
+            result = original_exit(reservation, *exc)
+        with capacity.lock:
+            assert reservation._token not in capacity._owners
+        assert reservation._exited and capacity.observe().reserved_memory_bytes == 0
+        exits.append((reservation._token, exc[0], result))
+        events.append("refund-raw-512")
+        return result
+
+    monkeypatch.setattr(resources, "_capacity", capacity)
+    monkeypatch.setattr(capacity, "observe", observe)
+    monkeypatch.setattr(resources._MemoryReservation, "__exit__", observe_exit)
+    if failure_phase == "preflight":
+        monkeypatch.setattr(tokenizer_admission, "reserve_decoder_metadata", forbidden)
+        expire()
+        experiment = SimpleNamespace(budget=SimpleNamespace(
+            requests=1, max_input_tokens=30, max_new_tokens=2))
+        with pytest.raises(memory.BenchmarkMemoryError, match="deadline expired"):
+            conformance._corrected_prompt_memory_admission(
+                experiment, object(), check=deadline.remaining)
+        assert events == live == clients == captured == []
+        assert capacity._owners == {} and observations == reservations == exits == []
+        assert resources.reserve_incremental_memory is original_factory
+        return  # No metadata or raw-oracle reservation was acquired.
+
+    class Payload:
+        pass
+
+    class Event:
+        def __init__(self):
+            self.stopped = False
+
+        def set(self):
+            self.stopped = True
+
+        def is_set(self):
+            return self.stopped
+
+        def wait(self, timeout):
+            assert timeout == 0.25
+            return self.stopped
+
+    class Thread:
+        def __init__(self, *, target, name, daemon):
+            assert daemon and name == "pllm-memory-guard"
+            self.ident = None
+
+        def start(self):
+            self.ident = 1
+            events.append("guard-start")
+
+        def join(self, timeout):
+            assert timeout == 2
+            events.append("guard-join")
+
+    def cancel():
+        assert clients[0]._core._active is not None
+        clients[0]._core._active = None
+        clients[0].sessions[:] = [0, 0]
+        events.append("active-attempt-cancelled")
+
+    class Client:
+        def __init__(self):
+            self._core = SimpleNamespace(_active=None, timeout=999, default_model="mock", payload=live[1])
+            self.responses = SimpleNamespace(create=dispatch)
+            self.sessions = [0, 0]
+            self.roles = [SimpleNamespace(running=True), SimpleNamespace(running=True)]
+            self.closed = False
+
+        def close(self):
+            assert self._core._active is None and self.sessions == [0, 0]
+            for role in self.roles:
+                role.running = False
+            retired_roles.extend(self.roles)
+            self._core.payload = None
+            self.closed = True
+            events.append("mock-client-closed-roles-drained")
+
+    class Response:
+        status_code, text = 200, "syntactically completed mock"
+
+        def to_dict(self):
+            return {"status": "completed"}
+
+        json = to_dict
+
+    def dispatch(**kwargs):
+        assert kwargs == {"input": "Hello", "max_output_tokens": 2}
+        assert clients[0]._core.timeout == 40
+        clients[0]._core._active = SimpleNamespace(cancel=cancel)
+        clients[0].sessions[:] = [1, 1]
+        events.append("active-attempt-started")
+        expire()
+        guard._run()  # Real inherited loop calls the shared trained SDK abort.
+        assert stopped.is_set() and clients[0]._core._active is None
+        assert guard.error_class == "BenchmarkMemoryError"
+        return Response()  # Must not become accepted output after cancellation.
+
+    def app(*, client, local_api_key):
+        assert client is clients[0] and local_api_key == "corrected-audit"
+        events.append("sidecar-app")
+        return client
+
+    class HTTP:
+        def __init__(self, selected):
+            assert selected is clients[0]
+
+        def __enter__(self):
+            events.append("http-enter")
+            return self
+
+        def __exit__(self, *error):
+            events.append("http-close")
+
+        def post(self, path, *, headers, json):
+            assert path == "/v1/responses"
+            assert headers == {"Authorization": "Bearer corrected-audit"}
+            assert json == {"model": "mock", "input": "Hello", "max_output_tokens": 2,
+                            "temperature": 0}
+            events.append("http-post")
+            return clients[0].responses.create(input=json["input"], max_output_tokens=json["max_output_tokens"])
+
+    stopped, guard = Event(), None
+
+    def protected_work():
+        nonlocal guard
+        source = tensors = client = response = value = None
+        with conformance._corrected_prompt_extra_allowance(512 * memory.MiB) as reservation:
+            assert type(reservation) is resources._MemoryReservation
+            assert reservation._capacity is capacity and reservation._acquired
+            assert reservation._amount == 512 * memory.MiB  # Raw, never 640 MiB charge.
+            reservations.append(reservation)
+            assert capacity.observe().reserved_memory_bytes == reservation._amount
+            events.append("reserve-raw-512")
+            live.extend([Payload(), Payload()])
+            references.extend(weakref.ref(payload) for payload in live)
+            try:
+                if failure_phase.startswith("execution_"):
+                    _corrected_controller_regression(
+                        tmp_path, monkeypatch, failure_phase.removeprefix("execution_"),
+                        deadline, expire=expire)
+                else:
+                    monkeypatch.setattr(memory, "threading", SimpleNamespace(
+                        Event=Event, Thread=Thread, current_thread=lambda: None))
+                    monkeypatch.setattr(memory, "host_memory", lambda: SimpleNamespace(
+                        available=6 << 30, swap_used=0, pressure=None))
+                    report = {"host": {"available": 6 << 30, "swap_used": 0, "reserve_bytes": 1 << 30}}
+                    guard = conformance._corrected_prompt_watchdog(
+                        report, conformance._corrected_prompt_abort(stopped, clients), deadline)
+                    guard.start()
+                    if failure_phase == "oracle":
+                        source = SimpleNamespace(source_shapes={}, _tensor_specs={}, _identities={},
+                                                 payload=live[0])
+                        tensors = conformance.AdmittedTensors(source, check=guard.check)
+                        expire()
+                        tensors.verify_lock()  # Actual oracle callback precedes source access.
+                    else:
+                        client = Client()
+                        clients.append(client)
+                        monkeypatch.setattr(sidecar, "create_sidecar_app", app)
+                        monkeypatch.setattr(http_boundary, "TestClient", HTTP)
+                        response, value = conformance._corrected_prompt_dispatch(client, failure_phase, deadline)
+                        captured.append(value)
+            except BaseException as error:
+                clear_failure_frames(error)
+                raise
+            finally:
+                if guard is not None:
+                    guard.close()  # No deadline check or new work budget in cleanup.
+                if clients:
+                    clients[0].close()
+                    assert clients[0].closed and all(not role.running for role in clients[0].roles)
+                clients.clear()
+                captured.clear()
+                live.clear()
+                source = tensors = client = response = value = None
+                gc.collect()
+                events.append("payloads-source-exception-frames-retired")
+
+    if failure_phase.startswith("execution_"):
+        protected_work()  # Shared regression checks refusal/blocked result plus real drain.
+    else:
+        with pytest.raises(memory.BenchmarkMemoryError, match="deadline expired"):
+            protected_work()
+        assert guard._stop.is_set()
+        assert type(guard)._run is memory.MemoryWatchdog._run
+        assert type(guard).start is memory.MemoryWatchdog.start
+        assert type(guard).close is memory.MemoryWatchdog.close
+    assert capacity._owners == {} and captured == []
+    reservation, = reservations
+    expected_error = None if failure_phase.startswith("execution_") else memory.BenchmarkMemoryError
+    assert exits == [(reservation._token, expected_error, False)]
+    assert observations == [0, 512 * memory.MiB, 512 * memory.MiB, 0]
+    assert resources.reserve_incremental_memory is original_factory
+    assert events[-3:] == ["payloads-source-exception-frames-retired", "retired-before-refund", "refund-raw-512"]
+    assert all(reference() is None for reference in references)
+    if failure_phase in ("sdk", "sidecar"):
+        assert events.index("active-attempt-started") < events.index("active-attempt-cancelled")
+        assert events.index("active-attempt-cancelled") < events.index("mock-client-closed-roles-drained")
+        assert len(retired_roles) == 2 and all(not role.running for role in retired_roles)
+        assert events.count("http-post") == (1 if failure_phase == "sidecar" else 0)
+        if failure_phase == "sidecar":
+            assert events.index("http-close") < events.index("mock-client-closed-roles-drained")
+    assert deadline.expires == 450 and clock.now == 451  # No stage/adapter reset.
 
 
 def test_corrected_prompt_suite_builder_is_inert(monkeypatch):
@@ -460,6 +755,7 @@ def test_corrected_prompt_suite_builder_is_inert(monkeypatch):
     sampling = spec["sampling"]
     assert (sampling["processes"], sampling["repetitions"], sampling["warmups"]) == (1, 1, 0)
     assert sampling["memory_bytes"] == supplied_budget
+    assert sampling["timeout_seconds"] == 450
 
 
 @pytest.mark.slow
@@ -467,6 +763,9 @@ def test_corrected_prompt_suite_builder_is_inert(monkeypatch):
                     reason="opt-in pinned offline GKM corrected Hello suite persistence")
 def test_pinned_qwen_corrected_prompt_suite_persists_independent_audit(
         tmp_path, monkeypatch, record_property):
+    from test_gkm_checkpoint_conformance import _CorrectedPromptDeadline
+
+    deadline = _CorrectedPromptDeadline()
     from huggingface_hub.constants import HF_HUB_CACHE
     from pllm import Deployment
     from pllm.metrics import benchmark_runner
@@ -477,7 +776,7 @@ def test_pinned_qwen_corrected_prompt_suite_persists_independent_audit(
     from test_gkm_checkpoint_conformance import (
         PIN, OUTPUTS, AdmittedTensors, SelectionCommitments, clear_decoder,
         _corrected_prompt_extra_allowance, _corrected_prompt_memory_admission,
-        _independent_pinned_qwen_hello,
+        _independent_pinned_qwen_hello, _corrected_prompt_watchdog, CORRECTED_MEMORY_CAP,
     )
 
     cache = Path(HF_HUB_CACHE).expanduser().resolve()
@@ -497,23 +796,13 @@ def test_pinned_qwen_corrected_prompt_suite_persists_independent_audit(
         early.setattr(SafeTensorStore, "get", forbidden)
         early.setattr(delegated_source._AdmittedTensorStore, "get", forbidden)
         source, estimate, combined_report, workspace, extra = _corrected_prompt_memory_admission(
-            experiment, snapshot)
-    # Suite's ordinary state-audit quote is additional to the unchanged oracle
-    # allowance and native/client quote. No fixed host-fit assumption or cap raise.
-    estimate = copy.deepcopy(estimate)
-    estimate["client_peak_bytes"] += 32 << 20
-    estimate["native_total_peak_bytes"] += 32 << 20
-    estimate["components"]["response_state_audit_bytes"] = 32 << 20
-    memory_bytes = estimate["native_total_peak_bytes"]
-    combined_report = memory.admit_memory(estimate, memory.host_memory(), backend="native",
-                                         memory_budget_bytes=memory_bytes)
-    memory.require_admission(combined_report)
-    selected = suite(memory_bytes=memory_bytes, selected=experiment)
+            experiment, snapshot, audit_bytes=32 * memory.MiB, check=deadline.remaining)
+    selected = suite(memory_bytes=CORRECTED_MEMORY_CAP, selected=experiment)
     assert (selected.sampling.processes, selected.sampling.repetitions,
             selected.sampling.warmups) == (1, 1, 0)
     expected_records, calls = [], []
     stopped = threading.Event()
-    guard = memory.MemoryWatchdog(combined_report, lambda reason: stopped.set())
+    guard = _corrected_prompt_watchdog(combined_report, lambda reason: stopped.set(), deadline)
 
     def check():
         if stopped.is_set():
@@ -531,6 +820,7 @@ def test_pinned_qwen_corrected_prompt_suite_persists_independent_audit(
         try:
             check()
             ids = _independent_pinned_qwen_hello(source)
+            check()
             gc.collect()
             tensors = AdmittedTensors(source, check=check)
             tensors.verify_lock()
@@ -546,8 +836,9 @@ def test_pinned_qwen_corrected_prompt_suite_persists_independent_audit(
             tensors = expected = observer = None
             gc.collect()
         check()
-        with _combined_controller_watchdog(monkeypatch, combined_report, stopped):
-            return original(case, sampling, inputs, salt, directory)
+        with _combined_controller_watchdog(monkeypatch, combined_report, stopped, deadline):
+            return original(case, _corrected_prompt_sampling(sampling, deadline),
+                            inputs, salt, directory)
 
     monkeypatch.setattr(benchmark_runner, "_execute", independently_checked_execute)
     output = tmp_path / "corrected-benchmark.json"
@@ -589,9 +880,12 @@ def test_pinned_qwen_corrected_prompt_suite_persists_independent_audit(
             clear_failure_frames(error)
             raise
         finally:
-            guard.close()
-            source = None
-            gc.collect()
+            try:
+                guard.close()
+            finally:
+                source = None
+                expected_records.clear()
+                gc.collect()
     check()
 
 
