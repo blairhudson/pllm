@@ -24,9 +24,13 @@
 //! Shared guard mechanics do not change this kernel's arm policy: scratch is
 //! armed after debit BEFORE value validation; destination immediately before
 //! its first write, disarmed only on success. Invalid values still wipe scratch.
+//! Opt-in fixed NTT products borrow the existing validated public plan and a
+//! separate 2N workspace; default schoolbook equations/quotes remain unchanged.
+//! The opt-in shell and fixed NTT use separate caller-owned local inventories.
 
 mod arithmetic;
 mod bfv;
+mod convolution;
 
 use crate::coefficient_layout::CoefficientRing;
 use crate::kernel_support::{KernelWorkLimit, WipeGuard};
@@ -38,6 +42,8 @@ pub(super) enum KernelError {
     Overflow,
     Work,
     InvalidValue,
+    /// Emitted only by opt-in wrappers; legacy variants and results are intact.
+    Ntt(convolution::NttError),
 }
 
 /// Explicit magnitude bounds, each strictly below q. No distribution implied.
