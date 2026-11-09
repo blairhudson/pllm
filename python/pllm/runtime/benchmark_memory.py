@@ -445,9 +445,17 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
         memory_safety_margin_percent=memory_safety_margin_percent)
 
 
+def _fss_raw_client(client_work):
+    """Unrounded ordinary client price; qualification controls add before slack."""
+    from .fss_child_status import SUPERVISOR_MEMORY_BYTES, PROGRESS_SUPERVISOR_BYTES
+
+    return (3 * _PROCESS_BYTES + client_work + 32 * MiB + SUPERVISOR_MEMORY_BYTES
+            + 2 * PROGRESS_SUPERVISOR_BYTES + RAW_PEAK_BYTES)
+
+
 def _fss_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, checkpoint_bytes,
                 memory_safety_margin_percent=25, *, contract=None, source_pins=None,
-                transport_admission=None):
+                transport_admission=None, _qualification_control_bytes=0):
     """Bounded metadata/owner estimate; never admits numeric/program resources."""
     from .fss_protocol import ROLE_MEMORY, FRAME_LIMIT, ADMISSION_LIMIT, CONTROL_LIMIT, ROLES
     from .fss_tape import MAX_PACKET_BYTES, capacity_limits
@@ -569,9 +577,10 @@ def _fss_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, check
     providers = {role: _slack(_PROCESS_BYTES + (holder_work if role in ("worker_a", "worker_b") else role_work)
                              + WORKER_MEMORY_BYTES, margin) for role in ROLES}
     # SDK, supervisor, dashboard and relay can overlap, plus three role processes.
-    progress_supervisor = 2 * PROGRESS_SUPERVISOR_BYTES
-    client = _slack(3 * _PROCESS_BYTES + client_work + 32 * MiB + SUPERVISOR_MEMORY_BYTES
-                    + progress_supervisor + RAW_PEAK_BYTES, margin)
+    if (type(_qualification_control_bytes) is not int
+            or not 0 <= _qualification_control_bytes <= (1 << 64) - 1):
+        raise ValueError("qualification controls require a bounded nonnegative byte count")
+    client = _slack(_fss_raw_client(client_work) + _qualification_control_bytes, margin)
     return {"scope": "conservative allocation estimate; not measured peak RSS",
         "runtime_kind": "fss", "model_plan_digest": None,
         "model_config_digest": contract["plan"]["config_digest"], "pipeline_digest": pipeline.digest(),
@@ -1375,7 +1384,8 @@ def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, in
             if fss_imported is None:
                 admitted = resolve_client_source(model)
             else:
-                if type(fss_imported) is not LoadedFssSource or fss_imported._closed:
+                if (type(fss_imported) is not LoadedFssSource or fss_imported._closed
+                        or fss_imported._close_unknown):
                     raise ValueError("FuseFSS pricing requires a live imported source owner")
                 admitted = fss_imported.source
                 # Reuse the frozen source's Experiment, file-identity and full

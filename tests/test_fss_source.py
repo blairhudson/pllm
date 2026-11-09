@@ -28,6 +28,165 @@ def canonical(value):
     return json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
 
 
+@pytest.fixture
+def funded_loader(monkeypatch):
+    """Frozen-binding/producer tests with NO native methods or filesystem reads."""
+    from types import SimpleNamespace as NS
+    from pllm.runtime.servers import _FundedSourceLifetime
+
+    exp = NS(budget=NS(max_input_tokens=15, max_new_tokens=1),
+        pipeline=NS(components={"linear": NS(params={"online_schedule": "tensor-v1"})}))
+    record = {"capacity": "decoder", "source_float32_bytes": 4,
+              "numeric_profile": CHECKED, "source_shapes": {}}
+    frozen = source.FrozenFssSource(None, Path("unread"), b"saved", b"{}", b"{}",
+        canonical(record), "a" * 64, "b" * 64, "c" * 64, b"{}", b"{}", b"{}", (), ())
+    state = NS(exp=exp, source=frozen, events=[], stop=False, before_call=None,
+               after_call=None, fail_constructor=False, fail_close=False, close_calls=0)
+    payload = _FundedSourceLifetime(frozen, dict(frozen.snapshot_pins))
+    state.payload = payload
+    monkeypatch.setattr(source, "_experiment", lambda actual: (b"saved", None, CHECKED, "decoder"))
+
+    def contract(self, actual, rows, outputs):
+        assert self is frozen and actual is exp
+        assert (rows, outputs) == (14, 1)
+        state.events.append("contract14/1")
+        return canonical(record)
+
+    monkeypatch.setattr(source.FrozenFssSource, "runtime_contract", contract)
+    monkeypatch.setattr(source, "_locked", lambda *args: ("a" * 64, "b" * 64, {}))
+    monkeypatch.setattr(source, "resolve_client_source", lambda *a, **k: pytest.fail("fresh resolution"))
+    monkeypatch.setattr(source, "_rotary_specs", lambda record: [])
+
+    def store(*args, _custody=None):
+        state.events.append("store")
+        _custody.begin()
+        owner = NS(clear_cache=lambda: state.events.append("store.close"))
+        _custody.acquired(0, owner)
+        return owner, ()
+
+    monkeypatch.setattr(source, "_store", store)
+
+    class Builder:
+        def __init__(self, *args, **kwargs):
+            assert payload.active and payload.owners[0] is not None
+            state.events.append("constructor")
+            if state.fail_constructor:
+                raise ValueError("constructor primary")
+
+        def describe_tensor(self, **options):
+            assert payload.active and payload.owners[1] is self
+            state.events.append("native.describe")
+            if state.after_call is not None:
+                state.after_call()
+            return {"extent": "partial", "resources": {"work": (1 << 127) + 7},
+                "first_material_refusal": {"limit": 19}, "material_wire_bytes": None}
+
+        def close(self):
+            state.close_calls += 1
+            state.events.append("builder.close")
+            if state.fail_close:
+                raise ValueError("native close consumed then raised")
+
+    monkeypatch.setattr(_native, "FssSourceBuilder", Builder)
+
+    def run(**overrides):
+        options = dict(_source=frozen, _expected_pins=payload.pins, _custody=payload,
+            input_rows=14, outputs=1, cancelled=lambda: state.stop,
+            on_failure=lambda: state.events.append("failure"))
+        options.update(overrides)
+        return source.describe_source(exp, **options)
+
+    state.run = run
+    yield state
+    if not payload.active and not payload.unknown:
+        payload.close()  # Explicit teardown of mock owners only, no reservation.
+
+
+def test_funded_description_reuses_frozen_source_pins_and_defers_owned_cleanup(funded_loader):
+    state = funded_loader
+    description = state.run()
+    assert description["material_wire_bytes"] is None and description["extent"] == "partial"
+    assert description["first_material_refusal"] == {"limit": 19}
+    assert state.events == ["contract14/1", "store", "constructor", "native.describe"]
+    assert state.payload.source is state.source and not state.payload.retired
+    assert state.payload.owners[1] is not None
+    state.payload.close()
+    state.payload.close()
+    assert state.close_calls == 1
+    assert state.events[-2:] == ["builder.close", "store.close"]
+
+
+@pytest.mark.parametrize("cut", ["pins", "type"])
+def test_funded_description_rejects_source_binding_before_productive_work(funded_loader, cut):
+    state = funded_loader
+    options = {"_expected_pins": {}} if cut == "pins" else {"_source": object()}
+    with pytest.raises((TypeError, source.FssSourceError)):
+        state.run(**options)
+    assert state.events == ["failure"]
+
+
+@pytest.mark.parametrize("cut", ["before", "after"])
+def test_funded_description_checks_stop_on_both_sides_of_blocking_call(funded_loader, cut):
+    state = funded_loader
+    if cut == "before":
+        state.stop = True
+    else:
+        state.after_call = lambda: setattr(state, "stop", True)
+    with pytest.raises(source.FssSourceError, match="cancelled"):
+        state.run()
+    assert ("native.describe" in state.events) == (cut == "after")
+    assert state.events[-1] == "failure"
+    assert "builder.close" not in state.events
+    state.payload.close()
+    assert state.close_calls == (cut == "after")
+
+
+def test_funded_description_constructor_unknown_never_refunds_or_retries(funded_loader):
+    from pllm.runtime.servers import TopologyError
+    state = funded_loader
+    state.fail_constructor = True
+    with pytest.raises(ValueError, match="constructor primary"):
+        state.run()
+    assert state.payload.active and state.payload.owners[0] is not None
+    with pytest.raises(TopologyError, match="retirement unknown"):
+        state.payload.close()
+    assert state.close_calls == 0 and "store.close" not in state.events
+
+
+def test_loaded_native_consume_then_raise_never_becomes_closed_or_empty_ack():
+    from types import SimpleNamespace as NS
+    calls = []
+
+    def close():
+        calls.append("consumed")
+        raise ValueError("native consumed then raised")
+
+    loaded = source.LoadedFssSource(None, b"{}", NS(close=close), b"{}", b"{}")
+    with pytest.raises(ValueError, match="native consumed"):
+        loaded.close()
+    assert not loaded._closed and loaded._close_unknown
+    with pytest.raises(source.FssSourceError, match="retirement unknown"):
+        loaded.close()
+    assert calls == ["consumed"]
+
+
+def test_loaded_native_false_close_is_not_retirement_ack():
+    from types import SimpleNamespace as NS
+    calls = []
+
+    def close():
+        calls.append("close")
+        return False
+
+    loaded = source.LoadedFssSource(None, b"{}", NS(close=close), b"{}", b"{}")
+    with pytest.raises(source.FssSourceError, match="did not acknowledge"):
+        loaded.close()
+    assert not loaded._closed and loaded._close_unknown
+    with pytest.raises(source.FssSourceError, match="retirement unknown"):
+        loaded.close()
+    assert calls == ["close"]
+
+
 @pytest.mark.skipif(not REAL_BRIDGE, reason="requires native FSS source bridge")
 @pytest.mark.parametrize("work_policy", [None, "mixed-work-40"])
 @pytest.mark.parametrize("observe_peer_frames", [False, True])

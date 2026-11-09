@@ -24,9 +24,10 @@ relax actual transport or public-copy/native ceilings, or grant execution.
 
 The trusted factory supplies the shared pinned, local-files-only model, checked
 dense-RoPE Q12 profile, decoder capacity, tensor-v1 and batch-v1 unchanged.
-This calls the direct SourceImport description API: real trained-source I/O and
-compilation, not a geometry estimator. It has NO ordinary benchmark memory
-admission, watchdog, or hard RSS guarantee. A shell timeout is not such a guarantee.
+This reuses the coordinator's funded source-qualification lifetime: ordinary
+memory/disk admission, bounded cleanup custody and cooperative watchdog stop.
+Full saved 15/1 envelope funds the 14/1 descriptive cut. Native description is
+blocking: neither watchdog nor shell timeout proves hard preemption or RSS safety.
 No Client, roles, material issuance or generation are requested here.
 
 Complete means the descriptive walk finished, NOT execution admission, even when
@@ -43,10 +44,14 @@ from pathlib import Path
 import sys
 
 from pllm._cli.targets import resolve_target
-from pllm.runtime.fss_source import FssSourceError, describe_source
+from pllm.runtime.fss_source import FssSourceError, describe_source, resolve_client_source
+from pllm.runtime.servers import (
+    build_roles, _funded_source_qualification, _fss_qualification_price,
+)
 
 
-def resource_quote(*, work_policy=None, observe_peer_frames=False):
+def resource_quote(*, work_policy=None, observe_peer_frames=False,
+                   memory_budget_bytes=None, memory_safety_margin_percent=25):
     """Return public description scalars without granting execution admission."""
     if type(observe_peer_frames) is not bool:
         raise FssSourceError("FuseFSS observe_peer_frames requires bool")
@@ -59,7 +64,28 @@ def resource_quote(*, work_policy=None, observe_peer_frames=False):
         options["work_policy"] = work_policy
     if observe_peer_frames:
         options["observe_peer_frames"] = True
-    description = describe_source(experiment, **options)
+    # Configuration only: never start the topology, instantiate a Client, create
+    # material, obtain a program manifest, or use scalars as fss_imported authority.
+    topology = build_roles(experiment, memory_budget_bytes=memory_budget_bytes,
+                           memory_safety_margin_percent=memory_safety_margin_percent)
+
+    def resolve(lifecycle):
+        return resolve_client_source(experiment, lifecycle=lifecycle,
+                                     on_failure=topology._observe_failure)
+
+    def price(source, pins, control):
+        return _fss_qualification_price(experiment, source, pins, control,
+                                       memory_safety_margin_percent)
+
+    def produce(source, pins, custody, lifecycle):
+        return describe_source(experiment, _source=source, _expected_pins=pins,
+            _custody=custody, input_rows=14, outputs=1, cancelled=topology._stopping.is_set,
+            lifecycle=lifecycle, on_failure=topology._observe_failure, **options)
+
+    description, _, _ = _funded_source_qualification(topology, resolve=resolve, price=price,
+        produce=produce, consume=lambda value, source, pins: value,
+        memory_budget_bytes=memory_budget_bytes,
+        memory_safety_margin_percent=memory_safety_margin_percent)
     return {**description, "execution_admitted": False}
 
 

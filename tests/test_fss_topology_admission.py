@@ -3,6 +3,7 @@
 No checkpoint tensors, material tapes, children, or network servers are created.
 """
 from contextlib import contextmanager
+from dataclasses import replace
 import hashlib
 import json
 from types import SimpleNamespace as NS
@@ -34,18 +35,21 @@ def setup(tmp_path, monkeypatch):
         "source_q12_value_bytes": 2 * GiB, "source_disk_bytes": 2 * GiB,
         "source_resident_bound_bytes": 8 << 20,
         "admission": {"source_minimum_owner_bytes": 1024, "numeric": "not_performed", "program_resources": None}}
-    pins = {name: str(index) * 64 for index, name in enumerate(("checkpoint", "source_lock", "tokenizer", "config"), 1)}
-    source = NS(contract=contract, contract_bytes=json.dumps(contract).encode(),
-        config_bytes=b'{"model_type":"qwen2"}', snapshot_pins=pins)
+    source = fss_source.FrozenFssSource(experiment.pipeline.model, tmp_path,
+        experiment.canonical_bytes(), b'{"model_type":"qwen2"}', b'{"model_type":"qwen2"}',
+        json.dumps(contract).encode(), "1" * 64, "2" * 64, "3" * 64,
+        b"{}", b"{}", b"{}", (), ())
+    pins = source.snapshot_pins
     state = NS(experiment=experiment, source=source, events=[], leases={}, loaded=None, topology=None,
         free=20 * GiB, fail_import=False, fail_price=False, fail_spawn=False, fail_stop=False,
         on_price=None, after_close=None, fail_graph_reservation=False)
 
-    def runtime_contract(exp, rows, outputs):
+    def runtime_contract(self, exp, rows, outputs):
+        assert self is source
         assert exp.canonical_bytes() == experiment.canonical_bytes()
         assert (rows, outputs) == (2, 3)
         return source.contract_bytes
-    source.runtime_contract = runtime_contract
+    monkeypatch.setattr(fss_source.FrozenFssSource, "runtime_contract", runtime_contract)
 
     def resolve(exp, *, lifecycle=None, on_failure=None):
         assert exp is experiment
@@ -56,6 +60,10 @@ def setup(tmp_path, monkeypatch):
     monkeypatch.setattr(fss_source, "resolve_client_source", resolve)
     monkeypatch.setattr(memory, "host_memory", lambda: memory.HostMemory(24 * GiB, 20 * GiB, 0, state.free))
     monkeypatch.setattr("shutil.disk_usage", lambda path: NS(total=512 * GiB, free=state.free))
+    capacity = resources._ClientCapacity()
+    monkeypatch.setattr(resources, "_capacity", capacity)
+    monkeypatch.setattr(capacity, "observe", lambda: NS(
+        headroom_bytes=20 * GiB - sum(capacity._owners.values())))
 
     @contextmanager
     def reserve(kind, amount):
@@ -68,7 +76,7 @@ def setup(tmp_path, monkeypatch):
         assert label not in state.leases
         state.leases[label] = amount
         try:
-            yield
+            yield NS(clear_backing=lambda: None)
         finally:
             state.events.append(label + ".exit")
             del state.leases[label]
@@ -95,7 +103,7 @@ def setup(tmp_path, monkeypatch):
         "source_digest": manifest["source"], "original_input_digest": manifest["input_digest"],
         "numeric_profile": PROFILE, "initial_tokens": 2, "selections": 3, "vocabulary": 7}
 
-    def load(exp, *, expected_pins, source, cancelled, lifecycle=None, on_failure=None):
+    def load(exp, *, expected_pins, source, cancelled, lifecycle=None, on_failure=None, _custody=None):
         assert exp is experiment and source is state.source and expected_pins == pins
         if lifecycle is not None or on_failure is not None:
             assert callable(lifecycle) and callable(on_failure)
@@ -112,7 +120,10 @@ def setup(tmp_path, monkeypatch):
                 state.after_close()
         owner = NS(close=close, metadata=lambda: json.dumps(program_metadata).encode())
         state.loaded = fss_source.LoadedFssSource(source, source.contract_bytes, owner,
-                                                json.dumps(manifest).encode(), b"{}")
+                                                 json.dumps(manifest).encode(), b"{}")
+        assert _custody.source is source and _custody.pins == pins
+        _custody.begin()
+        _custody.acquired(3, state.loaded)
         return state.loaded
     monkeypatch.setattr(fss_source, "load_role_source", load)
 
@@ -148,12 +159,67 @@ def setup(tmp_path, monkeypatch):
         for proc in processes:
             proc.dead = True
     monkeypatch.setattr(servers.LocalTopology, "_stop_all", staticmethod(stop))
-    return state
+    yield state
+    assert not capacity._cleanup and not capacity._owners
 
 
 def build(state, **kwargs):
     state.topology = servers.build_roles(state.experiment, **kwargs)
     return state.topology
+
+
+def test_qualification_price_funds_full_frozen_15_1_envelope_without_reresolve(setup, monkeypatch):
+    state = setup
+    exp = state.experiment.with_params(budget__max_input_tokens=15, budget__max_new_tokens=1)
+    contract = {**state.source.contract, "input_rows": 15, "output_tokens": 1}
+    frozen = replace(state.source, experiment_bytes=exp.canonical_bytes(),
+                     contract_bytes=json.dumps(contract).encode())
+    calls = []
+    original = memory._fss_memory
+
+    def price(*args, **kwargs):
+        calls.append((args, kwargs))
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(memory, "_fss_memory", price)
+    monkeypatch.setattr(fss_source, "resolve_client_source", lambda *a, **k: pytest.fail("fresh resolve"))
+    result = servers._fss_qualification_price(exp, frozen, frozen.snapshot_pins, 70001, 25)
+    assert calls[0][0][2:4] == (15, 1)
+    assert calls[0][1]["contract"] == contract
+    assert calls[0][1]["source_pins"] == frozen.snapshot_pins
+    assert calls[0][1]["_qualification_control_bytes"] == 70001
+    estimate, raw, other, p, disk = result
+    assert p == 384 << 20 and p <= raw
+    assert estimate["client_peak_bytes"] == ((raw + 70001) * 125 + 99) // 100
+    assert estimate["native_total_peak_bytes"] == estimate["client_peak_bytes"] + other
+    assert disk == contract["source_disk_bytes"]
+    with pytest.raises(fss_source.FssSourceError, match="exact admitted Experiment"):
+        servers._fss_qualification_price(state.experiment, frozen, frozen.snapshot_pins, 0, 25)
+    with pytest.raises(fss_source.FssSourceError, match="pins differ"):
+        servers._fss_qualification_price(exp, frozen, {}, 0, 25)
+    assert len(calls) == 1  # Binding refusals precede any quote/productive import.
+
+
+@pytest.mark.parametrize("authority", ["scalars", "unknown_native_close"])
+def test_descriptive_or_unknown_owner_never_supplies_imported_pricing(setup, monkeypatch, authority):
+    def forbidden(*args, **kwargs):
+        pytest.fail("invalid authority must precede source rechecks, pricing and host probes")
+
+    imported = {"extent": "complete", "resources": {"work": 3}, "execution_admitted": False}
+    if authority == "unknown_native_close":
+        def failed_close():
+            raise ValueError("consumed native")
+
+        imported = fss_source.LoadedFssSource(setup.source, setup.source.contract_bytes,
+                                            NS(close=failed_close), b"{}", b"{}")
+        with pytest.raises(ValueError, match="consumed native"):
+            imported.close()
+        assert not imported._closed and imported._close_unknown
+    monkeypatch.setattr(fss_source.FrozenFssSource, "runtime_contract", forbidden)
+    monkeypatch.setattr(memory, "host_memory", forbidden)
+    with pytest.raises(memory.BenchmarkMemoryError, match="imported source pricing rejected"):
+        memory.benchmark_memory(setup.experiment, fss_imported=imported)
+    assert setup.events == [] and not setup.leases
 
 
 def test_execution_phase_keeps_full_memory_and_watchdog_floor(setup):

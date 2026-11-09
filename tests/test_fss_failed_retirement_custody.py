@@ -21,6 +21,501 @@ _REAL_PEERS = shared._Peers
 _REAL_IO_OWNER = shared._IOOwner
 
 
+@pytest.fixture
+def funded_source(monkeypatch, tmp_path):
+    """Controlled telemetry, real module-rooted memory/slot/disk reservations.
+
+    Every ledger belongs to this fixture. Sticky fake-native failures deliberately
+    remain charged until fixture disposal; teardown never repairs production state
+    or calls a second empty close to manufacture an ACK.
+    """
+    from pllm.runtime import benchmark_memory as memory, servers
+
+    capacity, disk_capacity = resources._ClientCapacity(), resources._DiskCapacity()
+    monkeypatch.setattr(resources, "_capacity", capacity)
+    monkeypatch.setattr(resources, "_disk_capacity", disk_capacity)
+    # Patch classes, not instances: monkeypatch's undo stack must not itself root
+    # the fresh ledgers in the GC custody test.
+    monkeypatch.setattr(resources._ClientCapacity, "observe", lambda self: NS(
+        headroom_bytes=(32 << 30) - sum(self._owners.values())))
+    monkeypatch.setattr(resources._DiskCapacity, "observe", lambda self, directory, minimum: resources.DiskResources(
+        1, 64 << 30, sum(lease._bound for lease in self._owners.values()), minimum))
+    monkeypatch.setattr(memory, "host_memory", lambda: memory.HostMemory(
+        64 << 30, 32 << 30, 0, 64 << 30))
+    monkeypatch.setattr("shutil.disk_usage", lambda path: NS(free=64 << 30))
+    monkeypatch.setattr(servers.tempfile, "gettempdir", lambda: str(tmp_path))
+    # Exercise the ordinary watchdog check, without a worker thread or real probe.
+    monkeypatch.setattr(memory.MemoryWatchdog, "start", lambda self: self.check())
+    topology = object.__new__(servers.LocalTopology)
+    topology._process_lock, topology._stopping = threading.Lock(), threading.Event()
+    topology._startup_breadcrumbs = {"phase": "unknown"}
+    topology._memory_admission, topology._memory_enforced_wan = None, False
+    topology._failure_observer = None
+    state = NS(topology=topology, capacity=capacity, disk_capacity=disk_capacity,
+        events=[], refs={}, fail=None, retire_fail=None, stop=None, observer_fail=False,
+        raw=1700000003, other=99000007, p=384 << 20, source_disk=123456,
+        controls=[], entered=threading.Event(), resume=threading.Event(), refund_count=0,
+        reprice_hook=None, primary=None, between_call_drain=False)
+    frozen = NS(snapshot_pins={"checkpoint": "a" * 64, "tokenizer": "b" * 64})
+
+    class Ledger(dict):
+        def pop(self, token, *default):
+            charged = token in self
+            result = super().pop(token, *default)
+            if charged:
+                state.refund_count += 1
+            return result
+
+    capacity._owners = Ledger()
+    # Metadata admission leaves ordinary dictionary backing behind. Warm through
+    # the REAL reservation API so precomputed equality budgets use that shape.
+    with resources.reserve_incremental_memory(384 << 20):
+        pass
+    state.refund_count = 0
+
+    def observe_failure():
+        state.events.append("failure")
+        if state.observer_fail:
+            raise KeyboardInterrupt("observer secondary")
+
+    topology._failure_observer = observe_failure
+
+    class Owner:
+        def __init__(self):
+            self.calls, self.consumed = 0, False
+            state.refs["owner"] = weakref.ref(self)
+
+        def close(self):
+            self.calls += 1
+            state.events.append("owner.close")
+            assert sum(resources._capacity._owners.values()) == state.p + state.controls[-1]
+            assert resources._disk_capacity._owners  # Original disk lease remains unexited.
+            if state.retire_fail == "false":
+                return False
+            if state.retire_fail:
+                self.consumed = True
+                raise RuntimeError("consume-then-raise")
+
+    def resolve(lifecycle):
+        state.events.append("metadata")
+        # Source metadata lease is disjoint: not present in qualification P+C.
+        with resources.reserve_incremental_memory(384 << 20):
+            assert sum(resources._capacity._owners.values()) == 384 << 20
+        return frozen
+
+    def price(source, pins, control):
+        assert source is frozen and pins == frozen.snapshot_pins
+        state.events.append("price:" + str(control))
+        state.controls.append(control)
+        if control and state.reprice_hook is not None:
+            state.reprice_hook()
+        # Generic adapter contract: whole memory quote and single-source disk.
+        client = memory._slack(state.raw + control, state.margin)
+        estimate = {"client_peak_bytes": client, "provider_peak_bytes": {"provider": state.other},
+            "native_total_peak_bytes": client + state.other, "docker_provider_peak_bytes": {},
+            "runtime_kind": "fss", "allocation_slack_percent": state.margin,
+            "limitations": [], "kernel": "cpu", "components": {
+                "per_engine_compiled_disk_bytes": 0, "raw_client_bundle_bytes": 0,
+                "client_additional_paged_disk_bytes": state.source_disk}}
+        return estimate, state.raw, state.other, state.p, state.source_disk
+
+    def produce(source, pins, payload, lifecycle):
+        assert source is frozen and pins == frozen.snapshot_pins
+        state.events.append("produce")
+        state.refs["payload"] = weakref.ref(payload.memory)  # Original manager, not a copied lease.
+        state.refs["lifetime"] = payload
+        slot = next(iter(resources._capacity._cleanup.values()))
+        assert slot.owns(payload, retire=slot._retire)
+        assert slot.control_bytes == state.controls[-1]
+        assert sorted(resources._capacity._owners.values()) == sorted([state.p, slot.control_bytes])
+        assert len(resources._disk_capacity._owners) == 1
+        assert payload.disk is next(iter(resources._disk_capacity._owners.values()))
+        assert payload.producing and not payload.active
+        if state.between_call_drain:
+            with pytest.raises(servers_error(), match="retirement unknown"):
+                slot.drain()
+            assert not slot.closed and slot.owns(payload)
+            assert sum(resources._capacity._owners.values()) == state.p + slot.control_bytes
+        if state.fail == "constructor":
+            payload.begin()
+            if state.primary is not None:
+                raise state.primary
+            raise ValueError("constructor primary")
+        payload.begin()
+        owner = Owner()
+        payload.acquired(1, owner)
+        if state.fail == "operation":
+            if state.primary is not None:
+                raise state.primary
+            raise ValueError("operation primary")
+        payload.begin()
+        state.entered.set()
+        if state.stop == "inflight":
+            assert state.resume.wait(5)
+        payload.returned()
+        if state.stop in ("after", "inflight"):
+            topology.request_stop()
+        return {"extent": "partial", "first_material_refusal": {"limit": 7},
+                "material_wire_bytes": None}
+
+    def consume(value, source, pins):
+        state.events.append("consume")
+        return value
+
+    def run(*, margin=25, budget=None):
+        state.margin = margin
+        return servers._funded_source_qualification(topology, resolve=resolve, price=price,
+            produce=produce, consume=consume, memory_budget_bytes=budget,
+            memory_safety_margin_percent=margin)
+
+    state.run = run
+    del capacity, disk_capacity  # No fixture-frame alternative to the module root.
+    yield state
+    # Only this fixture's fresh fake owners/roots exist. Unknown retirement is
+    # intentionally not drained/retried. Drop fixture references explicitly;
+    # monkeypatch restores original module registries after fixture teardown.
+    state.refs.clear()
+    state.topology = state.run = None
+
+
+@pytest.mark.parametrize("margin", [0, 25])
+def test_funded_source_exact_control_ceiling_and_independent_role_charge(funded_source, margin):
+    state = funded_source
+    c = state.capacity._cleanup_control_bytes()
+    budget = ((state.raw + c) * (100 + margin) + 99) // 100 + state.other
+    value, _, _ = state.run(margin=margin, budget=budget)
+    assert value["material_wire_bytes"] is None and value["extent"] == "partial"
+    assert state.controls == [0, c]
+    assert not state.capacity._owners and not state.capacity._cleanup
+    assert not state.disk_capacity._owners
+    assert state.events.index("produce") > state.events.index("price:" + str(c))
+    assert state.events.index("consume") < state.events.index("owner.close")
+    assert state.refund_count == 3  # Disjoint metadata, original P, independent C.
+
+
+@pytest.mark.parametrize("margin", [0, 25])
+def test_funded_source_one_byte_short_refuses_before_productive_import(funded_source, margin):
+    state = funded_source
+    c = state.capacity._cleanup_control_bytes()
+    budget = ((state.raw + c) * (100 + margin) + 99) // 100 + state.other - 1
+    with pytest.raises(Exception):
+        state.run(margin=margin, budget=budget)
+    assert "produce" not in state.events
+    assert not state.capacity._owners and not state.capacity._cleanup
+    assert not state.disk_capacity._owners
+
+
+def test_funded_source_fractional_slack_uses_exact_maximum_before_atomic_slot(
+    funded_source, monkeypatch,
+):
+    state = funded_source
+    actual = state.capacity._cleanup_control_bytes() + 1
+    monkeypatch.setattr(state.capacity, "_cleanup_control_bytes", lambda: actual)
+    acquire = resources.reserve_cleanup_slot
+    maxima = []
+
+    def bounded(*, max_control_bytes=None):
+        maxima.append(max_control_bytes)
+        return acquire(max_control_bytes=max_control_bytes)
+
+    monkeypatch.setattr(resources, "reserve_cleanup_slot", bounded)
+    budget = ((state.raw + actual) * 125 + 99) // 100 + state.other
+    separately_rounded = ((state.raw * 125 + 99) // 100
+                          + (actual * 125 + 99) // 100 + state.other)
+    assert separately_rounded == budget + 1
+    state.run(margin=25, budget=budget)
+    assert maxima == [actual]
+    assert state.controls == [0, actual]
+    assert not state.capacity._owners
+
+
+def test_funded_source_between_call_drain_cannot_refund_live_producer(funded_source):
+    state = funded_source
+    state.between_call_drain = True
+    state.run()
+    assert not state.capacity._owners and not state.disk_capacity._owners
+    assert state.events.count("owner.close") == 1
+    assert state.refund_count == 3
+
+
+@pytest.mark.parametrize("cut", ["constructor", "operation"])
+@pytest.mark.parametrize("publication", ["normal", "before", "after"])
+@pytest.mark.parametrize("primary_type", [ValueError, KeyboardInterrupt])
+def test_funded_source_primary_and_unexited_funding_survive_handoff_and_gc(
+    funded_source, monkeypatch, cut, publication, primary_type,
+):
+    state = funded_source
+    state.fail, state.retire_fail, state.observer_fail = cut, True, True
+    state.primary = primary_type(cut + " primary")
+    original = resources._MemoryReservation.retain_failed
+
+    def retain(self, owners):
+        if publication == "before":
+            raise KeyboardInterrupt("before publication")
+        original(self, owners)
+        if publication == "after":
+            raise KeyboardInterrupt("after publication")
+
+    monkeypatch.setattr(resources._MemoryReservation, "retain_failed", retain)
+    with pytest.raises(primary_type, match=cut + " primary") as caught:
+        state.run()
+    assert caught.value is state.primary
+    primary = caught.value
+    state.primary = None
+    if cut == "operation":
+        assert state.events.index("failure") < state.events.index("owner.close")
+    assert sum(state.capacity._owners.values()) == state.p + state.controls[-1]
+    assert len(state.disk_capacity._owners) == 1
+    reservation = state.refs["payload"]
+    _detach(primary)
+    del primary, caught
+    state.refs.pop("lifetime")
+    state.topology = None
+    state.run = None
+    state.capacity = None
+    state.disk_capacity = None
+    gc.collect()
+    # Lookup only through the existing module registry, after caller roots vanish.
+    slot = next(iter(resources._capacity._cleanup.values()))
+    payload = slot._payload
+    assert payload.memory is reservation()
+    assert payload.disk is next(iter(resources._disk_capacity._owners.values()))
+    assert payload.memory_stack._exit_callbacks and payload.disk_stack._exit_callbacks
+    assert sum(resources._capacity._owners.values()) == state.p + slot.control_bytes
+    if publication != "before":
+        assert payload.memory.pending_retirement
+        with pytest.raises(servers_error(), match="retirement unknown"):
+            payload.memory.drain_failed()
+    with pytest.raises(servers_error(), match="retirement unknown"):
+        slot.drain()
+    assert not slot.closed
+    assert state.refund_count == 1  # Metadata only; no qualification refunds.
+
+
+def servers_error():
+    from pllm.runtime.servers import TopologyError
+    return TopologyError
+
+
+def test_funded_source_stop_after_blocking_return_suppresses_scalars(funded_source):
+    state = funded_source
+    state.stop = "after"
+    with pytest.raises(servers_error(), match="stopped"):
+        state.run()
+    assert "consume" not in state.events
+    assert state.events.index("failure") < state.events.index("owner.close")
+    assert not state.capacity._owners and not state.disk_capacity._owners
+
+
+def test_source_false_retirement_never_refunds_and_is_not_retried(funded_source):
+    state = funded_source
+    state.retire_fail = "false"
+    with pytest.raises(servers_error(), match="did not acknowledge"):
+        state.run()
+    slot = next(iter(state.capacity._cleanup.values()))
+    assert sum(state.capacity._owners.values()) == state.p + slot.control_bytes
+    assert state.disk_capacity._owners and not slot.closed
+    with pytest.raises(servers_error(), match="retirement unknown"):
+        slot.drain()
+    assert state.refs["owner"]().calls == 1
+    assert state.refund_count == 1
+
+
+def test_source_owner_drain_is_separate_from_funding_refund_and_program_not_double_closed(funded_source, tmp_path):
+    from pllm.runtime.fss_source import LoadedFssSource
+    from pllm.runtime.servers import _FundedSourceLifetime
+    state = funded_source
+    payload = _FundedSourceLifetime(object(), {})
+    slot = resources.reserve_cleanup_slot()
+    payload.memory = resources.reserve_incremental_memory(state.p)
+    payload.memory_stack.enter_context(payload.memory)
+    payload.disk_manager = resources.reserve_incremental_disk(state.source_disk,
+        directory=tmp_path, minimum_free_bytes=2 << 30)
+    payload.disk = payload.disk_stack.enter_context(payload.disk_manager)
+    calls = []
+
+    def native_close():
+        calls.append("native.close")
+        assert state.capacity._owners and state.disk_capacity._owners
+
+    program = NS(close=native_close)
+    loaded = LoadedFssSource(None, b"{}", program, b"{}", b"{}")
+    payload.begin()
+    payload.acquired(2, program)
+    payload.begin()
+    payload.acquired(3, loaded, replaces=2)
+    assert payload.owners[2] is None and payload.owners[3] is loaded
+
+    def retire():
+        payload.close()
+        payload.memory_stack.close()
+
+    slot.retain(payload, retire)
+    payload.memory.retain_failed(payload.failed_owners)
+    payload.memory.drain_failed()  # Owner close MUST NOT recursively drain itself.
+    assert calls == ["native.close"] and loaded._closed and payload.retired
+    assert not state.disk_capacity._owners
+    assert list(state.capacity._owners.values()) == [slot.control_bytes]
+    slot.drain()
+    assert calls == ["native.close"] and not state.capacity._owners
+    assert state.refund_count == 2  # Original P once, independent C once.
+
+
+def test_funded_source_stop_before_entry_does_no_resolution(funded_source):
+    state = funded_source
+    state.topology.request_stop()
+    with pytest.raises(servers_error(), match="stopped"):
+        state.run()
+    assert not state.events and not state.capacity._owners
+
+
+def test_funded_source_fresh_pressure_refusal_drains_only_inert_slot(funded_source, monkeypatch):
+    from pllm.runtime import benchmark_memory as memory
+    state = funded_source
+
+    def change_pressure():
+        monkeypatch.setattr(memory, "host_memory", lambda: memory.HostMemory(
+            64 << 30, 32 << 30, 0, 64 << 30, availability_source="macos_mach_dispatch_v2",
+            pressure="warning", free=32 << 30, cached=0, purgeable=0, reusable=0))
+
+    state.reprice_hook = change_pressure
+    with pytest.raises(memory.BenchmarkMemoryError, match="preflight rejected"):
+        state.run()
+    assert "produce" not in state.events
+    assert not state.capacity._owners and not state.capacity._cleanup
+    assert not state.disk_capacity._owners
+    assert state.refund_count == 2  # Metadata + inert C; no P issued.
+
+
+@pytest.mark.parametrize("cut", ["ack", "published_then_raise"])
+def test_funded_source_binding_must_ack_before_funding_or_import(funded_source, monkeypatch, cut):
+    state = funded_source
+    if cut == "ack":
+        monkeypatch.setattr(resources._CleanupSlot, "owns", lambda *a, **k: False)
+    else:
+        original = resources._CleanupSlot.retain
+
+        def retain(self, payload, retire):
+            original(self, payload, retire)
+            raise ValueError("binding publication primary")
+
+        monkeypatch.setattr(resources._CleanupSlot, "retain", retain)
+    with pytest.raises((ValueError, servers_error())):
+        state.run()
+    assert "produce" not in state.events
+    assert not state.capacity._owners and not state.capacity._cleanup
+    assert not state.disk_capacity._owners
+    assert state.refund_count == 2  # Metadata + C; no P or native owner issued.
+
+
+def test_funded_source_negative_control_allowance_never_acquires_slot(funded_source, monkeypatch):
+    from unittest.mock import Mock
+    state = funded_source
+    acquire = Mock(side_effect=AssertionError("negative Cmax must precede slot"))
+    monkeypatch.setattr(resources, "reserve_cleanup_slot", acquire)
+    with pytest.raises(Exception, match="cannot fund base owners"):
+        state.run(budget=state.other)
+    acquire.assert_not_called()
+    assert "produce" not in state.events and not state.capacity._owners
+
+
+@pytest.mark.parametrize("budget", [True, False, -1, 1.5, "123", 1 << 64])
+def test_funded_source_invalid_budget_refuses_before_metadata(funded_source, budget):
+    state = funded_source
+    with pytest.raises(ValueError, match="bounded nonnegative"):
+        state.run(budget=budget)
+    assert not state.events and not state.capacity._owners
+
+
+def test_cleanup_actual_control_quote_survives_ledger_growth(funded_source):
+    state = funded_source
+    managers = []
+    slot = None
+    try:
+        for _ in range(96):
+            manager = resources.reserve_incremental_memory(1)
+            managers.append(manager)
+            manager.__enter__()
+        actual = state.capacity._cleanup_control_bytes()
+        with pytest.raises(Exception, match="CLIENT_MEMORY_CAPACITY_CHANGED"):
+            resources.reserve_cleanup_slot(max_control_bytes=actual - 1)
+        slot = resources.reserve_cleanup_slot(max_control_bytes=actual)
+        assert slot.control_bytes == actual
+        assert state.capacity._owners[slot._token] == actual
+        for _ in range(192):
+            manager = resources.reserve_incremental_memory(1)
+            managers.append(manager)
+            manager.__enter__()
+        assert state.capacity._cleanup_control_bytes() > actual
+        assert slot.control_bytes == actual  # Historical ACTUAL issued C.
+        assert state.capacity._owners[slot._token] == actual
+    finally:
+        if slot is not None:
+            slot.drain()  # Inert test slot only.
+        for manager in reversed(managers):
+            manager.close()
+    assert not state.capacity._owners and not state.capacity._cleanup
+
+
+def test_source_retirement_busy_callback_raises_not_false(funded_source):
+    from pllm.runtime.servers import _FundedSourceLifetime
+    state = funded_source
+    payload = _FundedSourceLifetime(object(), {})
+    slot = resources.reserve_cleanup_slot()
+    slot.retain(payload, payload.close)
+    entered, release = threading.Event(), threading.Event()
+
+    def holder():
+        with payload.lock:
+            entered.set()
+            assert release.wait(5)
+
+    thread = threading.Thread(target=holder)
+    thread.start()
+    try:
+        assert entered.wait(5)
+        with pytest.raises(servers_error(), match="retirement busy"):
+            slot.drain()
+        assert not slot.closed and slot.owns(payload)
+        assert state.capacity._owners
+    finally:
+        release.set()
+        thread.join(5)
+    slot.drain()  # No productive owners; explicit teardown of this fresh test slot.
+    assert slot.closed and not state.capacity._owners
+
+
+def test_funded_source_inflight_stop_keeps_both_charges_until_return(funded_source):
+    state = funded_source
+    state.stop = "inflight"
+    outcomes = []
+
+    def worker():
+        try:
+            state.run()
+        except BaseException as error:
+            outcomes.append(error)
+
+    thread = threading.Thread(target=worker)
+    thread.start()
+    try:
+        assert state.entered.wait(5)
+        state.topology.request_stop()
+        assert sum(state.capacity._owners.values()) == state.p + state.controls[-1]
+        assert state.disk_capacity._owners
+        slot = next(iter(state.capacity._cleanup.values()))
+        with pytest.raises(servers_error(), match="retirement unknown"):
+            slot.drain()
+        assert not slot.closed and "owner.close" not in state.events
+    finally:
+        state.resume.set()
+        thread.join(5)
+    assert not thread.is_alive()
+    assert len(outcomes) == 1 and isinstance(outcomes[0], servers_error())
+    _detach(outcomes.pop())
+    assert not state.capacity._owners and not state.disk_capacity._owners
+
+
 def _receipt(role):
     storage = {} if role == "dealer" else {
         "state": "finished", "encrypted_file_bytes_written": 42,

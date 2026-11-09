@@ -35,6 +35,236 @@ class TopologyError(RuntimeError):
     pass
 
 
+class _FundedSourceLifetime:
+    """Fixed, admission-rooted custody; retirement never owns its own refund.
+
+    No exception/traceback is saved here. A failed constructor or close remains
+    unknown even if a future empty close would return successfully.
+    """
+    __slots__ = ("source", "pins", "memory", "memory_stack", "disk_stack", "disk", "disk_manager",
+                 "owners", "active", "producing", "unknown", "lock", "retired", "failed_owners")
+
+    def __init__(self, source, pins):
+        self.source, self.pins = source, pins
+        self.memory = self.disk = self.disk_manager = None
+        self.memory_stack, self.disk_stack = ExitStack(), ExitStack()
+        # store, builder, program, imported wrapper, watchdog; fixed cardinality.
+        self.owners = [None] * 5
+        self.active = self.producing = self.unknown = self.retired = False
+        self.lock = threading.Lock()
+        self.failed_owners = (self,)
+
+    def start(self):
+        with self.lock:
+            if self.active or self.producing or self.unknown or self.retired:
+                raise TopologyError("source qualification producer unavailable")
+            self.producing = True
+
+    def finish(self):
+        with self.lock:
+            # Unwind ends Python's producer phase, NEVER a native in-flight ACK.
+            self.producing = False
+
+    def begin(self):
+        with self.lock:
+            if self.active or self.unknown or self.retired:
+                raise TopologyError("source qualification producer unavailable")
+            self.active = True
+
+    def acquired(self, index, owner, *, replaces=None):
+        with self.lock:
+            if not self.active or self.owners[index] is not None:
+                raise TopologyError("source qualification owner changed")
+            if replaces is not None and (replaces == index or self.owners[replaces] is None):
+                raise TopologyError("source qualification owner transfer changed")
+            self.owners[index] = owner
+            if replaces is not None:
+                self.owners[replaces] = None
+            self.active = False
+
+    def returned(self):
+        with self.lock:
+            if not self.active:
+                raise TopologyError("source qualification producer changed")
+            self.active = False
+
+    def close(self):
+        """Owner/backing ACK then disk exit; MemoryReservation drains separately."""
+        if not self.lock.acquire(blocking=False):
+            raise TopologyError("source qualification retirement busy")
+        try:
+            if self.active or self.producing or self.unknown:
+                raise TopologyError("source qualification retirement unknown")
+            if self.retired:
+                return
+            self.unknown = True  # Any interrupted/raising close is sticky.
+            if self.disk is not None:
+                self.disk.clear_backing()
+            for index in (4, 3, 2, 1, 0):
+                owner = self.owners[index]
+                if owner is not None:
+                    if index == 0:
+                        ack = owner.clear_cache()
+                    else:
+                        ack = owner.close()
+                    if ack is not None:
+                        raise TopologyError("source qualification retirement did not acknowledge")
+                    self.owners[index] = None
+            self.disk_stack.close()
+            self.retired, self.unknown = True, False
+        finally:
+            self.lock.release()
+
+
+def _funded_source_qualification(topology, *, resolve, price, produce, consume,
+                                 memory_budget_bytes, memory_safety_margin_percent):
+    """Method-neutral funded lifetime; consumer result is private until retirement.
+
+    resolve/price/produce/consume retain their source-specific binding contracts.
+    No graph admission, child launch or executable authority is granted here.
+    """
+    import shutil
+    from pllm.deployment.resources import (
+        reserve_cleanup_slot, reserve_incremental_memory, reserve_incremental_disk,
+    )
+    from .benchmark_memory import (
+        BenchmarkMemoryError, MemoryWatchdog, _memory_margin,
+        admit_memory, host_memory, require_admission,
+    )
+
+    def running():
+        if topology._stopping.is_set():
+            raise TopologyError("local topology stopped during source qualification")
+
+    def failure():
+        try:
+            topology._observe_failure()
+        except BaseException:
+            pass  # Never replace the active primary, including BaseException.
+
+    directory = Path(tempfile.gettempdir())
+    policy = dict(backend="native", enforced_wan=topology._memory_enforced_wan,
+                  memory_budget_bytes=memory_budget_bytes)
+
+    def observe():
+        return replace(host_memory(), disk_free=int(shutil.disk_usage(directory).free))
+
+    margin = _memory_margin(memory_safety_margin_percent)
+    if memory_budget_bytes is not None and (
+            type(memory_budget_bytes) is not int
+            or not 0 <= memory_budget_bytes <= (1 << 64) - 1):
+        raise ValueError("qualification budget requires a bounded nonnegative byte count")
+    running()
+    with topology._source_import_scope("client") as lifecycle:
+        source = resolve(lifecycle)
+    pins = dict(source.snapshot_pins)
+    estimate, raw, other, owner_bound, source_disk = price(source, pins, 0)
+    maximum = None
+    if memory_budget_bytes is not None:
+        maximum = ((memory_budget_bytes - other) * 100) // (100 + margin) - raw
+        if maximum < 0:
+            phase = admit_memory(estimate, observe(), **policy)
+            phase.update(admission_scope="source_qualification_only", full_topology_admitted=False)
+            topology._memory_admission = phase
+            raise BenchmarkMemoryError("source qualification budget cannot fund base owners")
+    slot = reserve_cleanup_slot(max_control_bytes=maximum)
+    payload = None
+    try:
+        control = slot.control_bytes  # Historical actual issued C, never a tariff.
+        if type(control) is not int or not 0 <= control <= (1 << 64) - 1:
+            raise ValueError("qualification controls require a bounded nonnegative byte count")
+        estimate, _, _, owner_bound, source_disk = price(source, pins, control)
+        phase = admit_memory(estimate, observe(), **policy)
+        phase.update(admission_scope="source_qualification_only", full_topology_admitted=False)
+        phase["qualification_control_bytes"] = control
+        topology._memory_admission = phase
+        require_admission(phase)
+        payload = _FundedSourceLifetime(source, pins)
+
+        def retire():
+            payload.close()
+            payload.memory_stack.close()
+
+        slot.retain(payload, retire)
+        if not slot.owns(payload, retire=retire):
+            raise TopologyError("source qualification cleanup binding changed")
+        payload.start()
+        # P is the original role envelope, NOT repriced client_peak + C.
+        payload.memory = reserve_incremental_memory(owner_bound)
+        payload.begin()
+        payload.memory_stack.enter_context(payload.memory)
+        payload.returned()
+        if source_disk:
+            payload.disk_manager = reserve_incremental_disk(
+                source_disk, directory=directory, minimum_free_bytes=2 << 30)
+            payload.begin()
+            payload.disk = payload.disk_stack.enter_context(payload.disk_manager)
+            payload.returned()
+        guard = MemoryWatchdog(phase, lambda reason: topology.request_stop())
+        payload.owners[4] = guard
+        guard.start()
+        running()
+        topology._startup_step("qualification_import", "client")
+        with topology._source_import_scope("client") as lifecycle:
+            result = produce(source, pins, payload, lifecycle)
+        running()
+        value = consume(result, source, pins)
+        running()
+        payload.finish()
+    except BaseException:
+        if payload is not None:
+            try:
+                payload.finish()
+            except BaseException:
+                pass  # A custody failure cannot replace the active primary.
+        failure()  # Observation precedes any owner or funding retirement.
+        try:
+            slot.drain()
+            if payload is not None:
+                topology._qualification_flags(retired=True)
+        except BaseException:
+            if payload is not None and payload.memory is not None:
+                try:
+                    payload.memory.retain_failed(payload.failed_owners)
+                except BaseException:
+                    pass  # Slot binding already roots BOTH unexited stacks.
+        raise
+    try:
+        topology._startup_step("qualification_retirement", "client")
+        slot.drain()
+        topology._qualification_flags(retired=True)
+    except BaseException:
+        failure()
+        if payload.memory is not None:
+            try:
+                payload.memory.retain_failed(payload.failed_owners)
+            except BaseException:
+                pass
+        raise
+    running()
+    return value, source, pins
+
+
+def _fss_qualification_price(experiment, source, pins, control, margin):
+    """Adapter: authenticate the saved full envelope, including description subsets."""
+    from .benchmark_memory import _fss_memory, _fss_raw_client, _fss_source_qualification_estimate
+    from .fss_source import FrozenFssSource, FssSourceError, _check_pins
+
+    if type(source) is not FrozenFssSource or source.experiment_bytes != experiment.canonical_bytes():
+        raise FssSourceError("FuseFSS funded source requires exact admitted Experiment")
+    _check_pins(source, pins)
+    contract = source.contract
+    estimate = _fss_memory(json.loads(source.config_bytes), experiment.pipeline,
+        experiment.budget.max_input_tokens, experiment.budget.max_new_tokens,
+        0, None, contract["source_float32_bytes"], margin, contract=contract,
+        source_pins=pins, _qualification_control_bytes=control)
+    work = max(sum(estimate["allocation_owners"]["client"].values()),
+               estimate["incremental_owner_bounds"]["source_metadata_preflight"])
+    return (_fss_source_qualification_estimate(estimate), _fss_raw_client(work),
+            sum(estimate["provider_peak_bytes"].values()),
+            estimate["incremental_owner_bounds"]["per_role"], contract["source_disk_bytes"])
+
+
 async def load_role_adapter(
     experiment: Experiment, role_id: str, api_key: str, *,
     preloaded_engine=None, push_key: str | None = None, inference_url: str | None = None,
@@ -486,7 +716,7 @@ class LocalTopology:
         if observer is not None:
             try:
                 observer()
-            except Exception:
+            except BaseException:
                 pass  # Diagnostics never alter cleanup or admission behavior.
 
     @contextmanager
@@ -1098,10 +1328,7 @@ class LocalTopology:
         """One bounded source owner before the independently importing role graph."""
         import shutil
         from pllm.deployment.resources import reserve_incremental_memory, reserve_incremental_disk
-        from .benchmark_memory import (
-            _fss_memory, _fss_source_qualification_estimate, admit_memory,
-            benchmark_memory, host_memory, require_admission,
-        )
+        from .benchmark_memory import admit_memory, benchmark_memory, host_memory, require_admission
         from .fss_source import resolve_client_source, load_role_source
 
         wall, cpu = time.perf_counter(), time.process_time()
@@ -1121,53 +1348,37 @@ class LocalTopology:
 
         try:
             running()
-            with self._source_import_scope("client") as lifecycle:
-                source = resolve_client_source(self._experiment, lifecycle=lifecycle,
-                                               on_failure=self._observe_failure)
-            contract = source.contract
-            pins = dict(source.snapshot_pins)
-            estimate = _fss_memory(json.loads(source.config_bytes), self._experiment.pipeline,
-                self._experiment.budget.max_input_tokens, self._experiment.budget.max_new_tokens,
-                0, None, contract["source_float32_bytes"], self._memory_safety_margin_percent,
-                contract=contract, source_pins=pins)
-            phase = admit_memory(_fss_source_qualification_estimate(estimate), observe(), **policy)
-            phase.update(admission_scope="source_qualification_only", full_topology_admitted=False)
-            self._memory_admission = phase
-            require_admission(phase)
-            # Keep source leases live until the native owner retires, including
-            # cancellation during its blocking seal/compile. No tape is created.
-            with ExitStack() as qualification:
-                qualification.enter_context(reserve_incremental_memory(
-                    estimate["incremental_owner_bounds"]["per_role"]))
-                if contract["source_disk_bytes"]:
-                    qualification.enter_context(reserve_incremental_disk(contract["source_disk_bytes"],
-                        directory=directory, minimum_free_bytes=2 << 30))
-                running()
-                self._startup_step("qualification_import", "client")
-                with self._source_import_scope("client") as lifecycle:
-                    loaded = load_role_source(self._experiment, expected_pins=pins, source=source,
-                                              cancelled=self._stopping.is_set, lifecycle=lifecycle,
-                                              on_failure=self._observe_failure)
-                try:
-                    running()
-                    self._startup_step("qualification_pricing", "client")
-                    report = benchmark_memory(self._experiment, fss_imported=loaded,
-                        memory_safety_margin_percent=self._memory_safety_margin_percent, **policy)
-                    if report["estimate"]["fss_admission"]["source_pins"] != pins:
-                        raise TopologyError("qualified FuseFSS source pins differ")
-                    priced = True
-                    self._qualification_flags(priced=True)
-                    # The live qualification owner can reduce observed free disk.
-                    # Recheck this native-derived estimate only after retirement.
-                    estimate = report["estimate"]
-                except BaseException:
-                    self._observe_failure()
-                    raise
-                finally:
-                    self._startup_step("qualification_retirement", "client")
-                    loaded.close()
-                    retired = True
-                    self._qualification_flags(retired=True)
+            def resolve(lifecycle):
+                return resolve_client_source(self._experiment, lifecycle=lifecycle,
+                                             on_failure=self._observe_failure)
+
+            def price(source, pins, control):
+                return _fss_qualification_price(self._experiment, source, pins, control,
+                                               self._memory_safety_margin_percent)
+
+            def produce(source, pins, custody, lifecycle):
+                return load_role_source(self._experiment, expected_pins=pins, source=source,
+                    cancelled=self._stopping.is_set, lifecycle=lifecycle,
+                    on_failure=self._observe_failure, _custody=custody)
+
+            def consume(loaded, source, pins):
+                nonlocal priced
+                if loaded.source is not source:
+                    raise TopologyError("qualified FuseFSS source identity differs")
+                self._startup_step("qualification_pricing", "client")
+                report = benchmark_memory(self._experiment, fss_imported=loaded,
+                    memory_safety_margin_percent=self._memory_safety_margin_percent, **policy)
+                if report["estimate"]["fss_admission"]["source_pins"] != pins:
+                    raise TopologyError("qualified FuseFSS source pins differ")
+                priced = True
+                self._qualification_flags(priced=True)
+                return report["estimate"]
+
+            estimate, source, pins = _funded_source_qualification(self, resolve=resolve, price=price,
+                produce=produce, consume=consume, memory_budget_bytes=self._memory_budget_bytes,
+                memory_safety_margin_percent=self._memory_safety_margin_percent)
+            retired = True
+            self._qualification_flags(retired=True)
             running()
             self._startup_step("graph_admission")
             report = admit_memory(estimate, observe(), **policy)
@@ -1196,6 +1407,8 @@ class LocalTopology:
             self._observe_failure()
             raise
         finally:
+            with self._process_lock:
+                retired = retired or self._startup_breadcrumbs.get("qualification", {}).get("retired", False)
             self._source_qualification = {
                 "wall_seconds": time.perf_counter() - wall,
                 "process_cpu_seconds": time.process_time() - cpu,

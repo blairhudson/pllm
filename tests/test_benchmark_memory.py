@@ -16,6 +16,62 @@ from test_fss_benchmark import contract as retirement_contract
 
 
 @pytest.mark.parametrize("margin", [0, 25])
+@pytest.mark.parametrize("control", [0, 1, 3, 65537])
+def test_fss_qualification_controls_enter_raw_client_only(
+    retirement_contract, margin, control,
+):
+    from pllm.profiles import FuseFssSourceCpu
+    from pllm.runtime.fss_child_status import SUPERVISOR_MEMORY_BYTES, PROGRESS_SUPERVISOR_BYTES
+    from test_fss_benchmark import decoder_contract
+
+    contract = decoder_contract(deepcopy(retirement_contract))
+    pipeline = FuseFssSourceCpu(Model.path("mock-only"), capacity="decoder",
+                                numeric_profile=contract["numeric_profile"])
+    args = ({}, pipeline, 2, 3, 0, None, 0, margin)
+    default = memory._fss_memory(*args, contract=contract)
+    zero = memory._fss_memory(*args, contract=contract, _qualification_control_bytes=0)
+    assert zero == default
+    charged = memory._fss_memory(*args, contract=contract, _qualification_control_bytes=control)
+    work = max(sum(default["allocation_owners"]["client"].values()),
+               default["incremental_owner_bounds"]["source_metadata_preflight"])
+    raw = (3 * 256 * MiB + work + 32 * MiB + SUPERVISOR_MEMORY_BYTES
+           + 2 * PROGRESS_SUPERVISOR_BYTES + (1 << 20))
+    assert memory._fss_raw_client(work) == raw
+    assert charged["client_peak_bytes"] == ((raw + control) * (100 + margin) + 99) // 100
+    assert charged["native_total_peak_bytes"] == (charged["client_peak_bytes"]
+                                                 + sum(default["provider_peak_bytes"].values()))
+    # Entire unchanged record except client/total peaks: no graph surcharge,
+    # provider adjustment, altered P, retirement-raw component or scope rewrite.
+    normalized = deepcopy(charged)
+    normalized["client_peak_bytes"] = default["client_peak_bytes"]
+    normalized["native_total_peak_bytes"] = default["native_total_peak_bytes"]
+    assert normalized == default
+    assert default["components"]["owned_provider_retirement_raw_peak_bytes"] == 1 << 20
+    assert default["incremental_owner_bounds"]["per_role"] == 384 * MiB
+    assert work >= default["incremental_owner_bounds"]["source_metadata_preflight"] == 384 * MiB
+    assert default["incremental_owner_bounds"]["per_role"] <= raw
+    host = _host()
+    report = memory.admit_memory(charged, host)
+    assert report["candidates"]["native"]["required_host_bytes"] == charged["native_total_peak_bytes"]
+    docker = memory.admit_memory(charged, host, backend="docker", docker_capacity=(64 * GiB, 0))
+    assert not docker["admitted"]
+    assert "selected runtime requires native role owners; Docker is not admitted" in docker["candidates"]["docker"]["reasons"]
+
+
+@pytest.mark.parametrize("control", [True, False, -1, 1.5, None, 1 << 64])
+def test_fss_qualification_control_validation_is_not_truthiness(retirement_contract, control):
+    from pllm.profiles import FuseFssSourceCpu
+    from test_fss_benchmark import decoder_contract
+
+    contract = decoder_contract(deepcopy(retirement_contract))
+    pipeline = FuseFssSourceCpu(Model.path("mock-only"), capacity="decoder",
+                                numeric_profile=contract["numeric_profile"])
+    with pytest.raises(ValueError, match="bounded nonnegative"):
+        memory._fss_memory({}, pipeline, 2, 3, 0, None, 0, contract=contract,
+                           _qualification_control_bytes=control)
+
+
+@pytest.mark.parametrize("margin", [0, 25])
 @pytest.mark.parametrize("route", [
     "ordinary-direct", "ordinary-dispatch", "fss-direct", "fss-dispatch", "fss-program",
     "fss-qualification", "replicated-direct", "replicated-dispatch", "gkm-direct",

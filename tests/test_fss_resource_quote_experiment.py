@@ -5,17 +5,39 @@ import importlib.util
 import json
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import ANY, Mock
 
 import pytest
 
 
 @pytest.fixture
-def study():
+def study(monkeypatch):
     path = Path(__file__).resolve().parents[1] / "examples/papers/fusefss_resource_quote.py"
     spec = importlib.util.spec_from_file_location("fss_resource_quote_experiment", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    # Exercise the experiment's adapter closures, not admission or native work.
+    topology = SimpleNamespace(_stopping=SimpleNamespace(is_set=lambda: False),
+                               _observe_failure=Mock())
+    frozen = SimpleNamespace(snapshot_pins={"source": "pin"})
+    custody = object()
+    module._test_topology, module._test_source, module._test_custody = topology, frozen, custody
+    monkeypatch.setattr(module, "build_roles", Mock(return_value=topology))
+    monkeypatch.setattr(module, "resolve_client_source", Mock(return_value=frozen))
+    monkeypatch.setattr(module, "_fss_qualification_price", Mock(return_value=object()))
+
+    def funded(owner, *, resolve, price, produce, consume, **policy):
+        assert owner is topology
+        lifecycle = lambda phase: None
+        source = resolve(lifecycle)
+        assert source is frozen
+        pins = source.snapshot_pins
+        price(source, pins, 0)
+        price(source, pins, 70001)
+        result = produce(source, pins, custody, lifecycle)
+        return consume(result, source, pins), source, pins
+
+    monkeypatch.setattr(module, "_funded_source_qualification", Mock(side_effect=funded))
     return module
 
 
@@ -88,7 +110,12 @@ def test_report_preserves_raw_description_and_forces_no_admission(
         options["work_policy"] = work_policy
     if observe_peer_frames:
         options["observe_peer_frames"] = True
-    describe.assert_called_once_with(configuration, **options)
+    describe.assert_called_once_with(configuration, _source=study._test_source,
+        _expected_pins=study._test_source.snapshot_pins, _custody=study._test_custody,
+        input_rows=14, outputs=1, cancelled=ANY, lifecycle=ANY,
+        on_failure=study._test_topology._observe_failure, **options)
+    study.build_roles.assert_called_once_with(configuration, memory_budget_bytes=None,
+                                              memory_safety_margin_percent=25)
     assert describe.call_args.args[0] is configuration
     assert description == before
     captured = capsys.readouterr()

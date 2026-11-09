@@ -60,7 +60,7 @@ def _notify_failure(observer):
     if observer is not None:
         try:
             observer()
-        except Exception:
+        except BaseException:
             pass  # Observation cannot replace the source error or cleanup.
 
 
@@ -203,7 +203,7 @@ def _contract(experiment, encoded, config, rows, outputs, sourcepin, tokenizerpi
     return payload, record
 
 
-def _store(root, identities, contract):
+def _store(root, identities, contract, *, _custody=None):
     """Shared frozen store/geometry access, with native authoritative inventory.
 
     The older shared semantic inventory cannot describe positional lookups,
@@ -263,7 +263,11 @@ def _store(root, identities, contract):
         index = _document(io._read_bounded(root / indexes[0], header_limit), "tensor index", header_limit)
         if index.get("weight_map") != locations:
             raise FssSourceError("FuseFSS shard index differs from headers")
+    if _custody is not None:
+        _custody.begin()
     store = io._AdmittedTensorStore(root, identities, specs)
+    if _custody is not None:
+        _custody.acquired(0, store)
     for name, shape in shapes.items():
         if store.tensor_shape(name) != tuple(shape) or store.tensor_dtype(name) not in io._DTYPES:
             raise FssSourceError("FuseFSS shared reader geometry differs")
@@ -497,6 +501,7 @@ class LoadedFssSource:
     manifest_bytes: bytes
     _rotary_source_bytes: bytes = field(repr=False)
     _closed: bool = field(default=False, init=False, repr=False)
+    _close_unknown: bool = field(default=False, init=False, repr=False)
 
     @property
     def manifest(self):
@@ -508,11 +513,16 @@ class LoadedFssSource:
 
     def close(self):
         if not self._closed:
+            if self._close_unknown:
+                raise FssSourceError("FuseFSS native retirement unknown")
+            self._close_unknown = True
+            if self.native_program.close() is not None:
+                raise FssSourceError("FuseFSS native retirement did not acknowledge")
             self._closed = True
-            self.native_program.close()
+            self._close_unknown = False
 
     def __enter__(self):
-        if self._closed:
+        if self._closed or self._close_unknown:
             raise FssSourceError("FuseFSS program is closed")
         return self
 
@@ -521,7 +531,7 @@ class LoadedFssSource:
 
 
 def load_role_source(experiment, *, expected_pins, input_rows=None, outputs=None, cancelled=None, source=None,
-                      lifecycle=None, on_failure=None):
+                      lifecycle=None, on_failure=None, _custody=None):
     """Import a role's own public checkpoint, pinned to coordinator's original snapshot.
 
     This does not send weights from client or manufacture serving admission.
@@ -529,13 +539,15 @@ def load_role_source(experiment, *, expected_pins, input_rows=None, outputs=None
     Lifecycle callbacks receive fixed names only. The failure callback runs before
     owned cleanup; callers must signal stop before nonblocking cached diagnostics.
     """
+    internal = {} if _custody is None else {"_custody": _custody}
     return _load_source(experiment, expected_pins=expected_pins, input_rows=input_rows,
                         outputs=outputs, cancelled=cancelled, source=source,
-                        lifecycle=lifecycle, on_failure=on_failure)
+                        lifecycle=lifecycle, on_failure=on_failure, **internal)
 
 
 def describe_source(experiment, *, cancelled=None, lifecycle=None, on_failure=None, work_policy=None,
-                    observe_peer_frames=False, input_rows=None, outputs=None):
+                    observe_peer_frames=False, input_rows=None, outputs=None,
+                    _source=None, _expected_pins=None, _custody=None):
     """Import/recheck actual source and describe tensor-v1 without a Client.
 
     Returns scalars only, before any manifest or executable capsule is created.
@@ -553,19 +565,25 @@ def describe_source(experiment, *, cancelled=None, lifecycle=None, on_failure=No
         raise FssSourceError("FuseFSS unsupported source-description work policy")
     if type(observe_peer_frames) is not bool:
         raise FssSourceError("FuseFSS observe_peer_frames requires bool")
+    internal = {}
+    if _source is not None:
+        internal["source"] = _source
+    if _custody is not None:
+        internal["_custody"] = _custody
     if input_rows is not None or outputs is not None:
-        return _load_source(experiment, expected_pins=None, input_rows=input_rows, outputs=outputs,
+        return _load_source(experiment, expected_pins=_expected_pins, input_rows=input_rows, outputs=outputs,
                             cancelled=cancelled, lifecycle=lifecycle, on_failure=on_failure,
                             describe_only=True, work_policy=work_policy,
-                            observe_peer_frames=observe_peer_frames)
-    return _load_source(experiment, expected_pins=None, cancelled=cancelled,
+                            observe_peer_frames=observe_peer_frames, **internal)
+    return _load_source(experiment, expected_pins=_expected_pins, cancelled=cancelled,
                         lifecycle=lifecycle, on_failure=on_failure, describe_only=True,
-                        work_policy=work_policy, observe_peer_frames=observe_peer_frames)
+                        work_policy=work_policy, observe_peer_frames=observe_peer_frames,
+                        **internal)
 
 
 def _load_source(experiment, *, expected_pins, input_rows=None, outputs=None, cancelled=None, source=None,
                  lifecycle=None, on_failure=None, describe_only=False, work_policy=None,
-                 observe_peer_frames=False):
+                 observe_peer_frames=False, _custody=None):
     # One import-through-recheck path. The descriptive terminal cannot produce
     # a program; normal seal/manifest order and cleanup remain unchanged.
     failure_notified = False
@@ -583,6 +601,8 @@ def _load_source(experiment, *, expected_pins, input_rows=None, outputs=None, ca
         if lifecycle is not None:
             lifecycle("qualification_metadata")
         _cancelled(cancelled)
+        if _custody is not None and (source is not _custody.source or expected_pins != _custody.pins):
+            raise FssSourceError("FuseFSS funded source binding differs")
         if describe_only:
             _experiment(experiment)
             if _online_schedule(experiment.pipeline.components["linear"].params) != "tensor-v1":
@@ -627,13 +647,19 @@ def _load_source(experiment, *, expected_pins, input_rows=None, outputs=None, ca
             raise FssSourceError("FuseFSS source changed after admission")
         if lifecycle is not None:
             lifecycle("source_headers")
-        store, specs = _store(source.path, source._identities, record)
+        internal = {} if _custody is None else {"_custody": _custody}
+        store, specs = _store(source.path, source._identities, record, **internal)
         if specs != source._specs:
             raise FssSourceError("FuseFSS tensor headers changed after admission")
         kwargs = {"capacity": capacity} if capacity == "decoder" else {}
         if lifecycle is not None:
             lifecycle("qualification_import")
+        _cancelled(cancelled)
+        if _custody is not None:
+            _custody.begin()
         builder = _native.FssSourceBuilder(source.config_bytes, rows, outputs, record["numeric_profile"], **kwargs)
+        if _custody is not None:
+            _custody.acquired(1, builder)
         original_hash = hashlib.sha256(b"pllm.fss.original-ieee-stream.v1\0")
         identities, specs = dict(source._identities), dict(specs)
         if lifecycle is not None:
@@ -651,7 +677,12 @@ def _load_source(experiment, *, expected_pins, input_rows=None, outputs=None, ca
                 count = min(_FRAME // itemsize, size_bytes // itemsize - begin)
                 frame = io._read_range(source.path / filename, identities[filename],
                                        offset + begin * itemsize, count * itemsize, limit=_FRAME)
+                _cancelled(cancelled)
+                if _custody is not None:
+                    _custody.begin()
                 builder.append(name, dtype, begin, frame)
+                if _custody is not None:
+                    _custody.returned()
                 original_hash.update(frame)
                 del frame
         tables = []
@@ -663,7 +694,11 @@ def _load_source(experiment, *, expected_pins, input_rows=None, outputs=None, ca
             original_hash.update(struct.pack("<QQQ", theta, *shape))
             for begin, cosine, sine in _rotary_frames(shape, theta):
                 _cancelled(cancelled)
+                if _custody is not None:
+                    _custody.begin()
                 builder.append_rotary(operation, begin, cosine, sine)
+                if _custody is not None:
+                    _custody.returned()
                 cosine_hash.update(cosine)
                 sine_hash.update(sine)
                 for i in range(0, len(cosine), 4):
@@ -685,16 +720,33 @@ def _load_source(experiment, *, expected_pins, input_rows=None, outputs=None, ca
                 options["work_policy"] = work_policy
             if observe_peer_frames:
                 options["observe_peer_frames"] = True
+            _cancelled(cancelled)
+            if _custody is not None:
+                _custody.begin()
             description = builder.describe_tensor(**options)
+            if _custody is not None:
+                _custody.returned()
             _cancelled(cancelled)
             return description
         seal = {"serial": "seal", "wavefront-v1": "seal_wavefront", "tensor-v1": "seal_tensor"}[_online_schedule(record)]
         if lifecycle is not None:
             lifecycle("qualification_seal")
+        _cancelled(cancelled)
+        if _custody is not None:
+            _custody.begin()
         program = getattr(builder, seal)()
+        if _custody is not None:
+            _custody.acquired(2, program)
+            if _custody.disk is not None and hasattr(program, "disk_backing"):
+                _custody.disk.bind_backing(program.disk_backing)
         if lifecycle is not None:
             lifecycle("source_manifest")
+        _cancelled(cancelled)
+        if _custody is not None:
+            _custody.begin()
         manifest_bytes = program.manifest(contract_bytes)
+        if _custody is not None:
+            _custody.returned()
         manifest = _document(manifest_bytes, "program manifest", 1024)
         expected = {"schema": "pllm.fss.channel.program.v1", "contract": hashlib.sha256(contract_bytes).hexdigest(),
                     "input_digest": original_hash.hexdigest(), "profile": record["numeric_profile"],
@@ -708,20 +760,25 @@ def _load_source(experiment, *, expected_pins, input_rows=None, outputs=None, ca
                       "semantic_coefficient_profile": "pllm.numeric.rope.q30.libm.v1" if tables else None,
                       "numeric_override": "D13:F32-to-Q12;split-half;per-product-floor" if tables else None}
         descriptor["sha256"] = hashlib.sha256(b"pllm.fss.public-f32-rotary-source.v1\0" + io._canonical(descriptor)).hexdigest()
-        return LoadedFssSource(source, contract_bytes, program, manifest_bytes, io._canonical(descriptor))
+        if _custody is not None:
+            _custody.begin()
+        loaded = LoadedFssSource(source, contract_bytes, program, manifest_bytes, io._canonical(descriptor))
+        if _custody is not None:
+            _custody.acquired(3, loaded, replaces=2)
+        return loaded
     except BaseException:
         try:
             notify_failure_once()
         finally:
-            if program is not None:
+            if _custody is None and program is not None:
                 program.close()
         raise
     finally:
         try:
-            if builder is not None:
+            if _custody is None and builder is not None:
                 builder.close()
         finally:
-            if store is not None:
+            if _custody is None and store is not None:
                 store.clear_cache()
 
 
