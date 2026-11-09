@@ -188,14 +188,51 @@ def test_cleanup_slot_drain_binding(monkeypatch, case):
     amount = capacity._cleanup_control_bytes()
     slot = _scope()
     token = slot._token
-    events, errors = [], []
+    events, errors, destructor_errors = [], [], []
     entered, resume = threading.Event(), threading.Event()
     primary = RuntimeError("callback failed")
     state = SimpleNamespace(first=True)
+    locks = (capacity.lock, slot._lock)
+
+    def probe(locks):
+        acquired, failures = [], []
+
+        def inspect():
+            # Capture locks and scalar-result containers only; never owner state.
+            for lock in locks:
+                held = False
+                try:
+                    held = lock.acquire(blocking=False)
+                    acquired.append(held)
+                except BaseException as error:
+                    failures.append(type(error).__name__[:64])
+                finally:
+                    if held:
+                        try:
+                            lock.release()
+                        except BaseException as error:
+                            failures.append(type(error).__name__[:64])
+
+        inspector = threading.Thread(target=inspect)
+        inspector.start()
+        inspector.join(5)
+        if inspector.is_alive():
+            failures.append("probe timeout")
+        return tuple(acquired), tuple(failures)
+
+    try:
+        assert probe(locks) == ((True, True), ())
+        with capacity.lock:
+            assert probe(locks) == ((False, True), ())
+        with slot._lock:
+            assert probe(locks) == ((True, False), ())
+    except BaseException:
+        slot.drain()  # Controls failed before payload construction; still unpublished.
+        raise
 
     class Payload:
         def close(self):
-            assert not capacity.lock.locked() and not slot._lock.locked()
+            assert probe(locks) == ((True, True), ())
             assert id(slot._binding) == binding_id and slot._binding[1] is callback_ref()
             assert slot._binding[0] is self and slot._draining
             assert next(iter(capacity._owners)) is token
@@ -215,7 +252,15 @@ def test_cleanup_slot_drain_binding(monkeypatch, case):
                     assert resume.wait(5)
 
         def __del__(self):
-            events.append(("destroyed", capacity.lock.locked(), slot._lock.locked(), token in capacity._owners))
+            try:
+                acquired, failures = probe(locks)
+                destructor_errors.extend(failures)
+                if len(acquired) != 2:
+                    destructor_errors.append("missing probe results")
+                locked = tuple(not held for held in acquired) if not failures and len(acquired) == 2 else (None, None)
+                events.append(("destroyed", *locked, token in capacity._owners))
+            except BaseException as error:
+                destructor_errors.append(type(error).__name__[:64])
 
     payload = Payload()
     callback = payload.close
@@ -226,7 +271,7 @@ def test_cleanup_slot_drain_binding(monkeypatch, case):
 
     def release(self, actual_token, actual_slot):
         assert self is capacity and actual_token is token and actual_slot is slot
-        assert not capacity.lock.locked() and not slot._lock.locked()
+        assert probe(locks) == ((True, True), ())
         assert slot._binding is None and payload_ref() is not None and callback_ref() is not None
         assert capacity._owners[token] == amount
         release_cleanup(self, actual_token, actual_slot)
@@ -271,7 +316,7 @@ def test_cleanup_slot_drain_binding(monkeypatch, case):
             assert not worker.is_alive()
         slot.drain()  # Explicit retry only after the failed/in-flight callback is drained.
     gc.collect()
-    assert not errors and slot.closed and slot._binding is None
+    assert not errors and not destructor_errors and slot.closed and slot._binding is None
     assert not capacity._owners and not capacity._cleanup
     assert payload_ref() is callback_ref() is None
     assert events == (["callback", "callback"] if case == "callback_failure" else ["callback"]) + [
