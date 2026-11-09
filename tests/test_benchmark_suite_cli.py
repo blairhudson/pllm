@@ -10,6 +10,7 @@ import importlib
 import json
 from pathlib import Path
 import signal
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -294,96 +295,133 @@ def test_legacy_experiment_dispatch_keeps_schema_defaults_and_public_spec(factor
     assert canonical(selected.to_spec()) == before
 
 
-def test_normal_worker_supervision_still_owns_fresh_isolated_process_groups(
-        factory, runtime, monkeypatch, tmp_path, capsys):
+@pytest.fixture
+def supervision(runtime, monkeypatch):
+    """Isolate every supervisor thread/process/probe boundary for selected tests."""
     from pllm._benchmark_contract import BenchmarkTarget, Sampling
     monkeypatch.setattr(engine, "_execute", SUPERVISE)
     memory = importlib.import_module("pllm.runtime.benchmark_memory")
-    groups, requests, retired = [], [], []
+    usage = importlib.import_module("pllm.runtime.client_process_usage")
+    state = SimpleNamespace(groups=[], requests=[], events=[], monitors=[], finalized=[],
+        mode="normal", snapshot_fault=False, diagnostics={})
 
-    class Guard:
-        def __init__(self, *a):
-            pass
+    def forbidden(*args, **kwargs):
+        pytest.fail("unexpected host probe or uncontrolled execution")
+
+    class Event:
+        def __init__(self):
+            self.stopped = False
+
+        def set(self):
+            self.stopped = True
+
+        def is_set(self):
+            return self.stopped
+
+        wait = forbidden
+
+    class Tracker:
+        def __init__(self, *, target, daemon):
+            assert daemon is True
 
         def start(self):
-            pass
+            # Deliberately never execute the tracking target.
+            state.events.append("tracker-start")
+
+        def join(self):
+            state.events.append("tracker-join")
+
+    class Guard:
+        def __init__(self, report, abort):
+            assert report == {"host": {"reserve_bytes": 0, "swap_used": 0, "available": 1 << 30}}
+            self.abort = abort
+            self.error_class = state.diagnostics.get("error_class")
+            self.error = state.diagnostics.get("error_message")
+            self.observation = deepcopy(state.diagnostics.get("failure_observation"))
+            self.minimum_available_bytes = state.diagnostics.get("minimum_available_bytes")
+            self.maximum_swap_growth_bytes = state.diagnostics.get("maximum_swap_growth_bytes")
+            state.monitors.append(self)
+
+        @property
+        def failure_observation(self):
+            if state.snapshot_fault:
+                raise RuntimeError("secondary snapshot failure")
+            return self.observation
+
+        def start(self):
+            state.events.append("guard-start")
 
         def close(self):
-            retired.append("guard")
+            state.events.append("guard-close")
 
     class Process:
         returncode = 0
 
         def __init__(self, command, **options):
-            self.pid = 2147483646 - len(groups)
-            groups.append((command, options))
+            self.pid = 2147483646 - len(state.groups)
+            state.groups.append((command, options))
 
         def communicate(self, body, timeout):
             request = json.loads(body)
-            requests.append(request)
+            assert request["protocol"] == PROTOCOL
+            state.requests.append(request)
+            if state.mode == "cancel":
+                raise KeyboardInterrupt
+            if state.mode == "abort":
+                monitor = state.monitors[-1]
+                monitor.abort(monitor.error)
+                if monitor.observation is not None:
+                    monitor.observation.update(pressure="normal", available_bytes=999, swap_used_bytes=999)
+                return b"", b""
             payload = runtime.execute(SimpleNamespace(target=BenchmarkTarget.from_spec(request["target"])),
                 Sampling(**request["sampling"]), request["inputs"], bytes.fromhex(request["salt"]),
                 Path(request["directory"]))
             return canonical({"protocol": PROTOCOL, **payload}), b""
 
         def poll(self):
-            return 0
+            return None if state.mode == "cancel" else 0
 
         def wait(self, timeout=None):
-            retired.append(self.pid)
+            state.events.append("wait")
+
+    def finalize(payload, process):
+        state.finalized.append((payload, process.pid))
+        state.events.append("finalize")
 
     monkeypatch.setattr(memory, "MemoryWatchdog", Guard)
     monkeypatch.setattr(memory, "host_memory", lambda: SimpleNamespace(reserve=0, swap_used=0, available=1 << 30))
-    monkeypatch.setattr(engine.subprocess, "Popen", Process)
-    monkeypatch.setattr(engine.os, "killpg", lambda pid, sig: retired.append((pid, sig)))
+    monkeypatch.setattr(engine, "subprocess", SimpleNamespace(**(vars(engine.subprocess) | {
+        "Popen": Process, "run": forbidden})))
+    monkeypatch.setattr(engine, "os", SimpleNamespace(**(vars(engine.os) | {
+        "killpg": lambda pid, sig: state.events.append(sig)})))
+    monkeypatch.setattr(engine, "threading", SimpleNamespace(Event=Event, Thread=Tracker))
+    monkeypatch.setitem(sys.modules, "psutil", SimpleNamespace(Process=forbidden, Error=RuntimeError))
+    monkeypatch.setattr(usage, "client_popen_factory", lambda factory: factory)
+    monkeypatch.setattr(usage, "finalize_client_payload", finalize)
+    return state
+
+
+def test_normal_worker_supervision_still_owns_fresh_isolated_process_groups(
+        factory, supervision, tmp_path, capsys):
     output = tmp_path / "supervised.json"
     main(arguments(factory, "--prompt", "private fixture", "--output", output))
     assert json.loads(capsys.readouterr().out)["data"]["report"] == BenchmarkRun.load(output).to_dict()
-    assert len(groups) == len(requests) == 4
-    assert len({request["salt"] for request in requests}) == 1
-    assert len({request["directory"] for request in requests}) == 4
-    assert retired.count("guard") == 4
-    for command, options in groups:
+    assert len(supervision.groups) == len(supervision.requests) == 4
+    assert len({request["salt"] for request in supervision.requests}) == 1
+    assert len({request["directory"] for request in supervision.requests}) == 4
+    assert len({pid for _, pid in supervision.finalized}) == 4
+    for command, options in supervision.groups:
         assert command[1:] == ["-I", "-m", "pllm._benchmark_worker"]
         assert options["start_new_session"] is True
         assert "private fixture" not in str(command)
-    assert sum(isinstance(value, tuple) and value[1] == signal.SIGKILL for value in retired) == 4
+    assert supervision.events == ["tracker-start", "guard-start", "guard-close",
+        signal.SIGKILL, "wait", "tracker-join", "finalize"] * 4
+    assert all(payload["status"] == "completed" for payload, _ in supervision.finalized)
 
 
 def test_cancellation_uses_existing_guard_drain_and_incomplete_public_checkpoint(
-        factory, runtime, monkeypatch, tmp_path, capsys):
-    # Restore the production worker supervisor, not a custom suite runner.
-    monkeypatch.setattr(engine, "_execute", SUPERVISE)
-    memory = importlib.import_module("pllm.runtime.benchmark_memory")
-    events = []
-
-    class Guard:
-        def __init__(self, *a):
-            pass
-
-        def start(self):
-            events.append("guard-start")
-
-        def close(self):
-            events.append("guard-close")
-
-    class Process:
-        pid = 2147483647
-
-        def communicate(self, body, timeout):
-            assert json.loads(body)["protocol"] == PROTOCOL
-            raise KeyboardInterrupt
-
-        def poll(self):
-            return None
-
-        def wait(self, timeout=None):
-            events.append("wait")
-
-    monkeypatch.setattr(memory, "MemoryWatchdog", Guard)
-    monkeypatch.setattr(memory, "host_memory", lambda: SimpleNamespace(reserve=0, swap_used=0, available=1 << 30))
-    monkeypatch.setattr(engine.subprocess, "Popen", lambda *a, **kw: Process())
-    monkeypatch.setattr(engine.os, "killpg", lambda pid, sig: events.append(sig))
+        factory, supervision, tmp_path, capsys):
+    supervision.mode = "cancel"
     output = tmp_path / "cancelled.json"
     with pytest.raises(SystemExit) as error:
         main(arguments(factory, "--prompt", "private fixture", "--output", output))
@@ -391,6 +429,79 @@ def test_cancellation_uses_existing_guard_drain_and_incomplete_public_checkpoint
     document = BenchmarkRun.load(output).to_dict()
     assert document["complete"] is False and len(document["results"]) == 1
     assert document["results"][0]["status"] == "cancelled"
-    assert "guard-close" in events and signal.SIGTERM in events and signal.SIGKILL in events
-    assert events.count("wait") == 2
+    assert supervision.events == ["tracker-start", "guard-start", "guard-close",
+        signal.SIGTERM, "wait", signal.SIGKILL, "wait", "tracker-join", "finalize"]
+    assert supervision.finalized == [(None, 2147483646)]
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize("cause", ["resource_failure", "telemetry_exception"])
+def test_controller_watchdog_diagnostics_persist(factory, supervision, tmp_path, capsys, cause):
+    supervision.mode = "abort"
+    resource = cause == "resource_failure"
+    observation = {"pressure": "critical", "available_bytes": 0, "swap_used_bytes": 0,
+        "extra_sample_field": "not public"} if resource else None
+    supervision.diagnostics = {"error_class": ("BenchmarkMemoryError" if resource else "RuntimeError") + "x" * 80,
+        "error_message": ("primary resource failure" if resource else "sample unavailable") + "x" * 512,
+        "failure_observation": observation, "minimum_available_bytes": 0 if resource else 1 << 30,
+        "maximum_swap_growth_bytes": 257 << 20 if resource else 0}
+    expected = {**supervision.diagnostics,
+        "error_class": supervision.diagnostics["error_class"][:80],
+        "error_message": supervision.diagnostics["error_message"][:512],
+        "failure_observation": {key: observation[key] for key in (
+            "pressure", "available_bytes", "swap_used_bytes")} if resource else None}
+    output = tmp_path / "watchdog.json"
+    main(arguments(factory, "--prompt", "private fixture", "--output", output))
+    document = json.loads(capsys.readouterr().out)["data"]["report"]
+    assert document == json.loads(output.read_text()) == BenchmarkRun.load(output).to_dict()
+    assert document["complete"] is True and len(document["results"]) == 4
+    for row in document["results"]:
+        assert row["status"] == "blocked" and row["execution"]["failure_code"] == "host_pressure"
+        assert row["execution"]["details"] == {"controller_memory_watchdog": expected}
+    assert len(expected["error_class"]) == 80 and len(expected["error_message"]) == 512
+    if resource:
+        assert all(monitor.observation["available_bytes"] == 999 for monitor in supervision.monitors)
+    assert supervision.events == ["tracker-start", "guard-start", signal.SIGTERM,
+        "guard-close", signal.SIGKILL, "wait", "tracker-join", "finalize"] * 4
+    assert len(supervision.finalized) == 4 and all(payload is None for payload, _ in supervision.finalized)
+
+    # Legacy/invalid retained fields must not fabricate zero or coerce strings.
+    empty = {key: None for key in expected}
+    assert engine._controller_memory_watchdog_details(SimpleNamespace()) == empty
+    for invalid in (None, True, -1, "0"):
+        monitor = SimpleNamespace(error_class=123, error=object(), minimum_available_bytes=invalid,
+            maximum_swap_growth_bytes=invalid, failure_observation={"pressure": None,
+                "available_bytes": invalid, "swap_used_bytes": 0})
+        assert engine._controller_memory_watchdog_details(monitor) == empty
+        monitor.failure_observation = {"pressure": None, "available_bytes": 0, "swap_used_bytes": invalid}
+        assert engine._controller_memory_watchdog_details(monitor) == empty
+    for invalid_observation in ({}, {"available_bytes": 0}, {"available_bytes": 0, "swap_used_bytes": 0},
+            {"pressure": False, "available_bytes": 0, "swap_used_bytes": 0}):
+        assert engine._controller_memory_watchdog_details(SimpleNamespace(
+            failure_observation=invalid_observation)) == empty
+    zero_observation = {"pressure": None, "available_bytes": 0, "swap_used_bytes": 0}
+    zero_details = engine._controller_memory_watchdog_details(SimpleNamespace(
+        failure_observation=zero_observation, minimum_available_bytes=0, maximum_swap_growth_bytes=0))
+    assert zero_details == {**empty, "failure_observation": zero_observation,
+        "minimum_available_bytes": 0, "maximum_swap_growth_bytes": 0}
+    assert zero_details["failure_observation"] is not zero_observation
+
+
+def test_controller_watchdog_snapshot_failure_preserves_abort(factory, supervision, tmp_path, capsys):
+    supervision.mode = "abort"
+    supervision.snapshot_fault = True
+    supervision.diagnostics = {"error_class": "BenchmarkMemoryError", "error_message": "primary abort",
+        "minimum_available_bytes": 0, "maximum_swap_growth_bytes": 0}
+    output = tmp_path / "snapshot-failure.json"
+    main(arguments(factory, "--prompt", "private fixture", "--output", output))
+    document = json.loads(capsys.readouterr().out)["data"]["report"]
+    assert document == json.loads(output.read_text()) == BenchmarkRun.load(output).to_dict()
+    assert document["complete"] is True and len(document["results"]) == 4
+    expected = {"error_class": None, "error_message": None, "failure_observation": None,
+        "minimum_available_bytes": None, "maximum_swap_growth_bytes": None}
+    for row in document["results"]:
+        assert row["status"] == "blocked" and row["execution"]["failure_code"] == "host_pressure"
+        assert row["execution"]["details"] == {"controller_memory_watchdog": expected}
+    assert supervision.events == ["tracker-start", "guard-start", signal.SIGTERM,
+        "guard-close", signal.SIGKILL, "wait", "tracker-join", "finalize"] * 4
+    assert len(supervision.finalized) == 4 and all(payload is None for payload, _ in supervision.finalized)

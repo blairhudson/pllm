@@ -1478,6 +1478,7 @@ class MemoryWatchdog:
     def __init__(self, report, abort: Callable[[str], None], *, sample=None):
         self.report, self.abort, self.sample = report, abort, sample or host_memory
         self.error = None
+        self.error_class = None
         self.failure_observation = None
         self.minimum_available_bytes = report["host"]["available"]
         self._minimum_swap = report["host"]["swap_used"]
@@ -1514,6 +1515,7 @@ class MemoryWatchdog:
             try:
                 self.check()
             except Exception as exc:
+                self.error_class = type(exc).__name__
                 self.error = str(exc)
                 self.abort(self.error)
                 return

@@ -341,6 +341,70 @@ def test_preflight_does_not_turn_invalid_explicit_counts_into_defaults(monkeypat
         memory.benchmark_memory(Model.tiny(), max_input_tokens=count)
 
 
+@pytest.mark.parametrize("cause", ["pressure", "low_availability", "swap_growth", "sampling_exception"])
+def test_watchdog_retains_abort_exception_diagnostics(monkeypatch, cause):
+    from types import SimpleNamespace
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("unexpected host sampling or thread execution")
+
+    class Stop:
+        def __init__(self):
+            self.waits = []
+
+        def wait(self, seconds):
+            self.waits.append(seconds)
+            return len(self.waits) > 1
+
+    monkeypatch.setattr(memory, "host_memory", forbidden)
+    monkeypatch.setattr(memory, "threading", SimpleNamespace(Event=Stop,
+        Thread=lambda **kwargs: SimpleNamespace(start=forbidden)))
+    report = {"host": {"available": 4 * GiB, "swap_used": 0, "reserve_bytes": 2 * GiB}}
+    current = {"pressure": _host(
+        availability_source="macos_mach_dispatch_v1",
+        pressure="critical",
+        available=3 * GiB,
+        free=3 * GiB,
+        cached=0,
+        purgeable=0,
+        reusable=None,
+    ),
+        "low_availability": _host(available=0),
+        "swap_growth": _host(available=2 * GiB, swap_used=257 * MiB)}.get(cause)
+    messages = {"pressure": "benchmark stopped: macOS memory pressure is critical",
+        "low_availability": "benchmark stopped: host memory fell below runtime reserve",
+        "swap_growth": "benchmark stopped: host swap grew by more than 256 MiB",
+        "sampling_exception": "sample unavailable"}
+    samples, callbacks = [], []
+
+    def sample():
+        samples.append(True)
+        if current is None:
+            raise RuntimeError(messages[cause])
+        return current
+
+    def abort(reason):
+        callbacks.append(reason)
+        assert guard.error == reason
+        assert guard.error_class == ("RuntimeError" if current is None else "BenchmarkMemoryError")
+        assert guard.failure_observation == (None if current is None else {
+            "pressure": current.pressure, "available_bytes": current.available,
+            "swap_used_bytes": current.swap_used})
+        assert guard.minimum_available_bytes == (4 * GiB if current is None else current.available)
+        assert guard.maximum_swap_growth_bytes == (257 * MiB if cause == "swap_growth" else 0)
+
+    guard = memory.MemoryWatchdog(report, abort, sample=sample)
+    assert guard.error_class is None and guard.error is None
+    assert guard._run() is None
+    assert samples == [True] and callbacks == [messages[cause]]
+    assert guard._stop.waits == [0.25]
+    assert guard.failure_observation == (None if current is None else {
+        "pressure": current.pressure, "available_bytes": current.available,
+        "swap_used_bytes": current.swap_used})
+    assert guard.minimum_available_bytes == (4 * GiB if current is None else current.available)
+    assert guard.maximum_swap_growth_bytes == (257 * MiB if cause == "swap_growth" else 0)
+
+
 def test_watchdog_stops_on_pressure_and_new_swap_after_recovery():
     report = memory.admit_memory(_estimate(), _host(swap_used=10 * GiB))
     samples = iter((_host(swap_used=2 * GiB), _host(swap_used=2 * GiB + 257 * MiB)))

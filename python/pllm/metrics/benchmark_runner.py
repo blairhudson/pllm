@@ -69,6 +69,30 @@ def _stop(process):
     process.wait()
 
 
+def _controller_memory_watchdog_details(monitor):
+    """Copy only retained watchdog diagnostics, never sample the host again."""
+    error_class = getattr(monitor, "error_class", None)
+    error_message = getattr(monitor, "error", None)
+    observation = getattr(monitor, "failure_observation", None)
+    failure_observation = None
+    if isinstance(observation, Mapping):
+        available = observation.get("available_bytes")
+        swap = observation.get("swap_used_bytes")
+        pressure = observation.get("pressure")
+        if ("pressure" in observation and type(available) is int and available >= 0
+                and type(swap) is int and swap >= 0
+                and (pressure is None or isinstance(pressure, str))):
+            failure_observation = {"pressure": pressure,
+                "available_bytes": available, "swap_used_bytes": swap}
+    minimum = getattr(monitor, "minimum_available_bytes", None)
+    maximum = getattr(monitor, "maximum_swap_growth_bytes", None)
+    return {"error_class": error_class[:80] if isinstance(error_class, str) else None,
+        "error_message": error_message[:512] if isinstance(error_message, str) else None,
+        "failure_observation": failure_observation,
+        "minimum_available_bytes": minimum if type(minimum) is int and minimum >= 0 else None,
+        "maximum_swap_growth_bytes": maximum if type(maximum) is int and maximum >= 0 else None}
+
+
 def _execute(case, sampling, inputs, salt, directory):
     from pllm._benchmark_worker import PROTOCOL
     from pllm.runtime.benchmark_memory import MemoryWatchdog, host_memory
@@ -98,7 +122,15 @@ def _execute(case, sampling, inputs, salt, directory):
             stop_tracking.wait(0.02)
     tracker = threading.Thread(target=track, daemon=True)
     tracker.start()
+    watchdog_details = {"error_class": None, "error_message": None,
+        "failure_observation": None, "minimum_available_bytes": None,
+        "maximum_swap_growth_bytes": None}
     def abort(_):
+        nonlocal watchdog_details
+        try:
+            watchdog_details = _controller_memory_watchdog_details(monitor)
+        except Exception:
+            pass
         pressure.append(True)
         try:
             os.killpg(process.pid, signal.SIGTERM)
@@ -114,7 +146,8 @@ def _execute(case, sampling, inputs, salt, directory):
         except subprocess.TimeoutExpired:
             return {"status": "timeout", "failure_code": "timeout"}
         if pressure:
-            return {"status": "blocked", "failure_code": "host_pressure"}
+            return {"status": "blocked", "failure_code": "host_pressure",
+                "details": {"controller_memory_watchdog": watchdog_details}}
         if process.returncode or len(stdout) > 16 << 20:
             return {"status": "failed", "failure_code": "worker_failed"}
         try:
