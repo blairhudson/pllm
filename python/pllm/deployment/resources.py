@@ -554,6 +554,9 @@ class _MemoryReservation:
             raise
 
 
+_CLEANUP_RETIRE_OMITTED = object()
+
+
 class _CleanupSlot:
     """Admission-rooted failed cleanup custody; explicit drain only, no finalizer.
 
@@ -562,35 +565,49 @@ class _CleanupSlot:
     after all caller/client/traceback references disappear. No automatic retry
     or timeout-as-retirement; the caller must report shutdown failure.
     """
-    __slots__ = ("_capacity", "_token", "_lock", "_payload", "_retire", "_closed", "_draining")
+    __slots__ = ("_capacity", "_token", "_lock", "_binding", "_closed", "_draining")
 
     def __init__(self, capacity, token):
         self._capacity, self._token = capacity, token
         self._lock = threading.Lock()
-        self._payload = self._retire = None
+        self._binding = None
         self._closed = self._draining = False
+
+    @property
+    def _payload(self):
+        binding = self._binding
+        return None if binding is None else binding[0]
+
+    @property
+    def _retire(self):
+        binding = self._binding
+        return None if binding is None else binding[1]
 
     @property
     def closed(self):
         with self._lock:
             return self._closed
 
-    def owns(self, payload):
+    def owns(self, payload, *, retire=_CLEANUP_RETIRE_OMITTED):
         with self._capacity.lock:
             if (self._capacity is not _capacity or self._capacity._cleanup.get(self._token) is not self
                     or self._token not in self._capacity._owners):
                 return False
             with self._lock:
-                return not self._closed and self._payload is payload
+                binding = self._binding
+                return (not self._closed and binding is not None and binding[0] is payload
+                        and (retire is _CLEANUP_RETIRE_OMITTED or binding[1] is retire))
 
     def retain(self, payload, retire):
         with self._capacity.lock:
-            if self._capacity is not _capacity or self._capacity._cleanup.get(self._token) is not self:
+            if (self._capacity is not _capacity or self._capacity._cleanup.get(self._token) is not self
+                    or self._token not in self._capacity._owners):
                 raise NetworkError("CLIENT_CLEANUP_SLOT_UNAVAILABLE")
             with self._lock:
-                if self._closed or self._draining or self._payload is not None or not callable(retire):
+                if self._closed or self._draining or self._binding is not None or not callable(retire):
                     raise NetworkError("CLIENT_CLEANUP_SLOT_UNAVAILABLE")
-                self._payload, self._retire = payload, retire
+                binding = (payload, retire)  # Allocate before the sole publication store.
+                self._binding = binding
 
     def drain(self):
         with self._lock:
@@ -599,20 +616,19 @@ class _CleanupSlot:
             if self._draining:
                 raise NetworkError("CLIENT_CLEANUP_ALREADY_DRAINING")
             self._draining = True
-            retire = self._retire
+            binding = self._binding
         try:
-            if retire is not None:
-                retire()  # OUTSIDE slot/admission locks; may fail without refund.
+            if binding is not None:
+                binding[1]()  # OUTSIDE slot/admission locks; may fail without refund.
         except BaseException:
             with self._lock:
                 self._draining = False
             raise
         with self._lock:
-            payload = self._payload
-            self._payload = self._retire = None
+            self._binding = None
             self._closed, self._draining = True, False
         self._capacity.release_cleanup(self._token, self)
-        del payload, retire  # callbacks/destructors outside all reservation locks
+        del binding  # Last payload/callback references survive release, outside locks.
 
 
 def reserve_cleanup_slot():

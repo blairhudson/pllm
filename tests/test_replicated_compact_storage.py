@@ -37,6 +37,247 @@ def _scope():
     return resources.reserve_cleanup_slot()
 
 
+@pytest.mark.parametrize("phase", ["before", "after"])
+def test_cleanup_slot_atomic_publication(monkeypatch, phase):
+    """Assignment-boundary faults, not a simulation/proof of real allocation OOM."""
+    capacity = resources._capacity
+    amount = capacity._cleanup_control_bytes()
+    slot = _scope()
+    token = slot._token
+    retired, constructed = [], []
+    payload = object()
+
+    def retire():
+        retired.append(payload)
+
+    primary = RuntimeError("binding assignment interrupted")
+    assign = resources._CleanupSlot.__setattr__
+    armed = True
+
+    def interrupted(self, name, value):
+        nonlocal armed
+        if self is slot and name == "_binding" and value is not None and armed:
+            armed = False
+            assert type(value) is tuple and value[0] is payload and value[1] is retire
+            if phase == "after":
+                assign(self, name, value)
+            raise primary
+        assign(self, name, value)
+
+    monkeypatch.setattr(resources._CleanupSlot, "__setattr__", interrupted)
+    try:
+        with pytest.raises(RuntimeError) as caught:
+            slot.retain(payload, retire)
+            constructed.append(object())  # Productive construction must abort on either fault.
+        assert caught.value is primary and not armed and not constructed and not retired
+        assert capacity._cleanup[token] is slot and next(iter(capacity._owners)) is token
+        assert capacity._owners == {token: amount} and not slot.closed
+        if phase == "before":
+            assert slot._binding is None and slot._payload is slot._retire is None
+            assert not slot.owns(payload) and not slot.owns(None)
+        else:
+            assert slot._binding[0] is payload and slot._binding[1] is retire
+            assert slot._payload is payload and slot._retire is retire
+            assert slot.owns(payload, retire=retire)  # Acknowledgement does NOT resume construction.
+    finally:
+        slot.drain()
+    assert retired == ([payload] if phase == "after" else [])
+    assert slot.closed and not capacity._owners and not capacity._cleanup
+
+
+@pytest.mark.parametrize("candidate", ["correct", "wrong", "recreated_bound_method"])
+def test_cleanup_slot_callback_identity(candidate):
+    capacity = resources._capacity
+    amount = capacity._cleanup_control_bytes()
+    slot = _scope()
+    token = slot._token
+    events = []
+
+    class Payload:
+        def close(self):
+            events.append("retired")
+
+    class Wrong:
+        def __call__(self):
+            pytest.fail("wrong callback invoked")
+
+        def __eq__(self, other):
+            pytest.fail("callback equality used instead of identity")
+
+    payload = Payload()
+    callback = payload.close  # Capture exactly once before publication.
+    supplied = callback if candidate == "correct" else Wrong() if candidate == "wrong" else payload.close
+    slot.retain(payload, callback)
+    binding = slot._binding
+    try:
+        assert slot.owns(payload) and not slot.owns(payload, retire=None)
+        assert slot.owns(payload, retire=supplied) is (candidate == "correct")
+        assert slot._binding is binding and binding[0] is payload and binding[1] is callback
+        assert capacity._cleanup[token] is slot and next(iter(capacity._owners)) is token
+        assert capacity._owners == {token: amount} and not events
+    finally:
+        slot.drain()
+    assert events == ["retired"] and not capacity._owners and not capacity._cleanup
+
+
+@pytest.mark.parametrize("case", ["unpublished", "none_payload", "duplicate"])
+def test_cleanup_slot_binding_compatibility(monkeypatch, case):
+    capacity = resources._capacity
+    amount = capacity._cleanup_control_bytes()
+    slot = _scope()
+    token = slot._token
+    events = []
+
+    def callback():
+        events.append("retired")
+
+    try:
+        assert slot._binding is None and slot._payload is slot._retire is None
+        assert not slot.owns(None) and not slot.owns(None, retire=None)
+        for invalid in (None, False, object()):
+            with pytest.raises(resources.NetworkError, match="CLIENT_CLEANUP_SLOT_UNAVAILABLE"):
+                slot.retain(None, invalid)
+            assert slot._binding is None and capacity._owners == {token: amount}
+        if case == "unpublished":
+            # Admission identity and original-token membership are required too.
+            with monkeypatch.context() as changed:
+                changed.setattr(resources, "_capacity", object())
+                with pytest.raises(resources.NetworkError, match="CLIENT_CLEANUP_SLOT_UNAVAILABLE"):
+                    slot.retain(None, callback)
+                assert not slot.owns(None)
+            for ledger, replacement in ((capacity._cleanup, object()), (capacity._owners, None)):
+                with monkeypatch.context() as changed:
+                    if replacement is None:
+                        changed.delitem(ledger, token)
+                    else:
+                        changed.setitem(ledger, token, replacement)
+                    with pytest.raises(resources.NetworkError, match="CLIENT_CLEANUP_SLOT_UNAVAILABLE"):
+                        slot.retain(None, callback)
+                    assert slot._binding is None
+        else:
+            slot.retain(None, callback)
+            binding = slot._binding
+            assert binding[0] is None and binding[1] is callback
+            assert slot.owns(None) and slot.owns(None, retire=callback)
+            assert not slot.owns(None, retire=None)
+            if case == "duplicate":
+                for payload in (None, object()):
+                    with pytest.raises(resources.NetworkError, match="CLIENT_CLEANUP_SLOT_UNAVAILABLE"):
+                        slot.retain(payload, lambda: pytest.fail("replacement callback invoked"))
+                    assert slot._binding is binding and slot._retire is callback
+            for attribute in ("_payload", "_retire"):
+                with pytest.raises(AttributeError):
+                    setattr(slot, attribute, object())
+            assert slot._binding is binding
+        assert capacity._cleanup[token] is slot and next(iter(capacity._owners)) is token
+        assert capacity._owners == {token: amount} and not events
+    finally:
+        slot.drain()
+    slot.drain()
+    assert slot.closed and slot._binding is None and slot._payload is slot._retire is None
+    assert not slot.owns(None) and not capacity._owners and not capacity._cleanup
+    assert events == ([] if case == "unpublished" else ["retired"])
+    with pytest.raises(resources.NetworkError, match="CLIENT_CLEANUP_SLOT_UNAVAILABLE"):
+        slot.retain(None, callback)
+
+
+@pytest.mark.parametrize("case", ["callback_failure", "reentry", "concurrent"])
+def test_cleanup_slot_drain_binding(monkeypatch, case):
+    """Python custody/ledger choreography only, not native physical retirement."""
+    capacity = resources._capacity
+    amount = capacity._cleanup_control_bytes()
+    slot = _scope()
+    token = slot._token
+    events, errors = [], []
+    entered, resume = threading.Event(), threading.Event()
+    primary = RuntimeError("callback failed")
+    state = SimpleNamespace(first=True)
+
+    class Payload:
+        def close(self):
+            assert not capacity.lock.locked() and not slot._lock.locked()
+            assert id(slot._binding) == binding_id and slot._binding[1] is callback_ref()
+            assert slot._binding[0] is self and slot._draining
+            assert next(iter(capacity._owners)) is token
+            assert capacity._cleanup[token] is slot and capacity._owners[token] == amount
+            events.append("callback")
+            if state.first:
+                state.first = False
+                if case == "callback_failure":
+                    raise primary
+                if case == "reentry":
+                    with pytest.raises(resources.NetworkError, match="CLIENT_CLEANUP_ALREADY_DRAINING"):
+                        slot.drain()
+                    with pytest.raises(resources.NetworkError, match="CLIENT_CLEANUP_SLOT_UNAVAILABLE"):
+                        slot.retain(self, callback_ref())
+                else:
+                    entered.set()
+                    assert resume.wait(5)
+
+        def __del__(self):
+            events.append(("destroyed", capacity.lock.locked(), slot._lock.locked(), token in capacity._owners))
+
+    payload = Payload()
+    callback = payload.close
+    payload_ref, callback_ref = weakref.ref(payload), weakref.ref(callback)
+    slot.retain(payload, callback)
+    binding_id = id(slot._binding)
+    release_cleanup = resources._ClientCapacity.release_cleanup
+
+    def release(self, actual_token, actual_slot):
+        assert self is capacity and actual_token is token and actual_slot is slot
+        assert not capacity.lock.locked() and not slot._lock.locked()
+        assert slot._binding is None and payload_ref() is not None and callback_ref() is not None
+        assert capacity._owners[token] == amount
+        release_cleanup(self, actual_token, actual_slot)
+        assert payload_ref() is not None and callback_ref() is not None
+        events.append("released")
+
+    def drain():
+        try:
+            slot.drain()
+        except BaseException as error:
+            errors.append(error)
+
+    monkeypatch.setattr(resources._ClientCapacity, "release_cleanup", release)
+    worker = None
+    try:
+        if case == "callback_failure":
+            with pytest.raises(RuntimeError) as caught:
+                slot.drain()
+            assert caught.value is primary
+            assert id(slot._binding) == binding_id and slot._binding[0] is payload
+            assert slot._binding[1] is callback and slot.owns(payload, retire=callback)
+            assert not slot._draining and not slot.closed
+            assert capacity._cleanup[token] is slot and next(iter(capacity._owners)) is token
+            assert capacity._owners == {token: amount}
+            primary.__traceback__ = primary.__context__ = primary.__cause__ = None
+            del caught
+        elif case == "concurrent":
+            worker = threading.Thread(target=drain)
+            worker.start()
+            assert entered.wait(5)
+            with pytest.raises(resources.NetworkError, match="CLIENT_CLEANUP_ALREADY_DRAINING"):
+                slot.drain()
+            assert id(slot._binding) == binding_id and slot._binding[1] is callback
+            assert slot._draining and capacity._owners == {token: amount}
+            assert capacity._cleanup[token] is slot and next(iter(capacity._owners)) is token
+        # Remove test-owned strong roots BEFORE successful acknowledgement.
+    finally:
+        del payload, callback
+        resume.set()
+        if worker is not None:
+            worker.join(5)
+            assert not worker.is_alive()
+        slot.drain()  # Explicit retry only after the failed/in-flight callback is drained.
+    gc.collect()
+    assert not errors and slot.closed and slot._binding is None
+    assert not capacity._owners and not capacity._cleanup
+    assert payload_ref() is callback_ref() is None
+    assert events == (["callback", "callback"] if case == "callback_failure" else ["callback"]) + [
+        "released", ("destroyed", False, False, False)]
+
+
 @pytest.fixture
 def compact_custody_capacity(monkeypatch, _isolated_cleanup_admission):
     """Failed compact custody stays rooted; fixture disposal is NOT recovery."""
