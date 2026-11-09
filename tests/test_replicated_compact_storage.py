@@ -2010,17 +2010,211 @@ def test_compact_pending_client_close_drains_outside_locks_and_blocks_new_reques
     assert not resources._capacity._owners and not resources._capacity._cleanup
 
 
+@pytest.mark.parametrize("case", ["default", "equal", "one_short", "zero"])
+def test_cleanup_slot_control_bound(monkeypatch, case):
+    capacity = resources._capacity
+    if case == "default":
+        for options in ({}, {"max_control_bytes": None}):
+            quote = capacity._cleanup_control_bytes()
+            slot = resources.reserve_cleanup_slot(**options)
+            try:
+                assert slot.control_bytes == quote == capacity._owners[slot._token]
+                assert capacity._cleanup[slot._token] is slot
+            finally:
+                slot.drain()
+    else:
+        quote = capacity._cleanup_control_bytes()
+        bound = {"equal": quote, "one_short": quote - 1, "zero": 0}[case]
+        if case == "equal":
+            slot = resources.reserve_cleanup_slot(max_control_bytes=bound)
+            try:
+                assert slot.control_bytes == bound == capacity._owners[slot._token]
+            finally:
+                slot.drain()
+            # A sufficient caller bound never waives the independent headroom check.
+            quote = capacity._cleanup_control_bytes()
+            monkeypatch.setattr(capacity, "observe", lambda: SimpleNamespace(headroom_bytes=quote - 1))
+            with pytest.raises(resources.NetworkError, match="CLIENT_MEMORY_CAPACITY_CHANGED"):
+                resources.reserve_cleanup_slot(max_control_bytes=quote)
+        else:
+            with pytest.raises(resources.NetworkError, match="CLIENT_MEMORY_CAPACITY_CHANGED"):
+                resources.reserve_cleanup_slot(max_control_bytes=bound)
+    assert not capacity._owners and not capacity._cleanup
+
+
+@pytest.mark.parametrize("case", ["bool", "negative", "float", "string"])
+def test_cleanup_slot_control_bound_invalid(monkeypatch, case):
+    capacity = resources._capacity
+
+    def quote():
+        pytest.fail("invalid bound reached admission calculation")
+
+    monkeypatch.setattr(capacity, "_cleanup_control_bytes", quote)
+    values = {"bool": (True, False), "negative": (-1,), "float": (1.0,), "string": ("1",)}[case]
+    for value in values:
+        with pytest.raises(resources.NetworkError, match="max_control_bytes"):
+            resources.reserve_cleanup_slot(max_control_bytes=value)
+    assert not capacity._owners and not capacity._cleanup
+
+
+def test_cleanup_slot_control_bytes_issued():
+    capacity = resources._capacity
+    expected = (64 << 10) + 5 * (capacity._owners.__sizeof__() + capacity._cleanup.__sizeof__()) + 1024
+    slot = resources.reserve_cleanup_slot(max_control_bytes=expected)
+    token = slot._token
+    try:
+        assert type(slot.control_bytes) is int and slot.control_bytes == expected
+        assert capacity._owners == {token: expected} and next(iter(capacity._owners)) is token
+        assert capacity._cleanup[token] is slot
+        with pytest.raises(AttributeError):
+            slot.control_bytes = 0
+        assert slot.control_bytes == expected and capacity._owners[token] == expected
+    finally:
+        slot.drain()
+    assert slot.closed and slot.control_bytes == expected
+    assert not capacity._owners and not capacity._cleanup  # Snapshot is historical, not funding.
+
+
+def test_cleanup_slot_control_bytes_dynamic():
+    capacity = resources._capacity
+    slots = []
+    try:
+        first = resources.reserve_cleanup_slot()
+        slots.append(first)
+        issued = first.control_bytes
+        for _ in range(64):
+            slots.append(resources.reserve_cleanup_slot())  # Genuine admitted dictionary growth.
+        quote = capacity._cleanup_control_bytes()
+        assert quote > issued and first.control_bytes == issued
+        before = dict(capacity._owners), dict(capacity._cleanup)
+        with pytest.raises(resources.NetworkError, match="CLIENT_MEMORY_CAPACITY_CHANGED"):
+            resources.reserve_cleanup_slot(max_control_bytes=issued)
+        assert (capacity._owners, capacity._cleanup) == before
+        later = resources.reserve_cleanup_slot(max_control_bytes=quote)
+        slots.append(later)
+        assert later.control_bytes == quote == capacity._owners[later._token]
+        assert first.control_bytes == issued == capacity._owners[first._token]
+    finally:
+        for slot in reversed(slots):
+            slot.drain()
+    assert first.control_bytes == issued and later.control_bytes == quote
+    assert not capacity._owners and not capacity._cleanup
+
+
+def test_cleanup_slot_control_bound_refusal_atomic(monkeypatch):
+    capacity = resources._capacity
+    existing = resources.reserve_cleanup_slot()
+    owners, cleanup = capacity._owners, capacity._cleanup
+    before = dict(owners), dict(cleanup)
+    quote = capacity._cleanup_control_bytes()
+    calculations, tokens, allocations = [], [], []
+    calculate = capacity._cleanup_control_bytes
+
+    def calculate_once():
+        calculations.append(True)
+        return calculate()
+
+    def token():
+        tokens.append(True)
+        return object()
+
+    def allocate(*args):
+        allocations.append(args)
+        pytest.fail("bound refusal constructed a slot")
+
+    def observe():
+        pytest.fail("bound refusal reached headroom observation")
+
+    monkeypatch.setattr(capacity, "_cleanup_control_bytes", calculate_once)
+    monkeypatch.setattr(capacity, "observe", observe)
+    monkeypatch.setattr(resources, "object", token, raising=False)
+    monkeypatch.setattr(resources, "_CleanupSlot", allocate)
+    try:
+        with pytest.raises(resources.NetworkError, match="CLIENT_MEMORY_CAPACITY_CHANGED"):
+            resources.reserve_cleanup_slot(max_control_bytes=quote - 1)
+        assert calculations == [True] and not tokens and not allocations
+        assert capacity._owners is owners and capacity._cleanup is cleanup
+        assert (owners, cleanup) == before and cleanup[existing._token] is existing
+        assert owners[existing._token] == existing.control_bytes
+    finally:
+        existing.drain()
+    assert not owners and not cleanup
+
+
+def test_cleanup_slot_control_bytes_constructor_rollback(monkeypatch):
+    capacity = resources._capacity
+    quote = capacity._cleanup_control_bytes()
+    owners, cleanup = capacity._owners, capacity._cleanup
+    primary = RuntimeError("slot constructor failed")
+    tokens, calculations = [], []
+    calculate = capacity._cleanup_control_bytes
+
+    def calculate_once():
+        calculations.append(True)
+        return calculate()
+
+    def allocate(actual_capacity, token, control_bytes):
+        assert actual_capacity is capacity
+        assert control_bytes == quote == owners[token]
+        assert next(iter(owners)) is token and not cleanup
+        tokens.append(token)
+        raise primary
+
+    monkeypatch.setattr(capacity, "_cleanup_control_bytes", calculate_once)
+    monkeypatch.setattr(resources, "_CleanupSlot", allocate)
+    with pytest.raises(RuntimeError) as caught:
+        resources.reserve_cleanup_slot(max_control_bytes=quote)
+    assert caught.value is primary and calculations == [True] and len(tokens) == 1
+    assert capacity._owners is owners and capacity._cleanup is cleanup
+    assert tokens[0] not in owners and not owners and not cleanup
+
+
+def test_cleanup_slot_control_bytes_binding_release():
+    capacity = resources._capacity
+    quote = capacity._cleanup_control_bytes()
+    slot = resources.reserve_cleanup_slot(max_control_bytes=quote)
+    token, payload = slot._token, object()
+    primary = RuntimeError("retirement failed")
+    state, events = SimpleNamespace(fail=True), []
+
+    def retire():
+        assert slot.control_bytes == quote == capacity._owners[token]
+        assert capacity._cleanup[token] is slot and next(iter(capacity._owners)) is token
+        assert slot._binding[0] is payload and slot._binding[1] is retire
+        events.append("callback")
+        if state.fail:
+            raise primary
+        return False  # Baseline protocol: nonraising completion, not truthiness.
+
+    try:
+        slot.retain(payload, retire)
+        binding = slot._binding
+        assert slot.owns(payload, retire=retire) and slot.control_bytes == quote
+        with pytest.raises(RuntimeError) as caught:
+            slot.drain()
+        assert caught.value is primary and slot._binding is binding
+        assert slot.control_bytes == quote and not slot.closed and not slot._draining
+        assert capacity._owners == {token: quote} and capacity._cleanup[token] is slot
+    finally:
+        state.fail = False
+        slot.drain()  # Explicit fresh-unit retry; no historical recovery.
+    slot.drain()
+    assert events == ["callback", "callback"] and slot.closed
+    assert slot.control_bytes == quote and slot._binding is None
+    assert not capacity._owners and not capacity._cleanup
+
+
 def test_cleanup_slot_control_is_admitted_before_allocation_and_one_short_refuses(monkeypatch):
     capacity = resources._capacity
     original = resources._CleanupSlot
     allocations = []
     quote = capacity._cleanup_control_bytes()
 
-    def allocate(actual_capacity, token):
+    def allocate(actual_capacity, token, control_bytes):
         assert actual_capacity is capacity
-        assert capacity._owners[token] == quote
+        assert control_bytes == capacity._owners[token] == quote
         allocations.append(token)
-        return original(actual_capacity, token)
+        return original(actual_capacity, token, control_bytes)
 
     monkeypatch.setattr(resources, "_CleanupSlot", allocate)
     monkeypatch.setattr(capacity, "observe", lambda: SimpleNamespace(headroom_bytes=quote - 1))

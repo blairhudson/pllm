@@ -136,20 +136,24 @@ class _ClientCapacity:
         # The ordinary memory ledger may contain non-cleanup reservations too.
         return (64 << 10) + 5 * (self._owners.__sizeof__() + self._cleanup.__sizeof__()) + 1024
 
-    def cleanup_slot(self):
+    def cleanup_slot(self, *, max_control_bytes=None):
         # Slot/lock/callback allowance plus actual old/new bookkeeping backing.
         # One slot per exclusive client seat, bounded process ceiling.
+        if max_control_bytes is not None:
+            integer(max_control_bytes, "max_control_bytes")
         with self.lock:
             if len(self._cleanup) >= 1024:
                 raise NetworkError("CLIENT_CLEANUP_CAPACITY")
             amount = self._cleanup_control_bytes()
             integer(amount, "cleanup_control_bytes", minimum=1)
+            if max_control_bytes is not None and amount > max_control_bytes:
+                raise NetworkError("CLIENT_MEMORY_CAPACITY_CHANGED")
             if amount > self.observe().headroom_bytes:
                 raise NetworkError("CLIENT_MEMORY_CAPACITY_CHANGED")
             token = object()
             self._owners[token] = amount
             try:
-                slot = _CleanupSlot(self, token)
+                slot = _CleanupSlot(self, token, amount)
                 self._cleanup[token] = slot
             except BaseException:
                 self._owners.pop(token, None)
@@ -565,13 +569,19 @@ class _CleanupSlot:
     after all caller/client/traceback references disappear. No automatic retry
     or timeout-as-retirement; the caller must report shutdown failure.
     """
-    __slots__ = ("_capacity", "_token", "_lock", "_binding", "_closed", "_draining")
+    __slots__ = ("_capacity", "_token", "_control_bytes", "_lock", "_binding", "_closed", "_draining")
 
-    def __init__(self, capacity, token):
+    def __init__(self, capacity, token, control_bytes):
         self._capacity, self._token = capacity, token
+        self._control_bytes = control_bytes
         self._lock = threading.Lock()
         self._binding = None
         self._closed = self._draining = False
+
+    @property
+    def control_bytes(self):
+        """Issued charge snapshot, not live funding or retirement/security proof."""
+        return self._control_bytes
 
     @property
     def _payload(self):
@@ -631,9 +641,9 @@ class _CleanupSlot:
         del binding  # Last payload/callback references survive release, outside locks.
 
 
-def reserve_cleanup_slot():
+def reserve_cleanup_slot(*, max_control_bytes=None):
     """Admit one bounded durable cleanup slot before native owner construction."""
-    return _capacity.cleanup_slot()
+    return _capacity.cleanup_slot(max_control_bytes=max_control_bytes)
 
 
 @dataclass(frozen=True, slots=True)
