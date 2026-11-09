@@ -846,6 +846,73 @@ def test_corrected_prompt_suite_cache_routing(tmp_path, monkeypatch, record_prop
     assert os.environ["XDG_CACHE_HOME"] == isolated_xdg
 
 
+def _assert_corrected_prompt_suite_result(value, *, source_digest, expected_records, expected_case):
+    assert value["status"] == "completed", value
+    execution = value["execution"]
+    assert execution["comparison"]["source_digest"] == source_digest
+    assert execution["details"]["runtime_contract"]["output_delivery"] == "buffered_until_verified"
+    binding = execution["details"]["response_state_audit"]
+    assert binding["schema"] == "pllm.response_state_audit.gkm.v1"
+    assert binding["bindings"] == expected_records
+    assert [row["position"] for row in expected_records[0]["selections"]] == [30, 31]
+    metrics = {entry["id"]: entry for entry in value["metrics"]}
+    assert metrics["response.decode_tps"]["value"] is None
+    assert metrics["response.decode_tps"]["unavailable_reason"] == (
+        "request_end_verification_buffers_all_output")
+    for role in ("worker_a", "worker_b"):
+        assert metrics[f"{role}.cold_cpu"]["value"] > 0
+        assert metrics[f"{role}.peak_rss"]["value"] > 0
+    assert execution["case"] == expected_case
+
+
+@pytest.mark.parametrize("case", [
+    "valid_nested", "wrong_source", "wrong_binding", "wrong_audit_schema", "wrong_output_delivery",
+])
+def test_corrected_prompt_suite_result_contract(case):
+    """Synthetic assertion coverage only, not trained execution evidence."""
+    source_digest = "independent-source"
+    expected_records = [{"selections": [
+        {"position": 30, "commitment": "first"},
+        {"position": 31, "commitment": "second"},
+    ]}]
+    expected_case = {"name": "gkm-corrected-prompt"}
+    value = {
+        "status": "completed",
+        "execution": {
+            "comparison": {"source_digest": source_digest},
+            "details": {
+                "runtime_contract": {"output_delivery": "buffered_until_verified"},
+                "response_state_audit": {
+                    "schema": "pllm.response_state_audit.gkm.v1",
+                    "bindings": copy.deepcopy(expected_records),
+                },
+            },
+            "case": copy.deepcopy(expected_case),
+        },
+        "metrics": [{"id": "response.decode_tps", "value": None,
+                     "unavailable_reason": "request_end_verification_buffers_all_output"}] + [
+            {"id": f"{role}.{metric}", "value": 1}
+            for role in ("worker_a", "worker_b") for metric in ("cold_cpu", "peak_rss")
+        ],
+    }
+    execution = value["execution"]
+    if case == "wrong_source":
+        execution["comparison"]["source_digest"] = "wrong-source"
+    elif case == "wrong_binding":
+        execution["details"]["response_state_audit"]["bindings"][0]["selections"][0]["commitment"] = "wrong"
+    elif case == "wrong_audit_schema":
+        execution["details"]["response_state_audit"]["schema"] = "wrong-schema"
+    elif case == "wrong_output_delivery":
+        execution["details"]["runtime_contract"]["output_delivery"] = "wrong-delivery"
+    if case == "valid_nested":
+        _assert_corrected_prompt_suite_result(value, source_digest=source_digest,
+            expected_records=expected_records, expected_case=expected_case)
+    else:
+        with pytest.raises(AssertionError):
+            _assert_corrected_prompt_suite_result(value, source_digest=source_digest,
+                expected_records=expected_records, expected_case=expected_case)
+
+
 @pytest.mark.slow
 @pytest.mark.skipif(os.getenv("PLLM_RUN_GKM_CORRECTED_PROMPT") != "1",
                     reason="opt-in pinned offline GKM corrected Hello suite persistence")
@@ -936,27 +1003,14 @@ def test_pinned_qwen_corrected_prompt_suite_persists_independent_audit(
                                      output=output)
             value, = [result.to_dict() for result in report.results]
             assert calls == ["gkm-corrected-prompt"]
-            assert value["status"] == "completed", value
             check()
-            assert value["comparison"]["source_digest"] == source.source_lock_digest
-            assert value["details"]["runtime_contract"]["output_delivery"] == "buffered_until_verified"
-            binding = value["details"]["response_state_audit"]
-            assert binding["schema"] == "pllm.response_state_audit.gkm.v1"
-            assert binding["bindings"] == expected_records
-            assert [row["position"] for row in expected_records[0]["selections"]] == [30, 31]
-            metrics = {entry["id"]: entry for entry in value["metrics"]}
-            assert metrics["response.decode_tps"]["value"] is None
-            assert metrics["response.decode_tps"]["unavailable_reason"] == (
-                "request_end_verification_buffers_all_output")
-            for role in ("worker_a", "worker_b"):
-                assert metrics[f"{role}.cold_cpu"]["value"] > 0
-                assert metrics[f"{role}.peak_rss"]["value"] > 0
+            _assert_corrected_prompt_suite_result(value, source_digest=source.source_lock_digest,
+                expected_records=expected_records, expected_case=selected.cases[0].to_spec())
             loaded = BenchmarkRun.load(output)
             assert loaded.digest == report.digest and loaded.to_dict() == report.to_dict()
             persisted = loaded.to_dict()
             assert persisted["complete"] is True and len(persisted["results"]) == 1
             assert persisted["results"][0] == value
-            assert value["execution"]["case"] == selected.cases[0].to_spec()
             record_property("trained_requests", 1)
             record_property("source_lock_digest", source.source_lock_digest)
             record_property("checkpoint_digest", source.checkpoint_digest)
