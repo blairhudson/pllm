@@ -284,7 +284,10 @@ impl GkmDecoderContract {
         }
         // Core validates the exact flattening against the unchanged scalar plan
         // and owns canonical, layout-independent little-endian descriptor hashing.
-        BatchPlan::new(&self.window_plan(), &descriptors).map_err(|error| error.to_string())
+        let window_plan = self
+            .window_plan()
+            .map_err(|error| reject(&error.to_string()))?;
+        BatchPlan::new(&window_plan, &descriptors).map_err(|error| error.to_string())
     }
 }
 
@@ -458,7 +461,7 @@ mod tests {
                         std::iter::repeat_n(descriptor.step, descriptor.rows as usize)
                     })
                     .collect();
-                assert_eq!(flattened, contract.window_plan());
+                assert_eq!(flattened, contract.window_plan().expect("valid scalar window"));
                 assert_eq!(flattened.len(), contract.window_steps);
                 assert_eq!(descriptors.len(), 10 * (1 + decode_steps));
                 let mut next_claim = 0;
@@ -494,6 +497,24 @@ mod tests {
                 assert_eq!(plan.digest(), contract.batch_plan().unwrap().digest());
             }
         }
+    }
+
+    #[test]
+    fn batch_plan_rejects_invalid_bindings_after_matrix_schedule_validation() {
+        let mut invalid_binding = contract(2, 1);
+        invalid_binding.plan.decode.operations[0].operator = ModelOperator::SecureGather;
+        assert_eq!(
+            invalid_binding.batch_plan().err(),
+            Some("GKM decoder reference: invalid bound decoder step".to_string())
+        );
+
+        let mut invalid_schedule = contract(2, 1);
+        invalid_schedule.plan.decode.operations[0].operator = ModelOperator::SecureGather;
+        invalid_schedule.matrices.pop();
+        assert_eq!(
+            invalid_schedule.batch_plan().err(),
+            Some("GKM decoder reference: batch matrix schedule mismatch".to_string())
+        );
     }
 
     #[test]

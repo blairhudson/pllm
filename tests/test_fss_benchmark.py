@@ -498,6 +498,140 @@ def test_memory_rejects_json_price_and_closed_owner(experiment, imported_source,
         memory.benchmark_memory(experiment, fss_imported=loaded)
 
 
+def test_copied_imported_price_rejected_before_inspection(experiment, imported_source, monkeypatch):
+    from pllm import _native
+    from pllm.deployment import resources
+
+    loaded, pricing, _ = imported_source
+    events = []
+
+    def forbidden(*args, **kwargs):
+        events.append("forbidden")
+        pytest.fail("copied pricing cannot reach host, resolution, import, leases or native inspection")
+
+    loaded.native_program.metadata = forbidden
+    loaded.source.runtime_contract = forbidden
+    monkeypatch.setattr(Experiment, "resolve", forbidden)
+    monkeypatch.setattr(memory, "host_memory", forbidden)
+    monkeypatch.setattr(fss_source, "resolve_client_source", forbidden)
+    monkeypatch.setattr(fss_source, "load_role_source", forbidden)
+    monkeypatch.setattr(delegated, "inspect_fss_imported", forbidden)
+    monkeypatch.setattr(_native, "fss_transport_admission", forbidden, raising=False)
+    monkeypatch.setattr(resources, "reserve_incremental_memory", forbidden)
+    monkeypatch.setattr(resources, "reserve_incremental_disk", forbidden)
+    with pytest.raises(memory.BenchmarkMemoryError) as caught:
+        memory.benchmark_memory(experiment, fss_imported=copy.deepcopy(pricing))
+    assert str(caught.value) == "FuseFSS imported source pricing rejected"
+    assert type(caught.value.__cause__) is ValueError
+    assert str(caught.value.__cause__) == "FuseFSS pricing requires a live imported source owner"
+    assert events == [] and not loaded._closed and not loaded._close_unknown
+
+
+@pytest.mark.parametrize("guard", ["typed_model", "decoder", "invalid_margin"])
+def test_imported_owner_check_preserves_guard_precedence(experiment, monkeypatch, guard):
+    from pllm.configuration import ConfigurationError, ForwardBudget
+    from pllm.numeric import SourceFloat32
+    from pllm.profiles import ClientOnlyCpu
+
+    model = experiment
+    error_type = ValueError
+    message = "memory safety margin must be an integer from 0 to 100 percent"
+    if guard != "invalid_margin":
+        pipeline = ClientOnlyCpu(experiment.pipeline.model, numeric=SourceFloat32())
+        if guard == "typed_model":
+            model = Experiment(experiment.name, pipeline, experiment.deployment, ForwardBudget(1, 8))
+            error_type = memory.BenchmarkMemoryError
+            message = "forward metadata preflight cannot override the saved envelope or use decoder options"
+        else:
+            model = pipeline
+            error_type = ConfigurationError
+            message = "SourceFloat32 is forward-only, not a decoder numeric mode"
+    events = []
+
+    def forbidden(*args, **kwargs):
+        events.append("forbidden")
+        pytest.fail("existing guards must precede imported-owner recognition and inspection")
+
+    monkeypatch.setattr("pllm.profiles.resolve_runtime_composition", forbidden)
+    monkeypatch.setattr(Experiment, "resolve", forbidden)
+    monkeypatch.setattr(memory, "host_memory", forbidden)
+    monkeypatch.setattr(fss_source, "resolve_client_source", forbidden)
+    monkeypatch.setattr(fss_source, "load_role_source", forbidden)
+    monkeypatch.setattr(delegated, "inspect_fss_imported", forbidden)
+    with pytest.raises(error_type) as caught:
+        memory.benchmark_memory(model, fss_imported={}, memory_safety_margin_percent=-1)
+    assert str(caught.value) == message and caught.value.__cause__ is None
+    assert events == []
+
+
+@pytest.mark.parametrize("route", ["bare_fss_pipeline", "incomplete_fss_experiment", "non_fss_experiment"])
+def test_imported_owner_check_preserves_incomplete_and_non_fss_routes(experiment, monkeypatch, route):
+    from pllm.configuration import Pipeline
+    from pllm.profiles import MaskedLinearCpu
+
+    if route == "bare_fss_pipeline":
+        model = experiment.pipeline
+        message = "FuseFSS source preflight requires complete Experiment"
+    elif route == "incomplete_fss_experiment":
+        components = {key: value for key, value in experiment.pipeline.components.items() if key != "state"}
+        model = Experiment(experiment.name, Pipeline(experiment.pipeline.model, components),
+                           experiment.deployment, experiment.budget)
+        message = "no allocation model for the selected runtime composition"
+    else:
+        model = Experiment(experiment.name, MaskedLinearCpu(experiment.pipeline.model),
+                           experiment.deployment, experiment.budget)
+        message = "imported FuseFSS pricing requires its complete Experiment"
+    events = []
+
+    def host():
+        events.append("host")
+        return memory.HostMemory(16 << 30, 15 << 30, 0, 20 << 30)
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("incomplete or non-FSS routes must not inspect imported source")
+
+    monkeypatch.setattr(memory, "host_memory", host)
+    monkeypatch.setattr(Experiment, "resolve", lambda self: events.append("experiment.resolve"))
+    monkeypatch.setattr(fss_source, "resolve_client_source", forbidden)
+    monkeypatch.setattr(fss_source, "load_role_source", forbidden)
+    monkeypatch.setattr(delegated, "inspect_fss_imported", forbidden)
+    with pytest.raises(memory.BenchmarkMemoryError) as caught:
+        memory.benchmark_memory(model, fss_imported={})
+    assert str(caught.value) == message and caught.value.__cause__ is None
+    assert events == (["host"] if route == "bare_fss_pipeline" else ["host", "experiment.resolve"])
+
+
+@pytest.mark.parametrize("owner", ["none", "open_fake_wrapper", "open_wrapper_without_program"])
+def test_imported_owner_negative_check_does_not_authenticate_open_wrappers(experiment, source, monkeypatch, owner):
+    events = []
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("host sentinel must stop before resolution or native work")
+
+    imported = None
+    if owner != "none":
+        program = NS(metadata=forbidden, close=forbidden) if owner == "open_fake_wrapper" else None
+        imported = fss_source.LoadedFssSource(source, source.contract_bytes, program, b"{}", b"{}")
+
+    class HostReached(Exception):
+        pass
+
+    def host():
+        events.append("host")
+        raise HostReached
+
+    monkeypatch.setattr(memory, "host_memory", host)
+    monkeypatch.setattr(Experiment, "resolve", forbidden)
+    monkeypatch.setattr(fss_source, "resolve_client_source", forbidden)
+    monkeypatch.setattr(fss_source, "load_role_source", forbidden)
+    monkeypatch.setattr(delegated, "inspect_fss_imported", forbidden)
+    with pytest.raises(HostReached):
+        memory.benchmark_memory(experiment, fss_imported=imported)
+    assert events == ["host"]
+    if imported is not None:
+        assert not imported._closed and not imported._close_unknown
+
+
 @pytest.mark.parametrize("mismatch", ["source", "envelope", "program_resources"])
 def test_memory_imported_price_rechecks_source_and_envelope(experiment, imported_source, monkeypatch, mismatch):
     loaded, _, resources = imported_source

@@ -1348,6 +1348,14 @@ def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, in
         from pllm._decoder_admission import require_decoder_pipeline
         require_decoder_pipeline(model)
     _memory_margin(memory_safety_margin_percent)
+    if fss_imported is not None and isinstance(model, Experiment):
+        imported_options = resolve_runtime_composition(model.pipeline)
+        if imported_options is not None and imported_options.client_runtime == "compiled_fss_v1":
+            from .fss_source import LoadedFssSource
+            if (type(fss_imported) is not LoadedFssSource or fss_imported._closed
+                    or fss_imported._close_unknown):
+                raise BenchmarkMemoryError("FuseFSS imported source pricing rejected") from ValueError(
+                    "FuseFSS pricing requires a live imported source owner")
     initial = host_memory()
     if initial.pressure in {"warning", "critical"}:
         raise BenchmarkMemoryError(f"macOS memory pressure is {initial.pressure} before model inspection")
@@ -1382,15 +1390,12 @@ def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, in
             raise BenchmarkMemoryError("FuseFSS source preflight requires complete Experiment")
         if max_input_tokens > model.budget.max_input_tokens or max_output_tokens > model.budget.max_new_tokens:
             raise BenchmarkMemoryError("FuseFSS measurement exceeds saved workload envelope")
-        from .fss_source import LoadedFssSource, resolve_client_source
+        from .fss_source import resolve_client_source
         pricing = program_resources = None
         try:
             if fss_imported is None:
                 admitted = resolve_client_source(model)
             else:
-                if (type(fss_imported) is not LoadedFssSource or fss_imported._closed
-                        or fss_imported._close_unknown):
-                    raise ValueError("FuseFSS pricing requires a live imported source owner")
                 admitted = fss_imported.source
                 # Reuse the frozen source's Experiment, file-identity and full
                 # saved-envelope checks. A smaller prompt's price is not enough.

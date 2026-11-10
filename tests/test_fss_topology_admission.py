@@ -200,25 +200,55 @@ def test_qualification_price_funds_full_frozen_15_1_envelope_without_reresolve(s
     assert len(calls) == 1  # Binding refusals precede any quote/productive import.
 
 
-@pytest.mark.parametrize("authority", ["scalars", "unknown_native_close"])
+@pytest.mark.parametrize("authority", ["missing", "scalars", "full_shaped", "wrapper_double", "unrelated",
+                                       "closed", "unknown_native_close"])
 def test_descriptive_or_unknown_owner_never_supplies_imported_pricing(setup, monkeypatch, authority):
+    from pllm import _native
+    from pllm.runtime import benchmark_delegated
+
     def forbidden(*args, **kwargs):
-        pytest.fail("invalid authority must precede source rechecks, pricing and host probes")
+        pytest.fail("invalid owner must precede resolution, import, pricing, metadata and host probes")
 
     imported = {"extent": "complete", "resources": {"work": 3}, "execution_admitted": False}
-    if authority == "unknown_native_close":
+    if authority == "missing":
+        imported = {}
+    elif authority == "full_shaped":
+        imported = {"source": setup.source, "contract_bytes": setup.source.contract_bytes,
+            "native_program": NS(metadata=forbidden, close=forbidden), "manifest_bytes": b"{}",
+            "_rotary_source_bytes": b"{}", "_closed": False, "_close_unknown": False,
+            "extent": "complete", "resources": setup.source.contract["admission"], "execution_admitted": False}
+    elif authority == "wrapper_double":
+        imported = NS(source=setup.source, contract_bytes=setup.source.contract_bytes,
+            native_program=NS(metadata=forbidden, close=forbidden), manifest_bytes=b"{}",
+            _rotary_source_bytes=b"{}", _closed=False, _close_unknown=False)
+    elif authority == "unrelated":
+        imported = object()
+    elif authority == "closed":
+        imported = fss_source.LoadedFssSource(setup.source, setup.source.contract_bytes,
+                                            NS(close=lambda: None, metadata=forbidden), b"{}", b"{}")
+        imported.close()
+        assert imported._closed and not imported._close_unknown
+    elif authority == "unknown_native_close":
         def failed_close():
             raise ValueError("consumed native")
 
         imported = fss_source.LoadedFssSource(setup.source, setup.source.contract_bytes,
-                                            NS(close=failed_close), b"{}", b"{}")
+                                            NS(close=failed_close, metadata=forbidden), b"{}", b"{}")
         with pytest.raises(ValueError, match="consumed native"):
             imported.close()
         assert not imported._closed and imported._close_unknown
+    monkeypatch.setattr(Experiment, "resolve", forbidden)
+    monkeypatch.setattr(fss_source, "resolve_client_source", forbidden)
+    monkeypatch.setattr(fss_source, "load_role_source", forbidden)
     monkeypatch.setattr(fss_source.FrozenFssSource, "runtime_contract", forbidden)
+    monkeypatch.setattr(benchmark_delegated, "inspect_fss_imported", forbidden)
+    monkeypatch.setattr(_native, "fss_transport_admission", forbidden, raising=False)
     monkeypatch.setattr(memory, "host_memory", forbidden)
-    with pytest.raises(memory.BenchmarkMemoryError, match="imported source pricing rejected"):
+    with pytest.raises(memory.BenchmarkMemoryError) as caught:
         memory.benchmark_memory(setup.experiment, fss_imported=imported)
+    assert str(caught.value) == "FuseFSS imported source pricing rejected"
+    assert type(caught.value.__cause__) is ValueError
+    assert str(caught.value.__cause__) == "FuseFSS pricing requires a live imported source owner"
     assert setup.events == [] and not setup.leases
 
 
