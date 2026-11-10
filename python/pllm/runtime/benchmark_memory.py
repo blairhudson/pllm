@@ -757,6 +757,9 @@ def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound,
     except (ValueError, TypeError, OverflowError) as exc:
         raise BenchmarkMemoryError("GKM source or workload exceeds native numerical admission") from exc
     source = contract["source_float32_bytes"]
+    from ._component_binding import CLIENT_BRIDGE_ESTIMATE_BYTES, has_decoder_bridge
+
+    bridge = CLIENT_BRIDGE_ESTIMATE_BYTES if has_decoder_bridge(contract) else 0
     batch_prices = {}
     execution = pipeline.components["linear"].params.get("execution")
     if execution is not None:
@@ -791,7 +794,7 @@ def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound,
     if expanded:
         native = contract["decoder_resources"]["client_payload_bytes"]
         source_owners = 0  # Streamed native ownership is already included above.
-    role = _slack(_PROCESS_BYTES + native + transport + source_owners + RAW_PEAK_BYTES,
+    role = _slack(_PROCESS_BYTES + native + transport + source_owners + RAW_PEAK_BYTES + bridge,
                   memory_safety_margin_percent)
     worker = (_slack(_PROCESS_BYTES + contract["decoder_resources"]["worker_payload_bytes"] + transport,
                      memory_safety_margin_percent)
@@ -804,7 +807,7 @@ def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound,
         base_client = contract["execution_payload_estimate_bytes"]
         base_worker = contract["decoder_resources"]["worker_payload_bytes"] if expanded else base_client
         role = _slack(_PROCESS_BYTES + native + transport + source_owners
-                      + batch_prices["client_payload_bytes"] - base_client + RAW_PEAK_BYTES,
+                       + batch_prices["client_payload_bytes"] - base_client + RAW_PEAK_BYTES + bridge,
                       memory_safety_margin_percent)
         providers = {name: _slack(_PROCESS_BYTES + (base_worker if expanded else native)
                      + transport + source_owners + batch_prices["worker_payload_bytes"][name] - base_worker,
@@ -844,6 +847,7 @@ def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound,
         },
         "components": {"owned_provider_retirement_raw_peak_bytes": RAW_PEAK_BYTES,
                        "owned_provider_retirement_scope": MEMORY_SCOPE,
+                       "component_binding_client_bridge_estimate_bytes": bridge,
                        "source_float32_bytes": source,
                        "source_import_and_retention_bytes_per_role": source_owners,
                        "checkpoint_bytes": checkpoint_bytes,

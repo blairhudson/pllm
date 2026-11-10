@@ -101,7 +101,7 @@ def test_source_and_memory_admission_use_saved_native_owner_bounds(tmp_path):
     estimate = estimate_memory(cfg, experiment.pipeline, max_input_tokens=8, max_output_tokens=3)
     owners = admitted.contract["decoder_resources"]
     assert owners["client_payload_bytes"] > owners["worker_payload_bytes"]
-    assert transport.request_memory_bytes(admitted) == owners["client_payload_bytes"] + (64 << 20)
+    assert transport.request_memory_bytes(admitted) == owners["client_payload_bytes"] + (64 << 20) + 65_536
     assert transport.request_memory_bytes(admitted, worker=True) == owners["worker_payload_bytes"] + (64 << 20)
     assert estimate["client_peak_bytes"] > estimate["provider_peak_bytes"]["worker_a"]
     assert estimate["native_total_peak_bytes"] == estimate["client_peak_bytes"] + sum(estimate["provider_peak_bytes"].values())

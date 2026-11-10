@@ -13,7 +13,7 @@ from pllm.components._planned import (
     planned as pending,
 )
 from pllm.protocols.base import ProtocolMethod
-from pllm.configuration import ComponentDescriptor, ConfigurationError
+from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
 from pllm.components._q7_activation import parameter_schema as _q7_schema, parameters as _q7_parameters
 from pllm.protocols.bundle_transport import ClientBundleTransport
 from pllm.protocols.masked_linear import MaskedLinear
@@ -37,6 +37,9 @@ if TYPE_CHECKING:
     from pllm.modeling import ModelPlan
 
 __all__ = [
+    "TwoShareInput",
+    "VerifiedPublicF32Lookup",
+    "ClientF32DecoderRegions",
     "BlindedLinear",
     "CleartextLinear",
     "DirectFHE",
@@ -52,6 +55,72 @@ __all__ = [
     "prepare_logrow_q7_session_reference",
     "prepare_logrow_q7_tensor_reference",
 ]
+
+
+class TwoShareInput(ComponentRef):
+    """Existing two-share input; linear.sharing alone selects full or seeded."""
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/two-share-input/v1",
+        provider="pllm", distribution="pllm.run", version="1",
+        category="pllm/protocols", category_version="1", lifecycle_phase="compile",
+        parameter_schema={"type": "object", "properties": {}, "additionalProperties": False},
+    )
+
+    def __init__(self) -> None:
+        super().__init__(self.descriptor.component, {})
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return {}
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
+class VerifiedPublicF32Lookup(ComponentRef):
+    """Existing verified lookup of original public float32 source bytes."""
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/verified-public-f32-lookup/v1",
+        provider="pllm", distribution="pllm.run", version="1",
+        category="pllm/protocols", category_version="1", lifecycle_phase="compile",
+        parameter_schema={"type": "object", "properties": {}, "additionalProperties": False},
+    )
+
+    def __init__(self) -> None:
+        super().__init__(self.descriptor.component, {})
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return {}
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
+class ClientF32DecoderRegions(ComponentRef):
+    """Existing client float32 regions, full local KV and greedy feedback."""
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/client-f32-decoder-regions/v1",
+        provider="pllm", distribution="pllm.run", version="1",
+        category="pllm/protocols", category_version="1", lifecycle_phase="compile",
+        parameter_schema={"type": "object", "properties": {}, "additionalProperties": False},
+    )
+
+    def __init__(self) -> None:
+        super().__init__(self.descriptor.component, {})
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return {}
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
 
 
 @dataclass(frozen=True, slots=True)

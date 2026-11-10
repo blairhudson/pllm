@@ -129,6 +129,33 @@ def test_deterministic_public_experiment_and_ordinary_prompt(control, tmp_path):
     assert tokenizer.encode(rendered, add_bos=options["add_bos_token"]) == case["prefix"] == [2, 4]
 
 
+@pytest.mark.parametrize("capacity", ["capsule", "decoder"])
+@pytest.mark.parametrize("requests", [1, 3])
+def test_conformance_declaration_matches_independent_legacy_profile(tmp_path, capacity, requests):
+    from pllm.configuration import Deployment, ExecutionBudget, Experiment, Model, Pipeline, loads_configuration
+    from pllm.profiles import FuseFssSourceCpu, resolve_runtime_composition
+
+    case, = [c for c in json.loads(INPUTS.read_bytes())["cases"] if c["id"] == FIXTURE_ID]
+    actual = experiment(tmp_path, capacity=capacity, requests=requests)
+    legacy = Experiment("frozen-qwen2-fss-sdk",
+        FuseFssSourceCpu(Model.path(str(tmp_path / "source")), numeric_profile=case["profile"], capacity=capacity),
+        Deployment.local(root=str(tmp_path / "roles")),
+        ExecutionBudget(requests=requests, max_input_tokens=len(case["prefix"]),
+                        max_new_tokens=case["generation_count"]))
+    assert type(actual.pipeline) is Pipeline
+    assert actual.pipeline.profile == legacy.pipeline.profile == "research.fusefss_source_cpu"
+    assert actual.pipeline.components == legacy.pipeline.components
+    assert actual.pipeline.components["linear"].get_params()["capacity"] == capacity
+    assert ("capacity" in actual.pipeline.components["linear"].params) is (capacity == "decoder")
+    assert actual.pipeline.canonical_bytes() == legacy.pipeline.canonical_bytes()
+    assert actual.pipeline.digest() == legacy.pipeline.digest()
+    assert actual.canonical_bytes() == legacy.canonical_bytes()
+    assert actual.configuration_digest() == legacy.configuration_digest()
+    restored = loads_configuration(actual.to_json())
+    assert restored == actual and restored.pipeline.profile is None
+    assert resolve_runtime_composition(restored.pipeline) == resolve_runtime_composition(legacy.pipeline)
+
+
 def test_ordinary_rotary_generation_matches_frozen_f32_words(control):
     case, _, root = control
     config = json.loads((root / "config.json").read_bytes())
@@ -163,6 +190,20 @@ def test_source_layout_matches_native_metadata_without_tensor_import(control):
     assert contract["numeric_profile"] == case["profile"]
     assert contract["admission"]["numeric"] == "not_performed"
     assert contract["admission"]["program_resources"] is None
+    # Actual native resolution, not a success stub. Label is intentionally absent
+    # after default JSON replay; arithmetic composition and digests stay equal.
+    from pllm.configuration import loads_configuration
+    from pllm.profiles import FuseFssSourceCpu
+
+    legacy = dataclasses.replace(exp, pipeline=FuseFssSourceCpu(exp.pipeline.model, numeric_profile=case["profile"]))
+    actual_profile, legacy_profile = exp.resolve(), legacy.resolve()
+    replay_profile = loads_configuration(exp.to_json()).resolve()
+    assert actual_profile.profile == legacy_profile.profile == "research.fusefss_source_cpu"
+    assert replay_profile.profile is None
+    for profile in (legacy_profile, replay_profile):
+        assert profile.canonical_composition == actual_profile.canonical_composition
+        assert profile.composition_digest == actual_profile.composition_digest
+        assert profile.configuration_digest == actual_profile.configuration_digest
 
 
 def assert_retired(core):
@@ -576,9 +617,9 @@ def test_qwen2_three_child_sdk_final_oracle_and_large_tape(
     if capacity == "decoder":
         exp = experiment(root.parent, capacity=capacity)
     if material_delivery != "single":
-        exp = exp.with_params(pipeline__linear__material_delivery=material_delivery)
+        exp = exp.with_params(pipeline__components__linear__material_delivery=material_delivery)
     if online_schedule != "serial":
-        exp = exp.with_params(pipeline__linear__online_schedule=online_schedule)
+        exp = exp.with_params(pipeline__components__linear__online_schedule=online_schedule)
     required = ("FssSourceBuilder", "FssClientRequest", "FssRoleRequest", "fss_transport_admission")
     assert all(callable(getattr(_native, name, None)) for name in required), "rebuild the installed wheel"
     oracle = json.loads(INPUTS.with_name("semantic-expected.json").read_bytes())

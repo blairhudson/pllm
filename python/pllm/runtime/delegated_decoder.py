@@ -19,6 +19,7 @@ import numpy as np
 from pllm import _native
 from .delegated_protocol import clear_failure_frames
 from .semantic_executor import SemanticLocalOperators
+from ._component_binding import LOOKUP, LINEAR, OUTPUT_HEAD, checked_operator
 from .transformer_client import LayerCache
 
 
@@ -267,12 +268,19 @@ class _Request(SemanticLocalOperators):
         raw = serialized = None
         try:
             for step in steps:
-                if step["executor"] == "client_local":
+                key = step["operation_ids"][0]
+                code = checked_operator(self._native.bound_step(phase, key), operations[key])
+                if code not in (LOOKUP, LINEAR, OUTPUT_HEAD):
                     for key in step["operation_ids"]:
-                        values[key] = self._local(operations[key], values, kinds, pending)
-                elif step["operators"][0] == "token_lookup":
+                        code = checked_operator(self._native.bound_step(phase, key), operations[key])
+                        if code in (LOOKUP, LINEAR, OUTPUT_HEAD):
+                            raise ValueError("invalid bound decoder step")
+                        values[key] = SemanticLocalOperators._local(self, operations[key], values, kinds, pending)
+                elif code == LOOKUP:
+                    if len(step["operation_ids"]) != 1:
+                        raise ValueError("invalid bound decoder step")
                     if self._batch:
-                        batch_rows = self._batch_rows(step, schedule)
+                        batch_rows = self._batch_rows(step, schedule, implementation=code)
                         raw = self._native.lookup_batch(tuple(ids))
                         values[step["operation_ids"][0]] = _batch_output(
                             raw, batch_rows, self._contract["width"])
@@ -281,11 +289,17 @@ class _Request(SemanticLocalOperators):
                     else:
                         rows = [np.frombuffer(self._native.lookup(token), dtype="<f4") for token in ids]
                         values[step["operation_ids"][0]] = np.stack(rows)
-                else:
+                elif code in (LINEAR, OUTPUT_HEAD):
+                    # All fused members bind before the single combined call.
+                    # Codes select implementations, never the stage ordinal.
+                    for key in step["operation_ids"]:
+                        code = checked_operator(self._native.bound_step(phase, key), operations[key])
+                        if code not in (LINEAR, OUTPUT_HEAD):
+                            raise ValueError("invalid bound decoder step")
                     spec = self._contract["matrices"][stage]
                     source = values[step["input_ids"][0]]
                     if self._batch:
-                        batch_rows = self._batch_rows(step, schedule, spec)
+                        batch_rows = self._batch_rows(step, schedule, spec, implementation=code)
                         source = np.asarray(source)
                         if (source.ndim < 2 or source.shape[-1] != spec["columns"]
                                 or math.prod(source.shape[:-1]) != batch_rows):
@@ -317,6 +331,8 @@ class _Request(SemanticLocalOperators):
                         # Member views alone retain reconstruction O=4BR. Do not
                         # keep a dead full backing through these loop locals.
                         source = combined = output = None
+                else:
+                    raise ValueError("invalid bound decoder step")
                 for key in step["operation_ids"]:
                     value = np.asarray(values[key])
                     # Causal masks deliberately contain -inf; all other local
@@ -349,14 +365,14 @@ class _Request(SemanticLocalOperators):
             source = rows = combined = output = value = logits = stored = cache = None
             raw = serialized = None
 
-    def _batch_rows(self, step, schedule, spec=None):
+    def _batch_rows(self, step, schedule, spec=None, *, implementation):
         """Compiler BatchPlan cursor: phase 0 prefill, subsequent phases decode.
 
         A remote schedule step is one source-stage descriptor, including grouped
         members. Output-head alone consumes the last row; all decode rows are 1.
         Native consumes/binds the actual phase/operation/claim cursor as well.
         """
-        rows = 1 if step["operators"][0] == "output_head" else schedule["query_sequence"]
+        rows = 1 if implementation == OUTPUT_HEAD else schedule["query_sequence"]
         outputs = step["outputs"]
         members = spec["members"] if spec is not None else [
             {"offset": 0, "rows": self._contract["width"]}]

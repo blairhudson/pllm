@@ -12,6 +12,7 @@ from pllm.profiles import OpenWeightVerifiableCpu
 from pllm.protocols import OpenWeightVerifiableOutsourcing
 from pllm.runtime import benchmark_memory as memory, delegated_transport as transport
 from pllm.runtime.delegated_decoder import decoder_contract
+from pllm.runtime._component_binding import CLIENT_BRIDGE_ESTIMATE_BYTES
 
 @pytest.fixture
 def full_geometry():
@@ -45,14 +46,15 @@ def test_streamed_transport_and_host_admission_charge_same_owner(full_geometry, 
     saved = (resources["generic_native_admitted_payload_bytes"]
              - resources["native_admitted_payload_bytes"])
     assert saved > 0
-    assert client == generic["decoder_resources"]["client_payload_bytes"] - saved + (64 << 20)
+    assert client == (generic["decoder_resources"]["client_payload_bytes"] - saved
+                      + (64 << 20) + CLIENT_BRIDGE_ESTIMATE_BYTES)
     assert worker == generic["decoder_resources"]["worker_payload_bytes"] - saved + (64 << 20)
     assert resources["profile"] == "pllm.gkm.streamed-single-window.v1"
     assert resources["reserved_windows"] == 1
     assert resources["import_workspace_bytes"] == 131072
     charged = estimate["verification_allocation"]["native_allowance_by_role_bytes"]
     assert estimate["verification_allocation"]["native_transport_resources"] == resources
-    assert charged == {"client": client - (64 << 20),
+    assert charged == {"client": client - (64 << 20) - CLIENT_BRIDGE_ESTIMATE_BYTES,
                        "worker_a": worker - (64 << 20),
                        "worker_b": worker - (64 << 20)}
     assert estimate["allocation_slack_percent"] == 25

@@ -254,15 +254,15 @@ def test_checked_qwen_factory_is_distinct_explicit_and_bounded(monkeypatch):
     from examples.papers.fusefss import qwen_checked_smoke, qwen_smoke
 
     static, checked = qwen_smoke(), qwen_checked_smoke()
-    assert static.pipeline.linear.params == {"numeric_profile": PROFILES[1], "capacity": "decoder"}
-    assert checked.pipeline.linear.params == {"numeric_profile": PROFILES[2], "capacity": "decoder"}
+    assert static.pipeline.components["linear"].params == {"numeric_profile": PROFILES[1], "capacity": "decoder"}
+    assert checked.pipeline.components["linear"].params == {"numeric_profile": PROFILES[2], "capacity": "decoder"}
     assert FuseFssSourceDecoder.DENSE_ROPE_CHECKED_NUMERIC_PROFILE == PROFILES[2]
     assert checked.pipeline.model == static.pipeline.model == MODEL
     assert checked.budget == static.budget == pllm.ExecutionBudget(requests=1, max_input_tokens=4, max_new_tokens=1)
     assert static.configuration_digest() != checked.configuration_digest()
     assert loads_configuration(checked.canonical_bytes().decode()) == checked
-    assert "opt-in-checked-range-whole-request-outcome" in checked.pipeline.linear.describe().capabilities
-    assert checked.pipeline.with_params(linear__numeric_profile=PROFILES[1]) == static.pipeline
+    assert "opt-in-checked-range-whole-request-outcome" in checked.pipeline.components["linear"].describe().capabilities
+    assert checked.pipeline.with_params(components__linear__numeric_profile=PROFILES[1]) == static.pipeline
 
 
 @pytest.mark.parametrize("factory_name,schedule", [
@@ -284,7 +284,7 @@ def test_checked_qwen_scheduled_factories_preserve_pinned_bounded_batch_contract
     }
     assert scheduled.budget == baseline.budget == pllm.ExecutionBudget(
         requests=1, max_input_tokens=4, max_new_tokens=1)
-    assert scheduled.pipeline.linear.params == {
+    assert scheduled.pipeline.components["linear"].params == {
         "numeric_profile": PROFILES[2], "capacity": "decoder",
         "material_delivery": "batch-v1", "online_schedule": schedule,
     }
@@ -293,7 +293,7 @@ def test_checked_qwen_scheduled_factories_preserve_pinned_bounded_batch_contract
     assert scheduled.configuration_digest() != baseline.configuration_digest()
     assert scheduled.pipeline.digest() != baseline.pipeline.digest()
     assert scheduled.with_params(
-        name=baseline.name, pipeline__linear__online_schedule="serial") == baseline
+        name=baseline.name, pipeline__components__linear__online_schedule="serial") == baseline
     restored = loads_configuration(scheduled.canonical_bytes().decode())
     assert restored == scheduled
     assert restored.configuration_digest() == scheduled.configuration_digest()
@@ -313,7 +313,7 @@ def test_qwen_empty_system_factory_preserves_pinned_tensor_composition(monkeypat
         "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
         "local_files_only": True,
     }
-    assert candidate.pipeline.linear.params == {
+    assert candidate.pipeline.components["linear"].params == {
         "numeric_profile": PROFILES[2], "capacity": "decoder",
         "material_delivery": "batch-v1", "online_schedule": "tensor-v1",
     }
@@ -344,3 +344,188 @@ def test_public_exports_and_old_defaults_remain_distinct():
     # Even an arbitrary profile label cannot disguise incompatible components.
     assert resolve_runtime_composition(Pipeline(model=p.model, components=p.components,
                                                profile="baseline.masked_linear_cpu")).runtime_kind == "fss"
+
+
+@pytest.mark.parametrize("factory_name,name,numeric_profile,delivery,schedule,requests,inputs,outputs,root", [
+    ("experiment", "fusefss", PROFILES[1], "single", "serial", 32, 64, 8, ".pllm/papers/fusefss"),
+    ("qwen_smoke", "fusefss", PROFILES[1], "single", "serial", 1, 4, 1, ".pllm/papers/fusefss"),
+    ("qwen_checked_smoke", "fusefss-checked-ranges", PROFILES[2], "single", "serial", 1, 4, 1, ".pllm/papers/fusefss-checked-ranges"),
+    ("qwen_checked_batch_smoke", "fusefss-checked-ranges-batch", PROFILES[2], "batch-v1", "serial", 1, 4, 1, ".pllm/papers/fusefss-checked-ranges"),
+    ("qwen_checked_wavefront_smoke", "fusefss-checked-ranges-wavefront", PROFILES[2], "batch-v1", "wavefront-v1", 1, 4, 1, ".pllm/papers/fusefss-checked-ranges"),
+    ("qwen_checked_tensor_smoke", "fusefss-checked-ranges-tensor", PROFILES[2], "batch-v1", "tensor-v1", 1, 4, 1, ".pllm/papers/fusefss-checked-ranges"),
+    ("qwen_checked_tensor_minimal_smoke", "fusefss-checked-ranges-tensor", PROFILES[2], "batch-v1", "tensor-v1", 1, 3, 1, ".pllm/papers/fusefss-checked-ranges"),
+    ("qwen_empty_system", "fusefss-qwen-empty-system", PROFILES[2], "batch-v1", "tensor-v1", 1, 15, 1, ".pllm/papers/fusefss-checked-ranges"),
+])
+def test_recipe_declaration_matches_independent_legacy_profile(
+        factory_name, name, numeric_profile, delivery, schedule, requests, inputs, outputs, root):
+    from examples.papers import fusefss
+    from examples.papers.common import MODEL
+
+    actual = getattr(fusefss, factory_name)()
+    legacy = pllm.Experiment(name,
+        FuseFssSourceCpu(MODEL, numeric_profile=numeric_profile, capacity="decoder",
+                         material_delivery=delivery, online_schedule=schedule),
+        pllm.Deployment.local(root=root),
+        pllm.ExecutionBudget(requests=requests, max_input_tokens=inputs, max_new_tokens=outputs))
+    assert type(actual.pipeline) is Pipeline
+    assert actual.pipeline.model is MODEL
+    assert actual.pipeline.profile == legacy.pipeline.profile == "research.fusefss_source_cpu"
+    assert set(actual.pipeline.components) == {"linear", "topology", "state", "kernels"}
+    assert actual.pipeline.components == legacy.pipeline.components
+    assert actual.pipeline.canonical_bytes() == legacy.pipeline.canonical_bytes()
+    assert actual.pipeline.digest() == legacy.pipeline.digest()
+    assert actual.canonical_bytes() == legacy.canonical_bytes()
+    assert actual.configuration_digest() == legacy.configuration_digest()
+    assert resolve_runtime_composition(actual.pipeline) == resolve_runtime_composition(legacy.pipeline)
+    restored = loads_configuration(actual.to_json())
+    assert restored == actual
+    assert restored.pipeline.profile is None  # Default JSON already omits this label.
+    assert restored.configuration_digest() == actual.configuration_digest()
+
+
+@pytest.mark.parametrize("model", [pllm.Model.tiny(), pllm.Model.path("/generated/config-only")])
+def test_recipe_model_identity_and_budget_override(model):
+    from examples.papers.fusefss import experiment as recipe
+
+    budget = pllm.ExecutionBudget(requests=2, max_input_tokens=3, max_new_tokens=1)
+    actual = recipe(model=model, budget=budget)
+    assert actual.pipeline.model is model
+    assert actual.budget is budget
+    legacy = pllm.Experiment("fusefss", FuseFssSourceCpu(model, numeric_profile=PROFILES[1], capacity="decoder"),
+                             actual.deployment, budget)
+    assert actual.canonical_bytes() == legacy.canonical_bytes()
+    assert actual.configuration_digest() == legacy.configuration_digest()
+
+
+def test_recipe_structural_model_source_uses_to_spec():
+    from examples.papers.fusefss import experiment as recipe
+    from pllm.sources import ModelSource
+
+    class Source:
+        source, kind, model_id = "/generated/structural", "safetensors", "structural"
+
+        def __init__(self):
+            self.calls = 0
+
+        def to_spec(self):
+            self.calls += 1
+            return {"source": self.source, "kind": self.kind, "model_id": self.model_id,
+                    "local_files_only": True}
+
+    source = Source()
+    assert isinstance(source, ModelSource)
+    actual = recipe(model=source)
+    legacy = FuseFssSourceCpu(source, numeric_profile=PROFILES[1], capacity="decoder")
+    assert source.calls == 2
+    assert isinstance(actual.pipeline.model, pllm.Model)
+    assert actual.pipeline.model is not source
+    assert actual.pipeline.canonical_bytes() == legacy.canonical_bytes()
+    assert actual.pipeline.digest() == legacy.digest()
+
+
+@pytest.mark.parametrize("model", [None, "Qwen/Qwen2.5-0.5B-Instruct", {}, object()])
+def test_recipe_invalid_model_contract_is_not_defaulted(model):
+    from examples.papers.fusefss import experiment as recipe
+
+    for construct in (recipe, lambda model: FuseFssSourceCpu(model, numeric_profile=PROFILES[1], capacity="decoder")):
+        with pytest.raises(ConfigurationError, match="^model must satisfy the ModelSource contract$"):
+            construct(model=model)
+
+
+def test_recipe_generic_nested_overrides_and_reconstruction():
+    from examples.papers.fusefss import qwen_checked_smoke
+
+    original = qwen_checked_smoke()
+    changed = original.with_params(pipeline__components__linear__material_delivery="batch-v1",
+                                   pipeline__components__kernels__threads=2)
+    assert original.pipeline.components["linear"].get_params()["material_delivery"] == "single"
+    assert changed.get_params()["pipeline__components__linear__material_delivery"] == "batch-v1"
+    assert changed.pipeline.components["kernels"] == Cpu(threads=2)
+    rebuilt = Pipeline(**changed.pipeline.get_params(deep=False))
+    assert rebuilt.canonical_bytes() == changed.pipeline.canonical_bytes()
+    assert rebuilt.profile == changed.pipeline.profile
+    assert resolve_runtime_composition(rebuilt) is not None
+    assert changed.with_params(pipeline__components__linear__material_delivery="single",
+                               pipeline__components__kernels__threads=1) == original
+
+
+@pytest.mark.parametrize("slot,value", [("linear", MaskedLinear()), ("kernels", AppleMetal())])
+def test_recipe_unsupported_composition_resolve_refuses_before_facade_runner(monkeypatch, slot, value):
+    from unittest.mock import Mock
+    from examples.papers.fusefss import qwen_smoke
+    from pllm import _native
+    from pllm.runtime import client, servers
+
+    changed = qwen_smoke().with_params(**{f"pipeline__components__{slot}": value})
+    assert changed.pipeline.components[slot] == value  # No typed-setter timing claim.
+    assert resolve_runtime_composition(changed.pipeline) is None
+    failure = ValueError("unsupported composition (native refusal double)")
+    admission = Mock(side_effect=failure)
+    runner = Mock(side_effect=AssertionError("facade runner reached before refusal"))
+    roles = Mock(side_effect=AssertionError("role builder reached before refusal"))
+    monkeypatch.setattr(_native, "resolve_experiment", admission)
+    monkeypatch.setattr(client, "_protected_client_type", runner)
+    monkeypatch.setattr(servers, "build_roles", roles)
+    # Real normal resolve path; only native refusal is doubled. This does not
+    # establish native category enforcement or all source/trust refusal cases.
+    with pytest.raises(ConfigurationError, match="^unsupported composition") as caught:
+        client.OpenAI(experiment=changed, _automatic=False)
+    assert caught.value.__cause__ is failure
+    admission.assert_called_once_with(changed.canonical_bytes())
+    runner.assert_not_called()
+    roles.assert_not_called()
+
+
+def test_recipe_native_refusal_preserves_payload_and_cause(monkeypatch):
+    from unittest.mock import Mock
+    from examples.papers.fusefss import qwen_smoke
+    from pllm import _native
+
+    actual = qwen_smoke()
+    failure = ValueError("native FSS composition unavailable")
+    admission = Mock(side_effect=failure)
+    monkeypatch.setattr(_native, "resolve_experiment", admission)
+    with pytest.raises(ConfigurationError, match="requires native complete-decoder composition admission") as caught:
+        actual.resolve()
+    assert caught.value.__cause__ is failure
+    admission.assert_called_once_with(actual.canonical_bytes())
+
+
+@pytest.mark.parametrize("factory_name,name,numeric_profile,requests,delivery,schedule", [
+    ("experiment", "generated-fss-f3-sdk", PROFILES[0], 8, "single", "serial"),
+    ("dense_experiment", "generated-fss-dense-sdk", PROFILES[1], 8, "single", "serial"),
+    ("dense_single_smoke", "generated-fss-dense-sdk", PROFILES[1], 1, "single", "serial"),
+    ("dense_batch_smoke", "generated-fss-dense-batch", PROFILES[1], 1, "batch-v1", "serial"),
+    ("dense_wavefront_smoke", "generated-fss-dense-wavefront", PROFILES[1], 1, "batch-v1", "wavefront-v1"),
+    ("dense_tensor_smoke", "generated-fss-dense-tensor", PROFILES[1], 1, "batch-v1", "tensor-v1"),
+])
+def test_generated_recipe_declaration_matches_independent_legacy_profile(
+        tmp_path, factory_name, name, numeric_profile, requests, delivery, schedule):
+    from examples.papers import fusefss_smoke
+
+    actual = getattr(fusefss_smoke, factory_name)(tmp_path)
+    legacy = pllm.Experiment(name,
+        FuseFssSourceCpu(pllm.Model.path(str(tmp_path / "source")), numeric_profile=numeric_profile,
+                         material_delivery=delivery, online_schedule=schedule),
+        pllm.Deployment.local(root=str(tmp_path / "roles")),
+        pllm.ExecutionBudget(requests=requests, max_input_tokens=1, max_new_tokens=2))
+    assert type(actual.pipeline) is Pipeline
+    assert actual.pipeline.profile == legacy.pipeline.profile == "research.fusefss_source_cpu"
+    assert actual.pipeline.components == legacy.pipeline.components
+    assert "capacity" not in actual.pipeline.components["linear"].params
+    assert "weights" not in actual.pipeline.components["linear"].params
+    assert actual.pipeline.canonical_bytes() == legacy.pipeline.canonical_bytes()
+    assert actual.pipeline.digest() == legacy.pipeline.digest()
+    assert actual.canonical_bytes() == legacy.canonical_bytes()
+    assert actual.configuration_digest() == legacy.configuration_digest()
+    restored = loads_configuration(actual.to_json())
+    assert restored == actual and restored.pipeline.profile is None
+    assert resolve_runtime_composition(restored.pipeline) == resolve_runtime_composition(legacy.pipeline)
+
+
+@pytest.mark.parametrize("factory_name", ["experiment", "dense_experiment"])
+def test_generated_recipe_request_override_preserves_workload(tmp_path, factory_name):
+    from examples.papers import fusefss_smoke
+
+    actual = getattr(fusefss_smoke, factory_name)(tmp_path, requests=3)
+    assert actual.budget == pllm.ExecutionBudget(requests=3, max_input_tokens=1, max_new_tokens=2)

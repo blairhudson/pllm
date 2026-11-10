@@ -1,4 +1,4 @@
-"""Mock-only serialization/loader checks; no factory, checkpoint or description run."""
+"""Mock-only quote checks plus inert recipe declarations; no checkpoint/description run."""
 
 from copy import deepcopy
 import importlib.util
@@ -146,6 +146,25 @@ def test_unknown_work_policy_rejected_before_factory(study, monkeypatch):
     assert failure.value.code == 2
     resolve.assert_not_called()
     describe.assert_not_called()
+
+
+def test_quote_factory_declaration_keeps_saved_funding_envelope():
+    from examples.papers.fusefss import qwen_empty_system
+    from pllm.configuration import Deployment, ExecutionBudget, Experiment, Pipeline
+    from pllm.profiles import FuseFssSourceCpu
+
+    actual = qwen_empty_system()
+    legacy = Experiment("fusefss-qwen-empty-system",
+        FuseFssSourceCpu(actual.pipeline.model,
+            numeric_profile="fusefss.dense-rope-checked-ranges-ring50-q12.v1",
+            capacity="decoder", material_delivery="batch-v1", online_schedule="tensor-v1"),
+        Deployment.local(root=".pllm/papers/fusefss-checked-ranges"),
+        ExecutionBudget(requests=1, max_input_tokens=15, max_new_tokens=1))
+    assert type(actual.pipeline) is Pipeline
+    assert actual.canonical_bytes() == legacy.canonical_bytes()
+    assert actual.configuration_digest() == legacy.configuration_digest()
+    # Saved funding envelope is 15/1; quote's actual 14/1 cut is not run here.
+    assert actual.budget == legacy.budget
 
 
 class TruthyOption:

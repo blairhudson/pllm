@@ -284,6 +284,13 @@ impl PyClient {
         Ok(self.inner.as_ref().ok_or_else(retired)?.execution())
     }
 
+    fn bound_step(&self, phase: &str, operation_id: &str) -> PyResult<u8> {
+        self.inner.as_ref()
+            .ok_or_else(|| pyo3::exceptions::PyValueError::new_err("invalid bound decoder step"))?
+            .bound_step(phase, operation_id)
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("invalid bound decoder step"))
+    }
+
     fn decoder<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         Ok(PyBytes::new(
             py,

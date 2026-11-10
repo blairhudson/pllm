@@ -870,6 +870,9 @@ def resolve_forward_runtime_composition(pipeline: Pipeline) -> ForwardRuntimeCom
 
 
 def resolve_decoder_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None:
+    composition = _resolve_gkm_composition(pipeline)
+    if composition is not None:
+        return composition
     if "numeric" in pipeline.components or any(
         value.component == SourceFloat32.descriptor.component for value in pipeline.components.values()
     ):
@@ -934,10 +937,13 @@ class RuntimeComposition:
 def _resolve_gkm_composition(pipeline: Pipeline) -> RuntimeComposition | None:
     """Describe the exact bounded contract; native capability still gates execution."""
     linear = pipeline.components.get("linear")
+    if linear is None or linear.component != OpenWeightVerifiableOutsourcing.descriptor.component:
+        return None
     capacity = linear.params.get("capacity", "capsule") if linear is not None else "capsule"
     sharing = linear.params.get("sharing") if linear is not None else None
     execution = linear.params.get("execution") if linear is not None else None
-    if capacity not in {"capsule", "decoder"} or sharing not in {"full", "seeded"}:
+    if (type(capacity) is not str or type(sharing) is not str
+            or capacity not in {"capsule", "decoder"} or sharing not in {"full", "seeded"}):
         return None
     if execution is not None and (
             type(execution) is not str or execution != "source_stage_batch_v1"):
@@ -950,6 +956,12 @@ def _resolve_gkm_composition(pipeline: Pipeline) -> RuntimeComposition | None:
         "topology": _DEFAULT_GKM_ROLES,
         "state": _DEFAULT_FULL_KV,
     }
+    if len(pipeline.components) != 5:
+        from pllm.numeric import Q11I16Ring64Boundary
+        from pllm.protocols import TwoShareInput, VerifiedPublicF32Lookup, ClientF32DecoderRegions
+
+        expected.update(input=TwoShareInput(), lookup=VerifiedPublicF32Lookup(),
+                        regions=ClientF32DecoderRegions(), numeric=Q11I16Ring64Boundary())
     if pipeline.components != expected:
         return None
     return RuntimeComposition(
@@ -978,6 +990,9 @@ def _resolve_gkm_composition(pipeline: Pipeline) -> RuntimeComposition | None:
 
 
 def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None:
+    composition = _resolve_gkm_composition(pipeline)
+    if composition is not None:
+        return composition
     if "numeric" in pipeline.components or any(
         value.component == SourceFloat32.descriptor.component for value in pipeline.components.values()
     ):

@@ -26,6 +26,7 @@ from pllm import _native
 from pllm.deployment.resources import reserve_incremental_memory
 
 from .client import ProtocolError
+from ._component_binding import CLIENT_BRIDGE_ESTIMATE_BYTES, has_decoder_bridge
 from .delegated_decoder import _execute_verified_window, _validate_decode_tokens, result_payload_limit
 from .delegated_protocol import clear_failure_frames, digest, limits, pack, read_json, unpack
 from .delegated_protocol import (BATCH_EXECUTION, BATCH_HTTP_CHUNK_BYTES, batch_contract, batch_memory_bytes,
@@ -45,23 +46,45 @@ def request_memory_bytes(source, *, worker=False, role=None):
     and selector loop. No DNS executor, additional pool or detached thread is
     admitted; the thread retires before this request's reservation is released.
     """
-    size = source.execution_payload_estimate_bytes
-    expanded = getattr(source, "capacity", "capsule") == "decoder"
-    if type(size) is not int or not 0 < size <= (4 << 30 if expanded else 64 << 20):
-        raise ValueError("GKM execution payload has no admitted bound")
-    if expanded:
-        resources = source.contract["decoder_resources"]
-        if size != resources["client_payload_bytes"]:
-            raise ValueError("GKM native resource contract differs")
-        if worker:
-            size = resources["worker_payload_bytes"]
+    from .delegated_source import AdmittedSource, _capacity
+
+    # Real source properties each decode the entire document independently.
+    # Reuse ONE metadata-accounted decode, never retain it into the runtime/batch
+    # quote. Structural test/legacy callers keep their ordinary property rules.
+    contract = resources = None
+    try:
+        if isinstance(source, AdmittedSource):
+            contract = source.contract
+            size = contract["execution_payload_estimate_bytes"]
+            expanded = _capacity(contract) == "decoder"
+        else:
+            size = source.execution_payload_estimate_bytes
+            expanded = getattr(source, "capacity", "capsule") == "decoder"
+        if type(size) is not int or not 0 < size <= (4 << 30 if expanded else 64 << 20):
+            raise ValueError("GKM execution payload has no admitted bound")
+        if expanded:
+            if contract is None:
+                contract = source.contract
+            resources = contract["decoder_resources"]
+            if size != resources["client_payload_bytes"]:
+                raise ValueError("GKM native resource contract differs")
+            if worker:
+                size = resources["worker_payload_bytes"]
+        # Structural capsule callers historically inspect contract only AFTER batch
+        # pricing, and never for worker quotes. Keep that failure/access precedence.
+        bridge = None if not worker and contract is None else not worker and has_decoder_bridge(contract)
+    finally:
+        # No source graph/resource subtree in batch pricing OR quote-error frames.
+        del resources, contract
     raw_runtime = getattr(source, "runtime_contract_bytes", None)
     if raw_runtime is not None:
         prices = batch_memory_bytes(json.loads(raw_runtime), "decoder" if expanded else "capsule")
         if prices:
             size = (prices["worker_payload_bytes"][role] if worker and role is not None else
                     max(prices["worker_payload_bytes"].values()) if worker else prices["client_payload_bytes"])
-    return size + _TRANSPORT_ALLOWANCE_BYTES
+    if bridge is None:
+        bridge = has_decoder_bridge(getattr(source, "contract", None))
+    return size + _TRANSPORT_ALLOWANCE_BYTES + (CLIENT_BRIDGE_ESTIMATE_BYTES if bridge else 0)
 
 
 def _batch_http_transport():
@@ -740,6 +763,9 @@ class _NativeExchange:
 
     def contract(self):
         return self.native.decoder()
+
+    def bound_step(self, phase, operation_id):
+        return self.native.bound_step(phase, operation_id)
 
     def execution(self):
         selected = getattr(self.native, "execution", lambda: None)()

@@ -11,7 +11,28 @@ from pllm.protocols.runtime_arms import TwoOnlineOffsetLinear as TwoOnlineOffset
 from pllm.components._planned import PendingComponent as PendingMethod
 from typing import Literal
 from collections.abc import Sequence
-from pllm.configuration import ComponentDescriptor
+from pllm.configuration import ComponentDescriptor, ComponentRef
+
+class TwoShareInput(ComponentRef):
+    descriptor: ComponentDescriptor
+    def __init__(self) -> None: ...
+    def get_params(self, deep: bool = True) -> dict[str, object]: ...
+    @classmethod
+    def describe(cls) -> ComponentDescriptor: ...
+
+class VerifiedPublicF32Lookup(ComponentRef):
+    descriptor: ComponentDescriptor
+    def __init__(self) -> None: ...
+    def get_params(self, deep: bool = True) -> dict[str, object]: ...
+    @classmethod
+    def describe(cls) -> ComponentDescriptor: ...
+
+class ClientF32DecoderRegions(ComponentRef):
+    descriptor: ComponentDescriptor
+    def __init__(self) -> None: ...
+    def get_params(self, deep: bool = True) -> dict[str, object]: ...
+    @classmethod
+    def describe(cls) -> ComponentDescriptor: ...
 from pllm._native import (
     CompactQ7Reference,
     LogRowQ7SessionReference,

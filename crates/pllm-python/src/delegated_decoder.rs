@@ -139,6 +139,13 @@ impl PySession {
         Ok(result)
     }
 
+    fn bound_step(&self, phase: &str, operation_id: &str) -> PyResult<u8> {
+        self.inner.as_ref()
+            .ok_or_else(|| pyo3::exceptions::PyValueError::new_err("invalid bound decoder step"))?
+            .bound_step(phase, operation_id)
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("invalid bound decoder step"))
+    }
+
     fn lookup<'py>(
         &mut self,
         py: Python<'py>,

@@ -517,6 +517,17 @@ class Pipeline(_Configuration):
                     create_component(component.component, component.params),
                 )
         object.__setattr__(self, "components", MappingProxyType(copied))
+        binding_ids = {
+            "pllm/two-share-input/v1", "pllm/verified-public-f32-lookup/v1",
+            "pllm/client-f32-decoder-regions/v1", "pllm/q11-i16-ring64-boundary/v1",
+        }
+        if any(value.component in binding_ids for value in copied.values()):
+            from pllm.profiles import resolve_runtime_composition
+
+            composition = resolve_runtime_composition(self)
+            if composition is None or composition.runtime_kind != "gkm":
+                raise ConfigurationError("incomplete or incompatible decoder component composition")
+            return
         if "numeric" in copied or any(
             value.component == "pllm/source-float32/v1" for value in copied.values()
         ):
@@ -697,7 +708,11 @@ class Experiment(_Configuration):
 
             resolve_forward_runtime_composition(self.pipeline)
         elif "numeric" in self.pipeline.components:
-            raise ConfigurationError("SourceFloat32 requires ForwardBudget, not decoder ExecutionBudget")
+            from pllm.profiles import resolve_runtime_composition
+
+            composition = resolve_runtime_composition(self.pipeline)
+            if composition is None or composition.runtime_kind != "gkm":
+                raise ConfigurationError("SourceFloat32 requires ForwardBudget, not decoder ExecutionBudget")
         cache = self.pipeline.components.get("cache")
         if (self.deployment.kind == "network" and cache is not None
                 and {"decode", "decode_max_bytes"} & cache.params.keys()):

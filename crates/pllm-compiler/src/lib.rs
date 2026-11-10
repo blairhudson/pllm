@@ -44,6 +44,8 @@ pub use forward_runtime_schedule::{
     FORWARD_RUNTIME_SCHEDULE_SCHEMA_VERSION,
 };
 mod delegated_decoder;
+mod component_binding;
+pub use component_binding::InvalidBoundStep;
 pub mod delegation_publication_inventory;
 pub mod encrypted_level_schedule;
 mod encrypted_instruction_lowering;

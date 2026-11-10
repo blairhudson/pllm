@@ -23,6 +23,7 @@ pub use source_import::{GkmTransportImport, GKM_SOURCE_CHUNK_BYTES};
 use crate::decoder_runtime_schedule::{
     lower_phase, DecoderRuntimeExecutor, DecoderRuntimePhaseSchedule,
 };
+use crate::component_binding::{classify, validate_phase, Implementation, InvalidBoundStep};
 
 const SCHEMA: &str = "pllm.gkm.decoder-reference.v1";
 const INPUT_BOUND: u64 = 1 << 31;
@@ -340,28 +341,7 @@ impl GkmDecoderContract {
         let mut local_tensors = BTreeSet::new();
         for graph in [&plan.prefill, &plan.decode] {
             for op in &graph.operations {
-                if !matches!(
-                    op.operator,
-                    ModelOperator::TokenLookup
-                        | ModelOperator::Linear
-                        | ModelOperator::OutputHead
-                        | ModelOperator::Reshape
-                        | ModelOperator::RmsNorm
-                        | ModelOperator::RotaryEmbedding
-                        | ModelOperator::KvCacheAppend
-                        | ModelOperator::CacheSuffix
-                        | ModelOperator::AttentionScores
-                        | ModelOperator::AttentionScale
-                        | ModelOperator::CausalMask
-                        | ModelOperator::Softmax
-                        | ModelOperator::AttentionValues
-                        | ModelOperator::ResidualAdd
-                        | ModelOperator::Silu
-                        | ModelOperator::Multiply
-                        | ModelOperator::LastToken
-                        | ModelOperator::GreedyTokenSelection
-                        | ModelOperator::TokenFeedback
-                ) || op
+                if classify(op.operator).is_err() || op
                     .output_shape
                     .iter()
                     .try_fold(1u64, |n, d| n.checked_mul(*d))
@@ -414,6 +394,8 @@ impl GkmDecoderContract {
         };
         let prefill = lower(&plan.prefill)?;
         let decode = lower(&plan.decode)?;
+        validate_phase(&plan.prefill, &prefill).map_err(|e| reject(&e.to_string()))?;
+        validate_phase(&plan.decode, &decode).map_err(|e| reject(&e.to_string()))?;
         let operations: BTreeMap<_, _> = plan
             .prefill
             .operations
@@ -440,7 +422,8 @@ impl GkmDecoderContract {
                 continue;
             }
             let first = operations[step.operation_ids[0].as_str()];
-            if first.operator == ModelOperator::TokenLookup {
+            let implementation = classify(first.operator).map_err(|e| reject(&e.to_string()))?;
+            if implementation == Implementation::Lookup {
                 if table.is_some() || step.operation_ids.len() != 1 {
                     return Err(reject("requires one original token table"));
                 }
@@ -454,6 +437,9 @@ impl GkmDecoderContract {
                 calls += input_rows;
                 continue;
             }
+            if !implementation.matrix() {
+                return Err(reject("unsupported matrix implementation"));
+            }
             let columns = *operations[first.inputs[0].as_str()]
                 .output_shape
                 .last()
@@ -462,6 +448,9 @@ impl GkmDecoderContract {
             let mut members = Vec::new();
             for (id, out) in step.operation_ids.iter().zip(&step.outputs) {
                 let op = operations[id.as_str()];
+                if !classify(op.operator).is_ok_and(|code| code.matrix()) {
+                    return Err(reject("unsupported matrix member implementation"));
+                }
                 let weight = op.attributes["weight"]
                     .as_str()
                     .ok_or_else(|| reject("matrix weight"))?
@@ -700,6 +689,7 @@ impl GkmDecoderContract {
             transport_resources: None,
             source_binding_digest: None,
         };
+        result.validate_bindings().map_err(|e| reject(&e.to_string()))?;
         if streamed {
             // Source/artifact identity remains bound to the unchanged general
             // numeric decoder contract. Ownership admission is additionally bound
@@ -782,7 +772,8 @@ impl GkmDecoderContract {
         .map_err(|error| error.to_string())
     }
 
-    fn window_plan(&self) -> Vec<Step> {
+    fn window_plan(&self) -> Result<Vec<Step>, InvalidBoundStep> {
+        self.validate_bindings()?;
         let mut result = Vec::with_capacity(self.window_steps);
         for (phase, repeats) in [(&self.prefill, 1), (&self.decode, self.decode_steps)] {
             for _ in 0..repeats {
@@ -791,13 +782,14 @@ impl GkmDecoderContract {
                     if step.executor == DecoderRuntimeExecutor::ClientLocal {
                         continue;
                     }
-                    if step.operators[0] == ModelOperator::TokenLookup {
+                    let implementation = classify(step.operators[0])?;
+                    if implementation == Implementation::Lookup {
                         result.extend(std::iter::repeat_n(
                             Step::Lookup,
                             phase.query_sequence as usize,
                         ));
-                    } else {
-                        let rows = if step.operators[0] == ModelOperator::OutputHead {
+                    } else if implementation.matrix() {
+                        let rows = if implementation == Implementation::OutputHead {
                             1
                         } else {
                             phase.query_sequence as usize
@@ -807,11 +799,129 @@ impl GkmDecoderContract {
                             rows,
                         ));
                         index += 1;
+                    } else {
+                        return Err(InvalidBoundStep);
                     }
                 }
             }
         }
-        result
+        Ok(result)
+    }
+
+    fn validate_bindings(&self) -> Result<(), InvalidBoundStep> {
+        if self.numeric_profile != gkm::NUMERIC_PROFILE
+            || self.input_bound != INPUT_BOUND
+            || self.local_numeric_profile != "semantic.float32.dense-full-kv.client-bias-after-div22.v1"
+            || self.acceptance != "fixed-length-greedy.complete-window.v1"
+            || !self.plan.token_feedback
+        {
+            return Err(InvalidBoundStep);
+        }
+        for (graph, schedule) in [(&self.plan.prefill, &self.prefill), (&self.plan.decode, &self.decode)] {
+            validate_phase(graph, schedule)?;
+            if graph.state_inputs.iter().chain(&graph.state_outputs)
+                .any(|state| !matches!(state.kind, StateKind::Key | StateKind::Value))
+            {
+                return Err(InvalidBoundStep);
+            }
+            let mut matrix_index = 0;
+            let mut lookup_count = 0;
+            for step in &schedule.steps {
+                let first = graph.operations.iter().find(|op| op.id == step.operation_ids[0])
+                    .ok_or(InvalidBoundStep)?;
+                let code = classify(first.operator)?;
+                if code == Implementation::Lookup {
+                    lookup_count += 1;
+                    if first.inputs.len() != 1 || first.inputs[0] != "input.tokens"
+                        || step.weight_ids.len() != 1 || step.weight_ids[0] != self.table
+                        || first.attributes["weight"].as_str() != Some(self.table.as_str())
+                        || step.outputs[0].stage_offset != 0
+                        || step.outputs[0].stage_width != self.width as u64
+                        || self.source_shapes.get(&self.table).map(Vec::as_slice)
+                            != Some([self.vocabulary, self.width].as_slice())
+                    {
+                        return Err(InvalidBoundStep);
+                    }
+                } else if code.matrix() {
+                    let matrix = self.matrices.get(matrix_index).ok_or(InvalidBoundStep)?;
+                    matrix_index += 1;
+                    if matrix.members.len() != step.operation_ids.len()
+                        || step.weight_ids.len() != matrix.members.len()
+                    {
+                        return Err(InvalidBoundStep);
+                    }
+                    let mut offset = 0;
+                    for (position, id) in step.operation_ids.iter().enumerate() {
+                        let op = graph.operations.iter().find(|op| op.id == *id).ok_or(InvalidBoundStep)?;
+                        let member = &matrix.members[position];
+                        let output = &step.outputs[position];
+                        let input_id = op.inputs.first().ok_or(InvalidBoundStep)?;
+                        let input = graph.operations.iter().find(|op| op.id == *input_id).ok_or(InvalidBoundStep)?;
+                        if !classify(op.operator)?.matrix() || op.inputs != first.inputs
+                            || input.output_shape.last().copied() != Some(matrix.columns as u64)
+                            || op.attributes["weight"].as_str() != Some(member.weight.as_str())
+                            || op.attributes.get("bias").and_then(serde_json::Value::as_str) != member.bias.as_deref()
+                            || step.weight_ids[position] != member.weight
+                            || member.offset != offset || output.stage_offset != offset as u64
+                            || output.stage_width != member.rows as u64
+                            || op.output_shape.last().copied() != Some(member.rows as u64)
+                            || self.source_shapes.get(&member.weight).map(Vec::as_slice)
+                                != Some([member.rows, matrix.columns].as_slice())
+                            || member.bias.as_ref().is_some_and(|bias|
+                                !self.local_tensors.contains(bias)
+                                || self.source_shapes.get(bias).map(Vec::as_slice) != Some([member.rows].as_slice()))
+                        {
+                            return Err(InvalidBoundStep);
+                        }
+                        offset = offset.checked_add(member.rows).ok_or(InvalidBoundStep)?;
+                    }
+                    if offset != matrix.rows { return Err(InvalidBoundStep); }
+                } else if code == Implementation::RmsNorm {
+                    let weight = first.attributes["weight"].as_str().ok_or(InvalidBoundStep)?;
+                    if !self.local_tensors.contains(weight) {
+                        return Err(InvalidBoundStep);
+                    }
+                } else if code == Implementation::GreedyTokenSelection {
+                    let input = first.inputs.first().ok_or(InvalidBoundStep)?;
+                    if first.inputs.len() != 1 || !graph.operations.iter().any(|op|
+                        op.id == *input && op.operator == ModelOperator::OutputHead)
+                    {
+                        return Err(InvalidBoundStep);
+                    }
+                } else if code == Implementation::TokenFeedback {
+                    let input = first.inputs.first().ok_or(InvalidBoundStep)?;
+                    if first.inputs.len() != 1 || graph.output != first.id
+                        || !graph.operations.iter().any(|op|
+                            op.id == *input && op.operator == ModelOperator::GreedyTokenSelection)
+                    {
+                        return Err(InvalidBoundStep);
+                    }
+                }
+            }
+            if lookup_count != 1 || matrix_index != self.matrices.len()
+                || graph.operations.iter().filter(|op| op.operator == ModelOperator::GreedyTokenSelection).count() != 1
+                || graph.operations.iter().filter(|op| op.operator == ModelOperator::TokenFeedback).count() != 1
+            {
+                return Err(InvalidBoundStep);
+            }
+        }
+        Ok(())
+    }
+
+    /// Read-only implementation identity, not a matrix ordinal or completion.
+    fn bound_step(&self, phase: &str, operation_id: &str) -> Result<u8, InvalidBoundStep> {
+        let (graph, schedule) = match phase {
+            "prefill" => (&self.plan.prefill, &self.prefill),
+            "decode" => (&self.plan.decode, &self.decode),
+            _ => return Err(InvalidBoundStep),
+        };
+        let op = graph.operations.iter().find(|op| op.id == operation_id).ok_or(InvalidBoundStep)?;
+        if schedule.steps.iter().flat_map(|step| &step.operation_ids)
+            .filter(|id| id.as_str() == operation_id).count() != 1
+        {
+            return Err(InvalidBoundStep);
+        }
+        Ok(classify(op.operator)? as u8)
     }
 }
 
@@ -950,7 +1060,7 @@ impl GkmDecoderSession {
         // of an untrusted remotely supplied owner commitment.
         let client = Client::new(Arc::clone(&publication), publication.digest())
             .map_err(|e| e.to_string())?;
-        let calls = contract.window_plan();
+        let calls = contract.window_plan().map_err(|e| reject(&e.to_string()))?;
         if calls.len() != contract.window_steps {
             return Err(reject("window count mismatch"));
         }
@@ -980,6 +1090,10 @@ impl GkmDecoderSession {
 
     pub fn contract_bytes(&self) -> Vec<u8> {
         self.contract.canonical_bytes()
+    }
+    pub fn bound_step(&self, phase: &str, operation_id: &str) -> Result<u8, InvalidBoundStep> {
+        if self.window.is_none() { return Err(InvalidBoundStep); }
+        self.contract.bound_step(phase, operation_id)
     }
     pub fn local_tensors(&self) -> &BTreeMap<String, Vec<u8>> {
         &self.local
@@ -1159,4 +1273,81 @@ fn float_bytes(values: &[f32]) -> Result<Vec<u8>, String> {
         result.extend_from_slice(&value.to_le_bytes());
     }
     Ok(result)
+}
+
+#[cfg(test)]
+mod binding_tests {
+    use super::*;
+
+    fn contract(streamed: bool) -> GkmDecoderContract {
+        let config = canonical_bytes(&serde_json::json!({
+            "model_type": "qwen2", "hidden_size": 8, "intermediate_size": 16,
+            "num_hidden_layers": 1, "num_attention_heads": 2, "num_key_value_heads": 1,
+            "vocab_size": 32, "max_position_embeddings": 16, "hidden_act": "silu",
+            "rms_norm_eps": 1e-6, "rope_theta": 10000.0, "tie_word_embeddings": true
+        }));
+        if streamed {
+            GkmDecoderContract::compile_streamed_with_capacity(&config, 2, 1, gkm::Capacity::Capsule).unwrap()
+        } else {
+            GkmDecoderContract::compile(&config, 2, 1).unwrap()
+        }
+    }
+
+    #[test]
+    fn both_compile_routes_cover_operations_once_without_retained_bindings() {
+        for streamed in [false, true] {
+            let contract = contract(streamed);
+            let before = contract.canonical_bytes();
+            assert!(contract.validate_bindings().is_ok());
+            for (phase, graph) in [("prefill", &contract.plan.prefill), ("decode", &contract.plan.decode)] {
+                for op in &graph.operations {
+                    assert_eq!(contract.bound_step(phase, &op.id), Ok(classify(op.operator).unwrap() as u8));
+                }
+            }
+            assert_eq!(before, contract.canonical_bytes());
+        }
+    }
+
+    #[test]
+    fn missing_overlap_unknown_executor_and_cross_phase_members_reject() {
+        let mut c = contract(false);
+        c.prefill.steps.remove(0);
+        assert!(c.validate_bindings().is_err());
+        let mut c = contract(false);
+        c.decode.steps.push(c.decode.steps[0].clone());
+        assert!(c.validate_bindings().is_err());
+        let mut c = contract(false);
+        c.plan.decode.operations[0].operator = ModelOperator::SecureGather;
+        assert!(c.validate_bindings().is_err());
+        let mut c = contract(false);
+        c.decode.steps[0].executor = DecoderRuntimeExecutor::ClientLocal;
+        assert!(c.validate_bindings().is_err());
+        for phase in ["prefill", "decode"] {
+            for mutation in 0..5 {
+                let mut c = contract(false);
+                let schedule = if phase == "prefill" { &mut c.prefill } else { &mut c.decode };
+                let step = schedule.steps.iter_mut().find(|step|
+                    classify(step.operators[0]).unwrap().matrix()).unwrap();
+                match mutation {
+                    0 => step.weight_ids[0].push_str(".wrong"),
+                    1 => step.outputs[0].stage_offset += 1,
+                    2 => step.outputs[0].stage_width += 1,
+                    3 => { step.operation_ids.pop(); },
+                    _ => step.input_ids.clear(),
+                }
+                assert!(c.validate_bindings().is_err());
+                assert!(c.window_plan().is_err());
+            }
+        }
+        for mutation in 0..4 {
+            let mut c = contract(false);
+            match mutation {
+                0 => c.matrices[0].members[0].bias = Some("wrong-bias".into()),
+                1 => c.matrices[0].columns += 1,
+                2 => c.matrices[0].members[0].offset += 1,
+                _ => c.matrices[0].members[0].rows += 1,
+            }
+            assert!(c.validate_bindings().is_err());
+        }
+    }
 }

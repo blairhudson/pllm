@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import json
 from pathlib import Path
 
@@ -50,6 +51,40 @@ def _experiment(deployment: Deployment | None = None) -> Experiment:
         deployment=deployment or Deployment.local(root="local://gkm-declaration"),
         budget=ExecutionBudget(requests=1, max_input_tokens=2, max_new_tokens=2),
     )
+
+
+class _PublicModelSource:
+    """Reusable structural source double: declaration only, never source I/O."""
+
+    def __init__(self, model):
+        self.model = model
+        self.source, self.kind, self.model_id = model.source, model.kind, model.model_id
+        self.calls = 0
+
+    def to_spec(self):
+        self.calls += 1
+        return self.model.to_spec()
+
+
+@pytest.mark.parametrize("factory_name", ["experiment", "seeded", "smoke", "seeded_smoke",
+                                         "composed_bounded_response"])
+def test_gkm_factory_preserves_structural_source_override_and_model_identity(factory_name):
+    from examples.papers import gkm
+    from examples.papers.common import MODEL
+
+    factory = getattr(gkm, factory_name)
+    before = factory().canonical_bytes()
+    assert factory(model=MODEL).canonical_bytes() == before
+    assert factory(model=MODEL).pipeline.model is MODEL
+    model = Model.path("unused-structural-source")
+    source = _PublicModelSource(model)
+    structural = factory(model=source)
+    direct = factory(model=model)
+    assert source.calls == 1
+    assert structural.canonical_bytes() == direct.canonical_bytes()
+    assert structural.pipeline.model == model
+    assert direct.pipeline.model is model
+    assert factory().canonical_bytes() == before
 
 
 @pytest.mark.parametrize("component", [
@@ -385,3 +420,114 @@ def test_bounded_response_factory_preserves_composition_and_narrows_only_budget(
     assert bounded.pipeline == baseline.pipeline
     assert bounded.deployment == baseline.deployment
     assert bounded.with_params(name=baseline.name, budget=baseline.budget) == baseline
+
+
+# Independent installed-wheel baseline capture, not regenerated from current declarations.
+# These are compiler metadata fixtures, not trained requests or source-weight validation.
+_LEGACY_FACTORY_PINS = [
+    ("experiment", "full", "gkm",
+     "348ac9eb0e2db6f9dd380d7dea22f11570620dd8a58675f9a1e5ae1fde228b3b",
+     "aa831fd8c943917f7e6feab8573daca1246afc44361e4a32fe64b6382615a69b",
+     "864edfe83172d2b39d4c0c801e0dae6b3edc24f3714ad0d28d36a4272707be90"),
+    ("seeded", "seeded", "gkm-seeded",
+     "e298986a2d649e32637df1ea6084e978b33d6410d52331f700518dd09b7178b8",
+     "a2f067b9363670c6b2a3df668504e8b0adf563b70efb617b5297eec01935ac3a",
+     "c7a81a5eaeb518f192dc2d2e92d58f0220b2d4d10a4797c02f0e1ce95897bc4e"),
+]
+
+
+@pytest.mark.parametrize("factory,sharing,name,raw_sha,configuration,composition", _LEGACY_FACTORY_PINS)
+def test_legacy_paper_factory_fixed_baseline_pins(
+    factory, sharing, name, raw_sha, configuration, composition,
+) -> None:
+    from examples.papers import gkm
+
+    actual = getattr(gkm, factory)()
+    assert hashlib.sha256(actual.canonical_bytes()).hexdigest() == raw_sha
+    assert actual.configuration_digest() == configuration
+    assert actual.pipeline.digest() == composition
+    assert actual.name == name
+    assert actual.pipeline.profile == "research.open_weight_verifiable_cpu"
+    assert actual.pipeline.to_spec()["components"] == {
+        "kernels": {"component": "pllm/cpu", "params": {"threads": 1}},
+        "linear": {"component": "pllm/open-weight-verifiable-outsourcing/v1", "params": {
+            "capacity": "decoder", "generation": "fixed_length_greedy", "sharing": sharing}},
+        "state": {"component": "pllm/client-local-kv", "params": {}},
+        "topology": {"component": "pllm/two-online-delegation-workers/v1", "params": {}},
+        "verification": {"component": "pllm/published-linear-verify/v1", "params": {
+            "acceptance": "request"}},
+    }
+
+
+_LEGACY_TINY_DOCUMENTS = {
+    "full": b'{"budget":{"max_input_tokens":3,"max_new_tokens":3,"requests":1},"deployment":{"kind":"local","root":".pllm/golden"},"name":"gkm-golden-full","pipeline":{"components":{"kernels":{"component":"pllm/cpu","params":{"threads":1}},"linear":{"component":"pllm/open-weight-verifiable-outsourcing/v1","params":{"capacity":"decoder","generation":"fixed_length_greedy","sharing":"full"}},"state":{"component":"pllm/client-local-kv","params":{}},"topology":{"component":"pllm/two-online-delegation-workers/v1","params":{}},"verification":{"component":"pllm/published-linear-verify/v1","params":{"acceptance":"request"}}},"model":{"local_files_only":true,"source":"fixture"}},"schema":"pllm.experiment.v2"}',
+    "seeded": b'{"budget":{"max_input_tokens":3,"max_new_tokens":3,"requests":1},"deployment":{"kind":"local","root":".pllm/golden"},"name":"gkm-golden-seeded","pipeline":{"components":{"kernels":{"component":"pllm/cpu","params":{"threads":1}},"linear":{"component":"pllm/open-weight-verifiable-outsourcing/v1","params":{"capacity":"decoder","generation":"fixed_length_greedy","sharing":"seeded"}},"state":{"component":"pllm/client-local-kv","params":{}},"topology":{"component":"pllm/two-online-delegation-workers/v1","params":{}},"verification":{"component":"pllm/published-linear-verify/v1","params":{"acceptance":"request"}}},"model":{"local_files_only":true,"source":"fixture"}},"schema":"pllm.experiment.v2"}',
+}
+
+# Geometry-specific PRE-streamed identities: narrowing 3/3 to 1/1 changes these.
+_LEGACY_DECODER_PINS = {
+    (3, 3): (
+        "4ef4eb5c61d8819e84e2f55303b375755936268d20e1c6f639672525824987b6",
+        "8cd32aba63cc37b2f9d219f6ab7fe30c83c576450fa06436218bf4f566166a7e",
+        "bafeb266ab504da232224740b5c5da11838e09aa55c24413e1089907ca20c1eb",
+        "cf45d1561515d01ecd3fbf2922196e2a9a0b6b6160cd5d8b5b795044d3c68e69",
+    ),
+    (1, 1): (
+        "aa67bf6b1f60ba8518d02796de5dbeaa2a0a2f0e6e03dda2f379802e6e646483",
+        "7ad2dc7c19707a2451c9f24089b79c6428818a53d3355eee4b538da1d0b634b8",
+        "44d0e9f9678c1725c6a9623c096dae223410fbbf08a247a64854cec886cc21ad",
+        "4c4bbd17baa8f9e944405c16ac81ce1a3131ef1e66cea6c38c93ae8753362940",
+    ),
+}
+
+
+@pytest.mark.parametrize("sharing,rows,outputs,sdk_sha,sdk_digest", [
+    ("full", 3, 3,
+     "04c7199f61784a81b49d91badbddb449cae39aeb26a3d7bd140a613a8a0178c6",
+     "950598afb3c92ab5f03e09a29a9cf751021507d01010289bf00f94d5a40b5894"),
+    ("full", 1, 1,
+     "ddddb2489860018d90b8e3736c1d9be07ad9799125cb1003a881093aacdeeded",
+     "48480b83a96b25f6befcf000b1572d6ec904e7e41cee509eefb2588ade7e3e59"),
+    ("seeded", 3, 3,
+     "e3676a27d3d7cce37d47baa1ccf94ff396e7052061080ec8139335b3e716c3d3",
+     "c2c4558c4f892eab91b83c909c1dbe0ff42bdf89020c8a7f63ad2402db347cf6"),
+    ("seeded", 1, 1,
+     "2cbbe6330849209e557381594ecc4206d1e4e5fcfeef22c8f7cc75d373c3e285",
+     "9c9eee1b8e636bd5f0ac01d5be942bc770155afadcbdeda5c524b51788d98397"),
+])
+def test_native_legacy_metadata_bridge_fixed_baseline_bytes(
+    sharing, rows, outputs, sdk_sha, sdk_digest,
+) -> None:
+    """Run with freshly built matching Native wheel; no missing/stale-Native skips."""
+    from types import BuiltinFunctionType
+
+    from pllm import _native
+
+    # Do not let a declaration/resolver facade fixture replace actual exported compilation.
+    assert isinstance(_native.gkm_runtime_contract, BuiltinFunctionType)
+    assert isinstance(_native.gkm_decoder_contract, BuiltinFunctionType)
+    cfg = json.dumps({
+        "model_type": "qwen2", "hidden_size": 8, "intermediate_size": 16,
+        "num_hidden_layers": 1, "num_attention_heads": 2, "num_key_value_heads": 1,
+        "vocab_size": 32, "max_position_embeddings": 16, "hidden_act": "silu",
+        "rms_norm_eps": 1e-6, "rope_theta": 10000.0, "tie_word_embeddings": True,
+    }, sort_keys=True, separators=(",", ":")).encode()
+    ordinary = _native.gkm_decoder_contract(
+        cfg, rows, outputs - 1, capacity="decoder", streamed=False,
+    )
+    streamed = _native.gkm_decoder_contract(
+        cfg, rows, outputs - 1, capacity="decoder", streamed=True,
+    )
+    sdk = _native.gkm_runtime_contract(
+        _LEGACY_TINY_DOCUMENTS[sharing], cfg, rows, outputs, "01" * 32, "02" * 32,
+    )
+    ordinary_sha, ordinary_digest, streamed_sha, streamed_digest = _LEGACY_DECODER_PINS[rows, outputs]
+    assert hashlib.sha256(ordinary).hexdigest() == ordinary_sha
+    assert hashlib.sha256(b"pllm.gkm.decoder-reference.v1\0" + ordinary).hexdigest() == ordinary_digest
+    assert hashlib.sha256(streamed).hexdigest() == streamed_sha
+    assert hashlib.sha256(b"pllm.gkm.decoder-reference.v1\0" + streamed).hexdigest() == streamed_digest
+    assert hashlib.sha256(sdk).hexdigest() == sdk_sha
+    assert hashlib.sha256(b"pllm.gkm.sdk-contract.v1\0" + sdk).hexdigest() == sdk_digest
+    assert json.loads(streamed)["source_binding_digest"] == ordinary_digest
+    assert json.loads(sdk)["decoder"]["source_binding_digest"] == ordinary_digest
+    assert json.loads(sdk)["decoder"] == json.loads(streamed)

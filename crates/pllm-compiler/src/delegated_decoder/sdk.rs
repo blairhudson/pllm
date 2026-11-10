@@ -13,12 +13,19 @@ pub const VERIFIER: &str = "pllm/published-linear-verify/v1";
 pub const TOPOLOGY: &str = "pllm/two-online-delegation-workers/v1";
 const SCHEMA: &str = "pllm.gkm.sdk-contract.v1";
 const MAX_EXPERIMENT_BYTES: usize = 32 << 10;
+const EXPLICIT_BINDINGS: [(&str, &str); 4] = [
+    ("input", "pllm/two-share-input/v1"),
+    ("lookup", "pllm/verified-public-f32-lookup/v1"),
+    ("regions", "pllm/client-f32-decoder-regions/v1"),
+    ("numeric", "pllm/q11-i16-ring64-boundary/v1"),
+];
 
 pub(crate) fn selected(pipeline: &ExperimentPipeline) -> bool {
     pipeline
         .components
         .values()
-        .any(|item| matches!(item.component.as_str(), PROTOCOL | VERIFIER | TOPOLOGY))
+        .any(|item| matches!(item.component.as_str(), PROTOCOL | VERIFIER | TOPOLOGY)
+            || EXPLICIT_BINDINGS.iter().any(|(_, id)| item.component == *id))
 }
 
 #[cfg(test)]
@@ -203,7 +210,21 @@ pub(crate) fn validate_pipeline(pipeline: &ExperimentPipeline) -> Result<(), Str
             serde_json::json!({"acceptance": "request"}),
         ),
     ];
-    if pipeline.components.len() != expected.len()
+    // Legacy five imply these same fixed implementations internally. Never
+    // modify the document: its original bytes remain configuration authority.
+    if pipeline.components.len() != expected.len() {
+        if pipeline.components.len() != expected.len() + EXPLICIT_BINDINGS.len() {
+            return Err(reject("incomplete SDK component bindings"));
+        }
+        for (slot, identity) in EXPLICIT_BINDINGS {
+            let binding = pipeline.components.get(slot)
+                .ok_or_else(|| reject("incomplete SDK component bindings"))?;
+            if binding.component != identity || !binding.params.is_empty() {
+                return Err(reject("incompatible SDK component binding"));
+            }
+        }
+    }
+    if !matches!(pipeline.components.len(), 5 | 9)
         || !matches!(pipeline.model.kind.as_str(), "huggingface" | "safetensors")
     {
         return Err(reject("unsupported SDK source or component composition"));

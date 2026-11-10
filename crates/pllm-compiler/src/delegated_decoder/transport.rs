@@ -39,7 +39,7 @@ fn request_context(contract: &GkmRuntimeContract, source: [u8; 32]) -> [u8; 32] 
 
 fn plan(contract: &GkmRuntimeContract) -> Result<Vec<Step>, String> {
     let decoder = contract.decoder();
-    let calls = decoder.window_plan();
+    let calls = decoder.window_plan().map_err(|e| reject(&e.to_string()))?;
     if calls.len() != decoder.window_steps {
         return Err(reject("transport window count mismatch"));
     }
@@ -242,6 +242,11 @@ impl GkmTransportClient {
 
     pub fn execution(&self) -> Option<&'static str> {
         self.contract.execution()
+    }
+
+    pub fn bound_step(&self, phase: &str, operation_id: &str) -> Result<u8, crate::InvalidBoundStep> {
+        if self.window.is_none() { return Err(crate::InvalidBoundStep); }
+        self.contract.decoder().bound_step(phase, operation_id)
     }
 
     pub fn decoder_bytes(&self) -> Vec<u8> {

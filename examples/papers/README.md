@@ -62,6 +62,18 @@ budgets and profile identity are unchanged. Factories remain declarations, not
 paper-specific runners. This first facade/declaration slice does not establish
 new semantic component bindings or complete the ten-method migration.
 
+`examples.papers.gkm:composed_bounded_response` opts into nine explicit slots:
+the same five plus `TwoShareInput`, `VerifiedPublicF32Lookup`,
+`ClientF32DecoderRegions`, and `Q11I16Ring64Boundary`. It reuses the bounded
+response Experiment, deployment and budget; no paper-specific engine is added.
+This is an opt-in declaration, not qualified or executed-paper evidence. Legacy
+factories/defaults stay unchanged. Explicit composition changes configuration,
+composition and SDK pins; old/new peers intentionally cannot mix. Source
+pre-specialization and arithmetic contracts remain unchanged. Read-only native
+operator codes grant no execution/completion credit. The client bridge adds a
+65,536-byte transient estimate before the existing memory margin (81,920 bytes
+at 25%); this is not a physical RSS bound or native retained allocation.
+
 The facade resolves configuration (including native validation) before the
 shared measurement runner; this is not full source admission. Omitted sampling
 still means three fresh processes, one repetition, zero warmups, 300-second

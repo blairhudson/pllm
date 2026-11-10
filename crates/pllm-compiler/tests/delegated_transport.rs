@@ -89,6 +89,62 @@ fn borrowed(source: &BTreeMap<String, Vec<u8>>) -> BTreeMap<String, &[u8]> {
         .collect()
 }
 
+#[test]
+fn borrowed_binding_reads_give_no_native_completion_credit_and_retire_after_abort() {
+    let contract = runtime("qwen2", true, 1, 1);
+    let values = tensors(&contract);
+    let borrowed = borrowed(&values);
+    let decoder = pllm_compiler::GkmDecoderContract::compile(
+        &canonical_bytes(&config("qwen2", true)), 1, 0).unwrap();
+    let graph: Value = serde_json::from_slice(&decoder.canonical_bytes()).unwrap();
+    let mut session = GkmDecoderSession::new(decoder, &borrowed, false).unwrap();
+    let mut client = GkmTransportClient::new(contract, &borrowed).unwrap();
+    for phase in ["prefill", "decode"] {
+        for operation in graph["plan"][phase]["operations"].as_array().unwrap() {
+            let id = operation["id"].as_str().unwrap();
+            for _ in 0..3 {
+                assert_eq!(session.bound_step(phase, id), client.bound_step(phase, id));
+                assert!(session.bound_step(phase, id).is_ok());
+            }
+        }
+    }
+    assert!(session.bound_step("bad-phase", "token_lookup").is_err());
+    assert!(client.bound_step("prefill", "bad-id").is_err());
+    assert!(session.finish().is_err());
+    assert!(client.finish().is_err());
+    session.abort();
+    client.abort();
+    assert!(session.bound_step("prefill", "token_lookup").is_err());
+    assert!(client.bound_step("prefill", "token_lookup").is_err());
+}
+
+#[test]
+fn legacy_and_explicit_binding_peer_pins_cannot_mix() {
+    let legacy = runtime("qwen2", true, 1, 1);
+    let values = tensors(&legacy);
+    let mut explicit = experiment();
+    for (slot, identity) in [
+        ("input", "pllm/two-share-input/v1"),
+        ("lookup", "pllm/verified-public-f32-lookup/v1"),
+        ("regions", "pllm/client-f32-decoder-regions/v1"),
+        ("numeric", "pllm/q11-i16-ring64-boundary/v1"),
+    ] {
+        explicit["pipeline"]["components"][slot] = json!({"component": identity, "params": {}});
+    }
+    let new = GkmRuntimeContract::compile(&canonical_bytes(&explicit),
+        &canonical_bytes(&config("qwen2", true)), 1, 1,
+        Digest::from_sha256([1; 32]), Digest::from_sha256([2; 32])).unwrap();
+    assert_eq!(legacy.decoder().canonical_bytes(), new.decoder().canonical_bytes());
+    assert_ne!(legacy.digest(), new.digest());
+    let mut client = GkmTransportClient::new(legacy, &borrowed(&values)).unwrap();
+    let publication = client.publication_bytes().unwrap();
+    let pin = client.publication_digest();
+    let starts = client.starts().unwrap();
+    assert!(GkmTransportWorker::new(new, &borrowed(&values), publication.as_bytes(),
+        pin, Worker::Zero, starts[0].as_bytes()).is_err());
+    client.abort();
+}
+
 fn streamed(
     contract: GkmRuntimeContract,
     values: &BTreeMap<String, Vec<u8>>,

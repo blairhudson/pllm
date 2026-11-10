@@ -119,8 +119,8 @@ def test_generated_and_qwen_factories_match_source_workload_and_numeric_choice(t
         assert single.name != batched.name  # Ordinary CLI comparisons require unique names.
         assert single.pipeline.model == batched.pipeline.model
         assert single.budget == batched.budget
-        assert single.pipeline.linear.params["numeric_profile"] == batched.pipeline.linear.params["numeric_profile"]
-        assert "material_delivery" not in single.pipeline.linear.params
-        assert batched.pipeline.linear.params["material_delivery"] == "batch-v1"
+        assert single.pipeline.components["linear"].params["numeric_profile"] == batched.pipeline.components["linear"].params["numeric_profile"]
+        assert "material_delivery" not in single.pipeline.components["linear"].params
+        assert batched.pipeline.components["linear"].params["material_delivery"] == "batch-v1"
         assert single.configuration_digest() != batched.configuration_digest()
-        assert batched.with_params(name=single.name, pipeline__linear__material_delivery="single") == single
+        assert batched.with_params(name=single.name, pipeline__components__linear__material_delivery="single") == single

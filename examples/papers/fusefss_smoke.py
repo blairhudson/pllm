@@ -15,7 +15,11 @@ from pathlib import Path
 import struct
 
 from pllm import Deployment, ExecutionBudget, Experiment, Model
-from pllm.profiles import FuseFssSourceCpu
+from pllm.configuration import Pipeline
+from pllm.kernels import Cpu
+from pllm.protocols import FuseFssSourceDecoder
+from pllm.roles import TrustedDealerTwoShareRoles
+from pllm.state import FixedCountPrivatePrefix
 
 NUMERIC_PROFILE = "fusefss.gpt2-complete-ring50-q12.v1"
 DENSE_PROFILE = "fusefss.dense-rope-ring50-q12.v1"
@@ -38,19 +42,19 @@ def dense_single_smoke(path=Path("target/fusefss-dense-delivery-smoke")):
 def dense_batch_smoke(path=Path("target/fusefss-dense-delivery-smoke")):
     """Same generated D13 source and two selections with batch-v1 delivery."""
     return dense_single_smoke(path).with_params(
-        name="generated-fss-dense-batch", pipeline__linear__material_delivery="batch-v1")
+        name="generated-fss-dense-batch", pipeline__components__linear__material_delivery="batch-v1")
 
 
 def dense_wavefront_smoke(path=Path("target/fusefss-dense-delivery-smoke")):
     """Same Q12 source and workload; bounded independent online waves."""
     return dense_batch_smoke(path).with_params(
-        name="generated-fss-dense-wavefront", pipeline__linear__online_schedule="wavefront-v1")
+        name="generated-fss-dense-wavefront", pipeline__components__linear__online_schedule="wavefront-v1")
 
 
 def dense_tensor_smoke(path=Path("target/fusefss-dense-delivery-smoke")):
     """Same Q12 source/workload with compact tensor templates and wider waves."""
     return dense_batch_smoke(path).with_params(
-        name="generated-fss-dense-tensor", pipeline__linear__online_schedule="tensor-v1")
+        name="generated-fss-dense-tensor", pipeline__components__linear__online_schedule="tensor-v1")
 
 
 def _experiment(path, *, requests, dense):
@@ -114,7 +118,14 @@ def _experiment(path, *, requests, dense):
     encoded = json.dumps(header, sort_keys=True, separators=(",", ":")).encode()
     encoded += b" " * (-len(encoded) % 8)
     (root / "model.safetensors").write_bytes(struct.pack("<Q", len(encoded)) + encoded + payload)
+    # Generic components__ overrides and resolve-time category validation are
+    # intentional. The linear component still declares the whole decoder.
     return Experiment("generated-fss-dense-sdk" if dense else "generated-fss-f3-sdk",
-        FuseFssSourceCpu(Model.path(str(root)), numeric_profile=DENSE_PROFILE if dense else NUMERIC_PROFILE),
+        Pipeline(profile="research.fusefss_source_cpu", model=Model.path(str(root)), components={
+            "linear": FuseFssSourceDecoder(numeric_profile=DENSE_PROFILE if dense else NUMERIC_PROFILE),
+            "topology": TrustedDealerTwoShareRoles(),
+            "state": FixedCountPrivatePrefix(),
+            "kernels": Cpu(),
+        }),
         Deployment.local(root=str(path / "roles")),
         ExecutionBudget(requests=requests, max_input_tokens=1, max_new_tokens=2))

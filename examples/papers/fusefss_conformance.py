@@ -21,7 +21,11 @@ from pathlib import Path
 import struct
 
 from pllm import Deployment, ExecutionBudget, Experiment, Model
-from pllm.profiles import FuseFssSourceCpu
+from pllm.configuration import Pipeline
+from pllm.kernels import Cpu
+from pllm.protocols import FuseFssSourceDecoder
+from pllm.roles import TrustedDealerTwoShareRoles
+from pllm.state import FixedCountPrivatePrefix
 
 FIXTURE_ID = "qwen2-tied-generated"
 INPUTS = (Path(__file__).resolve().parents[2]
@@ -70,9 +74,16 @@ def experiment(path=Path("target/fusefss-conformance-qwen2"), *, requests=1, cap
         ),
     }, sort_keys=True))
     _write_source(root / "model.safetensors", case)
+    # Generic components__ overrides and resolve-time category validation are
+    # intentional. The linear component still declares the whole decoder.
     return Experiment(
         "frozen-qwen2-fss-sdk",
-        FuseFssSourceCpu(Model.path(str(root)), numeric_profile=case["profile"], capacity=capacity),
+        Pipeline(profile="research.fusefss_source_cpu", model=Model.path(str(root)), components={
+            "linear": FuseFssSourceDecoder(numeric_profile=case["profile"], capacity=capacity),
+            "topology": TrustedDealerTwoShareRoles(),
+            "state": FixedCountPrivatePrefix(),
+            "kernels": Cpu(),
+        }),
         Deployment.local(root=str(path / "roles")),
         ExecutionBudget(requests=requests, max_input_tokens=len(case["prefix"]),
                         max_new_tokens=case["generation_count"]),
