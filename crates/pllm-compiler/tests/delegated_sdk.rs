@@ -314,7 +314,20 @@ fn legacy_metadata_contracts_match_fixed_baseline_bytes_and_domains() {
             (sdk.decoder(), streamed_sha, streamed_digest),
         ] {
             let raw = contract.canonical_bytes();
-            assert_eq!(format!("{:x}", Sha256::digest(&raw)), raw_sha);
+            assert_eq!(
+                format!("{:x}", Sha256::digest(&raw)), raw_sha,
+                "legacy decoder bytes: rows={rows} outputs={outputs} document={} kind={} input_config={} canonical_contract={}",
+                if tiny == LEGACY_TINY_FULL { "gkm-golden-full" } else { "gkm-golden-seeded" },
+                if std::ptr::eq(contract, &ordinary) {
+                    "ordinary"
+                } else if std::ptr::eq(contract, &streamed) {
+                    "streamed"
+                } else {
+                    "sdk.decoder"
+                },
+                std::str::from_utf8(&cfg).unwrap(),
+                std::str::from_utf8(&raw).unwrap(),
+            );
             assert_eq!(json!(contract.digest()), json!(domain_digest));
             assert_eq!(json!(digest_bytes("pllm.gkm.decoder-reference.v1", &raw)), json!(domain_digest));
         }
