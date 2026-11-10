@@ -640,3 +640,241 @@ def test_composed_factory_preserves_all_existing_declarations(monkeypatch):
     assert {key: value for key, value in composed.pipeline.components.items() if key not in bindings()} == legacy.pipeline.components
     assert composed.configuration_digest() != legacy.configuration_digest()
     assert before == tuple(factory().canonical_bytes() for factory in factories)
+
+
+def test_legacy_and_selected_factories_complete_real_tiny_transport_windows(tmp_path, monkeypatch):
+    """Generated tensors only: no checkpoint/source qualification or physical claim.
+
+    Callback echoes plus the clear oracle test ordinary greedy semantics, not an
+    adversarial non-argmax canary. Both windows retain native resource guards.
+    """
+    import importlib.util
+    from pathlib import Path
+    import sys
+    from types import MappingProxyType
+    from test_delegated_decoder import clear_oracle
+
+    # Direct-file declarations use installed SDK imports, never a checkout path
+    # or examples.* cache entry. Even a preexisting fake common cannot leak in.
+    papers = Path(__file__).resolve().parents[1] / "examples" / "papers"
+    missing = object()
+    previous = sys.modules.get("common", missing)
+    try:
+        spec = importlib.util.spec_from_file_location("common", papers / "common.py")
+        common = importlib.util.module_from_spec(spec)
+        sys.modules["common"] = common
+        spec.loader.exec_module(common)
+        spec = importlib.util.spec_from_file_location("_binding_gkm", papers / "gkm.py")
+        gkm = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(gkm)
+    finally:
+        if previous is missing:
+            sys.modules.pop("common", None)
+        else:
+            sys.modules["common"] = previous
+
+    cfg = deepcopy(config())
+    cfg["max_position_embeddings"] = 64  # Declared envelope 32 + 1 fits.
+    _, arrays, tensors = fixture(cfg, rows=2, decode=1, capacity="decoder")
+    expected = clear_oracle(cfg, arrays, (0, 4), 1)
+    model, budget = Model.path(str(tmp_path)), ExecutionBudget(1, 32, 2)
+    experiments = (gkm.experiment(model=model, budget=budget),
+                   gkm.benchmark_experiment(model=model, budget=budget))
+    assert tuple(len(item.pipeline.components) for item in experiments) == (5, 17)
+    results, runtimes, acceptances = [], [], []
+    records = decoder.semantic_executor._LOCAL_IMPLEMENTATIONS
+    local_operators = set(EXPECTED) - {"token_lookup", "linear", "output_head"}
+    assert set(records) == local_operators and len(local_operators) == 16
+
+    class SynchronousPeers:
+        batch = None
+
+        def __init__(self, workers):
+            self.workers, self.phase = workers, "prefill"
+            self.busy = self.finished = False
+            self.exchanges = 0
+
+        def exchange(self, frames):
+            assert not self.busy and not self.finished
+            self.busy = True
+            try:
+                replies = tuple(worker.execute(frame)
+                                for worker, frame in zip(self.workers, frames, strict=True))
+                assert len(replies) == 2 and all(type(reply) is bytes for reply in replies)
+                self.exchanges += 1
+                return replies
+            finally:
+                self.busy = False
+
+        def finish(self):
+            assert not self.busy and not self.finished
+            completions = tuple(json.loads(worker.finish()) for worker in self.workers)
+            self.finished = True
+            return completions
+
+        def check(self):
+            assert self.finished and not self.busy and self.phase == "decode"
+            assert self.exchanges == contract["window_steps"]
+
+    class Observed(_ObservedSession):
+        def bound_step(self, phase, operation_id):
+            code = self.owner.bound_step(phase, operation_id)
+            operation = operations[phase][operation_id]
+            assert type(code) is int and code == EXPECTED[operation["operator"]]
+            self.codes.append((phase, operation_id))
+            events.append(("bound", phase, operation_id, code))
+            return code
+
+        def lookup(self, token):
+            lookups.append(token)
+            return self.owner.lookup(token)
+
+    real_retire = decoder._Request.retire
+    for index, experiment in enumerate(experiments):
+        # Nonzero digest strings label this generated fixture only. No source
+        # files were hashed, admitted, or verified by these declarations.
+        args = (experiment.canonical_bytes(), decoder._encode_config(cfg),
+                2, 2, "01" * 32, "02" * 32)
+        runtime = json.loads(_native.gkm_runtime_contract(*args))
+        contract = runtime["decoder"]
+        runtimes.append(runtime)
+        assert contract["input_rows"] == 2 and contract["decode_steps"] == 1
+        assert any(member["bias"] is not None for matrix in contract["matrices"]
+                   for member in matrix["members"])
+        assert contract["table"] == "model.embed_tokens.weight"
+        operations = {phase: {op["id"]: op for op in contract["plan"][phase]["operations"]}
+                      for phase in ("prefill", "decode")}
+        events, lookups, callbacks, selections, feedback, retired = [], [], [], [], [], []
+        client, workers = None, []
+
+        def observe_record(operator, selector, original):
+            def callback(request, operation, values, *args, **kwargs):
+                phase = "prefill" if request.position == 0 else "decode"
+                assert operation["operator"] == operator == selector
+                assert events[-1] == ("bound", phase, operation["id"], EXPECTED[operator])
+                result = original(request, operation, values, *args, **kwargs)
+                callbacks.append((phase, operation["id"], operator))
+                events.append(("callback", phase, operation["id"], operator))
+                if operator == "greedy_token_selection":
+                    assert result.shape == (1,)
+                    selections.append(result.item())
+                elif operator == "token_feedback":
+                    # IR shape [1, 1] does not require changing actual array [1].
+                    assert result is values[operation["inputs"][0]]
+                    feedback.append(result.item())
+                return result  # Exact original callback result, never a canary.
+            return selector, callback
+
+        def retire(request):
+            try:
+                return real_retire(request)
+            finally:
+                assert all(cache.key is None and cache.value is None and cache.length == 0
+                           for cache in request.caches)
+                assert not request._coefficients
+                retired.append(True)
+
+        try:
+            client = _native._GkmTransportClient(*args, tensors)
+            publication, pin = client.publication(), client.publication_digest()
+            starts = client.starts()
+            for role in (0, 1):
+                workers.append(_native._GkmTransportWorker(
+                    *args, tensors, publication, pin, role, starts[role]))
+            peers = SynchronousPeers(workers)
+            owner = Observed(transport._NativeExchange(client, peers, len(contract["matrices"]) - 1))
+            with monkeypatch.context() as control:
+                control.setattr(decoder._Request, "retire", retire)
+                if index == 1:
+                    control.setattr(decoder.semantic_executor, "_LOCAL_IMPLEMENTATIONS", MappingProxyType({
+                        operator: observe_record(operator, selector, original)
+                        for operator, (selector, original) in records.items()
+                    }))
+                result = decoder._execute_verified_window(owner, contract, (0, 4))
+            assert decoder.semantic_executor._LOCAL_IMPLEMENTATIONS is records
+            assert retired == [True] and owner.aborts >= 1
+            assert (result.logits, result.kv, result.selected, result.executed, result.position) == expected
+            assert len(result.selected) == 2 and result.position == 3
+            assert result.executed == (0, 4, result.selected[0])
+            assert tuple(lookups) == result.executed  # Final selection remains pending.
+            for phase in ("prefill", "decode"):
+                assert {key for seen, key in owner.codes if seen == phase} == set(operations[phase])
+            if index == 1:
+                assert {operator for _, _, operator in callbacks} == local_operators
+                for phase in ("prefill", "decode"):
+                    assert {key for seen, key, _ in callbacks if seen == phase} == {
+                        key for key, op in operations[phase].items() if op["operator"] in local_operators}
+                assert tuple(selections) == tuple(feedback) == result.selected
+            else:
+                assert not callbacks
+            acceptance = json.loads(result.acceptance)
+            assert acceptance["steps"] == contract["window_steps"]
+            acceptances.append(acceptance)
+            results.append(result)
+        finally:
+            if client is not None:
+                client.abort()
+            for worker in workers:
+                worker.abort()
+        for native in (client, *workers):
+            with pytest.raises(ValueError, match=r"\AGKM transport owner is retired\Z"):
+                native.request_id()
+        with pytest.raises(ValueError, match=r"\Ainvalid bound decoder step\Z"):
+            client.bound_step("prefill", "token_lookup")
+
+    assert runtimes[0]["composition"] != runtimes[1]["composition"]
+    assert runtimes[0]["configuration"] != runtimes[1]["configuration"]
+    for key in ("decoder", "source_lock", "tokenizer"):
+        assert runtimes[0][key] == runtimes[1][key]
+    for key in ("decoder_contract", "source"):
+        assert acceptances[0][key] == acceptances[1][key]
+    assert (results[0].logits, results[0].kv, results[0].selected,
+            results[0].executed, results[0].position) == (
+        results[1].logits, results[1].kv, results[1].selected,
+        results[1].executed, results[1].position)
+
+
+@pytest.mark.parametrize("mutation,error", [
+    ("selection", r"\AGKM decoder reference: incompatible SDK component binding\Z"),
+    ("activation", r"\Aunsupported model: hidden_act relu is not silu\Z"),
+])
+def test_selected_transport_rejects_contract_before_empty_tensors(tmp_path, mutation, error):
+    import importlib.util
+    from pathlib import Path
+    import sys
+
+    papers = Path(__file__).resolve().parents[1] / "examples" / "papers"
+    missing = object()
+    previous = sys.modules.get("common", missing)
+    try:
+        spec = importlib.util.spec_from_file_location("common", papers / "common.py")
+        common = importlib.util.module_from_spec(spec)
+        sys.modules["common"] = common
+        spec.loader.exec_module(common)
+        spec = importlib.util.spec_from_file_location("_binding_gkm_rejection", papers / "gkm.py")
+        gkm = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(gkm)
+    finally:
+        if previous is missing:
+            sys.modules.pop("common", None)
+        else:
+            sys.modules["common"] = previous
+
+    experiment = gkm.benchmark_experiment(model=Model.path(str(tmp_path)),
+                                           budget=ExecutionBudget(1, 32, 2))
+    document = json.loads(experiment.canonical_bytes())
+    cfg = deepcopy(config())
+    cfg["max_position_embeddings"] = 64
+    assert len(document["pipeline"]["components"]) == 17
+    if mutation == "selection":
+        document["pipeline"]["components"]["selection"]["component"] = "external/selection/v1"
+    else:
+        cfg["hidden_act"] = "relu"
+    assert len(document["pipeline"]["components"]) == 17
+    encoded = json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
+    # Fixture identity strings only, not source-content verification. An
+    # accidentally admitted contract reaches tensor-set mismatch and MUST fail
+    # these anchored error matches instead of masquerading as early rejection.
+    args = encoded, decoder._encode_config(cfg), 2, 2, "01" * 32, "02" * 32
+    with pytest.raises(ValueError, match=error):
+        _native._GkmTransportClient(*args, {})

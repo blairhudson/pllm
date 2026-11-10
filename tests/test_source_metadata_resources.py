@@ -13,6 +13,7 @@ from test_fss_worker import configuration
 @pytest.mark.parametrize("fail", [False, True])
 def test_shared_decoder_metadata_reservation_precedes_inspection_and_retires_frames(monkeypatch, kind, fail):
     events, references = [], []
+    expected_prefix = (["reserve", "validate"] if kind == "gkm" else ["validate", "reserve"])
     class Payload:
         pass
     @contextmanager
@@ -26,7 +27,7 @@ def test_shared_decoder_metadata_reservation_precedes_inspection_and_retires_fra
             events.append("release")
     monkeypatch.setattr(resources, "reserve_incremental_memory", reserve)
     def inspect(*args, **kwargs):
-        assert events == ["validate", "reserve"]
+        assert events == expected_prefix
         payload = Payload()
         references.append(weakref.ref(payload))
         events.append("inspect")
@@ -46,7 +47,7 @@ def test_shared_decoder_metadata_reservation_precedes_inspection_and_retires_fra
             resolve(configuration("decoder"))
     else:
         assert resolve(configuration("decoder")) == "resolved"
-    assert events == ["validate", "reserve", "inspect", "release"]
+    assert events == expected_prefix + ["inspect", "release"]
 
 
 @pytest.mark.parametrize("kind", ["fss", "gkm"])
