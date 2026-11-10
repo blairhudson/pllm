@@ -372,16 +372,102 @@ def test_funded_source_stop_before_entry_does_no_resolution(funded_source):
 def test_funded_source_fresh_pressure_refusal_drains_only_inert_slot(funded_source, monkeypatch):
     from pllm.runtime import benchmark_memory as memory
     state = funded_source
+    # Read only the fixture's sealed healthy sample, never real host telemetry.
+    sample = memory.host_memory()
+    assert sample.pressure is None and sample.available == 32 << 30
+    observations, ordering, slots, memory_requests, forbidden = [], [], [], [], []
+    acquire = resources.reserve_cleanup_slot
+    drain = resources._CleanupSlot.drain
+    reserve_memory = resources.reserve_incremental_memory
+    failure = state.topology._failure_observer
+
+    def host_memory():
+        observations.append(sample)
+        return sample
+
+    def only_control_charged(slot):
+        assert state.capacity._owners == {slot._token: slot.control_bytes}
+        assert state.capacity._cleanup == {slot._token: slot}
+        assert slot._binding is None and not slot.closed
+        assert not state.disk_capacity._owners
+        assert state.refund_count == 1  # Metadata refunded; C still charged.
+
+    def acquire_slot(*, max_control_bytes=None):
+        slot = acquire(max_control_bytes=max_control_bytes)
+        slots.append(slot)
+        only_control_charged(slot)
+        assert not state.topology._stopping.is_set()
+        ordering.append("acquired")
+        return slot
+
+    def reserve(amount):
+        memory_requests.append(amount)
+        return reserve_memory(amount)
+
+    def unexpected(*args, **kwargs):
+        forbidden.append((args, kwargs))
+        raise AssertionError("no disk acquisition or child dispatch before preflight")
 
     def change_pressure():
-        monkeypatch.setattr(memory, "host_memory", lambda: memory.HostMemory(
+        nonlocal sample
+        only_control_charged(slots[0])
+        assert state.controls == [0, slots[0].control_bytes]
+        assert not state.topology._stopping.is_set()
+        sample = memory.HostMemory(
             64 << 30, 32 << 30, 0, 64 << 30, availability_source="macos_mach_dispatch_v2",
-            pressure="warning", free=32 << 30, cached=0, purgeable=0, reusable=0))
+            pressure="warning", free=32 << 30, cached=0, purgeable=0, reusable=0)
+        assert memory.host_memory is host_memory
+        ordering.append("repriced")
 
+    def observe_failure():
+        assert state.topology._stopping.is_set()
+        only_control_charged(slots[0])
+        failure()
+        ordering.append("failure")
+
+    def drain_slot(slot):
+        assert slot is slots[0]
+        assert ordering == ["acquired", "repriced", "failure"]
+        assert state.topology._stopping.is_set()
+        only_control_charged(slot)
+        ordering.append("inert.drain")
+        result = drain(slot)  # Real inert retirement and original C refund.
+        assert slot.closed and slot._binding is None
+        assert not state.capacity._owners and not state.capacity._cleanup
+        assert state.refund_count == 2
+        ordering.append("C.refunded")
+        return result
+
+    # One callable is captured by admission and (if reached) the real watchdog.
+    monkeypatch.setattr(memory, "host_memory", host_memory)
+    monkeypatch.setattr(resources, "reserve_cleanup_slot", acquire_slot)
+    monkeypatch.setattr(resources._CleanupSlot, "drain", drain_slot)
+    monkeypatch.setattr(resources, "reserve_incremental_memory", reserve)
+    monkeypatch.setattr(resources, "reserve_incremental_disk", unexpected)
+    monkeypatch.setattr(type(state.topology), "_spawn", unexpected)
+    monkeypatch.setattr(sys.modules[type(state.topology).__module__], "_spawn_role_process", unexpected)
+    monkeypatch.setattr(state.topology, "_failure_observer", observe_failure)
     state.reprice_hook = change_pressure
-    with pytest.raises(memory.BenchmarkMemoryError, match="preflight rejected"):
+    with pytest.raises(memory.BenchmarkMemoryError, match="preflight rejected") as caught:
         state.run()
-    assert "produce" not in state.events
+    report = caught.value.report
+    assert report is state.topology._memory_admission
+    assert report["host"]["pressure"] == "warning"
+    assert report["host"]["availability_source"] == "macos_mach_dispatch_v2"
+    assert not report["admitted"] and report["selected_backend"] is None
+    assert report["requested_backend"] == "native"
+    assert not report["candidates"]["native"]["admitted"]
+    assert report["candidates"]["native"]["reasons"] == ["macOS memory pressure is warning"]
+    assert report["admission_scope"] == "source_qualification_only"
+    assert report["full_topology_admitted"] is False
+    assert len(slots) == 1
+    assert report["qualification_control_bytes"] == slots[0].control_bytes == state.controls[-1]
+    assert observations == [sample] and memory.host_memory is host_memory
+    assert ordering == ["acquired", "repriced", "failure", "inert.drain", "C.refunded"]
+    assert memory_requests == [384 << 20]  # Disjoint metadata only; no P request.
+    assert not forbidden and not state.refs
+    assert not {"produce", "consume", "owner.close"}.intersection(state.events)
+    assert state.events == ["metadata", "price:0", "price:" + str(slots[0].control_bytes), "failure"]
     assert not state.capacity._owners and not state.capacity._cleanup
     assert not state.disk_capacity._owners
     assert state.refund_count == 2  # Metadata + inert C; no P issued.
