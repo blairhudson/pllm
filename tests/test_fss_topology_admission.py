@@ -152,10 +152,11 @@ def setup(tmp_path, monkeypatch):
     monkeypatch.setattr(servers.LocalTopology, "_spawn", spawn)
     monkeypatch.setattr(servers.LocalTopology, "_wait", lambda *args: None)
     monkeypatch.setattr(servers.LocalTopology, "_free_port", staticmethod(lambda excluded: 18000 + len(excluded)))
-    def stop(processes):
+    def stop(processes, *, _owners=(), _observe=None):
         state.events.append("children.stop")
         if state.fail_stop:
             raise ValueError("child failed to retire")
+        assert not tuple(_owners)
         for proc in processes:
             proc.dead = True
     monkeypatch.setattr(servers.LocalTopology, "_stop_all", staticmethod(stop))
