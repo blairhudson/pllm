@@ -14,6 +14,119 @@ use sha2::{Digest, Sha256};
 use zeroize::{Zeroize, Zeroizing};
 
 use super::resource_quote;
+use crate::bound_tensor_kernel::{self, sealed as tensor_port};
+
+// Minted only at the admitted SiLU dispatch below. Nodes are borrowed from the
+// actual immutable Program, input from its live register slot, output from this
+// node's private erasing result. No copied descriptor or retained proof owner.
+struct SiluRegisters<'a> {
+    input_node: &'a Node,
+    _output_node: &'a Node,
+    input: &'a [u64],
+    output: &'a mut [u64],
+}
+
+impl<'a> tensor_port::AdmittedSiluRegisters<'a> for SiluRegisters<'a> {
+    fn into_parts(self) -> (gates::InputRange, &'a [u64], &'a mut [u64]) {
+        (self.input_node.range.gate(), self.input, self.output)
+    }
+}
+
+// Neither adapter owns a Driver/cache/Program. The native adapter is constructed
+// only with an installed Driver; its primitive methods cannot remove that Driver.
+struct NativeSiluPort<'s, 'a, 'd, 'c, 'b>(&'s mut Schedule<'a, 'd, 'c, 'b>);
+struct DiagnosticSiluPort<'s, 'a, 'd, 'c, 'b>(&'s mut Schedule<'a, 'd, 'c, 'b>);
+
+// Delegate only existing primitive invocation mechanics. The shared component,
+// not this decoder adapter, chooses/builds SiLU and traverses its bound registers.
+macro_rules! cached_tensor_port {
+    ($port:ident) => {
+        impl<'b> tensor_port::CachedTensorPort<'b> for $port<'_, '_, '_, '_, 'b> {
+            fn uses_lanes(&self) -> bool { self.0.program.online.uses_wavefront() }
+            fn cached_kernel<F>(
+                &mut self, input: &[u64], outputs: usize, build: F,
+            ) -> Result<Zeroizing<Vec<u64>>, AdmissionFailure<Error>>
+            where F: FnOnce(&SourceTableCache<'b>) -> Result<Plan<'b>, Error> {
+                self.0.cached_kernel(input, outputs, build)
+            }
+            fn lanes<F, I, O>(
+                &mut self, count: usize, build: F, gather: I, store: O,
+            ) -> Result<(), AdmissionFailure<Error>>
+            where
+                F: FnMut(&SourceTableCache<'b>) -> Result<Plan<'b>, Error>,
+                I: FnMut(usize, &mut Vec<u64>) -> Result<(), Error>,
+                O: FnMut(usize, &[u64]) -> Result<(), Error>,
+            {
+                self.0.lanes(count, true, build, gather, store)
+            }
+        }
+    };
+}
+cached_tensor_port!(NativeSiluPort);
+cached_tensor_port!(DiagnosticSiluPort);
+impl<'b> tensor_port::SiluExecutionPort<'b> for NativeSiluPort<'_, '_, '_, '_, 'b> {}
+impl<'b> tensor_port::SiluDiagnosticPort<'b> for DiagnosticSiluPort<'_, '_, '_, '_, 'b> {}
+
+/// Test-only isolated admitted-register control. Legacy means the former SiLU
+/// loop, not a selectable production implementation or a new component API.
+#[cfg(test)]
+fn silu_register_control<'d>(
+    program: &Program,
+    node: usize,
+    context: Context,
+    role: u8,
+    input: &[u64],
+    driver: Option<&'d mut dyn Driver>,
+    visitor: Option<&'d mut dyn MaterialVisitor>,
+    legacy: bool,
+) -> Result<(Zeroizing<Vec<u64>>, [u8; 32], Resources, cache::Stats), Error> {
+    let budget = request_budget(program)?;
+    let tables = request_tables(program, &budget)?;
+    let mut state = Schedule::new(program, context, role, None, &tables)?;
+    // Both callbacks share one test invocation lifetime, just like Schedule.
+    let result = (|| {
+        let execute = |state: &mut Schedule<'_, '_, '_, '_>| {
+            state.node = node;
+            let Code::Activation { input: register, silu: true } = program.nodes[node].code else {
+                return Err(Error::Domain);
+            };
+            let mut arrays = vector(program.nodes.len())?;
+            arrays.resize_with(program.nodes.len(), || None);
+            arrays[register] = Some(Zeroizing::new(copied(input)?));
+            let output = if legacy {
+                let range = program.nodes[register].range.gate();
+                let mut out = Zeroizing::new(zeros(input.len())?);
+                if program.online.uses_wavefront() {
+                    state.lanes(
+                        input.len(), true,
+                        |tables| Ok(gates::silu_cached(range, tables)?.0),
+                        |i, values| { values.push(input[i]); Ok(()) },
+                        |i, values| { out[i] = values[0]; Ok(()) },
+                    ).map_err(|failure| failure.error)?;
+                } else {
+                    for i in 0..input.len() {
+                        out[i] = state.cached_kernel(&input[i..i + 1], 1, |tables| {
+                            Ok(gates::silu_cached(range, tables)?.0)
+                        }).map_err(|failure| failure.error)?[0];
+                    }
+                }
+                out
+            } else {
+                state.node(&program.nodes[node], &arrays, &[], 0)?
+            };
+            Ok((output, state.hash.clone().finalize().into(), state.resources, state.tables.stats()))
+        };
+        // Keep callback borrows scoped before tables/Budget retirement.
+        match (driver, visitor) {
+            (Some(driver), None) => { state.driver = Some(driver); execute(&mut state) }
+            (None, Some(visitor)) => { state.visitor = Some(visitor); execute(&mut state) }
+            (None, None) => execute(&mut state),
+            _ => Err(Error::Context),
+        }
+    })();
+    if result.is_err() { state.cancel(); }
+    result
+}
 
 fn quote_failure(error: Error) -> AdmissionFailure<Error> {
     AdmissionFailure::from(error).with_context_if_absent(
@@ -1538,20 +1651,32 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                     )?;
                 }
             }
-            Activation { input, silu } => {
+            Activation { input, silu: true } => {
+                let registers = SiluRegisters {
+                    input_node: &p.nodes[input],
+                    _output_node: &p.nodes[self.node],
+                    input: get(input)?,
+                    output: &mut out,
+                };
+                let binding = bound_tensor_kernel::bind_silu(registers);
+                // Native execution authority never comes from dry admission or
+                // dealer traversal. Worker::execute installs the actual Driver.
+                if self.driver.is_some() {
+                    bound_tensor_kernel::execute_silu(binding, &mut NativeSiluPort(self))?;
+                } else {
+                    bound_tensor_kernel::diagnose_silu(binding, &mut DiagnosticSiluPort(self))?;
+                }
+            }
+            Activation { input, silu: false } => {
                 let x = get(input)?;
                 let range = p.nodes[input].range.gate();
                 let binding = self.binding();
                 if p.online.uses_wavefront() {
                     self.lanes(
                         x.len(),
-                        silu,
+                        false,
                         |tables| {
-                            if silu {
-                                Ok(gates::silu_cached(range, tables)?.0)
-                            } else {
-                                Ok(kernels::gelu(binding, range, tables.budget())?.0)
-                            }
+                            Ok(kernels::gelu(binding, range, tables.budget())?.0)
                         },
                         |i, v| {
                             v.push(x[i]);
@@ -1565,15 +1690,9 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                     return Ok(out);
                 }
                 for i in 0..x.len() {
-                    out[i] = if silu {
-                        self.cached_kernel(&x[i..i + 1], 1, |tables| {
-                            Ok(gates::silu_cached(range, tables)?.0)
-                        })?
-                    } else {
-                        self.kernel_context(&x[i..i + 1], 1, |budget| {
-                            Ok(kernels::gelu(binding, range, budget)?.0)
-                        })?
-                    }[0];
+                    out[i] = self.kernel_context(&x[i..i + 1], 1, |budget| {
+                        Ok(kernels::gelu(binding, range, budget)?.0)
+                    })?[0];
                 }
             }
             Slice { input, start } => {

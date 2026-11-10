@@ -7,6 +7,18 @@ use pllm_models::{DecoderPlan, DecoderWorkload, ModelOperator as Op};
 use serde_json::json;
 use std::{sync::mpsc, thread};
 
+// Reuse the frozen integer constants without decoding JSON, copying a table, or
+// introducing a production table/cache owner. This module is test-only.
+#[allow(dead_code)]
+#[path = "../../../pllm-garble/src/fixed_activation_table_values.rs"]
+mod frozen_activation_values;
+
+fn frozen_silu(x: i64) -> i64 {
+    let reduced = x.div_euclid(64);
+    let index = reduced.unsigned_abs().min(1023) as usize;
+    (if reduced >= 0 { x } else { 0 }) - frozen_activation_values::SILU[index] as i64
+}
+
 fn fixture() -> (DecoderPlan, Source) {
     let config = json!({"model_type":"gpt2","n_embd":2,"n_head":1,"n_layer":1,"n_positions":4,"vocab_size":3,"n_inner":2});
     let plan = pllm_models::lower_model_json(
@@ -242,6 +254,123 @@ fn signed(v: u64) -> i64 {
         v as i64
     } else {
         v as i64 - (1i64 << 50)
+    }
+}
+
+#[test]
+fn bound_silu_admitted_registers_match_legacy_native_and_frozen_integer() {
+    for online in [OnlineSchedule::Serial, OnlineSchedule::WavefrontV1, OnlineSchedule::TensorV1] {
+        let (_, semantic, source) = dense_fixture();
+        let program = Program::compile_with_schedule(&semantic, source, 2, Limits::default(), online).unwrap();
+        let node = program.nodes.iter().position(|n| matches!(
+            n.code, super::super::program::Code::Activation { silu: true, .. }
+        )).unwrap();
+        let super::super::program::Code::Activation { input, .. } = program.nodes[node].code else { unreachable!() };
+        let range = program.nodes[input].range;
+        assert!(range.lo <= -65 && range.hi >= 65);
+        let count = super::super::program::graph_elements(program.capacity(), &program.nodes[input].shape).unwrap();
+        let cases = [range.lo, -65, -64, -1, 0, 1, 63, 64, 65, range.hi];
+        let obligations = program.obligations;
+        let resources = format!("{:?}", program.resources());
+        for batch in 0..cases.len().div_ceil(count) {
+            let clear: Vec<_> = (0..count).map(|i| cases[(batch * count + i) % cases.len()]).collect();
+            let left: Vec<_> = (0..count).map(|i| (123456789 + i as u64 * 71893) & MASK).collect();
+            let right: Vec<_> = clear.iter().zip(&left).map(|(&x, &a)| word(x).wrapping_sub(a) & MASK).collect();
+            let context = Context {
+                plan: program.digest(), session: [7; 32], operation: [8; 32],
+                first_tensor_index: batch as u64,
+            };
+            let mut legacy_visits = Visits::default();
+            let legacy = super::silu_register_control(
+                &program, node, context, 0, &left, None, Some(&mut legacy_visits), true,
+            ).unwrap();
+            let mut visits = Visits::default();
+            let diagnostic = super::silu_register_control(
+                &program, node, context, 0, &left, None, Some(&mut visits), false,
+            ).unwrap();
+            assert_eq!(visits.records, legacy_visits.records);
+            assert_eq!(visits.requests, legacy_visits.requests);
+            assert!(!visits.cancelled && !legacy_visits.cancelled);
+            assert!(diagnostic.0.iter().all(|&v| v == 0));
+            assert_eq!(diagnostic.1, legacy.1);
+            assert_eq!(format!("{:?}", diagnostic.2), format!("{:?}", legacy.2));
+            assert_eq!(diagnostic.3, legacy.3);
+            let expected = visits.records.as_slice();
+            for legacy_route in [true, false] {
+                let (sender, receiver) = mpsc::sync_channel(0);
+                let run = |role, send, receive, shares: &[u64]| {
+                    let mut driver = HarnessDriver {
+                        role, send, receive, trace: Vec::new(), cancelled: false, expected, next: 0,
+                    };
+                    let result = super::silu_register_control(
+                        &program, node, context, role, shares, Some(&mut driver), None, legacy_route,
+                    ).unwrap();
+                    assert!(!driver.cancelled);
+                    assert_eq!(driver.next, expected.len());
+                    assert_eq!(result.1, diagnostic.1);
+                    assert_eq!(format!("{:?}", result.2), format!("{:?}", diagnostic.2));
+                    assert_eq!(result.3, diagnostic.3);
+                    result.0
+                };
+                let (a, b) = thread::scope(|scope| {
+                    let run = &run;
+                    let left = &left;
+                    let a = scope.spawn(move || run(0, None, Some(receiver), left));
+                    let b = run(1, Some(sender), None, &right);
+                    (a.join().unwrap(), b)
+                });
+                let actual = reconstructed(&a, &b);
+                assert_eq!(actual, clear.iter().copied().map(frozen_silu).collect::<Vec<_>>());
+                assert!(actual.iter().zip(&clear).all(|(&y, &x)| y >= -65536 && y <= range.hi.max(0) && x >= range.lo && x <= range.hi));
+            }
+        }
+        assert_eq!(program.obligations, obligations);
+        assert_eq!(format!("{:?}", program.resources()), resources);
+    }
+}
+
+#[test]
+fn bound_silu_driver_and_material_errors_cancel_without_publishing_registers() {
+    struct Fail { calls: usize, cancelled: bool }
+    impl Driver for Fail {
+        fn run(&mut self, _: Context, _: &Plan<'_>, _: &[u64]) -> Result<NativeOutput, Error> {
+            self.calls += 1;
+            Err(Error::Context)
+        }
+        fn cancel(&mut self) { self.cancelled = true; }
+    }
+    impl MaterialVisitor for Fail {
+        fn visit(&mut self, _: Context, _: &Plan<'_>) -> Result<(), Error> {
+            self.calls += 1;
+            Err(Error::Context)
+        }
+        fn cancel(&mut self) { self.cancelled = true; }
+    }
+    for online in [OnlineSchedule::Serial, OnlineSchedule::WavefrontV1, OnlineSchedule::TensorV1] {
+        let (_, semantic, source) = dense_fixture();
+        let program = Program::compile_with_schedule(&semantic, source, 2, Limits::default(), online).unwrap();
+        let node = program.nodes.iter().position(|n| matches!(
+            n.code, super::super::program::Code::Activation { silu: true, .. }
+        )).unwrap();
+        let count = super::super::program::graph_elements(program.capacity(), &program.nodes[node].shape).unwrap();
+        let input = vec![0; count];
+        let context = Context {
+            plan: program.digest(), session: [7; 32], operation: [8; 32], first_tensor_index: 0,
+        };
+        for legacy in [true, false] {
+            let mut driver = Fail { calls: 0, cancelled: false };
+            assert!(matches!(super::silu_register_control(
+                &program, node, context, 0, &input, Some(&mut driver), None, legacy,
+            ), Err(Error::Context)));
+            assert_eq!(driver.calls, 1);
+            assert!(driver.cancelled);
+            let mut visitor = Fail { calls: 0, cancelled: false };
+            assert!(matches!(super::silu_register_control(
+                &program, node, context, 0, &input, None, Some(&mut visitor), legacy,
+            ), Err(Error::Context)));
+            assert_eq!(visitor.calls, 1);
+            assert!(visitor.cancelled);
+        }
     }
 }
 fn reconstructed(a: &[u64], b: &[u64]) -> Vec<i64> {
