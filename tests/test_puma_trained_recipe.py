@@ -239,7 +239,12 @@ def test_native_configuration_resolution_only():
 @pytest.mark.parametrize("factory", [original_experiment, experiment])
 def test_native_legacy_and_plain_pipeline_resolution_identity(factory):
     pytest.importorskip("pllm._native")
-    configured = factory()
+    budget = (
+        ExecutionBudget(requests=32, max_input_tokens=32, max_new_tokens=8)
+        if factory is original_experiment else BUDGET
+    )
+    configured = factory(budget=budget)
+    assert configured.budget == budget
     equivalent = Experiment(
         configured.name, legacy_pipeline(factory), configured.deployment, configured.budget
     )
@@ -251,6 +256,44 @@ def test_native_legacy_and_plain_pipeline_resolution_identity(factory):
     assert public.configuration_digest == legacy.configuration_digest
     assert public.client_runtime == legacy.client_runtime == "compiled_replicated_v1"
     assert public.privacy_protocol == legacy.privacy_protocol == "replicated_q18"
+
+
+@pytest.mark.rust
+def test_native_original_default_refusal_matches_legacy():
+    pytest.importorskip("pllm._native")
+    configured = original_experiment()
+    assert configured.budget == ExecutionBudget(
+        requests=32, max_input_tokens=64, max_new_tokens=8
+    )
+    assert configured.pipeline.model.to_spec() == {
+        "source": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "local_files_only": True,
+    }
+    assert configured.deployment.to_spec() == {
+        "kind": "local", "root": ".pllm/papers/puma",
+    }
+    assert configured.pipeline.to_spec()["components"] == {
+        "linear": {"component": "pllm/puma-three-party-decoder/v1", "params": {}},
+        "topology": {"component": "pllm/three-party-replicated/v1", "params": {}},
+        "state": {"component": "pllm/replicated-private-prefix/v1", "params": {}},
+        "kernels": {"component": "pllm/cpu", "params": {"threads": 1}},
+    }
+    assert configured.pipeline.components["linear"].get_params() == {
+        "weights": "private", "range_policy": "static", "max_abs_activation": 256,
+        "lookup": "per_token", "selection": "expanded", "peer_transport": "http",
+        "storage": "expanded",
+    }
+    equivalent = Experiment(
+        configured.name, legacy_pipeline(original_experiment), configured.deployment, configured.budget
+    )
+    assert configured.to_spec() == equivalent.to_spec()
+    assert configured.canonical_bytes() == equivalent.canonical_bytes()
+    for candidate in (configured, equivalent):
+        with pytest.raises(ConfigurationError) as failure:
+            candidate.resolve()
+        assert str(failure.value) == "replicated source, deployment or workload is unsupported"
+        assert isinstance(failure.value.__cause__, ValueError)
 
 
 @pytest.mark.rust
