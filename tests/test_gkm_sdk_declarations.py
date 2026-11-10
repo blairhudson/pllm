@@ -396,7 +396,7 @@ def test_paper_factories_keep_decoder_workload_and_sharing_without_native_admiss
         "local_files_only": True,
     }
     assert experiment.budget == ExecutionBudget(requests, input_tokens, output_tokens)
-    assert experiment.pipeline.linear.to_spec()["params"] == {
+    assert experiment.pipeline.components["linear"].to_spec()["params"] == {
         "capacity": "decoder", "sharing": sharing, "generation": "fixed_length_greedy",
     }
     restored = Experiment.from_spec(json.loads(experiment.canonical_bytes()))
