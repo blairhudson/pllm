@@ -16,56 +16,77 @@ use zeroize::{Zeroize, Zeroizing};
 use super::resource_quote;
 use crate::bound_tensor_kernel::{self, sealed as tensor_port};
 
-// Minted only at the admitted SiLU dispatch below. Nodes are borrowed from the
-// actual immutable Program, input from its live register slot, output from this
-// node's private erasing result. No copied descriptor or retained proof owner.
-struct SiluRegisters<'a> {
-    input_node: &'a Node,
-    _output_node: &'a Node,
-    input: &'a [u64],
-    output: &'a mut [u64],
+// The real selection/node loop is the sole production issuer. This transient
+// window carries its actual live register frame, not an independently supplied
+// input slice. Its exclusive Schedule borrow also freezes Driver installation.
+// Pointer checks below supplement this trusted scope; they are not owner IDs or
+// a security claim against arbitrary code inside this Rust module.
+struct ActiveRegisterFrame<'p, 'f> {
+    program: &'p Program,
+    frame: &'f [Option<Zeroizing<Vec<u64>>>],
+    selection: usize,
+    prefix: usize,
+}
+struct DispatchWindow<'s, 'p, 'd, 'c, 'b, 'f> {
+    schedule: &'s mut Schedule<'p, 'd, 'c, 'b>,
+    active: &'f ActiveRegisterFrame<'p, 'f>,
+    program: &'p Program,
+    node: &'p Node,
+    index: usize,
+    selection: usize,
+    prefix: usize,
+    frame: &'f [Option<Zeroizing<Vec<u64>>>],
 }
 
-impl<'a> tensor_port::AdmittedSiluRegisters<'a> for SiluRegisters<'a> {
-    fn into_parts(self) -> (gates::InputRange, &'a [u64], &'a mut [u64]) {
-        (self.input_node.range.gate(), self.input, self.output)
-    }
+struct SiluInvocationState<'s, 'p, 'd, 'c, 'b, 'f, 'o> {
+    schedule: &'s mut Schedule<'p, 'd, 'c, 'b>,
+    input: &'f [u64],
+    output: &'o mut [u64],
+    range: gates::InputRange,
+}
+struct NativeSiluInvocation<'s, 'p, 'd, 'c, 'b, 'f, 'o>(SiluInvocationState<'s, 'p, 'd, 'c, 'b, 'f, 'o>);
+struct DiagnosticSiluInvocation<'s, 'p, 'd, 'c, 'b, 'f, 'o>(SiluInvocationState<'s, 'p, 'd, 'c, 'b, 'f, 'o>);
+enum AdmittedSiluInvocation<'s, 'p, 'd, 'c, 'b, 'f, 'o> {
+    Native(NativeSiluInvocation<'s, 'p, 'd, 'c, 'b, 'f, 'o>),
+    Diagnostic(DiagnosticSiluInvocation<'s, 'p, 'd, 'c, 'b, 'f, 'o>),
 }
 
-// Neither adapter owns a Driver/cache/Program. The native adapter is constructed
-// only with an installed Driver; its primitive methods cannot remove that Driver.
-struct NativeSiluPort<'s, 'a, 'd, 'c, 'b>(&'s mut Schedule<'a, 'd, 'c, 'b>);
-struct DiagnosticSiluPort<'s, 'a, 'd, 'c, 'b>(&'s mut Schedule<'a, 'd, 'c, 'b>);
+// Explicit concrete FSS type whitelist. No Schedule, raw slices, generic proof,
+// or generic port implements these operation-specific traits.
+impl tensor_port::whitelist::FssSilu for NativeSiluInvocation<'_, '_, '_, '_, '_, '_, '_> {}
+impl tensor_port::whitelist::FssSilu for DiagnosticSiluInvocation<'_, '_, '_, '_, '_, '_, '_> {}
+impl tensor_port::whitelist::NativeFssSilu for NativeSiluInvocation<'_, '_, '_, '_, '_, '_, '_> {}
+impl tensor_port::whitelist::DiagnosticFssSilu for DiagnosticSiluInvocation<'_, '_, '_, '_, '_, '_, '_> {}
+impl<'b> tensor_port::NativeSiluInvocation<'b> for NativeSiluInvocation<'_, '_, '_, '_, 'b, '_, '_> {}
+impl<'b> tensor_port::DiagnosticSiluInvocation<'b> for DiagnosticSiluInvocation<'_, '_, '_, '_, 'b, '_, '_> {}
 
-// Delegate only existing primitive invocation mechanics. The shared component,
-// not this decoder adapter, chooses/builds SiLU and traverses its bound registers.
-macro_rules! cached_tensor_port {
-    ($port:ident) => {
-        impl<'b> tensor_port::CachedTensorPort<'b> for $port<'_, '_, '_, '_, 'b> {
-            fn uses_lanes(&self) -> bool { self.0.program.online.uses_wavefront() }
-            fn cached_kernel<F>(
-                &mut self, input: &[u64], outputs: usize, build: F,
-            ) -> Result<Zeroizing<Vec<u64>>, AdmissionFailure<Error>>
+macro_rules! silu_invocation {
+    ($invocation:ident) => {
+        impl<'b> tensor_port::SiluInvocation<'b> for $invocation<'_, '_, '_, '_, 'b, '_, '_> {
+            fn range(&self) -> gates::InputRange { self.0.range }
+            fn len(&self) -> usize { self.0.input.len() }
+            fn uses_lanes(&self) -> bool { self.0.schedule.program.online.uses_wavefront() }
+            fn scalar<F>(&mut self, index: usize, build: F) -> Result<(), AdmissionFailure<Error>>
             where F: FnOnce(&SourceTableCache<'b>) -> Result<Plan<'b>, Error> {
-                self.0.cached_kernel(input, outputs, build)
+                let state = &mut self.0;
+                let result = state.schedule.cached_kernel(&state.input[index..index + 1], 1, build)?;
+                state.output[index] = result[0];
+                Ok(())
             }
-            fn lanes<F, I, O>(
-                &mut self, count: usize, build: F, gather: I, store: O,
-            ) -> Result<(), AdmissionFailure<Error>>
-            where
-                F: FnMut(&SourceTableCache<'b>) -> Result<Plan<'b>, Error>,
-                I: FnMut(usize, &mut Vec<u64>) -> Result<(), Error>,
-                O: FnMut(usize, &[u64]) -> Result<(), Error>,
-            {
-                self.0.lanes(count, true, build, gather, store)
+            fn lanes<F>(&mut self, build: F) -> Result<(), AdmissionFailure<Error>>
+            where F: FnMut(&SourceTableCache<'b>) -> Result<Plan<'b>, Error> {
+                let SiluInvocationState { schedule, input, output, .. } = &mut self.0;
+                schedule.lanes(
+                    input.len(), true, build,
+                    |i, values| { values.push(input[i]); Ok(()) },
+                    |i, values| { output[i] = values[0]; Ok(()) },
+                )
             }
         }
     };
 }
-cached_tensor_port!(NativeSiluPort);
-cached_tensor_port!(DiagnosticSiluPort);
-impl<'b> tensor_port::SiluExecutionPort<'b> for NativeSiluPort<'_, '_, '_, '_, 'b> {}
-impl<'b> tensor_port::SiluDiagnosticPort<'b> for DiagnosticSiluPort<'_, '_, '_, '_, 'b> {}
+silu_invocation!(NativeSiluInvocation);
+silu_invocation!(DiagnosticSiluInvocation);
 
 /// Test-only isolated admitted-register control. Legacy means the former SiLU
 /// loop, not a selectable production implementation or a new component API.
@@ -112,7 +133,17 @@ fn silu_register_control<'d>(
                 }
                 out
             } else {
-                state.node(&program.nodes[node], &arrays, &[], 0)?
+                // Isolated native test harness uses the same production
+                // dispatcher/factory over its actual test register frame. No
+                // unchecked invocation constructor or production bypass exists.
+                let active = ActiveRegisterFrame {
+                    program, frame: &arrays, selection: 0, prefix: program.initial,
+                };
+                let window = DispatchWindow {
+                    schedule: &mut *state, active: &active, program, node: &program.nodes[node], index: node,
+                    selection: 0, prefix: program.initial, frame: &arrays,
+                };
+                Schedule::dispatch_context(window, &[]).map_err(|failure| failure.error)?
             };
             Ok((output, state.hash.clone().finalize().into(), state.resources, state.tables.stats()))
         };
@@ -626,6 +657,89 @@ struct Schedule<'a, 'd, 'c, 'b> {
     observed_frame_selection: Option<usize>,
 }
 impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
+    // Consumes the real dispatch window. No caller can supply an input edge,
+    // range, digest, register slice, or separately paired execution port here.
+    // All checks precede native/material callbacks. Output allocation has already
+    // happened in dispatch_context; this is not pre-model admission.
+    fn admit_silu<'s, 'f, 'o>(
+        window: DispatchWindow<'s, 'a, 'd, 'c, 'b, 'f>,
+        output: &'o mut [u64],
+    ) -> Result<AdmittedSiluInvocation<'s, 'a, 'd, 'c, 'b, 'f, 'o>, AdmissionFailure<Error>> {
+        let p = window.schedule.program;
+        if !std::ptr::eq(window.active.program, p)
+            || !std::ptr::eq(window.program, p)
+            || !std::ptr::eq(window.program.nodes.as_slice(), p.nodes.as_slice())
+            || !std::ptr::eq(&window.program.source, &p.source)
+            // Compare actual register-frame backing slices, not addresses of
+            // temporary wrappers, digests, or invented frame/owner IDs.
+            || !std::ptr::eq(window.frame, window.active.frame)
+            || window.selection != window.active.selection
+            || window.prefix != window.active.prefix
+            || window.index != window.schedule.node
+            || window.selection != window.schedule.selection
+            || window.frame.len() != p.nodes.len()
+        {
+            return Err(Error::Context.into());
+        }
+        let node = p.nodes.get(window.index).ok_or(Error::Domain)?;
+        if !std::ptr::eq(window.node, node) {
+            return Err(Error::Context.into());
+        }
+        let geometry = pllm_models::DecoderPlan::validated_phase_geometry(p.initial, p.selections)
+            .ok_or(Error::Domain)?;
+        if geometry.padded_rows() != p.sequence
+            || geometry.active_rows(window.selection) != Some(window.prefix)
+            || window.frame[window.index].is_some()
+        {
+            return Err(Error::Context.into());
+        }
+        let Code::Activation { input, silu: true } = node.code else {
+            return Err(Error::Domain.into());
+        };
+        if input >= window.index {
+            return Err(Error::Domain.into());
+        }
+        let input_node = p.nodes.get(input).ok_or(Error::Domain)?;
+        let input_count = graph_elements(p.capacity(), &input_node.shape)?;
+        let output_count = graph_elements(p.capacity(), &node.shape)?;
+        let values = window.active.frame.get(input).and_then(|v| v.as_ref()).ok_or(Error::Domain)?;
+        if input_node.shape != node.shape || values.len() != input_count || output.len() != output_count {
+            return Err(Error::Domain.into());
+        }
+        // The immutable admitted Program, not a global signed38 identity or
+        // caller claim, supplies this SiLU input corridor and output envelope.
+        let native = window.schedule.driver.is_some();
+        let state = SiluInvocationState {
+            schedule: window.schedule,
+            input: values,
+            output,
+            range: input_node.range.gate(),
+        };
+        Ok(if native {
+            AdmittedSiluInvocation::Native(NativeSiluInvocation(state))
+        } else {
+            AdmittedSiluInvocation::Diagnostic(DiagnosticSiluInvocation(state))
+        })
+    }
+
+    fn dispatch_context(
+        window: DispatchWindow<'_, 'a, 'd, 'c, 'b, '_>,
+        tokens: &[u64],
+    ) -> Result<Zeroizing<Vec<u64>>, AdmissionFailure<Error>> {
+        if matches!(window.node.code, Code::Activation { silu: true, .. }) {
+            // Private output authority comes from this dispatch allocation, not
+            // a caller's same-length output slice. It stays unpublished on error.
+            let mut output = Zeroizing::new(zeros(graph_elements(window.program.capacity(), &window.node.shape)?)?);
+            match Self::admit_silu(window, &mut output)? {
+                AdmittedSiluInvocation::Native(invocation) => bound_tensor_kernel::execute_silu(invocation)?,
+                AdmittedSiluInvocation::Diagnostic(invocation) => bound_tensor_kernel::diagnose_silu(invocation)?,
+            }
+            Ok(output)
+        } else {
+            window.schedule.node_context(window.node, window.frame, tokens, window.prefix)
+        }
+    }
+
     fn new(
         program: &'a Program,
         context: Context,
@@ -1153,7 +1267,15 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             arrays.resize_with(p.nodes.len(), || None);
             for (index, node) in p.nodes.iter().enumerate() {
                 self.node = index;
-                let values = self.node_context(node, &arrays, &tokens, prefix).map_err(|failure| {
+                // Sole production window issuer: actual frame and loop values,
+                // under an exclusive Schedule borrow until dispatch completes.
+                let active = ActiveRegisterFrame {
+                    program: p, frame: &arrays, selection, prefix,
+                };
+                let window = DispatchWindow {
+                    schedule: &mut *self, active: &active, program: p, node, index, selection, prefix, frame: &arrays,
+                };
+                let values = Self::dispatch_context(window, &tokens).map_err(|failure| {
                     let mut context = AdmissionContext::new(AdmissionStage::RuntimePreflight, AdmissionGate::ProgramConstruction);
                     context.node = Some(index);
                     failure.with_context_if_absent(context)
@@ -1651,22 +1773,9 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                     )?;
                 }
             }
-            Activation { input, silu: true } => {
-                let registers = SiluRegisters {
-                    input_node: &p.nodes[input],
-                    _output_node: &p.nodes[self.node],
-                    input: get(input)?,
-                    output: &mut out,
-                };
-                let binding = bound_tensor_kernel::bind_silu(registers);
-                // Native execution authority never comes from dry admission or
-                // dealer traversal. Worker::execute installs the actual Driver.
-                if self.driver.is_some() {
-                    bound_tensor_kernel::execute_silu(binding, &mut NativeSiluPort(self))?;
-                } else {
-                    bound_tensor_kernel::diagnose_silu(binding, &mut DiagnosticSiluPort(self))?;
-                }
-            }
+            // SiLU requires the frame-authorized dispatch route above; this
+            // lower-level node evaluator cannot issue or execute an invocation.
+            Activation { silu: true, .. } => return Err(Error::Context.into()),
             Activation { input, silu: false } => {
                 let x = get(input)?;
                 let range = p.nodes[input].range.gate();

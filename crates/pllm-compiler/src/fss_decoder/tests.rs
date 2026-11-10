@@ -373,6 +373,162 @@ fn bound_silu_driver_and_material_errors_cancel_without_publishing_registers() {
         }
     }
 }
+
+// These callbacks never manufacture NativeOutput. Positive execution remains
+// the real HarnessDriver/native_pair regression above; admission tests only
+// count whether the boundary reached a Driver or material visitor at all.
+#[derive(Default)]
+struct AdmissionCallbacks { calls: usize, cancellations: usize }
+impl Driver for AdmissionCallbacks {
+    fn run(&mut self, _: Context, _: &Plan<'_>, _: &[u64]) -> Result<NativeOutput, Error> {
+        self.calls += 1;
+        Err(Error::Context)
+    }
+    fn cancel(&mut self) { self.cancellations += 1; }
+}
+impl MaterialVisitor for AdmissionCallbacks {
+    fn visit(&mut self, _: Context, _: &Plan<'_>) -> Result<(), Error> {
+        self.calls += 1;
+        Ok(())
+    }
+    fn cancel(&mut self) { self.cancellations += 1; }
+}
+
+#[test]
+fn bound_silu_window_rejections_precede_driver_and_material_callbacks() {
+    // Private cfg(test) token corruption exercises validation, not a claim that
+    // arbitrary hostile code inside this module cannot forge its private scope.
+    let cases = [
+        "foreign-program", "foreign-node", "other-frame-same-shape", "short-frame",
+        "wrong-selection", "invalid-selection", "wrong-prefix", "invalid-prefix",
+        "wrong-node", "invalid-node", "missing-input", "wrong-input-count",
+        "wrong-output-count", "wrong-output-shape", "wrong-input-edge", "gelu",
+        "wrong-implementation", "invalid-rank", "already-published",
+    ];
+    for case in cases {
+        let (_, semantic, source) = dense_fixture();
+        let mut program = Program::compile(&semantic, source, 2, Limits::default()).unwrap();
+        let (_, foreign_semantic, foreign_source) = dense_fixture();
+        let foreign = Program::compile(&foreign_semantic, foreign_source, 2, Limits::default()).unwrap();
+        assert_eq!(program.digest(), foreign.digest());
+        assert_eq!(program.source.digest(), foreign.source.digest());
+        assert!(!std::ptr::eq(&program, &foreign));
+        assert!(!std::ptr::eq(program.nodes.as_slice(), foreign.nodes.as_slice()));
+        assert!(!std::ptr::eq(program.source.tensors.as_slice(), foreign.source.tensors.as_slice()));
+        let node = program.nodes.iter().position(|n| matches!(n.code, Code::Activation { silu: true, .. })).unwrap();
+        let Code::Activation { input, .. } = program.nodes[node].code else { unreachable!() };
+        let count = graph_elements(program.capacity(), &program.nodes[node].shape).unwrap();
+        match case {
+            "wrong-output-shape" => program.nodes[node].shape = vec![count],
+            "wrong-input-edge" => program.nodes[node].code = Code::Activation { input: node, silu: true },
+            "gelu" => program.nodes[node].code = Code::Activation { input, silu: false },
+            "wrong-implementation" => program.nodes[node].code = Code::Identity(input),
+            "invalid-rank" => program.nodes[node].shape = vec![1; 5],
+            _ => {}
+        }
+        let mut frame = vector(program.nodes.len()).unwrap();
+        frame.resize_with(program.nodes.len(), || None);
+        frame[input] = Some(Zeroizing::new(zeros(count).unwrap()));
+        match case {
+            "missing-input" => { frame[input] = None; }
+            "wrong-input-count" => { frame[input] = Some(Zeroizing::new(zeros(count - 1).unwrap())); }
+            "already-published" => { frame[node] = Some(Zeroizing::new(zeros(count).unwrap())); }
+            _ => {}
+        }
+        let mut other_frame = vector(program.nodes.len()).unwrap();
+        other_frame.resize_with(program.nodes.len(), || None);
+        other_frame[input] = Some(Zeroizing::new(zeros(count).unwrap()));
+        let context = Context {
+            plan: program.digest(), session: [7; 32], operation: [8; 32], first_tensor_index: 0,
+        };
+        for driven in [false, true] {
+            let budget = request_budget(&program).unwrap();
+            let tables = request_tables(&program, &budget).unwrap();
+            let mut driver = AdmissionCallbacks::default();
+            let mut visitor = AdmissionCallbacks::default();
+            let mut schedule = Schedule::new(&program, context, 0, None, &tables).unwrap();
+            schedule.node = if case == "wrong-node" { node + 1 } else { node };
+            if case == "invalid-node" { schedule.node = program.nodes.len(); }
+            schedule.selection = if case == "invalid-selection" { program.selections } else { 0 };
+            if driven { schedule.driver = Some(&mut driver); }
+            schedule.visitor = Some(&mut visitor);
+            let active = ActiveRegisterFrame {
+                program: &program, frame: &frame, selection: schedule.selection,
+                prefix: if case == "invalid-prefix" { program.sequence + 1 } else { program.initial },
+            };
+            let window = DispatchWindow {
+                program: if case == "foreign-program" { &foreign } else { &program },
+                node: if case == "foreign-node" || case == "foreign-program" { &foreign.nodes[node] } else { &program.nodes[node] },
+                index: if case == "invalid-node" { program.nodes.len() } else { node },
+                selection: if case == "wrong-selection" { 1 } else { active.selection },
+                prefix: if case == "wrong-prefix" { program.initial + 1 } else { active.prefix },
+                frame: match case {
+                    "other-frame-same-shape" => &other_frame,
+                    "short-frame" => &frame[..frame.len() - 1],
+                    _ => &frame,
+                },
+                active: &active, schedule: &mut schedule,
+            };
+            // Output already exists, as in dispatch_context; rejection is not a
+            // claim to happen before model/output allocation or table bootstrap.
+            let mut output = Zeroizing::new(zeros(if case == "wrong-output-count" { count - 1 } else { count }).unwrap());
+            let result = Schedule::admit_silu(window, &mut output);
+            assert!(result.is_err(), "{case}, driven={driven}");
+            drop(result);
+            drop(schedule);
+            assert_eq!((driver.calls, driver.cancellations, visitor.calls, visitor.cancellations), (0, 0, 0, 0), "{case}, driven={driven}");
+        }
+    }
+}
+
+#[test]
+fn bound_silu_factory_requires_driver_for_native_and_keeps_named_diagnostic_walk() {
+    for online in [OnlineSchedule::Serial, OnlineSchedule::WavefrontV1, OnlineSchedule::TensorV1] {
+        let (_, semantic, source) = dense_fixture();
+        let program = Program::compile_with_schedule(&semantic, source, 2, Limits::default(), online).unwrap();
+        let node = program.nodes.iter().position(|n| matches!(n.code, Code::Activation { silu: true, .. })).unwrap();
+        let Code::Activation { input, .. } = program.nodes[node].code else { unreachable!() };
+        let count = graph_elements(program.capacity(), &program.nodes[node].shape).unwrap();
+        let mut frame = vector(program.nodes.len()).unwrap();
+        frame.resize_with(program.nodes.len(), || None);
+        frame[input] = Some(Zeroizing::new(zeros(count).unwrap()));
+        let context = Context {
+            plan: program.digest(), session: [7; 32], operation: [8; 32], first_tensor_index: 0,
+        };
+        for driven in [false, true] {
+            let budget = request_budget(&program).unwrap();
+            let tables = request_tables(&program, &budget).unwrap();
+            let mut driver = AdmissionCallbacks::default();
+            let mut visitor = AdmissionCallbacks::default();
+            let mut schedule = Schedule::new(&program, context, 0, None, &tables).unwrap();
+            schedule.node = node;
+            if driven { schedule.driver = Some(&mut driver); }
+            schedule.visitor = Some(&mut visitor);
+            let active = ActiveRegisterFrame { program: &program, frame: &frame, selection: 0, prefix: program.initial };
+            let window = DispatchWindow {
+                schedule: &mut schedule, active: &active, program: &program, node: &program.nodes[node],
+                index: node, selection: 0, prefix: program.initial, frame: &frame,
+            };
+            let mut output = Zeroizing::new(zeros(count).unwrap());
+            match Schedule::admit_silu(window, &mut output).unwrap() {
+                AdmittedSiluInvocation::Native(invocation) => {
+                    assert!(driven);
+                    // Admission only. No fake NativeOutput or execution credit.
+                    drop(invocation);
+                }
+                AdmittedSiluInvocation::Diagnostic(invocation) => {
+                    assert!(!driven);
+                    bound_tensor_kernel::diagnose_silu(invocation).unwrap();
+                }
+            }
+            drop(schedule);
+            assert_eq!(driver.calls, 0);
+            assert_eq!(visitor.calls > 0, !driven);
+            assert_eq!((driver.cancellations, visitor.cancellations), (0, 0));
+            assert!(output.iter().all(|&value| value == 0));
+        }
+    }
+}
 fn reconstructed(a: &[u64], b: &[u64]) -> Vec<i64> {
     a.iter()
         .zip(b)
