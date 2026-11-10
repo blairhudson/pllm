@@ -42,7 +42,11 @@ def setup(tmp_path, monkeypatch):
     pins = source.snapshot_pins
     state = NS(experiment=experiment, source=source, events=[], leases={}, loaded=None, topology=None,
         free=20 * GiB, fail_import=False, fail_price=False, fail_spawn=False, fail_stop=False,
-        on_price=None, after_close=None, fail_graph_reservation=False)
+        on_price=None, after_close=None, fail_graph_reservation=False,
+        import_error=ValueError("native numeric/range rejection"),
+        price_error=ValueError("native transport rejection"),
+        reservation_error=ValueError("disk capacity changed before graph reservation"),
+        spawn_error=ValueError("child creation failed"))
 
     def runtime_contract(self, exp, rows, outputs):
         assert self is source
@@ -71,7 +75,7 @@ def setup(tmp_path, monkeypatch):
         phase = "graph" if state.loaded is not None and state.loaded._closed else "qualification"
         label = f"{phase}.{kind}"
         if state.fail_graph_reservation and label == "graph.disk":
-            raise ValueError("disk capacity changed before graph reservation")
+            raise state.reservation_error
         state.events.append(label + ".enter")
         assert label not in state.leases
         state.leases[label] = amount
@@ -112,7 +116,7 @@ def setup(tmp_path, monkeypatch):
         assert state.topology.memory_admission["estimate"]["native_total_peak_bytes"] > 384 << 20
         state.events.append("source.import")
         if state.fail_import:
-            raise ValueError("native numeric/range rejection")
+            raise state.import_error
         def close():
             assert set(state.leases) == {"qualification.memory", "qualification.disk"}
             state.events.append("source.close")
@@ -132,7 +136,7 @@ def setup(tmp_path, monkeypatch):
         assert raw == source.contract_bytes
         state.events.append("source.price")
         if state.fail_price:
-            raise ValueError("native transport rejection")
+            raise state.price_error
         if state.on_price is not None:
             state.on_price()
         return json.dumps(pricing).encode()
@@ -144,7 +148,7 @@ def setup(tmp_path, monkeypatch):
         assert self.memory_admission["admitted"] and self.memory_admission["full_topology_admitted"]
         state.events.append("spawn." + role)
         if state.fail_spawn:
-            raise ValueError("child creation failed")
+            raise state.spawn_error
         proc = NS(dead=False, pid=100 + len(self._processes))
         proc.poll = lambda: 0 if proc.dead else None
         self._processes[role] = proc
@@ -354,8 +358,26 @@ def test_failure_retires_qualification_and_never_starts_unadmitted_children(setu
         setup.on_price = topology.close
     else:
         setup.fail_spawn = True
-    with pytest.raises(servers.TopologyError):
+    expected_type, expected_message = {
+        "import": (ValueError, "native numeric/range rejection"),
+        "price": (memory.BenchmarkMemoryError, "FuseFSS imported source pricing rejected"),
+        "disk": (memory.BenchmarkMemoryError,
+                 "benchmark memory preflight rejected: native: insufficient disk headroom for compiled caches, bundles and 2 GiB reserve"),
+        "reservation": (ValueError, "disk capacity changed before graph reservation"),
+        "cancel": (servers.TopologyError, "local topology stopped during source qualification"),
+        "spawn": (ValueError, "child creation failed"),
+    }[failure]
+    with pytest.raises(expected_type) as caught:
         topology.start()
+    assert type(caught.value) is expected_type
+    assert str(caught.value) == expected_message
+    if failure in {"import", "reservation", "spawn"}:
+        assert caught.value is {
+            "import": setup.import_error,
+            "reservation": setup.reservation_error,
+            "spawn": setup.spawn_error,
+        }[failure]
+    assert caught.value.__cause__ is (setup.price_error if failure == "price" else None)
     assert not setup.leases and topology.closed
     if setup.loaded is not None:
         assert setup.loaded._closed and topology.source_qualification["owner_retired"]
