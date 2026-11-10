@@ -26,7 +26,10 @@ import pytest
 from safetensors import safe_open
 from tokenizers import Tokenizer
 
-from examples.papers.fusefss_conformance import FIXTURE_ID, INPUTS, experiment
+with pytest.MonkeyPatch.context() as _example_path:
+    _example_path.syspath_prepend(str(Path(__file__).resolve().parents[1]))
+    from examples.papers.fusefss_conformance import FIXTURE_ID, INPUTS, experiment
+
 from pllm import OpenAI, _native
 from pllm.metrics import (BenchmarkCase, BenchmarkRun, BenchmarkSuite, BenchmarkTarget,
                           Sampling, Scenario, benchmark_suite)

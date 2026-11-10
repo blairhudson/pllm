@@ -148,7 +148,8 @@ def test_unknown_work_policy_rejected_before_factory(study, monkeypatch):
     describe.assert_not_called()
 
 
-def test_quote_factory_declaration_keeps_saved_funding_envelope():
+def test_quote_factory_declaration_keeps_saved_funding_envelope(monkeypatch):
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1]))
     from examples.papers.fusefss import qwen_empty_system
     from pllm.configuration import Deployment, ExecutionBudget, Experiment, Pipeline
     from pllm.profiles import FuseFssSourceCpu

@@ -6,6 +6,7 @@ responses or capacity. The refusal double cannot establish native admission.
 """
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -15,9 +16,11 @@ from pllm.profiles import PumaThreePartyCpu
 from pllm.protocols import PumaThreePartyDecoder
 from pllm.roles import ClientOnlyRoles
 
-from examples.papers.common import BUDGET as PAPER_BUDGET, MODEL
-from examples.papers.puma import experiment as original_experiment
-from examples.papers.puma_trained import BUDGET, experiment
+with pytest.MonkeyPatch.context() as _example_path:
+    _example_path.syspath_prepend(str(Path(__file__).resolve().parents[1]))
+    from examples.papers.common import BUDGET as PAPER_BUDGET, MODEL
+    from examples.papers.puma import experiment as original_experiment
+    from examples.papers.puma_trained import BUDGET, experiment
 
 
 class StructuralModelSource:

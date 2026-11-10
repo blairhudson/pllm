@@ -26,6 +26,13 @@ PROFILES = (
 )
 
 
+@pytest.fixture
+def paper_examples_path(monkeypatch):
+    from pathlib import Path
+
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1]))
+
+
 def experiment(pipeline: Pipeline) -> Experiment:
     return Experiment(name="fss-contract-only", pipeline=pipeline,
         deployment=pllm.Deployment.local(root="local://fss-contract-only"),
@@ -356,6 +363,7 @@ def test_public_exports_and_old_defaults_remain_distinct():
     ("qwen_checked_tensor_minimal_smoke", "fusefss-checked-ranges-tensor", PROFILES[2], "batch-v1", "tensor-v1", 1, 3, 1, ".pllm/papers/fusefss-checked-ranges"),
     ("qwen_empty_system", "fusefss-qwen-empty-system", PROFILES[2], "batch-v1", "tensor-v1", 1, 15, 1, ".pllm/papers/fusefss-checked-ranges"),
 ])
+@pytest.mark.usefixtures('paper_examples_path')
 def test_recipe_declaration_matches_independent_legacy_profile(
         factory_name, name, numeric_profile, delivery, schedule, requests, inputs, outputs, root):
     from examples.papers import fusefss
@@ -384,6 +392,7 @@ def test_recipe_declaration_matches_independent_legacy_profile(
 
 
 @pytest.mark.parametrize("model", [pllm.Model.tiny(), pllm.Model.path("/generated/config-only")])
+@pytest.mark.usefixtures('paper_examples_path')
 def test_recipe_model_identity_and_budget_override(model):
     from examples.papers.fusefss import experiment as recipe
 
@@ -397,6 +406,7 @@ def test_recipe_model_identity_and_budget_override(model):
     assert actual.configuration_digest() == legacy.configuration_digest()
 
 
+@pytest.mark.usefixtures('paper_examples_path')
 def test_recipe_structural_model_source_uses_to_spec():
     from examples.papers.fusefss import experiment as recipe
     from pllm.sources import ModelSource
@@ -424,6 +434,7 @@ def test_recipe_structural_model_source_uses_to_spec():
 
 
 @pytest.mark.parametrize("model", [None, "Qwen/Qwen2.5-0.5B-Instruct", {}, object()])
+@pytest.mark.usefixtures('paper_examples_path')
 def test_recipe_invalid_model_contract_is_not_defaulted(model):
     from examples.papers.fusefss import experiment as recipe
 
@@ -432,6 +443,7 @@ def test_recipe_invalid_model_contract_is_not_defaulted(model):
             construct(model=model)
 
 
+@pytest.mark.usefixtures('paper_examples_path')
 def test_recipe_generic_nested_overrides_and_reconstruction():
     from examples.papers.fusefss import qwen_checked_smoke
 
@@ -450,6 +462,7 @@ def test_recipe_generic_nested_overrides_and_reconstruction():
 
 
 @pytest.mark.parametrize("slot,value", [("linear", MaskedLinear()), ("kernels", AppleMetal())])
+@pytest.mark.usefixtures('paper_examples_path')
 def test_recipe_unsupported_composition_resolve_refuses_before_facade_runner(monkeypatch, slot, value):
     from unittest.mock import Mock
     from examples.papers.fusefss import qwen_smoke
@@ -476,6 +489,7 @@ def test_recipe_unsupported_composition_resolve_refuses_before_facade_runner(mon
     roles.assert_not_called()
 
 
+@pytest.mark.usefixtures('paper_examples_path')
 def test_recipe_native_refusal_preserves_payload_and_cause(monkeypatch):
     from unittest.mock import Mock
     from examples.papers.fusefss import qwen_smoke
@@ -499,6 +513,7 @@ def test_recipe_native_refusal_preserves_payload_and_cause(monkeypatch):
     ("dense_wavefront_smoke", "generated-fss-dense-wavefront", PROFILES[1], 1, "batch-v1", "wavefront-v1"),
     ("dense_tensor_smoke", "generated-fss-dense-tensor", PROFILES[1], 1, "batch-v1", "tensor-v1"),
 ])
+@pytest.mark.usefixtures('paper_examples_path')
 def test_generated_recipe_declaration_matches_independent_legacy_profile(
         tmp_path, factory_name, name, numeric_profile, requests, delivery, schedule):
     from examples.papers import fusefss_smoke
@@ -524,6 +539,7 @@ def test_generated_recipe_declaration_matches_independent_legacy_profile(
 
 
 @pytest.mark.parametrize("factory_name", ["experiment", "dense_experiment"])
+@pytest.mark.usefixtures('paper_examples_path')
 def test_generated_recipe_request_override_preserves_workload(tmp_path, factory_name):
     from examples.papers import fusefss_smoke
 
