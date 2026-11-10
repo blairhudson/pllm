@@ -878,3 +878,326 @@ def test_selected_transport_rejects_contract_before_empty_tensors(tmp_path, muta
     args = encoded, decoder._encode_config(cfg), 2, 2, "01" * 32, "02" * 32
     with pytest.raises(ValueError, match=error):
         _native._GkmTransportClient(*args, {})
+
+
+# Configuration-only definitions. Installed SDK constructors and real admission
+# helpers remain intact; sentinels prohibit source I/O and native resolution.
+@pytest.fixture
+def gkm_configuration_only(monkeypatch):
+    import importlib.util
+    from pathlib import Path
+    import sys
+    from pllm import model_loader
+    from pllm.runtime import delegated_source
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("configuration admission crossed source/native boundary")
+
+    monkeypatch.setattr(_native, "resolve_experiment", forbidden)
+    monkeypatch.setattr(model_loader, "resolve_model", forbidden)
+    monkeypatch.setattr(model_loader, "load_model", forbidden)
+    monkeypatch.setattr(delegated_source, "admit_source", forbidden)
+    papers = Path(__file__).resolve().parents[1] / "examples" / "papers"
+    missing = object()
+    previous = sys.modules.get("common", missing)
+    try:
+        spec = importlib.util.spec_from_file_location("common", papers / "common.py")
+        common = importlib.util.module_from_spec(spec)
+        sys.modules["common"] = common
+        spec.loader.exec_module(common)
+        spec = importlib.util.spec_from_file_location("_binding_gkm_configuration", papers / "gkm.py")
+        gkm = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(gkm)
+    finally:
+        if previous is missing:
+            sys.modules.pop("common", None)
+        else:
+            sys.modules["common"] = previous
+    return gkm
+
+
+# Independent slot inventory, not imported from the production matcher's table.
+_GKM_TARGET_SLOTS = (
+    "linear", "input", "lookup", "numeric", "rmsnorm", "rotary", "attention",
+    "activation", "multiply", "bias", "add", "head", "selection",
+    "verification", "topology", "state", "kernels",
+)
+
+
+def _gkm_target(gkm):
+    return gkm.benchmark_experiment(model=Model.hf("unused/configuration-only"),
+                                    budget=ExecutionBudget(1, 32, 2))
+
+
+def _decoder_record_locations(pipeline_record):
+    # Only envelopes walked by require_decoder_source_record, not arbitrary
+    # nested metadata. The schema envelope need not resolve an ExperimentProfile.
+    return (pipeline_record, {"pipeline": pipeline_record},
+            {"experiment": {"pipeline": pipeline_record}},
+            {"schema": "pllm.source.v1", "experiment": {"pipeline": pipeline_record}})
+
+
+def _reject_gkm_records(record):
+    from pllm._decoder_admission import require_decoder_source_record
+
+    for envelope in _decoder_record_locations(record):
+        with pytest.raises(ConfigurationError, match="forward-only"):
+            require_decoder_source_record(envelope)
+
+
+@pytest.mark.parametrize("kind", [None, "huggingface", "safetensors"])
+def test_gkm_configuration_real_target_classification_and_guards(gkm_configuration_only, kind):
+    from pllm._decoder_admission import require_decoder_pipeline, require_decoder_source_record
+
+    experiment = _gkm_target(gkm_configuration_only)
+    target = experiment.pipeline
+    assert type(target) is Pipeline and type(experiment) is Experiment
+    assert set(target.components) == set(_GKM_TARGET_SLOTS)
+    record = target.to_spec()
+    assert "kind" not in record["model"]  # Valid Model.to_spec default omission.
+    if kind is not None:
+        record["model"]["kind"] = kind
+    rebuilt = Pipeline.from_spec(record)
+    classification = resolve_runtime_composition(rebuilt)
+    assert classification is not None
+    assert classification.runtime_kind == "gkm"
+    assert classification.client_runtime == "compiled_gkm_v1"
+    assert classification.privacy_mode == "gkm_public"
+    assert classification.privacy_protocol == "gkm_i16_q11_ring64"
+    assert classification.numeric_profile == (
+        "gkm.nearest-even.2048.i16.ring64.signed.f32-before-div22."
+        "le-finite-f32.sha256.secp256k1.v1")
+    assert classification.local_numeric_profile == "semantic.float32.dense-full-kv.client-bias-after-div22.v1"
+    assert classification.sharing == "full"
+    assert classification.delegation_capacity == "decoder"
+    assert classification.generation_policy == "fixed_length_greedy"
+    assert classification.verification_window == "request_end"
+    assert classification.setup_owner == "client"
+    assert not classification.requires_preparation
+    assert (classification.weight_bits, classification.activation_bits) == (16, 64)
+    assert resolve_decoder_runtime_composition(rebuilt) == classification
+    require_decoder_pipeline(rebuilt)
+    rebuilt_experiment = Experiment(experiment.name, rebuilt, experiment.deployment, experiment.budget)
+    for value in (rebuilt, rebuilt_experiment, rebuilt_experiment.to_spec(),
+                  {"pipeline": rebuilt}, {"experiment": rebuilt_experiment},
+                  *_decoder_record_locations(record)):
+        require_decoder_source_record(value)
+    roundtrip = Experiment.from_json(rebuilt_experiment.to_json())
+    assert roundtrip.to_json() == rebuilt_experiment.to_json()
+    assert roundtrip.canonical_bytes() == rebuilt_experiment.canonical_bytes()
+    assert roundtrip.configuration_digest() == rebuilt_experiment.configuration_digest()
+    assert roundtrip.pipeline.digest() == rebuilt.digest()
+    if kind != "safetensors":
+        assert rebuilt.canonical_bytes() == target.canonical_bytes()
+        assert rebuilt.digest() == target.digest()
+        assert rebuilt_experiment.to_json() == experiment.to_json()
+
+
+@pytest.mark.parametrize("slot", _GKM_TARGET_SLOTS)
+@pytest.mark.parametrize("mutation", ["missing", "wrong-id", "unexpected-param"])
+def test_gkm_configuration_closed_target_members(gkm_configuration_only, slot, mutation):
+    experiment = _gkm_target(gkm_configuration_only)
+    record = experiment.pipeline.to_spec()
+    if mutation == "missing":
+        del record["components"][slot]
+    elif mutation == "wrong-id":
+        record["components"][slot]["component"] = "external/wrong-member/v1"
+    else:
+        record["components"][slot]["params"]["unexpected"] = "not-admitted"
+    # Malformed raw input reaches the guard directly, never a sanitizing ctor.
+    if mutation == "missing" and slot == "numeric":
+        from pllm._decoder_admission import require_decoder_source_record
+
+        # Numeric-intent guard is not a whole-composition validator.
+        for envelope in _decoder_record_locations(record):
+            assert require_decoder_source_record(envelope) is None
+    else:
+        _reject_gkm_records(record)
+    components = {name: ComponentRef(value["component"], value["params"])
+                  for name, value in record["components"].items()}
+    with pytest.raises(ConfigurationError):
+        Pipeline(experiment.pipeline.model, components=components)
+
+
+@pytest.mark.parametrize("slot,changes", [
+    ("linear", {"sharing": "seeded"}),
+    ("linear", {"capacity": "capsule"}),
+    ("linear", {"execution": "source_stage_batch_v1"}),
+    ("linear", {"generation": "sample"}),
+    ("rmsnorm", {"epsilon": "fixed"}),
+    ("rotary", {"configuration": "fixed"}),
+    ("attention", {"heads": "fixed"}),
+    ("attention", {"kv": "attention"}),
+    ("activation", {"function": "relu"}),
+    ("bias", {"placement": "before-reconstruction"}),
+    ("head", {"linear": "head"}),
+    ("head", {"linear": "state"}),
+    ("head", {"rows": "all"}),
+    ("selection", {"eos": "stop"}),
+    ("selection", {"logits": "top-k"}),
+    ("verification", {"acceptance": "stage"}),
+    ("state", {"retention": "window"}),
+    ("kernels", {"threads": True}),
+    ("kernels", {"threads": 1.0}),
+    ("kernels", {"threads": 2}),
+])
+def test_gkm_configuration_target_params_and_links_closed(gkm_configuration_only, slot, changes):
+    experiment = _gkm_target(gkm_configuration_only)
+    record = experiment.pipeline.to_spec()
+    record["components"][slot]["params"].update(changes)
+    _reject_gkm_records(record)
+    components = {name: ComponentRef(value["component"], value["params"])
+                  for name, value in record["components"].items()}
+    with pytest.raises(ConfigurationError):
+        Pipeline(experiment.pipeline.model, components=components)
+
+
+@pytest.mark.parametrize("slot,param", [
+    ("linear", "sharing"), ("linear", "generation"), ("linear", "capacity"),
+    ("rmsnorm", "epsilon"), ("rotary", "configuration"),
+    ("attention", "heads"), ("attention", "kv"), ("activation", "function"),
+    ("bias", "placement"), ("head", "linear"), ("head", "rows"),
+    ("selection", "eos"), ("selection", "logits"),
+    ("verification", "acceptance"), ("kernels", "threads"),
+])
+def test_gkm_configuration_raw_required_params_not_defaulted(gkm_configuration_only, slot, param):
+    record = _gkm_target(gkm_configuration_only).pipeline.to_spec()
+    del record["components"][slot]["params"][param]
+    # A decoder guard must not repair this record via component defaults.
+    _reject_gkm_records(record)
+
+
+@pytest.mark.parametrize("extra", ["extra", "regions"])
+def test_gkm_configuration_target_extra_slot_rejected(gkm_configuration_only, extra):
+    experiment = _gkm_target(gkm_configuration_only)
+    record = experiment.pipeline.to_spec()
+    record["components"][extra] = ClientF32DecoderRegions().to_spec()
+    _reject_gkm_records(record)
+    with pytest.raises(ConfigurationError):
+        Pipeline(experiment.pipeline.model,
+                 components={**experiment.pipeline.components, extra: ClientF32DecoderRegions()})
+
+
+@pytest.mark.parametrize("mutation", [
+    "missing-model", "empty-model", "nonmapping-model", "missing-source",
+    "bad-source", "extra-model-field", "bad-local-only", "bad-kind",
+    "missing-component-id", "missing-params", "extra-member-field",
+    "nonmapping-member", "nonmapping-params", "null-params",
+])
+def test_gkm_configuration_raw_malformed_records_not_discarded(gkm_configuration_only, mutation):
+    record = _gkm_target(gkm_configuration_only).pipeline.to_spec()
+    if mutation == "missing-model":
+        del record["model"]
+    elif mutation == "empty-model":
+        record["model"] = {}
+    elif mutation == "nonmapping-model":
+        record["model"] = "unused"
+    elif mutation == "missing-source":
+        record["model"] = {"kind": "huggingface"}
+    elif mutation == "bad-source":
+        record["model"]["source"] = 1
+    elif mutation == "extra-model-field":
+        record["model"]["unknown"] = True
+    elif mutation == "bad-local-only":
+        record["model"]["local_files_only"] = 1
+    elif mutation == "bad-kind":
+        record["model"]["kind"] = None
+    elif mutation == "missing-component-id":
+        del record["components"]["multiply"]["component"]
+    elif mutation == "missing-params":
+        del record["components"]["multiply"]["params"]
+    elif mutation == "extra-member-field":
+        record["components"]["multiply"]["unknown"] = True
+    elif mutation == "nonmapping-member":
+        record["components"]["multiply"] = "pllm/f32-multiply/v1"
+    else:
+        record["components"]["multiply"]["params"] = [] if mutation == "nonmapping-params" else None
+    _reject_gkm_records(record)
+
+
+@pytest.mark.parametrize("kind", ["tiny", "gguf", "vllm", "ollama"])
+def test_gkm_configuration_target_source_kind_closed(gkm_configuration_only, kind):
+    experiment = _gkm_target(gkm_configuration_only)
+    model = Model.tiny() if kind == "tiny" else Model("unused", kind=kind)
+    record = experiment.pipeline.to_spec()
+    record["model"] = model.to_spec()
+    _reject_gkm_records(record)
+    with pytest.raises(ConfigurationError):
+        Pipeline(model, components=experiment.pipeline.components)
+
+
+@pytest.mark.parametrize("slot", _GKM_TARGET_SLOTS)
+def test_gkm_configuration_source_float32_any_member_rejected_first(gkm_configuration_only, slot):
+    from pllm._decoder_admission import require_decoder_source_record
+
+    record = _gkm_target(gkm_configuration_only).pipeline.to_spec()
+    record["components"][slot] = SourceFloat32().to_spec()
+    for envelope in _decoder_record_locations(record):
+        with pytest.raises(ConfigurationError, match=r"\ASourceFloat32 is forward-only, not a decoder numeric mode\Z"):
+            require_decoder_source_record(envelope)
+
+
+def test_gkm_configuration_unrelated_numeric_and_known_walk_only(gkm_configuration_only):
+    from pllm._decoder_admission import require_decoder_source_record
+
+    target = _gkm_target(gkm_configuration_only).pipeline.to_spec()
+    for components in ({"numeric": Q11I16Ring64Boundary().to_spec()},
+                       {"numeric": ComponentRef("external/numeric/v1", {}).to_spec()}):
+        _reject_gkm_records({"model": target["model"], "components": components})
+    # A checkpoint's arbitrary metadata is not an execution-intent envelope.
+    require_decoder_source_record({"metadata": {"pipeline": {
+        "components": {"numeric": SourceFloat32().to_spec()}}}})
+
+
+def test_gkm_configuration_forward_budget_and_schema_still_reject(gkm_configuration_only):
+    from pllm._decoder_admission import require_decoder_pipeline, require_decoder_source_record
+    from pllm.kernels import Cpu
+    from pllm.protocols import CleartextLinear
+    from pllm.roles import ClientOnlyRoles
+
+    experiment = _gkm_target(gkm_configuration_only)
+    with pytest.raises(ConfigurationError, match="forward"):
+        Experiment("wrong-budget", experiment.pipeline, experiment.deployment, ForwardBudget(1, 32))
+    forward = Pipeline(experiment.pipeline.model, components={
+        "numeric": SourceFloat32(), "linear": CleartextLinear(),
+        "kernels": Cpu(threads=1), "topology": ClientOnlyRoles()})
+    forward_experiment = Experiment("forward", forward, experiment.deployment, ForwardBudget(1, 32))
+    with pytest.raises(ConfigurationError, match="forward-only"):
+        require_decoder_pipeline(forward)
+    for value in (forward_experiment, forward_experiment.to_spec(),
+                  {"experiment": forward_experiment},
+                  {"schema": "pllm.experiment.forward.v1", "pipeline": experiment.pipeline.to_spec()},
+                  {"experiment": {"schema": "pllm.experiment.forward.v1",
+                                  "pipeline": experiment.pipeline.to_spec()}}):
+        with pytest.raises(ConfigurationError, match="forward-only"):
+            require_decoder_source_record(value)
+
+
+@pytest.mark.parametrize("sharing", ["full", "seeded"])
+@pytest.mark.parametrize("capacity", ["capsule", "decoder"])
+@pytest.mark.parametrize("execution", [None, "source_stage_batch_v1"])
+def test_gkm_configuration_legacy_choices_keep_identity_and_guards(
+        gkm_configuration_only, sharing, capacity, execution):
+    from pllm._decoder_admission import require_decoder_pipeline, require_decoder_source_record
+    from pllm.protocols import OpenWeightVerifiableOutsourcing
+
+    base = pipeline(linear=OpenWeightVerifiableOutsourcing(
+        sharing=sharing, capacity=capacity, execution=execution))
+    before = base.to_spec(), base.canonical_bytes(), base.digest()
+    composed = explicit(base)
+    for candidate in (base, composed):
+        classification = resolve_runtime_composition(candidate)
+        assert classification is not None and classification.runtime_kind == "gkm"
+        assert classification.sharing == sharing and classification.delegation_capacity == capacity
+        assert resolve_decoder_runtime_composition(candidate) == classification
+        require_decoder_pipeline(candidate)
+        for record in _decoder_record_locations(candidate.to_spec()):
+            require_decoder_source_record(record)
+        experiment = Experiment("legacy-pure", candidate, Deployment.local(root="."), ExecutionBudget(1, 32, 2))
+        require_decoder_source_record(experiment)
+        restored = Experiment.from_json(experiment.to_json())
+        assert restored.canonical_bytes() == experiment.canonical_bytes()
+        assert restored.configuration_digest() == experiment.configuration_digest()
+    assert resolve_runtime_composition(base) == resolve_runtime_composition(composed)
+    assert before == (base.to_spec(), base.canonical_bytes(), base.digest())
+    assert composed.digest() != base.digest()

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -934,20 +935,31 @@ class RuntimeComposition:
     delegation_capacity: str = "capsule"
 
 
-def _resolve_gkm_composition(pipeline: Pipeline) -> RuntimeComposition | None:
-    """Describe the exact bounded contract; native capability still gates execution."""
-    linear = pipeline.components.get("linear")
-    if linear is None or linear.component != OpenWeightVerifiableOutsourcing.descriptor.component:
-        return None
-    capacity = linear.params.get("capacity", "capsule") if linear is not None else "capsule"
-    sharing = linear.params.get("sharing") if linear is not None else None
-    execution = linear.params.get("execution") if linear is not None else None
+def _matches_gkm_components(
+    model_kind: str, components: Mapping[str, Mapping[str, object]],
+) -> bool:
+    """Recognize complete canonical declarations, not native execution admission."""
+    if not isinstance(components, Mapping) or len(components) not in {5, 9, 17}:
+        return False
+    for name, record in components.items():
+        if (type(name) is not str or not isinstance(record, Mapping)
+                or set(record) != {"component", "params"}
+                or type(record["component"]) is not str
+                or not isinstance(record["params"], Mapping)):
+            return False
+    linear = components.get("linear")
+    if linear is None:
+        return False
+    params = linear["params"]
+    capacity = params.get("capacity", "capsule")
+    sharing = params.get("sharing")
+    execution = params.get("execution")
     if (type(capacity) is not str or type(sharing) is not str
             or capacity not in {"capsule", "decoder"} or sharing not in {"full", "seeded"}):
-        return None
+        return False
     if execution is not None and (
             type(execution) is not str or execution != "source_stage_batch_v1"):
-        return None
+        return False
     expected = {
         "linear": OpenWeightVerifiableOutsourcing(
             capacity=capacity, sharing=sharing, execution=execution),
@@ -956,14 +968,57 @@ def _resolve_gkm_composition(pipeline: Pipeline) -> RuntimeComposition | None:
         "topology": _DEFAULT_GKM_ROLES,
         "state": _DEFAULT_FULL_KV,
     }
-    if len(pipeline.components) != 5:
+    if len(components) in {9, 17}:
         from pllm.numeric import Q11I16Ring64Boundary
-        from pllm.protocols import TwoShareInput, VerifiedPublicF32Lookup, ClientF32DecoderRegions
+        from pllm.protocols import TwoShareInput, VerifiedPublicF32Lookup
 
         expected.update(input=TwoShareInput(), lookup=VerifiedPublicF32Lookup(),
-                        regions=ClientF32DecoderRegions(), numeric=Q11I16Ring64Boundary())
-    if pipeline.components != expected:
+                        numeric=Q11I16Ring64Boundary())
+    if len(components) == 9:
+        from pllm.protocols import ClientF32DecoderRegions
+
+        expected["regions"] = ClientF32DecoderRegions()
+    elif len(components) == 17:
+        if (type(model_kind) is not str or model_kind not in {"huggingface", "safetensors"}
+                or capacity != "decoder" or sharing != "full" or execution is not None):
+            return False
+        from pllm.nonlinear import F32Activation
+        from pllm.operators import (
+            F32Add, F32AddBias, F32CausalAttention, F32Multiply, F32RmsNorm,
+            F32Rotary, FullVocabularyHead, GreedySelection,
+        )
+
+        expected.update(
+            rmsnorm=F32RmsNorm(), rotary=F32Rotary(), attention=F32CausalAttention(),
+            activation=F32Activation(), multiply=F32Multiply(), bias=F32AddBias(),
+            add=F32Add(), head=FullVocabularyHead(rows="last-prefill-and-each-decode"),
+            selection=GreedySelection(logits="complete"),
+        )
+    if set(components) != set(expected):
+        return False
+    # These bounded parameter maps contain only scalars. Type checks prevent
+    # Python equality from accepting CPU threads=True or threads=1.0 as int 1.
+    for name, declaration in expected.items():
+        record = components[name]
+        canonical = declaration.to_spec()
+        actual_params = record["params"]
+        expected_params = canonical["params"]
+        if record["component"] != canonical["component"] or set(actual_params) != set(expected_params):
+            return False
+        if any(type(actual_params[key]) is not type(value) or actual_params[key] != value
+               for key, value in expected_params.items()):
+            return False
+    return True
+
+
+def _resolve_gkm_composition(pipeline: Pipeline) -> RuntimeComposition | None:
+    """Describe the exact bounded contract; native capability still gates execution."""
+    components = {name: value.to_spec() for name, value in pipeline.components.items()}
+    if not _matches_gkm_components(pipeline.model.kind, components):
         return None
+    params = components["linear"]["params"]
+    capacity = params.get("capacity", "capsule")
+    sharing = params["sharing"]
     return RuntimeComposition(
         privacy_mode="gkm_public",
         proprietary_protocol="none",

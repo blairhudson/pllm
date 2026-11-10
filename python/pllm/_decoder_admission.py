@@ -1,7 +1,8 @@
 """Pure admission checks for decoder-only entry points.
 
-These checks inspect explicit intent only: no resolution, source access, or
-normalization. Imports stay lazy because configuration also calls these guards.
+These checks inspect explicit intent and complete canonical declarations only:
+no resolution or source access. Imports stay lazy because configuration also
+calls these guards.
 """
 from __future__ import annotations
 
@@ -23,13 +24,17 @@ def _reject() -> None:
 
 
 def require_decoder_pipeline(pipeline: Pipeline) -> None:
-    # Same explicit criterion as resolve_decoder_runtime_composition, without
-    # invoking resolution (unsupported decoder compositions keep their errors).
-    if "numeric" in pipeline.components or any(
+    if any(
         value.component == "pllm/source-float32/v1"
         for value in pipeline.components.values()
     ):
         _reject()
+    if "numeric" in pipeline.components:
+        from pllm.profiles import _matches_gkm_components
+
+        components = {name: value.to_spec() for name, value in pipeline.components.items()}
+        if not _matches_gkm_components(pipeline.model.kind, components):
+            _reject()
 
 
 def require_decoder_experiment(experiment: Experiment) -> None:
@@ -47,14 +52,27 @@ def require_decoder_profile(profile: ExperimentProfile) -> None:
 
 def _require_decoder_pipeline_record(record: Mapping[str, Any]) -> None:
     components = record.get("components")
-    if isinstance(components, Mapping) and (
-        "numeric" in components or any(
-            isinstance(value, Mapping)
-            and value.get("component") == "pllm/source-float32/v1"
-            for value in components.values()
-        )
+    if not isinstance(components, Mapping):
+        return
+    if any(
+        isinstance(value, Mapping)
+        and value.get("component") == "pllm/source-float32/v1"
+        for value in components.values()
     ):
         _reject()
+    if "numeric" in components:
+        from pllm.configuration import Model
+        from pllm.profiles import _matches_gkm_components
+
+        model_record = record.get("model")
+        if not isinstance(model_record, Mapping):
+            _reject()
+        try:
+            model = Model.from_spec(model_record)
+        except (TypeError, ValueError):
+            _reject()
+        if not _matches_gkm_components(model.kind, components):
+            _reject()
 
 
 def require_decoder_source_record(record: Any) -> None:
