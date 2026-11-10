@@ -17,6 +17,7 @@ from typing import Any
 import numpy as np
 
 from pllm import _native
+from . import semantic_executor
 from .delegated_protocol import clear_failure_frames
 from .semantic_executor import SemanticLocalOperators
 from ._component_binding import LOOKUP, LINEAR, OUTPUT_HEAD, checked_operator
@@ -275,7 +276,16 @@ class _Request(SemanticLocalOperators):
                         code = checked_operator(self._native.bound_step(phase, key), operations[key])
                         if code in (LOOKUP, LINEAR, OUTPUT_HEAD):
                             raise ValueError("invalid bound decoder step")
-                        values[key] = SemanticLocalOperators._local(self, operations[key], values, kinds, pending)
+                        operation = operations[key]
+                        record = semantic_executor._LOCAL_IMPLEMENTATIONS.get(operation["operator"])
+                        if record is None:
+                            raise semantic_executor.TransformerClientError(
+                                f"semantic operator {operation['operator']!r} ({operation.get('id')!r}, "
+                                f"layout={operation['attributes'].get('layout')!r}) is not executable"
+                            )
+                        if record[0] != operation["operator"]:
+                            raise ValueError("invalid bound decoder step")
+                        values[key] = record[1](self, operation, values, kinds, pending)
                 elif code == LOOKUP:
                     if len(step["operation_ids"]) != 1:
                         raise ValueError("invalid bound decoder step")

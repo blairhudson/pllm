@@ -2,6 +2,8 @@ use zeroize::Zeroizing;
 
 use super::{Error, Result, FIELD};
 
+const _: () = assert!(FIELD == crate::coded_linear::CODED_LINEAR_FIELD);
+
 pub(super) fn canonical(x: &[u32], length: usize) -> Result<()> {
     if x.len() != length {
         return Err(Error::Shape);
@@ -14,7 +16,7 @@ pub(super) fn canonical(x: &[u32], length: usize) -> Result<()> {
 
 #[inline]
 pub(super) fn add(a: u32, b: u32) -> u32 {
-    ((u64::from(a) + u64::from(b)) % u64::from(FIELD)) as u32
+    crate::coded_linear::field_add(a, b)
 }
 
 #[inline]
@@ -24,7 +26,7 @@ pub(super) fn sub(a: u32, b: u32) -> u32 {
 
 #[inline]
 pub(super) fn mul(a: u32, b: u32) -> u32 {
-    (u64::from(a) * u64::from(b) % u64::from(FIELD)) as u32
+    crate::coded_linear::field_mul(a, b)
 }
 
 pub(super) fn dot(a: &[u32], b: &[u32]) -> u32 {
@@ -71,6 +73,29 @@ pub(super) fn below(rng: &mut impl RandomWords, upper: u32) -> Result<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn shared_arithmetic_matches_wide_oracle_and_preserves_canonical_rejection() {
+        let values = [0, FIELD - 1, FIELD, u32::MAX];
+        for a in values {
+            for b in values {
+                let modulus = u128::from(FIELD);
+                assert_eq!(
+                    add(a, b),
+                    ((u128::from(a) + u128::from(b)) % modulus) as u32,
+                );
+                assert_eq!(
+                    mul(a, b),
+                    ((u128::from(a) * u128::from(b)) % modulus) as u32,
+                );
+            }
+        }
+        assert_eq!(canonical(&[0, FIELD - 1], 2), Ok(()));
+        for value in [FIELD, u32::MAX] {
+            assert_eq!(canonical(&[value], 1), Err(Error::Field));
+            assert_eq!(canonical(&[value], 2), Err(Error::Shape));
+        }
+    }
 
     struct CountedWords<'a> {
         words: &'a [Result<u32>],

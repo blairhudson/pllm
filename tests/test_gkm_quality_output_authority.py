@@ -12,7 +12,7 @@ import importlib.util
 import json
 from pathlib import Path
 import sys
-from types import ModuleType, SimpleNamespace as NS
+from types import MappingProxyType, ModuleType, SimpleNamespace as NS
 from unittest.mock import Mock
 
 import numpy as np
@@ -54,7 +54,11 @@ def lane(monkeypatch, tmp_path):
     module("pllm.runtime.public_equalization", equalize_activation=forbidden)
     module("pllm.runtime.quantization", dequantize_matmul=forbidden, quantize_activation_per_row=forbidden)
     module("pllm.runtime.transformer_engine", MaskedTransformerEngine=forbidden)
-    module("pllm.runtime.transformer_client", ClientBundle=forbidden, LayerCache=forbidden)
+    class TransformerClientError(ValueError):
+        pass
+
+    module("pllm.runtime.transformer_client", ClientBundle=forbidden, LayerCache=forbidden,
+           TransformerClientError=TransformerClientError)
 
     class LocalSelectionOnly:
         def _declared_state_kinds(self, graph):
@@ -64,7 +68,12 @@ def lane(monkeypatch, tmp_path):
             assert operation["operator"] == "greedy_token_selection"
             return np.argmax(values[operation["inputs"][0]])
 
-    module("pllm.runtime.semantic_executor", SemanticLocalOperators=LocalSelectionOnly)
+    semantic = module("pllm.runtime.semantic_executor", SemanticLocalOperators=LocalSelectionOnly,
+        TransformerClientError=TransformerClientError,
+        _LOCAL_IMPLEMENTATIONS=MappingProxyType({
+            "greedy_token_selection": ("greedy_token_selection", LocalSelectionOnly._local),
+        }))
+    monkeypatch.setattr(pllm.runtime, "semantic_executor", semantic, raising=False)
 
     def load(name, filename):
         spec = importlib.util.spec_from_file_location(name, ROOT / "python/pllm/runtime" / filename)
@@ -119,7 +128,7 @@ def contract():
         {"id": "head", "operator": "output_head", "inputs": ["embedding"]},
         {"id": "selected", "operator": "greedy_token_selection", "inputs": ["head"]},
     ]
-    graph = {"operations": operations, "state_inputs": [], "state_outputs": []}
+    graph = {"operations": operations, "state_inputs": [], "state_outputs": [], "output": "selected"}
     steps = [{"executor": "remote", "operators": [op["operator"]],
               "operation_ids": [op["id"]], "input_ids": op["inputs"]} for op in operations]
     steps[-1]["executor"] = "client_local"
@@ -134,7 +143,7 @@ class MockAcceptedNative:
     """Numeric/acceptance test double, not cryptographic verification authority."""
 
     def __init__(self, admitted, *, failure=False):
-        self.admitted, self.failure = admitted, failure
+        self.admitted, self.failure = deepcopy(admitted), failure
         self.events = []
 
     def contract(self):
@@ -142,6 +151,21 @@ class MockAcceptedNative:
 
     def coefficients(self):
         return {}
+
+    def bound_step(self, phase, operation_id):
+        # Fixture dispatch only; acceptance remains a non-cryptographic double.
+        if phase not in ("prefill", "decode"):
+            raise ValueError("invalid bound decoder step")
+        expected = {
+            "embedding": ("token_lookup", 1),
+            "head": ("output_head", 15),
+            "selected": ("greedy_token_selection", 17),
+        }.get(operation_id)
+        operation = next((op for op in self.admitted["plan"][phase]["operations"]
+                          if op["id"] == operation_id), None)
+        if expected is None or operation is None or operation["operator"] != expected[0]:
+            raise ValueError("invalid bound decoder step")
+        return expected[1]
 
     def lookup(self, token):
         self.events.append(("lookup", token))

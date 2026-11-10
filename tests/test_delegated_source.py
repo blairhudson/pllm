@@ -178,6 +178,148 @@ def sdk_experiment(path, *, rows=3, outputs=3):
     )
 
 
+def outer_source_experiment(*, capacity="decoder"):
+    """Construct only SDK metadata; no source directory or native validation."""
+    experiment = sdk_experiment(Path("unused-outer-source"))
+    linear = experiment.pipeline.components["linear"]
+    object.__setattr__(linear, "params", MappingProxyType({**linear.params, "capacity": capacity}))
+    return experiment
+
+
+def outer_source_fakes(monkeypatch, expected, *, decoder=True, transform_failure=None,
+                       admission_failure=None, reservation_failure=None):
+    """Observe wrapper ordering/unwind only, not real refund or failed retirement.
+
+    Event/state records contain strings only, never payloads or tracebacks. The
+    installed extension may be imported, but none of its entrypoints may run.
+    """
+    events, active = [], []
+    sentinel = object()
+    expected_failure = transform_failure if transform_failure is not None else admission_failure
+
+    class Reservation:
+        def __enter__(self):
+            assert active == []
+            events.append("enter")
+            if reservation_failure is not None:
+                raise reservation_failure
+            active.append("metadata-context")
+            return self
+
+        def __exit__(self, kind, error, traceback):
+            assert active == ["metadata-context"]
+            assert error is expected_failure
+            assert kind is (None if expected_failure is None else type(expected_failure))
+            events.append("exit")
+            active.pop()
+            return False  # Propagate the actual exception without replacing it.
+
+    def reserve():
+        assert decoder, "direct branch must not reserve outer metadata"
+        return Reservation()
+
+    def transform(value):
+        assert decoder, "direct branch must not transform the outer Experiment"
+        assert value is expected
+        assert active == ["metadata-context"]
+        events.append("transform")
+        if transform_failure is not None:
+            raise transform_failure
+        return b"bounded-transform-sentinel"
+
+    def admit(value, *, input_rows, decode_steps):
+        assert value is expected
+        assert input_rows == 7 and decode_steps == 4
+        assert active == (["metadata-context"] if decoder else [])
+        events.append("admit")
+        if admission_failure is not None:
+            raise admission_failure
+        return sentinel
+
+    for name in ("resolve_experiment", "gkm_decoder_contract", "gkm_runtime_contract",
+                 "_GkmDecoderSession", "_GkmTransportImport"):
+        monkeypatch.setattr(_native, name, forbidden, raising=False)
+    for name in ("decoder_contract", "AdmittedSource", "TokenizersJSONTokenizer",
+                 "SafeTensorStore", "_AdmittedTensorStore", "_identity", "_read_bounded",
+                 "_files", "_locked", "_store", "_tokenizer"):
+        monkeypatch.setattr(source, name, forbidden)
+    monkeypatch.setattr("tokenizers.Tokenizer", forbidden)
+    monkeypatch.setattr(model_loader, "resolve_model", forbidden)
+    monkeypatch.setattr(source.tokenizer_admission, "reserve_decoder_metadata", reserve)
+    monkeypatch.setattr(source, "_experiment_bytes", transform)
+    monkeypatch.setattr(source, "_admit_source", admit)
+    return events, active, sentinel
+
+
+def test_outer_decoder_metadata_covers_transform_and_admission(monkeypatch):
+    experiment = outer_source_experiment()
+    events, active, sentinel = outer_source_fakes(monkeypatch, experiment)
+    assert source.admit_source(experiment, input_rows=7, decode_steps=4) is sentinel
+    assert events == ["enter", "transform", "admit", "exit"]
+    assert active == []
+
+
+def test_outer_decoder_transform_failure_unwinds_same_exception(monkeypatch):
+    experiment = outer_source_experiment()
+    failure = RuntimeError("prepared transform failure")
+    events, active, _ = outer_source_fakes(monkeypatch, experiment, transform_failure=failure)
+    try:
+        source.admit_source(experiment, input_rows=7, decode_steps=4)
+    except RuntimeError as error:
+        assert error is failure
+    else:
+        pytest.fail("transform failure did not propagate")
+    assert events == ["enter", "transform", "exit"]
+    assert active == []
+
+
+def test_outer_decoder_reservation_refusal_precedes_transform_failure(monkeypatch):
+    experiment = outer_source_experiment()
+    failure = RuntimeError("prepared reservation refusal")
+    transform_failure = ValueError("distinct prepared invalid Experiment")
+    events, active, _ = outer_source_fakes(
+        monkeypatch, experiment, reservation_failure=failure, transform_failure=transform_failure,
+    )
+    try:
+        source.admit_source(experiment, input_rows=7, decode_steps=4)
+    except RuntimeError as error:
+        assert error is failure
+    else:
+        pytest.fail("reservation refusal did not propagate")
+    assert events == ["enter"]  # No acquired context, so no exit is claimed.
+    assert active == []
+
+
+def test_outer_decoder_admission_failure_unwinds_same_exception(monkeypatch):
+    experiment = outer_source_experiment()
+    failure = RuntimeError("prepared admission failure")
+    events, active, _ = outer_source_fakes(monkeypatch, experiment, admission_failure=failure)
+    try:
+        source.admit_source(experiment, input_rows=7, decode_steps=4)
+    except RuntimeError as error:
+        assert error is failure
+    else:
+        pytest.fail("admission failure did not propagate")
+    assert events == ["enter", "transform", "admit", "exit"]
+    assert active == []
+
+
+def test_outer_capsule_experiment_forwards_without_reservation_or_transform(monkeypatch):
+    experiment = outer_source_experiment(capacity="capsule")
+    events, active, sentinel = outer_source_fakes(monkeypatch, experiment, decoder=False)
+    assert source.admit_source(experiment, input_rows=7, decode_steps=4) is sentinel
+    assert events == ["admit"]
+    assert active == []
+
+
+def test_outer_model_probe_forwards_without_reservation_or_transform(monkeypatch):
+    model = Model.path("unused-outer-model", format="safetensors")
+    events, active, sentinel = outer_source_fakes(monkeypatch, model, decoder=False)
+    assert source.admit_source(model, input_rows=7, decode_steps=4) is sentinel
+    assert events == ["admit"]
+    assert active == []
+
+
 @pytest.fixture
 def native_sdk_double(monkeypatch):
     """Exercise the new bridge without implying a rebuilt SDK-capable wheel."""

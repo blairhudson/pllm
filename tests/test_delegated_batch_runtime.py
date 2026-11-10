@@ -9,6 +9,7 @@ import asyncio
 import copy
 import gc
 import json
+from types import MappingProxyType
 import weakref
 
 import numpy as np
@@ -39,6 +40,25 @@ class BatchNative:
 
     def coefficients(self):
         return {key: self.arrays[key].tobytes() for key in self.document["local_tensors"]}
+
+    def bound_step(self, phase, operation_id):
+        # Fixture dispatch only; no native admission or consuming cursor proof.
+        if phase not in ("prefill", "decode"):
+            raise ValueError("invalid bound decoder step")
+        operation = next((op for op in self.document["plan"][phase]["operations"]
+                          if op["id"] == operation_id), None)
+        codes = {
+            "token_lookup": 1, "reshape": 2, "rms_norm": 3, "linear": 4,
+            "rotary_embedding": 5, "kv_cache_append": 6, "attention_scores": 7,
+            "attention_scale": 8, "causal_mask": 9, "softmax": 10,
+            "attention_values": 11, "residual_add": 12, "silu": 13,
+            "multiply": 14, "output_head": 15, "last_token": 16,
+            "greedy_token_selection": 17, "token_feedback": 18, "cache_suffix": 19,
+        }
+        code = codes.get(operation["operator"]) if operation is not None else None
+        if code is None:
+            raise ValueError("invalid bound decoder step")
+        return code
 
     def lookup(self, *_):
         raise AssertionError("scalar lookup forbidden in selected batch execution")
@@ -207,13 +227,15 @@ def test_trusted_descriptor_shape_checks_precede_batch_boundary(mutation, monkey
         field = "stage_offset" if mutation == "member_offset" else "stage_width"
         contract["prefill"]["steps"][2]["outputs"][1][field] += 1
     else:
-        original = decoder._Request._local
+        records = decoder.semantic_executor._LOCAL_IMPLEMENTATIONS
+        selector, original = records["rms_norm"]
 
         def wrong_input(self, operation, *args):
             value = original(self, operation, *args)
             return value[:1] if operation["id"] == "layer.0.input_norm" else value
 
-        monkeypatch.setattr(decoder._Request, "_local", wrong_input)
+        monkeypatch.setattr(decoder.semantic_executor, "_LOCAL_IMPLEMENTATIONS",
+                            MappingProxyType({**records, "rms_norm": (selector, wrong_input)}))
     native = BatchNative(contract, arrays)
     with pytest.raises(ValueError, match="GKM batch"):
         decoder._execute_verified_window(native, contract, (0, 4))
@@ -225,18 +247,23 @@ def test_strided_input_and_dtype_coercion_serialize_once_in_c_order(monkeypatch,
     cfg = config()
     contract, arrays, _ = fixture(cfg, rows=2, decode=1)
     expected = clear_oracle(cfg, arrays, (0, 4), 1)
-    original = decoder._Request._local
+    records = decoder.semantic_executor._LOCAL_IMPLEMENTATIONS
+    selector, original = records["rms_norm"]
+    hits = []
 
     def strided(self, operation, *args):
         value = original(self, operation, *args)
         if operation["id"] == "layer.0.input_norm":
+            hits.append(operation["id"])
             value = np.repeat(value.astype(">f8"), 2, axis=-1)[..., ::2]
             assert not value.flags.c_contiguous
         return value
 
-    monkeypatch.setattr(decoder._Request, "_local", strided)
+    monkeypatch.setattr(decoder.semantic_executor, "_LOCAL_IMPLEMENTATIONS",
+                        MappingProxyType({**records, "rms_norm": (selector, strided)}))
     native = BatchNative(contract, arrays)
     assert_complete_result(decoder._execute_verified_window(native, contract, (0, 4)), expected)
+    assert len(hits) == 2  # Prefill and singleton decode both exercise the wrapper.
 
 
 @pytest.mark.parametrize("selector", [None, "wrong-mode"])

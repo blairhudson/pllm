@@ -1,6 +1,10 @@
 //! Exhaustive dynamic allocation-index failures, using real GlobalAlloc nulls.
 //! Instrument only the sweep thread; embedded tests may run concurrently.
 //! Fixed Arc::new metadata allocations are NOT failed.
+#[allow(dead_code)]
+#[path = "../src/coded_linear.rs"]
+mod coded_linear;
+
 #[allow(dead_code, unused_imports)]
 #[path = "../src/maverick_batch/mod.rs"]
 mod maverick_batch;

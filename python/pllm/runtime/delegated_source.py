@@ -926,10 +926,12 @@ def admit_source(model_or_experiment, *, input_rows=None, decode_steps=None) -> 
     if (isinstance(model_or_experiment, Experiment)
             and model_or_experiment.pipeline.components.get("linear") is not None
             and model_or_experiment.pipeline.components["linear"].params.get("capacity") == "decoder"):
-        _experiment_bytes(model_or_experiment)
-        # Full-vocabulary JSON parsing, reverse indexes, tokenizer construction,
-        # source graph copies and retained raw bytes are real metadata owners.
+        # Experiment transform, full-vocabulary JSON parsing, reverse indexes,
+        # tokenizer construction, source graph copies and retained raw bytes are
+        # real metadata owners. Capacity failure may precede an invalid Experiment,
+        # intentionally before source I/O.
         with tokenizer_admission.reserve_decoder_metadata():
+            _experiment_bytes(model_or_experiment)
             return _admit_source(model_or_experiment, input_rows=input_rows, decode_steps=decode_steps)
     return _admit_source(model_or_experiment, input_rows=input_rows, decode_steps=decode_steps)
 

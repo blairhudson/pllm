@@ -1,4 +1,8 @@
 //! Targeted integration until the parent exports the new module from lib.rs.
+#[allow(dead_code)]
+#[path = "../src/coded_linear.rs"]
+mod coded_linear;
+
 #[allow(dead_code, unused_imports)]
 #[path = "../src/maverick_batch/mod.rs"]
 mod maverick_batch;

@@ -6,6 +6,7 @@ import math
 import threading
 from collections import Counter, OrderedDict
 from collections.abc import Callable, Mapping
+from types import MappingProxyType
 from typing import Any, cast
 
 import numpy as np
@@ -1330,6 +1331,26 @@ class SemanticLocalOperators:
         raise TransformerClientError(
             f"semantic operator {kind!r} ({operation.get('id')!r}, layout={attrs.get('layout')!r}) is not executable"
         )
+
+
+_LOCAL_IMPLEMENTATIONS = MappingProxyType({
+    "reshape": ("reshape", SemanticLocalOperators._local),
+    "rms_norm": ("rms_norm", SemanticLocalOperators._local),
+    "rotary_embedding": ("rotary_embedding", SemanticLocalOperators._local),
+    "kv_cache_append": ("kv_cache_append", SemanticLocalOperators._local),
+    "attention_scores": ("attention_scores", SemanticLocalOperators._local),
+    "attention_scale": ("attention_scale", SemanticLocalOperators._local),
+    "causal_mask": ("causal_mask", SemanticLocalOperators._local),
+    "softmax": ("softmax", SemanticLocalOperators._local),
+    "attention_values": ("attention_values", SemanticLocalOperators._local),
+    "residual_add": ("residual_add", SemanticLocalOperators._local),
+    "silu": ("silu", SemanticLocalOperators._local),
+    "multiply": ("multiply", SemanticLocalOperators._local),
+    "last_token": ("last_token", SemanticLocalOperators._local),
+    "greedy_token_selection": ("greedy_token_selection", SemanticLocalOperators._local),
+    "token_feedback": ("token_feedback", SemanticLocalOperators._local),
+    "cache_suffix": ("cache_suffix", SemanticLocalOperators._local),
+})
 
 
 class SemanticDecoderRuntime(SemanticLocalOperators, _SemanticDecoderState):

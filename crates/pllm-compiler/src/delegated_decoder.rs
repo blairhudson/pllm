@@ -23,7 +23,10 @@ pub use source_import::{GkmTransportImport, GKM_SOURCE_CHUNK_BYTES};
 use crate::decoder_runtime_schedule::{
     lower_phase, DecoderRuntimeExecutor, DecoderRuntimePhaseSchedule,
 };
-use crate::component_binding::{classify, validate_phase, Implementation, InvalidBoundStep};
+use crate::component_binding::{
+    bind_selected, classify, validate_phase, validate_selected_operation, Implementation,
+    InvalidBoundStep, SelectedComponents,
+};
 
 const SCHEMA: &str = "pllm.gkm.decoder-reference.v1";
 const INPUT_BOUND: u64 = 1 << 31;
@@ -281,7 +284,9 @@ impl GkmDecoderContract {
         decode_steps: usize,
         capacity: gkm::Capacity,
     ) -> Result<Self, String> {
-        Self::compile_owned(config, input_rows, decode_steps, capacity, false)
+        Self::compile_owned(
+            config, input_rows, decode_steps, capacity, false, SelectedComponents::Legacy,
+        )
     }
 
     pub fn compile_streamed_with_capacity(
@@ -290,7 +295,9 @@ impl GkmDecoderContract {
         decode_steps: usize,
         capacity: gkm::Capacity,
     ) -> Result<Self, String> {
-        Self::compile_owned(config, input_rows, decode_steps, capacity, true)
+        Self::compile_owned(
+            config, input_rows, decode_steps, capacity, true, SelectedComponents::Legacy,
+        )
     }
 
     fn compile_owned(
@@ -299,6 +306,7 @@ impl GkmDecoderContract {
         decode_steps: usize,
         capacity: gkm::Capacity,
         streamed: bool,
+        selected: SelectedComponents<'_>,
     ) -> Result<Self, String> {
         let expanded = capacity == gkm::Capacity::Decoder;
         let max_elements = if expanded { 1 << 24 } else { MAX_ELEMENTS };
@@ -341,7 +349,13 @@ impl GkmDecoderContract {
         let mut local_tensors = BTreeSet::new();
         for graph in [&plan.prefill, &plan.decode] {
             for op in &graph.operations {
-                if classify(op.operator).is_err() || op
+                let implementation = bind_selected(op.operator, selected)
+                    .map_err(|_| reject("unsupported operator, representation, or tensor geometry"))?;
+                if matches!(selected, SelectedComponents::Explicit(_)) {
+                    validate_selected_operation(graph, op, implementation)
+                        .map_err(|error| reject(&error.to_string()))?;
+                }
+                if op
                     .output_shape
                     .iter()
                     .try_fold(1u64, |n, d| n.checked_mul(*d))
@@ -363,7 +377,7 @@ impl GkmDecoderContract {
                         "unsupported operator, representation, or tensor geometry",
                     ));
                 }
-                if op.operator == ModelOperator::RmsNorm {
+                if implementation == Implementation::RmsNorm {
                     let weight = op.attributes["weight"]
                         .as_str()
                         .ok_or_else(|| reject("normalization weight"))?;
@@ -422,7 +436,7 @@ impl GkmDecoderContract {
                 continue;
             }
             let first = operations[step.operation_ids[0].as_str()];
-            let implementation = classify(first.operator).map_err(|e| reject(&e.to_string()))?;
+            let implementation = bind_selected(first.operator, selected).map_err(|e| reject(&e.to_string()))?;
             if implementation == Implementation::Lookup {
                 if table.is_some() || step.operation_ids.len() != 1 {
                     return Err(reject("requires one original token table"));
@@ -448,13 +462,20 @@ impl GkmDecoderContract {
             let mut members = Vec::new();
             for (id, out) in step.operation_ids.iter().zip(&step.outputs) {
                 let op = operations[id.as_str()];
-                if !classify(op.operator).is_ok_and(|code| code.matrix()) {
+                if !bind_selected(op.operator, selected).is_ok_and(|code| code.matrix()) {
                     return Err(reject("unsupported matrix member implementation"));
                 }
                 let weight = op.attributes["weight"]
                     .as_str()
                     .ok_or_else(|| reject("matrix weight"))?
                     .to_owned();
+                if matches!(selected, SelectedComponents::Explicit(_))
+                    && op.operator == ModelOperator::OutputHead
+                    && op.attributes["tied"].as_bool() == Some(true)
+                    && table.as_deref() != Some(weight.as_str())
+                {
+                    return Err(reject("tied head differs from original token table"));
+                }
                 let bias = op
                     .attributes
                     .get("bias")

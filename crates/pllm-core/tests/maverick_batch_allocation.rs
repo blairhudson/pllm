@@ -1,6 +1,10 @@
 //! Thread-scoped allocator probe, separate from JSON/oracle reporters.
 //! Path-imported unit tests may run concurrently without entering observation.
 //! Actual null-return failure sweeps live in maverick_batch_failures.rs.
+#[allow(dead_code)]
+#[path = "../src/coded_linear.rs"]
+mod coded_linear;
+
 #[allow(dead_code, unused_imports)]
 #[path = "../src/maverick_batch/mod.rs"]
 mod maverick_batch;

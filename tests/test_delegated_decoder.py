@@ -10,6 +10,7 @@ from collections.abc import Mapping
 import copy
 import json
 import math
+from types import MappingProxyType
 
 import numpy as np
 import pytest
@@ -223,7 +224,7 @@ def _observed_selection_session(monkeypatch, cfg, contract, source, *, canary=Tr
         for op in contract["plan"][phase]["operations"]
         if op["operator"] == "greedy_token_selection"
     }
-    original_local = decoder.SemanticLocalOperators._local
+    original_records = decoder.semantic_executor._LOCAL_IMPLEMENTATIONS
 
     class ForwardingSession:
         def __getattr__(self, name):
@@ -243,7 +244,9 @@ def _observed_selection_session(monkeypatch, cfg, contract, source, *, canary=Tr
             return call
 
     def local(self, operation, values, *args, **kwargs):
-        result = original_local(self, operation, values, *args, **kwargs)
+        result = original_records[operation["operator"]][1](
+            self, operation, values, *args, **kwargs,
+        )
         if operation["operator"] == "greedy_token_selection":
             events.append(("selection", ()))
             # Selection IR [1], feedback IR [1, 1]; actual selection (1,): all one element.
@@ -265,7 +268,11 @@ def _observed_selection_session(monkeypatch, cfg, contract, source, *, canary=Tr
             events.append(("feedback", (result.item(),)))
         return result
 
-    monkeypatch.setattr(decoder.SemanticLocalOperators, "_local", local)
+    monkeypatch.setattr(decoder.semantic_executor, "_LOCAL_IMPLEMENTATIONS", MappingProxyType({
+        **original_records,
+        "greedy_token_selection": ("greedy_token_selection", local),
+        "token_feedback": ("token_feedback", local),
+    }))
     return ForwardingSession(), events, selections
 
 
@@ -366,6 +373,34 @@ def test_selection_dispatch_failure_aborts_without_accepted_finish(monkeypatch, 
         native.finish()
 
 
+def test_corrupted_local_registry_selector_aborts_before_handler(monkeypatch):
+    cfg = config()
+    contract, _, source = fixture(cfg, 3, 0)
+    native, events, selections = _observed_selection_session(
+        monkeypatch, cfg, contract, source,
+    )
+    calls = []
+
+    def forbidden(*args, **kwargs):
+        calls.append(True)
+        pytest.fail("corrupted registry handler entered")
+
+    monkeypatch.setattr(decoder.semantic_executor, "_LOCAL_IMPLEMENTATIONS", MappingProxyType({
+        **decoder.semantic_executor._LOCAL_IMPLEMENTATIONS,
+        "greedy_token_selection": ("token_feedback", forbidden),
+    }))
+    with pytest.raises(ValueError, match="^invalid bound decoder step$"):
+        decoder._execute_verified_window(native, contract, (0, 4, 9))
+    assert calls == selections == []
+    assert not any(name == "selection" for name, _ in events)
+    assert any(name == "lookup" for name, _ in events)
+    assert any(name == "linear" for name, _ in events)
+    assert not any(name in {"finish", "finished"} for name, _ in events)
+    assert any(name == "abort" for name, _ in events)
+    with pytest.raises(ValueError, match="retired"):
+        native.finish()
+
+
 def test_original_lookup_signed_zero_and_source_binding():
     cfg = config()
     contract, _, tensors = fixture(cfg, 1, 0)
@@ -413,7 +448,10 @@ def test_local_failure_retires_full_kv_and_native_window(monkeypatch, error):
     cfg = config()
     _, _, tensors = fixture(cfg)
     requests = []
-    original_init, original_local = decoder._Request.__init__, decoder._Request._local
+    original_init = decoder._Request.__init__
+    original_records = decoder.semantic_executor._LOCAL_IMPLEMENTATIONS
+    original_local = original_records["silu"][1]
+    failure = error("injected cancellation/failure")
 
     def init(self, *args):
         original_init(self, *args)
@@ -422,13 +460,17 @@ def test_local_failure_retires_full_kv_and_native_window(monkeypatch, error):
     def local(self, operation, *args):
         if operation["operator"] == "silu":
             assert any(cache.length for cache in self.caches)
-            raise error("injected cancellation/failure")
+            raise failure
         return original_local(self, operation, *args)
 
     monkeypatch.setattr(decoder._Request, "__init__", init)
-    monkeypatch.setattr(decoder._Request, "_local", local)
-    with pytest.raises(error):
+    monkeypatch.setattr(decoder.semantic_executor, "_LOCAL_IMPLEMENTATIONS", MappingProxyType({
+        **original_records,
+        "silu": ("silu", local),
+    }))
+    with pytest.raises(error) as caught:
         decoder.execute_gkm_reference(cfg, tensors, (0, 4, 9), decode_steps=2, seeded=True)
+    assert caught.value is failure
     assert len(requests) == 1
     request = requests[0]
     assert all(

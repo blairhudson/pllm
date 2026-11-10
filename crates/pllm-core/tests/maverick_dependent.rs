@@ -1,4 +1,8 @@
 //! Bounded exact-field dependency, not model numerics or a security certificate.
+#[allow(dead_code)]
+#[path = "../src/coded_linear.rs"]
+mod coded_linear;
+
 #[allow(dead_code, unused_imports)]
 #[path = "../src/maverick_batch/mod.rs"]
 mod maverick_batch;

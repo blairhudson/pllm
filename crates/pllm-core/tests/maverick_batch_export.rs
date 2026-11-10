@@ -1,5 +1,9 @@
 //! Real exported API round trips. The path module supplies public test INPUTS
 //! only; all preprocessing, owners and protocol operations below use pllm_core.
+#[allow(dead_code)]
+#[path = "../src/coded_linear.rs"]
+mod coded_linear;
+
 #[allow(dead_code, unused_imports)]
 #[path = "../src/maverick_batch/mod.rs"]
 mod input_fixtures;
