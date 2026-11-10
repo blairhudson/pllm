@@ -209,6 +209,163 @@ def test_complete_prefill_decode_matches_independent_integer_float32_oracle(fami
     assert receipts[0]["request"] != receipts[1]["request"]
 
 
+def _observed_selection_session(monkeypatch, cfg, contract, source, *, canary=True,
+                                excluded=(), wrong_binding=False, selection_error=None):
+    """Forward real native work; canaries test Python dataflow, not attestation."""
+    native = _native._GkmDecoderSession(
+        json.dumps(cfg).encode(), contract["input_rows"], contract["decode_steps"],
+        source, seeded=True,
+    )
+    events, selections = [], []
+    selection_ids = {
+        (phase, op["id"])
+        for phase in ("prefill", "decode")
+        for op in contract["plan"][phase]["operations"]
+        if op["operator"] == "greedy_token_selection"
+    }
+    original_local = decoder.SemanticLocalOperators._local
+
+    class ForwardingSession:
+        def __getattr__(self, name):
+            original = getattr(native, name)
+            if name not in {"lookup", "linear", "bound_step", "finish", "abort"}:
+                return original
+
+            def call(*args, **kwargs):
+                events.append((name, args))
+                result = original(*args, **kwargs)
+                if name == "bound_step" and wrong_binding and args in selection_ids:
+                    return 18  # Feedback code cannot bind selection (code 17).
+                if name == "finish":
+                    events.append(("finished", ()))
+                return result
+
+            return call
+
+    def local(self, operation, values, *args, **kwargs):
+        result = original_local(self, operation, values, *args, **kwargs)
+        if operation["operator"] == "greedy_token_selection":
+            events.append(("selection", ()))
+            # Selection IR [1], feedback IR [1, 1]; actual selection (1,): all one element.
+            assert result.shape == (1,)
+            assert result.dtype == np.dtype(np.int64)
+            if selection_error is not None:
+                raise selection_error
+            greedy = result.item()
+            if canary:
+                token = (greedy + 1) % contract["vocabulary"]
+                while token == greedy or token in excluded:
+                    token = (token + 1) % contract["vocabulary"]
+                result = np.full_like(result, token)
+                assert result.item() != greedy
+            selections.append(result.item())
+        elif operation["operator"] == "token_feedback":
+            assert result is values[operation["inputs"][0]]
+            assert result.size == 1
+            events.append(("feedback", (result.item(),)))
+        return result
+
+    monkeypatch.setattr(decoder.SemanticLocalOperators, "_local", local)
+    return ForwardingSession(), events, selections
+
+
+def test_graph_selection_canary_drives_verified_history_and_next_lookup(monkeypatch):
+    cfg = config()
+    contract, arrays, source = fixture(cfg)
+    tokens = (0, 4, 9)
+    initial_logits = clear_oracle(cfg, arrays, tokens, 0)[0][0]
+    native, events, selections = _observed_selection_session(
+        monkeypatch, cfg, contract, source,
+    )
+    result = decoder._execute_verified_window(native, contract, tokens)
+    expected = clear_oracle(cfg, arrays, tokens, 2, decode_tokens=result.selected[:-1])
+    assert result.selected == tuple(selections)
+    assert len(selections) == 3
+    assert result.logits[0] == initial_logits
+    assert (result.logits, result.kv, result.executed, result.position) == (
+        expected[0], expected[1], expected[3], expected[4],
+    )
+    assert result.executed == tokens + result.selected[:-1]
+    assert tuple(args[0] for name, args in events if name == "lookup") == result.executed
+    assert tuple(args[0] for name, args in events if name == "feedback") == result.selected
+    assert [name for name, _ in events].count("finish") == 1
+    assert [name for name, _ in events].count("finished") == 1
+    assert events.index(("finished", ())) < events.index(("abort", ()))
+    assert result.acceptance
+
+
+def test_teacher_forcing_overrides_continuation_only_and_final_selection_stays_pending(monkeypatch):
+    cfg = config()
+    contract, arrays, source = fixture(cfg)
+    tokens, continuation = (0, 4, 9), (6, 7)
+    native, events, selections = _observed_selection_session(
+        monkeypatch, cfg, contract, source, excluded=continuation,
+    )
+    result = decoder._execute_verified_window(
+        native, contract, tokens, decode_tokens=continuation,
+    )
+    expected = clear_oracle(cfg, arrays, tokens, 2, decode_tokens=continuation)
+    assert result.selected == tuple(selections)
+    assert len(selections) == 3
+    assert not set(result.selected) & set(continuation)
+    assert (result.logits, result.kv, result.executed, result.position) == (
+        expected[0], expected[1], expected[3], expected[4],
+    )
+    assert result.executed == tokens + continuation
+    assert result.position == len(tokens) + len(continuation)
+    # Exactly prompt + forced continuation reads: final selection is pending.
+    assert tuple(args[0] for name, args in events if name == "lookup") == tokens + continuation
+    assert tuple(args[0] for name, args in events if name == "feedback") == result.selected
+    assert [name for name, _ in events].count("finished") == 1
+    assert events.index(("finished", ())) < events.index(("abort", ()))
+
+
+def test_graph_selection_preserves_first_index_for_tied_logits(monkeypatch):
+    cfg = config(tied=False)
+    contract, arrays, source = fixture(cfg, 3, 0)
+    arrays["lm_head.weight"].fill(0)
+    source["lm_head.weight"] = arrays["lm_head.weight"].tobytes()
+    native, events, selections = _observed_selection_session(
+        monkeypatch, cfg, contract, source, canary=False,
+    )
+    result = decoder._execute_verified_window(native, contract, (0, 4, 9))
+    expected = clear_oracle(cfg, arrays, (0, 4, 9), 0)
+    assert (result.logits, result.kv, result.selected, result.executed, result.position) == expected
+    assert result.selected == tuple(selections) == (0,)
+    assert np.all(np.frombuffer(result.logits[0], dtype="<f4") == 0)
+    assert tuple(args[0] for name, args in events if name == "lookup") == (0, 4, 9)
+    assert [name for name, _ in events].count("finished") == 1
+
+
+@pytest.mark.parametrize("failure", ["binding", ValueError, KeyboardInterrupt, asyncio.CancelledError])
+def test_selection_dispatch_failure_aborts_without_accepted_finish(monkeypatch, failure):
+    cfg = config()
+    contract, _, source = fixture(cfg, 3, 0)
+    error = None if failure == "binding" else failure("selection failed")
+    native, events, selections = _observed_selection_session(
+        monkeypatch, cfg, contract, source,
+        wrong_binding=failure == "binding", selection_error=error,
+    )
+    result = None
+    with pytest.raises(ValueError if error is None else type(error)) as caught:
+        result = decoder._execute_verified_window(native, contract, (0, 4, 9))
+    if error is None:
+        assert str(caught.value) == "invalid bound decoder step"
+        assert not any(name == "selection" for name, _ in events)
+    else:
+        assert caught.value is error
+        assert [name for name, _ in events].count("selection") == 1
+    assert result is None
+    assert selections == []
+    # Rejection occurs at selection, after earlier real lookup/linear work.
+    assert any(name == "lookup" for name, _ in events)
+    assert any(name == "linear" for name, _ in events)
+    assert not any(name in {"finish", "finished"} for name, _ in events)
+    assert any(name == "abort" for name, _ in events)
+    with pytest.raises(ValueError, match="retired"):
+        native.finish()
+
+
 def test_original_lookup_signed_zero_and_source_binding():
     cfg = config()
     contract, _, tensors = fixture(cfg, 1, 0)

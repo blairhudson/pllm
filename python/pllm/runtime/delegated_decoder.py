@@ -358,7 +358,7 @@ class _Request(SemanticLocalOperators):
             if logits.size != self._contract["vocabulary"]:
                 raise ValueError("GKM full-head shape mismatch")
             self.position += len(ids)
-            return logits.tobytes(), int(np.argmax(logits))
+            return logits.tobytes(), values[graph["output"]].item()
         finally:
             values.clear()
             pending.clear()
