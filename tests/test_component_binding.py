@@ -555,10 +555,12 @@ def test_binding_error_failed_real_transport_retirement_keeps_original_custody(a
     control_token, control_amount = slot._token, slot.control_bytes
     binding_tuple = None
     try:
-        with pytest.raises(ValueError, match="^invalid bound decoder step$") as caught:
+        with pytest.raises(ValueError) as caught:
             transport.execute_request(None, source, (0,), 1,
                 {"worker_a": ("http://127.0.0.1:1", "a" * 32),
                  "worker_b": ("http://127.0.0.1:2", "b" * 32)}, 1, lambda: False)
+        assert type(caught.value) is ValueError
+        assert str(caught.value) == "invalid bound decoder step"
         assert primary == [caught.value]
         assert caught.value.__cause__ is caught.value.__context__ is None
         assert caught.value.__notes__ == ["GKM cleanup failed: RuntimeError"]
