@@ -15,7 +15,7 @@ from pllm.deployment import resources
 from pllm.protocols import OpenWeightVerifiableOutsourcing
 from pllm.runtime import delegated_source as source, delegated_transport as transport, delegated_worker
 from pllm.runtime.benchmark_memory import estimate_memory
-from pllm.runtime.responses import normalize_input, prompt_text
+from pllm.runtime.responses import _render_prompt, normalize_input
 
 from test_delegated_decoder import clear_oracle
 from test_delegated_sdk import active_sessions, experiment_fixture
@@ -77,7 +77,10 @@ def test_decoder_capacity_real_workers_preserve_full_logits_and_kv(tmp_path, fam
             client._core._result_hook = captured.append
             reply = client.responses.create(input="hello world", max_output_tokens=3)
             admitted = client._core._ensure_source()
-            ids = admitted.tokenizer().encode(prompt_text(normalize_input("hello world")), add_bos=False)
+            descriptor = admitted.tokenizer_descriptor
+            rendered = _render_prompt(normalize_input("hello world"), descriptor)
+            assert rendered == "user: hello world\nassistant:"
+            ids = admitted.tokenizer().encode(rendered, add_bos=bool(descriptor.get("add_bos_token", True)))
             result, = captured
             assert (result.logits, result.kv, result.selected, result.executed, result.position) == clear_oracle(
                 cfg, arrays, tuple(ids), 2)
