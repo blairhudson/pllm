@@ -625,7 +625,10 @@ def test_declaration_and_config_rejection_precede_host_and_tensor_values(monkeyp
     assert str(empty.value) == str(poison.value)
 
 
-def test_composed_factory_preserves_all_existing_declarations():
+def test_composed_factory_preserves_all_existing_declarations(monkeypatch):
+    from pathlib import Path
+
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1]))
     from examples.papers import gkm
 
     factories = (gkm.experiment, gkm.seeded, gkm.smoke, gkm.seeded_smoke, gkm.bounded_response)
