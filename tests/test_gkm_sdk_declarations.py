@@ -39,6 +39,11 @@ from pllm.state import ClientLocalKv, ClientPrefixReuse
 from pllm.verification import FreivaldsVerify, PublishedLinearVerify
 
 
+@pytest.fixture
+def paper_examples_path(monkeypatch):
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1]))
+
+
 def _pipeline() -> OpenWeightVerifiableCpu:
     # Declaration-only source: execution must separately admit a complete bounded fixture.
     return OpenWeightVerifiableCpu(Model("fixtures/gkm-complete", revision="source-pin"))
@@ -68,7 +73,7 @@ class _PublicModelSource:
 
 @pytest.mark.parametrize("factory_name", ["experiment", "seeded", "smoke", "seeded_smoke",
                                          "composed_bounded_response"])
-def test_gkm_factory_preserves_structural_source_override_and_model_identity(factory_name):
+def test_gkm_factory_preserves_structural_source_override_and_model_identity(factory_name, paper_examples_path):
     from examples.papers import gkm
     from examples.papers.common import MODEL
 
@@ -381,7 +386,7 @@ def test_existing_default_composition_identities_remain_unchanged() -> None:
     ("bounded_response", "full", 1, 32, 2),
 ])
 def test_paper_factories_keep_decoder_workload_and_sharing_without_native_admission(
-    monkeypatch, factory, sharing, requests, input_tokens, output_tokens,
+    monkeypatch, factory, sharing, requests, input_tokens, output_tokens, paper_examples_path,
 ) -> None:
     from examples.papers import gkm
 
@@ -410,7 +415,7 @@ def test_paper_factories_keep_decoder_workload_and_sharing_without_native_admiss
     assert contract.prepared_inventory_rows == 0 and not contract.requires_preparation
 
 
-def test_bounded_response_factory_preserves_composition_and_narrows_only_budget() -> None:
+def test_bounded_response_factory_preserves_composition_and_narrows_only_budget(paper_examples_path) -> None:
     from examples.papers.gkm import bounded_response, experiment
 
     baseline, bounded = experiment(), bounded_response()
@@ -438,7 +443,7 @@ _LEGACY_FACTORY_PINS = [
 
 @pytest.mark.parametrize("factory,sharing,name,raw_sha,configuration,composition", _LEGACY_FACTORY_PINS)
 def test_legacy_paper_factory_fixed_baseline_pins(
-    factory, sharing, name, raw_sha, configuration, composition,
+    factory, sharing, name, raw_sha, configuration, composition, paper_examples_path,
 ) -> None:
     from examples.papers import gkm
 
