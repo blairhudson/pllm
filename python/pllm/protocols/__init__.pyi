@@ -1,4 +1,90 @@
 from pllm.protocols.base import ProtocolMethod as ProtocolMethod
+from pllm.protocols._he_declarations import (
+    CkksRectangularLinear as CkksRectangularLinear,
+    InterleavedQK as InterleavedQK,
+    InterleavedWeightedV as InterleavedWeightedV,
+    RoutedGQA as RoutedGQA,
+    HERotaryTransform as HERotaryTransform,
+    PrivateTokenSelection as PrivateTokenSelection,
+    PrivateTokenFeedback as PrivateTokenFeedback,
+    HECoefficientCompression as HECoefficientCompression,
+    HECommutableLinear as HECommutableLinear,
+    HEColumnProduct as HEColumnProduct,
+    HELayoutTransform as HELayoutTransform,
+    HEAttentionValue as HEAttentionValue,
+    HEFoldSelection as HEFoldSelection,
+    HEBootstrap as HEBootstrap,
+    HEResidualAdd as HEResidualAdd,
+    HEPrivateEmbedding as HEPrivateEmbedding,
+    ClassifierOutputPolicy as ClassifierOutputPolicy,
+    HESourceEmbeddingPositionSegment as HESourceEmbeddingPositionSegment,
+    HEAttentionProducts as HEAttentionProducts,
+    HEHeadScaleMask as HEHeadScaleMask,
+    HEPackedLinear as HEPackedLinear,
+    HEClsPooler as HEClsPooler,
+    HENspTwoLogitHead as HENspTwoLogitHead,
+    NspLogitsOnlyOutputPolicy as NspLogitsOnlyOutputPolicy,
+)
+from pllm.protocols._conversion_declarations import (
+    PrivateTokenShare as PrivateTokenShare,
+    CoefficientPrivateLookup as CoefficientPrivateLookup,
+    CoefficientObliviousLinearTransform as CoefficientObliviousLinearTransform,
+    SimdBilinearOle as SimdBilinearOle,
+    ArithmeticToHomomorphic as ArithmeticToHomomorphic,
+    TraceInterleaveRepacking as TraceInterleaveRepacking,
+    CoefficientHomomorphicToArithmetic as CoefficientHomomorphicToArithmetic,
+    FloodedSimdHomomorphicToArithmetic as FloodedSimdHomomorphicToArithmetic,
+    CrtRingConversion as CrtRingConversion,
+    SignedRingExtension as SignedRingExtension,
+    SourcePositionOperators as SourcePositionOperators,
+    SharedStableArgmax as SharedStableArgmax,
+    PrivateFullPrefixFeedback as PrivateFullPrefixFeedback,
+)
+from pllm.protocols._heterogeneous_declarations import (
+    AuthenticatedClientInputExport as AuthenticatedClientInputExport,
+    HEEncryptedMultiplyReduce as HEEncryptedMultiplyReduce,
+    HESlotCoefficientTransform as HESlotCoefficientTransform,
+    HERingSwitch as HERingSwitch,
+    HECoefficientExtraction as HECoefficientExtraction,
+    HEKeySwitch as HEKeySwitch,
+    HEModulusRaise as HEModulusRaise,
+    HECoefficientSlotTransform as HECoefficientSlotTransform,
+)
+from pllm.protocols._masked_declarations import (
+    RingPublicCoefficientDot as RingPublicCoefficientDot,
+    NegativeMaskMatrixProduct as NegativeMaskMatrixProduct,
+    NegativeMaskElementwiseProduct as NegativeMaskElementwiseProduct,
+    MaskedRingAddSubProduct as MaskedRingAddSubProduct,
+    BoundedDpfPublicTable as BoundedDpfPublicTable,
+    XorPredicateFiveWordSelect as XorPredicateFiveWordSelect,
+    CausalMaxNexpReciprocalAttention as CausalMaxNexpReciprocalAttention,
+    StablePrivateArgmaxEmbedding as StablePrivateArgmaxEmbedding,
+    AuthenticatedNativeInput as AuthenticatedNativeInput,
+    ConsumingShareToCommonMask as ConsumingShareToCommonMask,
+)
+from pllm.protocols._replicated_declarations import (
+    ReplicatedPrivateTokenInput as ReplicatedPrivateTokenInput,
+    ReplicatedCompleteTableLookup as ReplicatedCompleteTableLookup,
+    ReplicatedPublicMatmulFullSum as ReplicatedPublicMatmulFullSum,
+    ReplicatedSecretMultiply as ReplicatedSecretMultiply,
+    ReplicatedRingAddBias as ReplicatedRingAddBias,
+    ReplicatedArithmeticBooleanConversion as ReplicatedArithmeticBooleanConversion,
+    ReplicatedCausalQkSoftmaxAv as ReplicatedCausalQkSoftmaxAv,
+    ReplicatedCompleteStableArgmax as ReplicatedCompleteStableArgmax,
+    ReplicatedFixedCountFinalTokenRelease as ReplicatedFixedCountFinalTokenRelease,
+    AuthenticatedDirectedThreePartyTransport as AuthenticatedDirectedThreePartyTransport,
+)
+from pllm.protocols._fss_declarations import (
+    FSSPublicTableLookup as FSSPublicTableLookup,
+    FSSPublicDot as FSSPublicDot,
+    FSSPrivateDot as FSSPrivateDot,
+    FSSSecretMultiply as FSSSecretMultiply,
+    FSSAdd as FSSAdd,
+    FSSArgmax as FSSArgmax,
+    FSSAuthenticatedRoleTransport as FSSAuthenticatedRoleTransport,
+)
+from pllm.protocols._float_declarations import PublicFieldMatvec as PublicFieldMatvec
+from pllm.protocols._float_declarations import AuthenticatedConfidentialRoleTransport as AuthenticatedConfidentialRoleTransport
 from pllm.protocols.bundle_transport import ClientBundleTransport as ClientBundleTransport
 from pllm.protocols.masked_linear import MaskedLinear as MaskedLinear
 from pllm.protocols.packed_encrypted import PackedEncryptedLinear as PackedEncryptedLinear

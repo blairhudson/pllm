@@ -1,6 +1,10 @@
 from typing import ClassVar, Literal
 
 from pllm.configuration import ComponentDescriptor, ComponentRef
+from pllm.verification._declarations import PerEdgeRangeWorkAdmission as PerEdgeRangeWorkAdmission
+from pllm.verification._declarations import TwoLevelCodedBatchVerification as TwoLevelCodedBatchVerification
+from pllm.verification._declarations import ValidatedMatrixCodePublication as ValidatedMatrixCodePublication
+from pllm.verification._declarations import OriginalDotWindow as OriginalDotWindow
 from pllm.components._planned import PendingComponent as PendingMethod
 from pllm.runtime.linear_integrity import LinearCheckKey as LinearCheckKey
 from pllm.runtime.linear_integrity import LinearCheckResult as LinearCheckResult

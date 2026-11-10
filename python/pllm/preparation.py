@@ -5,6 +5,10 @@ from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
 from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
+from pllm._preparation_declarations import TrustedDealerOneUseFSSMaterial, OneUseRoleLocalMaterial
+from pllm._preparation_declarations import (
+    HEKeyContext, HEDualKeyContext, HECiphertextBirth, HEKeyGraph, OneUsePartyLocalConversion,
+)
 from pllm.components._planned import install_planned_components
 
 if TYPE_CHECKING:
@@ -255,6 +259,8 @@ class HEAuthenticatedPreprocessing(PreparationProvider):
 
 
 __all__ = [
+    "HEKeyContext", "HEDualKeyContext", "HECiphertextBirth", "HEKeyGraph", "OneUsePartyLocalConversion",
+    "TrustedDealerOneUseFSSMaterial", "OneUseRoleLocalMaterial",
     "CorrectionBatch",
     "CorrectionTicket",
     "PreparationRequest",

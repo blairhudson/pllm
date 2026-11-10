@@ -5,6 +5,9 @@ from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from pllm.configuration import ConfigurationError, Model
+from pllm.sources._declarations import AuthenticatedSourceInputProducer, PinnedSemanticSourceBindings
+from pllm.sources._declarations import PublicCommittedQ18Source, FSSSourceBinding
+from pllm.sources._declarations import AuthenticatedSourceBindings, AuthenticatedOriginalProducer
 
 
 @runtime_checkable
@@ -133,4 +136,6 @@ def _materialize_tiny_model(path: Path) -> Path:
     return path
 
 
-__all__ = ["BundleModel", "ModelSource", "TinyModel"]
+__all__ = ["BundleModel", "ModelSource", "TinyModel", "AuthenticatedSourceInputProducer", "PinnedSemanticSourceBindings",
+           "PublicCommittedQ18Source", "FSSSourceBinding",
+           "AuthenticatedSourceBindings", "AuthenticatedOriginalProducer"]

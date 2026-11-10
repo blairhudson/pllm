@@ -1,4 +1,13 @@
 from pllm.configuration import ComponentDescriptor, ComponentRef
+from pllm._preparation_declarations import (
+    HEKeyContext as HEKeyContext,
+    HEDualKeyContext as HEDualKeyContext,
+    HECiphertextBirth as HECiphertextBirth,
+    HEKeyGraph as HEKeyGraph,
+    OneUsePartyLocalConversion as OneUsePartyLocalConversion,
+)
+from pllm._preparation_declarations import TrustedDealerOneUseFSSMaterial as TrustedDealerOneUseFSSMaterial
+from pllm._preparation_declarations import OneUseRoleLocalMaterial as OneUseRoleLocalMaterial
 from pllm.runtime.preparation_server import create_preparation_app as create_preparation_app
 from pllm.components._planned import PendingComponent as PendingMethod
 

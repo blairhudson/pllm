@@ -5,6 +5,12 @@ from importlib import import_module
 from typing import TYPE_CHECKING, Any, Literal
 
 from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
+from pllm.verification._declarations import PerEdgeRangeWorkAdmission
+from pllm.verification._declarations import (
+    TwoLevelCodedBatchVerification,
+    ValidatedMatrixCodePublication,
+    OriginalDotWindow,
+)
 from pllm.components._planned import PendingComponent as PendingMethod, install_planned_components, planned as pending
 
 if TYPE_CHECKING:
@@ -149,6 +155,10 @@ _RUNTIME_EXPORTS = {
 }
 
 __all__ = [
+    "PerEdgeRangeWorkAdmission",
+    "TwoLevelCodedBatchVerification",
+    "ValidatedMatrixCodePublication",
+    "OriginalDotWindow",
     "FreivaldsVerify",
     "PublishedLinearVerify",
     "LinearCheckKey",

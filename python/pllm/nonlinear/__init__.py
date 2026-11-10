@@ -9,6 +9,33 @@ from typing import TYPE_CHECKING
 from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
 from pllm.components._planned import PendingComponent as PendingMethod, install_planned_components, planned as pending
 from pllm.components._q7_activation import parameter_schema as _q7_schema, parameters as _q7_parameters
+from pllm.nonlinear._float_declarations import F32Activation
+from pllm.nonlinear._conversion_declarations import (
+    SharedRingTruncation, SharedComparisonMux, ShiftedClipRepeatedSquareSoftmax,
+    SharedReciprocalInverseRootNormalization, PiecewisePolynomialActivation, SharedRingResidualBias,
+)
+from pllm.nonlinear._he_declarations import (
+    CalibratedPolynomialExp, StandardGoldschmidtReciprocal, CompositePolynomialActivation,
+    InverseRoot, HEMaskedSoftmax, SourceNormalization, HERepeatedSquaringSoftmax,
+    HEPiecewisePolynomialActivation, HERowNormalization, HESignComposition,
+    HELayerNorm, HESquareNormalizeSoftmax, HEPolynomialActivation,
+)
+from pllm.nonlinear._heterogeneous_declarations import (
+    LWEHighPrecisionComparison, RLWEEncryptedAccumulatorSegmentedAffine, HEEvalMod,
+    HENormalization, HESoftmaxSquareNormalize, HEActivationBridge,
+)
+from pllm.nonlinear._masked_declarations import (
+    ReducedRingTruncation, SameRingGapARS, XorMaskedDReLU, EarlyFloorResidualActivation,
+    IntegerRsqrtTableNorm, SourceRing50Q12Rotary,
+)
+from pllm.nonlinear._replicated_declarations import (
+    ReplicatedTruncAprQuarterGap, Q18PiecewiseSiluSourceOrder, Q18SourceReciprocal,
+    Q18SourceRsqrt, Q18RmsNormEpsilon1, Q18SourceRotary, Q18ShiftedClipExp5Reciprocal,
+)
+from pllm.nonlinear._fss_declarations import (
+    FSSSignedFloorRescale, FSSSigned38InputSiLU, FSSSumSquaresTableRMSNorm,
+    FSSProductFloorRotary, FSSSourceTableSoftmax,
+)
 
 if TYPE_CHECKING:
     from pllm._native import CompactQ7Reference, ScaledSiluQ7Reference
@@ -264,8 +291,23 @@ class SharedRescale(NonlinearProtocol):
 
 
 __all__ = [
+    "SharedRingTruncation", "SharedComparisonMux", "ShiftedClipRepeatedSquareSoftmax",
+    "SharedReciprocalInverseRootNormalization", "PiecewisePolynomialActivation", "SharedRingResidualBias",
+    "CalibratedPolynomialExp", "StandardGoldschmidtReciprocal", "CompositePolynomialActivation",
+    "InverseRoot", "HEMaskedSoftmax", "SourceNormalization", "HERepeatedSquaringSoftmax",
+    "HEPiecewisePolynomialActivation", "HERowNormalization", "HESignComposition",
+    "HELayerNorm", "HESquareNormalizeSoftmax", "HEPolynomialActivation",
+    "LWEHighPrecisionComparison", "RLWEEncryptedAccumulatorSegmentedAffine", "HEEvalMod",
+    "HENormalization", "HESoftmaxSquareNormalize", "HEActivationBridge",
+    "ReducedRingTruncation", "SameRingGapARS", "XorMaskedDReLU", "EarlyFloorResidualActivation",
+    "IntegerRsqrtTableNorm", "SourceRing50Q12Rotary",
+    "ReplicatedTruncAprQuarterGap", "Q18PiecewiseSiluSourceOrder", "Q18SourceReciprocal",
+    "Q18SourceRsqrt", "Q18RmsNormEpsilon1", "Q18SourceRotary", "Q18ShiftedClipExp5Reciprocal",
+    "FSSSignedFloorRescale", "FSSSigned38InputSiLU", "FSSSumSquaresTableRMSNorm",
+    "FSSProductFloorRotary", "FSSSourceTableSoftmax",
     "ArithmeticGarblingSiluQ7",
     "BinaryTableGatedMultiplyQ7",
+    "F32Activation",
     "NonlinearProtocol",
     "R03CrtGatedMultiplyQ7",
     "MaskedWireGatedMultiplyQ12",

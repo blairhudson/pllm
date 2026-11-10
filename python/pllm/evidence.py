@@ -16,7 +16,7 @@ from pllm.plan import CompiledPlan, _unwrap
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from pllm._benchmark_contract import BuildRef, Sampling, Scenario, TargetBudget
+    from pllm._benchmark_contract import BenchmarkTarget, BuildRef, Sampling, Scenario, TargetBudget
     from pllm._benchmark_evidence import MetricSpec
     from pllm.configuration import Experiment
     from pllm.metrics.benchmark_runner import BenchmarkRun
@@ -567,13 +567,54 @@ def benchmark(
 ) -> BenchmarkRun: ...
 
 
-def benchmark(plan: CompiledPlan | Experiment, **kwargs: Any) -> EvidenceReport | BenchmarkRun:
-    """Measure a compiled region or an Experiment through the existing runner."""
+@overload
+def benchmark(
+    plan: BenchmarkTarget,
+    *,
+    inputs: Mapping[str, Any] | None = None,
+    sampling: Sampling | None = None,
+    build: BuildRef | None = None,
+    budgets: tuple[TargetBudget, ...] = (),
+    output: str | Path | None = None,
+) -> BenchmarkRun: ...
+
+
+def benchmark(plan: CompiledPlan | Experiment | BenchmarkTarget, **kwargs: Any) -> EvidenceReport | BenchmarkRun:
+    """Measure a compiled region, Experiment, or target through existing runners."""
+    from pllm._benchmark_contract import BenchmarkTarget
     from pllm.configuration import Experiment
 
+    if isinstance(plan, BenchmarkTarget):
+        return _benchmark_target(plan, **kwargs)
     if isinstance(plan, Experiment):
         return _benchmark_experiment(plan, **kwargs)
     return _benchmark_compiled_plan(plan, **kwargs)
+
+
+def _benchmark_target(
+    plan: BenchmarkTarget,
+    *,
+    inputs: Mapping[str, Any] | None = None,
+    sampling: Sampling | None = None,
+    build: BuildRef | None = None,
+    budgets: tuple[TargetBudget, ...] = (),
+    output: str | Path | None = None,
+) -> BenchmarkRun:
+    from pllm._benchmark_contract import BuildRef, Sampling
+
+    if inputs is not None and not isinstance(inputs, Mapping):
+        raise TypeError("inputs must be a mapping")
+
+    from pllm.metrics.benchmark_runner import benchmark_target
+
+    return benchmark_target(
+        plan,
+        sampling=Sampling() if sampling is None else sampling,
+        build=BuildRef() if build is None else build,
+        budgets=budgets,
+        inputs=inputs,
+        output=output,
+    )
 
 
 def _benchmark_experiment(

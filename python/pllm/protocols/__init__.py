@@ -13,6 +13,43 @@ from pllm.components._planned import (
     planned as pending,
 )
 from pllm.protocols.base import ProtocolMethod
+from pllm.protocols._he_declarations import (
+    CkksRectangularLinear, InterleavedQK, InterleavedWeightedV, RoutedGQA, HERotaryTransform,
+    PrivateTokenSelection, PrivateTokenFeedback, HECoefficientCompression,
+    HECommutableLinear, HEColumnProduct, HELayoutTransform, HEAttentionValue,
+    HEFoldSelection, HEBootstrap, HEResidualAdd, HEPrivateEmbedding, ClassifierOutputPolicy,
+    HESourceEmbeddingPositionSegment, HEAttentionProducts, HEHeadScaleMask, HEPackedLinear,
+    HEClsPooler, HENspTwoLogitHead, NspLogitsOnlyOutputPolicy,
+)
+from pllm.protocols._conversion_declarations import (
+    PrivateTokenShare, CoefficientPrivateLookup, CoefficientObliviousLinearTransform,
+    SimdBilinearOle, ArithmeticToHomomorphic, TraceInterleaveRepacking,
+    CoefficientHomomorphicToArithmetic, FloodedSimdHomomorphicToArithmetic,
+    CrtRingConversion, SignedRingExtension, SourcePositionOperators,
+    SharedStableArgmax, PrivateFullPrefixFeedback,
+)
+from pllm.protocols._heterogeneous_declarations import (
+    AuthenticatedClientInputExport, HEEncryptedMultiplyReduce, HESlotCoefficientTransform,
+    HERingSwitch, HECoefficientExtraction, HEKeySwitch, HEModulusRaise, HECoefficientSlotTransform,
+)
+from pllm.protocols._masked_declarations import (
+    RingPublicCoefficientDot, NegativeMaskMatrixProduct, NegativeMaskElementwiseProduct,
+    MaskedRingAddSubProduct, BoundedDpfPublicTable, XorPredicateFiveWordSelect,
+    CausalMaxNexpReciprocalAttention, StablePrivateArgmaxEmbedding,
+    AuthenticatedNativeInput, ConsumingShareToCommonMask,
+)
+from pllm.protocols._replicated_declarations import (
+    ReplicatedPrivateTokenInput, ReplicatedCompleteTableLookup,
+    ReplicatedPublicMatmulFullSum, ReplicatedSecretMultiply, ReplicatedRingAddBias,
+    ReplicatedArithmeticBooleanConversion, ReplicatedCausalQkSoftmaxAv,
+    ReplicatedCompleteStableArgmax, ReplicatedFixedCountFinalTokenRelease,
+    AuthenticatedDirectedThreePartyTransport,
+)
+from pllm.protocols._fss_declarations import (
+    FSSPublicTableLookup, FSSPublicDot, FSSPrivateDot, FSSSecretMultiply,
+    FSSAdd, FSSArgmax, FSSAuthenticatedRoleTransport,
+)
+from pllm.protocols._float_declarations import PublicFieldMatvec, AuthenticatedConfidentialRoleTransport
 from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
 from pllm.components._q7_activation import parameter_schema as _q7_schema, parameters as _q7_parameters
 from pllm.protocols.bundle_transport import ClientBundleTransport
@@ -37,6 +74,32 @@ if TYPE_CHECKING:
     from pllm.modeling import ModelPlan
 
 __all__ = [
+    "CkksRectangularLinear", "InterleavedQK", "InterleavedWeightedV", "RoutedGQA", "HERotaryTransform",
+    "PrivateTokenSelection", "PrivateTokenFeedback", "HECoefficientCompression",
+    "HECommutableLinear", "HEColumnProduct", "HELayoutTransform", "HEAttentionValue",
+    "HEFoldSelection", "HEBootstrap", "HEResidualAdd", "HEPrivateEmbedding", "ClassifierOutputPolicy",
+    "HESourceEmbeddingPositionSegment", "HEAttentionProducts", "HEHeadScaleMask", "HEPackedLinear",
+    "HEClsPooler", "HENspTwoLogitHead", "NspLogitsOnlyOutputPolicy",
+    "PrivateTokenShare", "CoefficientPrivateLookup", "CoefficientObliviousLinearTransform",
+    "SimdBilinearOle", "ArithmeticToHomomorphic", "TraceInterleaveRepacking",
+    "CoefficientHomomorphicToArithmetic", "FloodedSimdHomomorphicToArithmetic",
+    "CrtRingConversion", "SignedRingExtension", "SourcePositionOperators",
+    "SharedStableArgmax", "PrivateFullPrefixFeedback",
+    "AuthenticatedClientInputExport", "HEEncryptedMultiplyReduce", "HESlotCoefficientTransform",
+    "HERingSwitch", "HECoefficientExtraction", "HEKeySwitch", "HEModulusRaise", "HECoefficientSlotTransform",
+    "RingPublicCoefficientDot", "NegativeMaskMatrixProduct", "NegativeMaskElementwiseProduct",
+    "MaskedRingAddSubProduct", "BoundedDpfPublicTable", "XorPredicateFiveWordSelect",
+    "CausalMaxNexpReciprocalAttention", "StablePrivateArgmaxEmbedding",
+    "AuthenticatedNativeInput", "ConsumingShareToCommonMask",
+    "ReplicatedPrivateTokenInput", "ReplicatedCompleteTableLookup",
+    "ReplicatedPublicMatmulFullSum", "ReplicatedSecretMultiply", "ReplicatedRingAddBias",
+    "ReplicatedArithmeticBooleanConversion", "ReplicatedCausalQkSoftmaxAv",
+    "ReplicatedCompleteStableArgmax", "ReplicatedFixedCountFinalTokenRelease",
+    "AuthenticatedDirectedThreePartyTransport",
+    "FSSPublicTableLookup", "FSSPublicDot", "FSSPrivateDot", "FSSSecretMultiply",
+    "FSSAdd", "FSSArgmax", "FSSAuthenticatedRoleTransport",
+    "PublicFieldMatvec",
+    "AuthenticatedConfidentialRoleTransport",
     "TwoShareInput",
     "VerifiedPublicF32Lookup",
     "ClientF32DecoderRegions",

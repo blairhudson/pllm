@@ -1,5 +1,61 @@
 from pllm.configuration import ComponentDescriptor, ComponentRef
 from pllm.components._planned import PendingComponent as PendingMethod
+from pllm.nonlinear._float_declarations import F32Activation as F32Activation
+from pllm.nonlinear._conversion_declarations import (
+    SharedRingTruncation as SharedRingTruncation,
+    SharedComparisonMux as SharedComparisonMux,
+    ShiftedClipRepeatedSquareSoftmax as ShiftedClipRepeatedSquareSoftmax,
+    SharedReciprocalInverseRootNormalization as SharedReciprocalInverseRootNormalization,
+    PiecewisePolynomialActivation as PiecewisePolynomialActivation,
+    SharedRingResidualBias as SharedRingResidualBias,
+)
+from pllm.nonlinear._he_declarations import (
+    CalibratedPolynomialExp as CalibratedPolynomialExp,
+    StandardGoldschmidtReciprocal as StandardGoldschmidtReciprocal,
+    CompositePolynomialActivation as CompositePolynomialActivation,
+    InverseRoot as InverseRoot,
+    HEMaskedSoftmax as HEMaskedSoftmax,
+    SourceNormalization as SourceNormalization,
+    HERepeatedSquaringSoftmax as HERepeatedSquaringSoftmax,
+    HEPiecewisePolynomialActivation as HEPiecewisePolynomialActivation,
+    HERowNormalization as HERowNormalization,
+    HESignComposition as HESignComposition,
+    HELayerNorm as HELayerNorm,
+    HESquareNormalizeSoftmax as HESquareNormalizeSoftmax,
+    HEPolynomialActivation as HEPolynomialActivation,
+)
+from pllm.nonlinear._heterogeneous_declarations import (
+    LWEHighPrecisionComparison as LWEHighPrecisionComparison,
+    RLWEEncryptedAccumulatorSegmentedAffine as RLWEEncryptedAccumulatorSegmentedAffine,
+    HEEvalMod as HEEvalMod,
+    HENormalization as HENormalization,
+    HESoftmaxSquareNormalize as HESoftmaxSquareNormalize,
+    HEActivationBridge as HEActivationBridge,
+)
+from pllm.nonlinear._masked_declarations import (
+    ReducedRingTruncation as ReducedRingTruncation,
+    SameRingGapARS as SameRingGapARS,
+    XorMaskedDReLU as XorMaskedDReLU,
+    EarlyFloorResidualActivation as EarlyFloorResidualActivation,
+    IntegerRsqrtTableNorm as IntegerRsqrtTableNorm,
+    SourceRing50Q12Rotary as SourceRing50Q12Rotary,
+)
+from pllm.nonlinear._replicated_declarations import (
+    ReplicatedTruncAprQuarterGap as ReplicatedTruncAprQuarterGap,
+    Q18PiecewiseSiluSourceOrder as Q18PiecewiseSiluSourceOrder,
+    Q18SourceReciprocal as Q18SourceReciprocal,
+    Q18SourceRsqrt as Q18SourceRsqrt,
+    Q18RmsNormEpsilon1 as Q18RmsNormEpsilon1,
+    Q18SourceRotary as Q18SourceRotary,
+    Q18ShiftedClipExp5Reciprocal as Q18ShiftedClipExp5Reciprocal,
+)
+from pllm.nonlinear._fss_declarations import (
+    FSSSignedFloorRescale as FSSSignedFloorRescale,
+    FSSSigned38InputSiLU as FSSSigned38InputSiLU,
+    FSSSumSquaresTableRMSNorm as FSSSumSquaresTableRMSNorm,
+    FSSProductFloorRotary as FSSProductFloorRotary,
+    FSSSourceTableSoftmax as FSSSourceTableSoftmax,
+)
 from pllm._native import CompactQ7Reference, ScaledSiluQ7Reference
 from collections.abc import Sequence
 

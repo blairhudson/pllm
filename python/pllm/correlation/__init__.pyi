@@ -1,4 +1,7 @@
 from pllm.configuration import ComponentDescriptor, ComponentRef
+from pllm.correlation._declarations import RaaMask as RaaMask
+from pllm.correlation._declarations import ReplicatedPairwisePrss as ReplicatedPairwisePrss
+from pllm.correlation._declarations import DistributedFerretOt as DistributedFerretOt
 from pllm.components._planned import PendingComponent as PendingMethod
 
 class CorrelationSource(ComponentRef): ...

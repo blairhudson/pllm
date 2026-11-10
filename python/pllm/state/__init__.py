@@ -5,6 +5,8 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
+from pllm.state._declarations import TentativeStateCommit
+from pllm.state._declarations import InterleavedKVTransaction, EncryptedKVTransaction, SharedFullPrefixState
 from pllm.components._planned import PendingComponent as PendingMethod, install_planned_components, planned as pending
 from pllm.components._model_capabilities import PendingModelCapability, model_capability_stub
 from .public_prefix import PublicPrefixCapsule
@@ -277,6 +279,8 @@ class LongRopeCacheRerotation(PendingModelCapability):
 
 
 __all__ = [
+    "InterleavedKVTransaction", "EncryptedKVTransaction", "SharedFullPrefixState",
+    "TentativeStateCommit",
     "ReplicatedPrivatePrefix",
     "FixedCountPrivatePrefix",
     "DecodeCache", "DecodeCacheHead",

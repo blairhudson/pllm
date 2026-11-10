@@ -3,6 +3,9 @@
 from abc import ABC, abstractmethod
 
 from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
+from pllm.correlation._declarations import RaaMask
+from pllm.correlation._declarations import ReplicatedPairwisePrss
+from pllm.correlation._declarations import DistributedFerretOt
 from pllm.components._planned import PendingComponent as PendingMethod, install_planned_components, planned as pending
 
 
@@ -40,7 +43,7 @@ class SeededExpansion(CorrelationSource):
         return cls.descriptor
 
 
-__all__ = ["CorrelationSource", "SeededExpansion"]
+__all__ = ["CorrelationSource", "SeededExpansion", "RaaMask", "ReplicatedPairwisePrss", "DistributedFerretOt"]
 
 
 class SecretReplicationPcf(CorrelationSource):

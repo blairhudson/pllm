@@ -1,14 +1,103 @@
-"""FuseFSS dense-RoPE track; full-checkpoint admission remains a separate gate."""
+"""FuseFSS primitive benchmark target; not an admitted full-checkpoint deployment."""
 
-from pllm import Deployment, ExecutionBudget, Experiment
+from pllm import Deployment, ExecutionBudget, Experiment, benchmark
 from pllm.configuration import ConfigurationError, Model, Pipeline
 from pllm.kernels import Cpu
+from pllm.nonlinear import (
+    FSSSignedFloorRescale, FSSSigned38InputSiLU, FSSSumSquaresTableRMSNorm,
+    FSSProductFloorRotary, FSSSourceTableSoftmax,
+)
+from pllm.numeric import Ring50Q12Edges
+from pllm.preparation import TrustedDealerOneUseFSSMaterial
+from pllm.protocols import (
+    FSSPublicTableLookup, FSSPublicDot, FSSPrivateDot, FSSSecretMultiply,
+    FSSAdd, FSSArgmax, FSSAuthenticatedRoleTransport,
+)
+from pllm.schedulers import FSSOnlineSchedule
+from pllm.sources import FSSSourceBinding
 from pllm.protocols import FuseFssSourceDecoder
 from pllm.roles import TrustedDealerTwoShareRoles
 from pllm.sources import ModelSource
 from pllm.state import FixedCountPrivatePrefix
 
-from examples.papers.common import BUDGET, MODEL
+if __package__:
+    from .common import BUDGET, MODEL, benchmark_arguments
+else:
+    from common import BUDGET, MODEL, benchmark_arguments
+
+
+def benchmark_experiment(*, model=None, budget=None):
+    """Declare primitive bindings; missing registrations/admission fail closed.
+
+    The offline Qwen source is a target, not evidence of decoder qualification.
+    Existing native gates remain authoritative; no diagnostic execution fallback.
+    """
+    model = MODEL if model is None else model
+    if not isinstance(model, ModelSource):
+        raise ConfigurationError("model must satisfy the ModelSource contract")
+    model = model if isinstance(model, Model) else Model.from_spec(model.to_spec())
+    # Explicitly fit the existing 16-position envelope: 15 + 1 - 1 = 15.
+    # This does not admit the checkpoint or bypass actual prompt-token fit checks.
+    budget = (
+        ExecutionBudget(requests=1, max_input_tokens=15, max_new_tokens=1)
+        if budget is None else budget
+    )
+    return Experiment(
+        "fusefss",
+        Pipeline(
+            model=model,
+            components={
+                "embedding": FSSPublicTableLookup(),
+                "linear": FSSPublicDot(),
+                # Dot products and secret products have per-edge Q24 products;
+                # signed floor rescaling restores Q12, never nearest rounding.
+                "rescale": FSSSignedFloorRescale(),
+                # Only SiLU's input has the signed-38 domain, not every edge.
+                "activation": FSSSigned38InputSiLU(),
+                "normalization": FSSSumSquaresTableRMSNorm(),
+                "rotary": FSSProductFloorRotary(),
+                "private_dot": FSSPrivateDot(),
+                "softmax": FSSSourceTableSoftmax(),
+                # Qwen's SiLU(gate) * up is a secret-secret product, followed
+                # by the same explicit signed Q12 floor-rescale contract.
+                "gated_multiply": FSSSecretMultiply(),
+                "residual": FSSAdd(),
+                # Full public output-head dot, not a shortlist or decoder wrapper.
+                "head": FSSPublicDot(capacity="full-vocabulary"),
+                "selection": FSSArgmax(),
+                # Trusted dealer + two shareholders; Driver consumes each
+                # material item once, including failed/abandoned requests.
+                "material": TrustedDealerOneUseFSSMaterial(),
+                "source": FSSSourceBinding(),
+                # Source-derived bounds belong to individual edges/products;
+                # no global signed-38 range assumption is introduced.
+                "numeric": Ring50Q12Edges(
+                    revision="fusefss.dense-rope-ring50-q12.v1",
+                    ranges="source-derived",
+                ),
+                "schedule": FSSOnlineSchedule(),
+                "transport": FSSAuthenticatedRoleTransport(),
+                "topology": TrustedDealerTwoShareRoles(),
+                "state": FixedCountPrivatePrefix(),
+                "kernels": Cpu(),
+            },
+        ),
+        Deployment.local(root="target/paper-benchmarks/fusefss-deployment"),
+        budget,
+    )
+
+
+def main(argv=None):
+    args = benchmark_arguments(
+        "fusefss", argv, task="response", max_input_tokens=15, max_new_tokens=1
+    )
+    return benchmark(
+        benchmark_experiment(model=args.model, budget=args.budget),
+        scenario=args.scenario,
+        inputs=args.inputs,
+        sampling=args.sampling,
+        output=args.output,
+    )
 
 
 def experiment(model=MODEL, budget=BUDGET):
@@ -80,3 +169,7 @@ def qwen_empty_system():
         name="fusefss-qwen-empty-system", budget__requests=1,
         budget__max_input_tokens=15, budget__max_new_tokens=1,
     )
+
+
+if __name__ == "__main__":
+    main()

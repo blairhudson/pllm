@@ -3,6 +3,8 @@
 from abc import ABC, abstractmethod
 
 from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
+from pllm.schedulers._declarations import FSSOnlineSchedule, BoundedConsumingProtectedDag
+from pllm.schedulers._declarations import HELevelErrorSchedule, HELevelSchemePlacement, SetupOnlineRetirementSchedule
 
 
 class ProtectedScheduler(ComponentRef, ABC):
@@ -209,6 +211,8 @@ class ChunkedIndependentLanesProtectedTensorSchedule(ProtectedScheduler):
 
 
 __all__ = [
+    "HELevelErrorSchedule", "HELevelSchemePlacement", "SetupOnlineRetirementSchedule",
+    "FSSOnlineSchedule", "BoundedConsumingProtectedDag",
     "MlpPrefillTiling",
     "BoundedIndependentElementsProtectedTensorSchedule",
     "ChunkedIndependentLanesProtectedTensorSchedule",

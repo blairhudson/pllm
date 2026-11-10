@@ -1,6 +1,9 @@
 """Explicit source arithmetic, separate from quantization choices."""
 
 from pllm.configuration import ComponentDescriptor, ComponentRef
+from pllm.numeric._declarations import ExactSourceFieldBoundaries
+from pllm.numeric._declarations import ReplicatedRing64Q18Edges, Ring50Q12Edges
+from pllm.numeric._declarations import SourceCalibration, NumericDomain, SourceNumericDomainCertificates
 
 
 class SourceFloat32(ComponentRef):
@@ -58,4 +61,6 @@ class Q11I16Ring64Boundary(ComponentRef):
         return cls.descriptor
 
 
-__all__ = ["SourceFloat32", "Q11I16Ring64Boundary"]
+__all__ = ["SourceFloat32", "Q11I16Ring64Boundary", "ExactSourceFieldBoundaries",
+           "ReplicatedRing64Q18Edges", "Ring50Q12Edges",
+           "SourceCalibration", "NumericDomain", "SourceNumericDomainCertificates"]

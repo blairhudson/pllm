@@ -1,4 +1,11 @@
 from pllm.configuration import ComponentDescriptor, ComponentRef
+from pllm.roles._declarations import (
+    ClientKeyServerEvaluationRoles as ClientKeyServerEvaluationRoles,
+    ClientSecretServerWeightSecretRoles as ClientSecretServerWeightSecretRoles,
+    ClientKeyServerConfidentialWeightRoles as ClientKeyServerConfidentialWeightRoles,
+    TwoOwnerPrivateInputPrivateModelRoles as TwoOwnerPrivateInputPrivateModelRoles,
+)
+from pllm.roles._declarations import ClientMaskSingleServerRoles as ClientMaskSingleServerRoles
 from pllm.roles.topology import (
     Channel as Channel,
     Role as Role,

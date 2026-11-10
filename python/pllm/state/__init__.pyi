@@ -1,4 +1,8 @@
 from pllm.configuration import ComponentDescriptor, ComponentRef
+from pllm.state._declarations import InterleavedKVTransaction as InterleavedKVTransaction
+from pllm.state._declarations import EncryptedKVTransaction as EncryptedKVTransaction
+from pllm.state._declarations import SharedFullPrefixState as SharedFullPrefixState
+from pllm.state._declarations import TentativeStateCommit as TentativeStateCommit
 from pllm.components._planned import PendingComponent as PendingMethod
 from pllm.state.public_prefix import PublicPrefixCapsule as PublicPrefixCapsule
 from pllm.passes import KvCacheEviction

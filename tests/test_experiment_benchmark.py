@@ -265,3 +265,156 @@ def test_partial_maverick_native_rejection_precedes_benchmark_target(monkeypatch
     assert str(public_error.value.__cause__) == message
     response.assert_not_called()
     runner.assert_not_called()
+
+
+@pytest.fixture(params=["forward", "response"])
+def target_facade(facade, monkeypatch, request):
+    from pllm import Deployment, Experiment, ForwardBudget, Model, compiler, model_loader, sources
+    from pllm._benchmark_contract import BenchmarkTarget, Scenario
+    from pllm.kernels import Cpu
+    from pllm.metrics import benchmark_runner
+    from pllm.numeric import SourceFloat32
+    from pllm.profiles import ClientOnlyCpu
+
+    _, response, resolve, runner = facade
+    guards = []
+    for owner, name in (
+        (Experiment, "compile_forward"), (compiler, "compile"),
+        (model_loader, "resolve_model"), (model_loader, "load_model"),
+        (sources, "_materialize_tiny_model"), (benchmark_runner, "inspect_build"),
+    ):
+        guard = Mock(side_effect=AssertionError(f"unexpected {name}"))
+        monkeypatch.setattr(owner, name, guard)
+        guards.append(guard)
+
+    # Same inert factory pattern as test_benchmark_forward; no checkpoint files.
+    if request.param == "forward":
+        experiment = Experiment(
+            "facade-forward",
+            ClientOnlyCpu(Model.path("target/facade-checkpoint"),
+                          kernels=Cpu(threads=2), numeric=SourceFloat32()),
+            Deployment.local(root="target/facade-runtime"), ForwardBudget(1, 6),
+        )
+        target = BenchmarkTarget.forward(experiment)
+    else:
+        target = BenchmarkTarget.response(response, scenario=Scenario.cold(max_output_tokens=2))
+    # Construction above is real; facade must not reconstruct the frozen target.
+    for name in ("forward", "response", "from_spec"):
+        guard = Mock(side_effect=AssertionError(f"unexpected target {name}"))
+        monkeypatch.setattr(BenchmarkTarget, name, guard)
+        guards.append(guard)
+    payload, digest = target._bytes, target.digest
+    yield target, runner
+    assert target._bytes is payload
+    assert target.digest == digest
+    resolve.assert_not_called()
+    for guard in guards:
+        guard.assert_not_called()
+
+
+@pytest.mark.parametrize("keyword_plan", [False, True])
+@pytest.mark.parametrize("inputs_kwargs", [
+    {}, {"inputs": None}, {"inputs": {}},
+    {"inputs": MappingProxyType({"prompt": "Hello"})},
+    {"inputs": {"input_ids": [[1, 2]]}},
+], ids=["omitted", "none", "empty", "readonly", "populated"])
+@pytest.mark.parametrize("explicit_none", [False, True])
+def test_target_public_defaults_and_input_identity(target_facade, keyword_plan,
+                                                  inputs_kwargs, explicit_none):
+    from pllm import benchmark
+    from pllm._benchmark_contract import BuildRef, Sampling
+    from pllm.metrics.benchmark_runner import BenchmarkRun
+
+    target, runner = target_facade
+    kwargs = dict(inputs_kwargs)
+    if explicit_none:
+        kwargs.update(sampling=None, build=None)
+    result = (benchmark(plan=target, **kwargs) if keyword_plan
+              else benchmark(target, **kwargs))
+    runner.assert_called_once_with(target, sampling=Sampling(), build=BuildRef(),
+                                   budgets=(), inputs=inputs_kwargs.get("inputs"), output=None)
+    assert runner.call_args.args[0] is target
+    assert runner.call_args.kwargs["inputs"] is inputs_kwargs.get("inputs")
+    assert isinstance(result, BenchmarkRun)
+    assert result is runner.return_value
+    assert runner.call_args.kwargs["sampling"].to_spec() == {
+        "processes": 3, "repetitions": 1, "warmups": 0, "timeout_seconds": 300,
+        "order": "balanced", "threads": 1, "memory_bytes": 512 << 20,
+    }
+    assert runner.call_args.kwargs["build"].expected_digest is None
+
+
+@pytest.mark.parametrize("keyword_plan", [False, True])
+@pytest.mark.parametrize("output", ["target/target-run.json", Path("target/target-run.json")])
+def test_target_public_explicit_options_preserve_identity(target_facade, keyword_plan, output):
+    from pllm import benchmark
+    from pllm._benchmark_contract import BuildRef, Sampling, TargetBudget
+
+    target, runner = target_facade
+    sampling = Sampling(processes=1, repetitions=2, threads=2)
+    build = BuildRef(python="/approved/python", expected_digest="a" * 64)
+    budgets = (TargetBudget("request.0.full", maximum=10),)
+    inputs = MappingProxyType({"input_ids": [[1, 2]]})
+    kwargs = dict(inputs=inputs, sampling=sampling, build=build, budgets=budgets, output=output)
+    result = (benchmark(plan=target, **kwargs) if keyword_plan
+              else benchmark(target, **kwargs))
+    assert result is runner.return_value
+    runner.assert_called_once_with(target, **kwargs)
+    assert runner.call_args.args[0] is target
+    for name, value in kwargs.items():
+        assert runner.call_args.kwargs[name] is value
+
+
+@pytest.mark.parametrize("inputs", [False, 0, "", [], (), [("prompt", "Hello")],
+                                    (("prompt", "Hello"),)])
+def test_target_public_invalid_inputs_precede_runner(target_facade, inputs):
+    from pllm import benchmark
+
+    target, runner = target_facade
+    assert not isinstance(inputs, Mapping)
+    with pytest.raises(TypeError, match="^inputs must be a mapping$"):
+        benchmark(target, inputs=inputs)
+    runner.assert_not_called()
+
+
+@pytest.mark.parametrize("extra", [
+    "scenario_same", "scenario_none", "backend", "wan", "config", "weights", "input", "id",
+    "privacy_cohort", "numeric_cohort", "environment", "warmups", "repetitions", "threads",
+    "simd", "unknown",
+])
+@pytest.mark.parametrize("inputs", [{}, False], ids=["valid-inputs", "bad-inputs"])
+def test_target_public_extra_binding_precedes_input_validation(target_facade, extra, inputs):
+    from pllm import benchmark
+    from pllm._benchmark_contract import Scenario
+
+    target, runner = target_facade
+    name, value = extra, None
+    if extra == "scenario_same":
+        name = "scenario"
+        value = (Scenario(**target.to_spec()["parameters"]["scenario"])
+                 if target.kind == "response" else Scenario.cold(max_output_tokens=2))
+    elif extra == "scenario_none":
+        name = "scenario"
+    with pytest.raises(TypeError, match=f"unexpected keyword argument '{name}'"):
+        benchmark(plan=target, inputs=inputs, **{name: value})
+    runner.assert_not_called()
+
+
+@pytest.mark.parametrize("mapping", [False, True], ids=["duck", "mapping"])
+def test_target_lookalikes_keep_legacy_type_error(facade, monkeypatch, mapping):
+    from types import SimpleNamespace
+
+    import pllm
+    from pllm import benchmark
+
+    _, _, resolve, runner = facade
+    to_spec = Mock()
+    target = ({"kind": "forward", "digest": "a" * 64, "to_spec": to_spec} if mapping
+              else SimpleNamespace(kind="forward", digest="a" * 64, to_spec=to_spec))
+    monkeypatch.setitem(pllm.__dict__, "_native", ModuleType("pllm._native"))
+    with pytest.raises(TypeError, match="^plan must be returned by pllm.compile$"):
+        benchmark(target, weights=b"", input=b"", id="fixture", privacy_cohort="privacy",
+                  numeric_cohort="numeric", environment={})
+    to_spec.assert_not_called()
+    resolve.assert_not_called()
+    runner.assert_not_called()

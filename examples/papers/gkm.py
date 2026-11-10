@@ -1,9 +1,24 @@
-"""Gupta–Katz–Miers: fixed-length full/seeded CPU compositions."""
+"""Gupta–Katz–Miers: legacy compositions and an unmeasured benchmark target.
 
-from pllm import Deployment, Experiment, Model, Pipeline
+The canonical script declares planned reusable bindings, not implemented or
+qualified execution. SDK admission may honestly refuse the target composition.
+"""
+
+from pllm import Deployment, ExecutionBudget, Experiment, Model, Pipeline, benchmark
 from pllm.configuration import ConfigurationError
 from pllm.kernels import Cpu
+from pllm.nonlinear import F32Activation
 from pllm.numeric import Q11I16Ring64Boundary
+from pllm.operators import (
+    F32RmsNorm,
+    F32Rotary,
+    F32CausalAttention,
+    F32Multiply,
+    F32AddBias,
+    F32Add,
+    FullVocabularyHead,
+    GreedySelection,
+)
 from pllm.protocols import TwoShareInput, VerifiedPublicF32Lookup, ClientF32DecoderRegions
 from pllm.protocols import OpenWeightVerifiableOutsourcing
 from pllm.roles import TwoOnlineDelegationRoles
@@ -11,7 +26,10 @@ from pllm.state import ClientLocalKv
 from pllm.sources import ModelSource
 from pllm.verification import PublishedLinearVerify
 
-from examples.papers.common import BUDGET, MODEL
+if __package__:
+    from examples.papers.common import BUDGET, MODEL, benchmark_arguments
+else:
+    from common import BUDGET, MODEL, benchmark_arguments
 
 
 def _factory_model(value: ModelSource) -> Model:
@@ -83,3 +101,62 @@ def composed_bounded_response(model=MODEL, budget=None):
         base.deployment,
         base.budget if budget is None else budget,
     )
+
+
+def benchmark_experiment(*, model=None, budget=None):
+    """Explicit target declaration; planned components confer no run authority."""
+    return Experiment(
+        "gkm-benchmark",
+        Pipeline(
+            _factory_model(MODEL if model is None else model),
+            components={
+                "linear": OpenWeightVerifiableOutsourcing(
+                    capacity="decoder", sharing="full", generation="fixed_length_greedy",
+                ),
+                "input": TwoShareInput(),
+                "lookup": VerifiedPublicF32Lookup(),
+                # Nearest-even Q11/i16 encoding, checked ring64 products and
+                # signed reconstruction, then f32 conversion BEFORE / 2048**2.
+                "numeric": Q11I16Ring64Boundary(),
+                "rmsnorm": F32RmsNorm(epsilon="source"),
+                "rotary": F32Rotary(configuration="source"),
+                "attention": F32CausalAttention(heads="source", kv="state"),
+                "activation": F32Activation(function="source"),
+                "multiply": F32Multiply(),
+                # Client bias follows signed reconstruction and f32 rescaling.
+                "bias": F32AddBias(placement="after-reconstruction"),
+                "add": F32Add(),
+                "head": FullVocabularyHead(
+                    linear="linear", rows="last-prefill-and-each-decode",
+                ),
+                "selection": GreedySelection(
+                    eos="continue", logits="complete",
+                ),
+                # Final request verification gates ALL output publication;
+                # tentative tokens/logits stay private until acceptance.
+                "verification": PublishedLinearVerify(acceptance="request"),
+                "topology": TwoOnlineDelegationRoles(),
+                "state": ClientLocalKv(),
+                "kernels": Cpu(threads=1),
+            },
+        ),
+        Deployment.local(root="target/paper-benchmarks/gkm-deployment"),
+        ExecutionBudget(requests=1, max_input_tokens=32, max_new_tokens=2) if budget is None else budget,
+    )
+
+
+def main(argv=None):
+    args = benchmark_arguments(
+        "gkm", argv, task="response", max_input_tokens=32, max_new_tokens=2,
+    )
+    return benchmark(
+        benchmark_experiment(model=args.model, budget=args.budget),
+        scenario=args.scenario,
+        inputs=args.inputs,
+        sampling=args.sampling,
+        output=args.output,
+    )
+
+
+if __name__ == "__main__":
+    main()

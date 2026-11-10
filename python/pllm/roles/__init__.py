@@ -3,6 +3,11 @@
 from abc import ABC, abstractmethod
 
 from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
+from pllm.roles._declarations import ClientMaskSingleServerRoles
+from pllm.roles._declarations import (
+    ClientKeyServerEvaluationRoles, ClientSecretServerWeightSecretRoles,
+    ClientKeyServerConfidentialWeightRoles, TwoOwnerPrivateInputPrivateModelRoles,
+)
 from pllm.roles.topology import (
     Channel,
     Role,
@@ -476,6 +481,9 @@ class ClientPrefixLayers(ClientPlacement):
 
 
 __all__ = [
+    "ClientKeyServerEvaluationRoles", "ClientSecretServerWeightSecretRoles",
+    "ClientKeyServerConfidentialWeightRoles", "TwoOwnerPrivateInputPrivateModelRoles",
+    "ClientMaskSingleServerRoles",
     "Channel",
     "ClientOnlyRoles",
     "Inference",

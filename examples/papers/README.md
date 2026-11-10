@@ -1,5 +1,86 @@
 # Paper experiments
 
+## Canonical benchmark sources (desired contracts first)
+
+The ten canonical benchmarks are one source each:
+`examples/papers/gkm.py`, `examples/papers/puma.py`,
+`examples/papers/fusefss.py`, `examples/papers/sigma.py`,
+`examples/papers/maverick.py`, `examples/papers/bumblebee.py`,
+`examples/papers/nexus.py`, `examples/papers/thor.py`,
+`examples/papers/cachemir.py`, and `examples/papers/rosetta.py`.
+Each declares `benchmark_experiment()` and `main()`. Write these desired sources
+first, then implement the framework backwards from their explicit contracts.
+Existing `experiment()` helpers and variant compatibility remain supported;
+older resource-quote, smoke and campaign scripts remain auxiliaries, not extra
+canonical benchmarks. The historical sections below retain their original scope
+and results; this section claims no reruns.
+
+Canonical declarations use explicit primitive `Pipeline` composition, not profiles,
+whole-decoder shortcuts, all-regions components or `PaperRunner`. Execution and
+measurement belong to the shared `pllm.benchmark` runner, not per-paper runners.
+Many planned primitive references still reject in the resolver: source written
+does not mean every method binds, executes, has measurements or qualifies security.
+Unknown HE parameter authority is explicitly `None` / **UNRESOLVED**, never an
+implicit default or a passing qualification.
+
+All ten canonical benchmark factories now instantiate capability-typed SDK classes
+with named parameters instead of raw IDs. This completes source migration, not
+executable or qualified implementations of ten methods:
+
+```python
+from pllm.operators import F32RmsNorm
+from pllm.nonlinear import F32Activation
+
+F32RmsNorm(epsilon="source")
+F32Activation(function="source")
+```
+
+Existing IDs and internal serialization are unchanged. Registry entries describe typed
+configuration, not executors; constructors prove neither protected coverage nor source
+authentication, funding, or security.
+
+All ten use shared `common.benchmark_arguments`. Response benchmarks default
+`--prompt` to `hi`, `--max-input-tokens` to 32 and `--max-new-tokens` to 2, with
+one response and one request. THOR/NEXUS forward benchmarks do not expose
+`--prompt` or `--max-new-tokens`. Sampling defaults are one process, one repetition
+and zero warmups. Optional `--model-path` selects an offline local override;
+no fabricated model pin or forced Qwen NSP source. Omitting `--memory-bytes`
+retains the normal 512 MiB allowance; an explicit value overrides that allowance
+subject to normal SDK limits. Neither funds nor authorizes a run or guarantees
+admission. Default `--output` is
+`target/paper-benchmarks/<paper>.json`.
+
+FuseFSS explicitly keeps 1 request / 15 input tokens / 1 new token; do not raise
+the 16-token sequence cap. Maverick keeps 1 / 8 / 8 as a held extension, not a
+paper reproduction. THOR and NEXUS forward targets require both
+`--model-path LOCAL_CHECKPOINT` and `--forward-inputs JSON_MAPPING`.
+THOR requires strict `BertForNextSentencePrediction` metadata and two logits;
+NEXUS uses actual `SourceMetadata` head labels, not an assumed NSP head.
+The thin shared `BenchmarkTarget.forward` → public `benchmark(target)` overload is
+authored but unvalidated; it delegates to the existing runner. Complete primitive
+bindings, source availability and admission remain backward dependencies; this is
+not benchmark or test execution evidence.
+
+Help entry points from the repository root:
+
+```sh
+python examples/papers/gkm.py --help
+python -m examples.papers.gkm --help
+```
+
+One example invocation only; **unexecuted, not automatically authorized**, and
+subject to implementation, source availability and ordinary admission:
+
+```sh
+python examples/papers/gkm.py --prompt hi --max-input-tokens 32 --max-new-tokens 2 --output target/paper-benchmarks/gkm.json
+```
+
+Work backwards from each source: public descriptors, resolver and numeric/trust/
+source coverage → real primitive owners, scheduler, material, state and transport
+→ shared benchmark validation. A declaration alone closes none of these gaps.
+
+## Historical experiments and results
+
 Each implemented method is a small Python `Experiment` factory. Model and budget
 come from `common.py`; public inputs come from `prompts.json`. Change those shared
 inputs to repeat the study on another supported checkpoint. Factories also accept
