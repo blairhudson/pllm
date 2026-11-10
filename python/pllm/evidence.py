@@ -9,12 +9,17 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from types import MappingProxyType
-from typing import Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, overload
 
 from pllm.plan import CompiledPlan, _unwrap
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
+    from pllm._benchmark_contract import BuildRef, Sampling, Scenario, TargetBudget
     from pllm._benchmark_evidence import MetricSpec
+    from pllm.configuration import Experiment
+    from pllm.metrics.benchmark_runner import BenchmarkRun
     from pllm.search import BeamSearch, GridSearch, RandomSearch, SearchCandidate
 
 _BENCHMARK_RESULT_SCHEMA = "pllm.benchmark_result.v1"
@@ -532,7 +537,78 @@ class EvidenceRegistry:
         return tuple(matches)
 
 
+@overload
 def benchmark(
+    plan: CompiledPlan,
+    *,
+    weights: bytes,
+    input: bytes,
+    id: str,
+    privacy_cohort: str,
+    numeric_cohort: str,
+    environment: Mapping[str, Any],
+    warmups: int = 3,
+    repetitions: int = 10,
+    threads: int = 1,
+    simd: bool = True,
+) -> EvidenceReport: ...
+
+
+@overload
+def benchmark(
+    plan: Experiment,
+    *,
+    scenario: Scenario,
+    inputs: Mapping[str, Any],
+    sampling: Sampling | None = None,
+    build: BuildRef | None = None,
+    budgets: tuple[TargetBudget, ...] = (),
+    output: str | Path | None = None,
+) -> BenchmarkRun: ...
+
+
+def benchmark(plan: CompiledPlan | Experiment, **kwargs: Any) -> EvidenceReport | BenchmarkRun:
+    """Measure a compiled region or an Experiment through the existing runner."""
+    from pllm.configuration import Experiment
+
+    if isinstance(plan, Experiment):
+        return _benchmark_experiment(plan, **kwargs)
+    return _benchmark_compiled_plan(plan, **kwargs)
+
+
+def _benchmark_experiment(
+    plan: Experiment,
+    *,
+    scenario: Scenario,
+    inputs: Mapping[str, Any],
+    sampling: Sampling | None = None,
+    build: BuildRef | None = None,
+    budgets: tuple[TargetBudget, ...] = (),
+    output: str | Path | None = None,
+) -> BenchmarkRun:
+    from pllm._benchmark_contract import BenchmarkTarget, BuildRef, Sampling, Scenario
+
+    if not isinstance(inputs, Mapping):
+        raise TypeError("inputs must be a mapping")
+    if not isinstance(scenario, Scenario):
+        raise TypeError("scenario must be a Scenario")
+    # Configuration admission precedes host/source work; not full source admission.
+    plan.resolve()
+
+    from pllm.metrics.benchmark_runner import benchmark_target
+
+    target = BenchmarkTarget.response(plan, scenario=scenario)
+    return benchmark_target(
+        target,
+        sampling=Sampling() if sampling is None else sampling,
+        build=BuildRef() if build is None else build,
+        budgets=budgets,
+        inputs=inputs,
+        output=output,
+    )
+
+
+def _benchmark_compiled_plan(
     plan: CompiledPlan,
     *,
     weights: bytes,

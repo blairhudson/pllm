@@ -107,3 +107,60 @@ def test_existing_public_workload_stays_within_cli_bounds(quality):
     assert len(prompts) <= candidate.budget.requests
     assert quality.DECODE_STEPS == 3 < candidate.budget.max_new_tokens
     # Token counts require the real pinned tokenizer, not a whitespace estimate.
+
+
+@pytest.mark.parametrize("factory,sharing,requests,input_tokens,output_tokens", [
+    ("experiment", "full", 32, 64, 8),
+    ("seeded", "seeded", 32, 64, 8),
+    ("smoke", "full", 32, 8, 2),
+    ("seeded_smoke", "seeded", 32, 8, 2),
+    ("bounded_response", "full", 1, 32, 2),
+])
+def test_explicit_factories_preserve_legacy_bytes_and_target_identity(
+    quality, factory, sharing, requests, input_tokens, output_tokens,
+):
+    from examples.papers import gkm
+    from pllm import Pipeline
+    from pllm.kernels import Cpu
+    from pllm.metrics import BenchmarkTarget, Scenario
+    from pllm.profiles import OpenWeightVerifiableCpu
+    from pllm.protocols import OpenWeightVerifiableOutsourcing
+
+    actual = getattr(gkm, factory)()
+    legacy = actual.with_params(pipeline=OpenWeightVerifiableCpu(
+        actual.pipeline.model, kernels=Cpu(threads=1),
+        linear=OpenWeightVerifiableOutsourcing(capacity="decoder", sharing=sharing)))
+    assert type(actual.pipeline) is Pipeline
+    assert actual.pipeline.profile == legacy.pipeline.profile == "research.open_weight_verifiable_cpu"
+    assert actual.pipeline.canonical_bytes() == legacy.pipeline.canonical_bytes()
+    assert actual.pipeline.digest() == legacy.pipeline.digest()
+    assert actual.canonical_bytes() == legacy.canonical_bytes()
+    assert actual.configuration_digest() == legacy.configuration_digest()
+    assert actual.pipeline.components["linear"].params["sharing"] == sharing
+    assert actual.budget.to_spec() == {"requests": requests, "max_input_tokens": input_tokens,
+                                       "max_new_tokens": output_tokens}
+    scenario = Scenario.cold(max_output_tokens=2)
+    target = BenchmarkTarget.response(actual, scenario=scenario)
+    old_target = BenchmarkTarget.response(legacy, scenario=scenario)
+    assert target.to_spec() == old_target.to_spec()
+    assert target.digest == old_target.digest
+
+
+def test_real_unsupported_gkm_resolves_before_runner(quality, monkeypatch):
+    from examples.papers import gkm
+    from pllm import benchmark
+    from pllm.configuration import ConfigurationError
+    from pllm.metrics import BenchmarkTarget, Scenario, benchmark_runner
+    from pllm.profiles import resolve_runtime_composition
+
+    unsupported = gkm.bounded_response().with_params(pipeline__components__kernels__threads=2)
+    assert resolve_runtime_composition(unsupported.pipeline) is None
+    target = Mock(side_effect=AssertionError("target reached before configuration rejection"))
+    runner = Mock(side_effect=AssertionError("runner reached before configuration rejection"))
+    monkeypatch.setattr(BenchmarkTarget, "response", target)
+    monkeypatch.setattr(benchmark_runner, "benchmark_target", runner)
+    # Real Experiment.resolve/native configuration metadata, not a fabricated error.
+    with pytest.raises(ConfigurationError):
+        benchmark(unsupported, scenario=Scenario.cold(max_output_tokens=2), inputs={"prompt": "Hi"})
+    target.assert_not_called()
+    runner.assert_not_called()

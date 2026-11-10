@@ -1,9 +1,11 @@
 """Gupta–Katz–Miers: fixed-length full/seeded CPU compositions."""
 
-from pllm import Deployment, Experiment
+from pllm import Deployment, Experiment, Pipeline
 from pllm.kernels import Cpu
-from pllm.profiles import OpenWeightVerifiableCpu
 from pllm.protocols import OpenWeightVerifiableOutsourcing
+from pllm.roles import TwoOnlineDelegationRoles
+from pllm.state import ClientLocalKv
+from pllm.verification import PublishedLinearVerify
 
 from examples.papers.common import BUDGET, MODEL
 
@@ -11,9 +13,16 @@ from examples.papers.common import BUDGET, MODEL
 def experiment(model=MODEL, budget=BUDGET):
     return Experiment(
         "gkm",
-        OpenWeightVerifiableCpu(
-            model, kernels=Cpu(threads=1),
-            linear=OpenWeightVerifiableOutsourcing(capacity="decoder"),
+        Pipeline(
+            model,
+            components={
+                "linear": OpenWeightVerifiableOutsourcing(capacity="decoder"),
+                "kernels": Cpu(threads=1),
+                "verification": PublishedLinearVerify(),
+                "topology": TwoOnlineDelegationRoles(),
+                "state": ClientLocalKv(),
+            },
+            profile="research.open_weight_verifiable_cpu",
         ),
         Deployment.local(root=".pllm/papers/gkm"),
         budget,
@@ -23,7 +32,7 @@ def experiment(model=MODEL, budget=BUDGET):
 def seeded(model=MODEL, budget=BUDGET):
     """Same source arithmetic with fresh role-local AES share expansion."""
     return experiment(model, budget).with_params(
-        name="gkm-seeded", pipeline__linear__sharing="seeded",
+        name="gkm-seeded", pipeline__components__linear__sharing="seeded",
     )
 
 
@@ -35,7 +44,9 @@ def smoke(model=MODEL):
 
 
 def seeded_smoke(model=MODEL):
-    return smoke(model).with_params(name="gkm-seeded-smoke", pipeline__linear__sharing="seeded")
+    return smoke(model).with_params(
+        name="gkm-seeded-smoke", pipeline__components__linear__sharing="seeded",
+    )
 
 
 def bounded_response():

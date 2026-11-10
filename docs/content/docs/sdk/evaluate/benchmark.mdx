@@ -3,7 +3,54 @@ title: "Benchmark"
 description: "Run scoped Python benchmarks and understand what the development dashboard does not measure."
 ---
 
-`pllm.benchmark(...)` measures supported native compiled regions and returns immutable `EvidenceReport`. It requires explicit plan, immutable weights/input bytes, IDs, privacy/numeric cohorts, and environment. Warmups, repetitions, threads, SIMD, failures, and oracle comparison remain report data.
+`pllm.benchmark(plan, ...)` accepts an ordinary `Experiment` with explicit
+`scenario` and `inputs`, returning the existing immutable `BenchmarkRun`. It
+validates that inputs are a mapping, calls `Experiment.resolve()` for configuration
+validation, then delegates to `BenchmarkTarget.response(...)` and the shared
+`benchmark_target` runner. Resolution includes native configuration validation;
+it is not full source admission. Source, host, protocol and resource admission
+still apply in the runner. No paper, method, runtime or backend selector is added.
+
+```python
+from pllm import benchmark
+from pllm.metrics import Sampling, Scenario
+from examples.papers.gkm import bounded_response
+
+experiment = bounded_response()  # 1 request, at most 32 input / 2 output tokens
+run = benchmark(
+    experiment,
+    scenario=Scenario.cold(max_output_tokens=2),
+    inputs={"prompt": "Hello"},
+    sampling=Sampling(processes=1),
+    output="target/gkm-response.json",
+)
+```
+
+This is an invocation example, not a measured or guaranteed-admitted GKM run.
+The default 512 MiB resource allowance may reject this checkpoint; the facade
+never increases it automatically. `Sampling()` defaults to **three fresh
+processes**, one repetition, zero warmups, a 300-second worker timeout and one
+thread. Each process receives the Experiment's request envelope: it is not one
+study-wide request allowance. Use explicit `Sampling(processes=1)` and a bounded
+scenario such as `Scenario.cold(max_output_tokens=2)` when planning one attempt.
+Sampling resource caps are neither funding nor an admission guarantee.
+`TargetBudget` entries in `budgets=` are metric thresholds, not reservations.
+
+Omitted `build` uses `BuildRef()`: the current interpreter with no expected
+digest. The existing runner observes the installed build and checks mutation;
+the facade does not call `BuildRef.capture()` automatically. Explicit `sampling`,
+`build`, `budgets` and `output` pass unchanged to that runner.
+`BenchmarkRun.complete` means all attempts have records, not that all succeeded
+or that a paper is qualified. Ordinary response/output/finite checks are not an
+independent checkpoint oracle. Keep the separate `benchmark quality` route for
+source-model fidelity.
+
+For a `CompiledPlan`, the existing call remains unchanged and returns immutable
+`EvidenceReport`. It requires immutable weights/input bytes, IDs, privacy/numeric
+cohorts and environment; both positional plan and `plan=` remain supported.
+Defaults remain three warmups, ten repetitions, one thread and SIMD enabled.
+Failures and scalar-oracle comparison remain report data. Keywords from the
+Experiment and compiled-region forms cannot be mixed.
 
 For fresh-process stage, artifact, state or response measurements and exact-build
 retesting, use [benchmark targets and frontier studies](/sdk/evaluate/benchmark-targets/).

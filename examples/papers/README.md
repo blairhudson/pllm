@@ -39,6 +39,43 @@ two-worker protocol and releases logits only after final verification; prepared
 candidates use their existing clear-kernel numeric diagnostic. Quality reports
 contain aggregate agreement and error, not serving costs or private payloads.
 
+For one ordinary SDK response attempt, use the public Experiment facade:
+
+```python
+from pllm import benchmark
+from pllm.metrics import Sampling, Scenario
+from examples.papers.gkm import bounded_response
+
+run = benchmark(
+    bounded_response(),  # 1 request, at most 32 input / 2 output tokens
+    scenario=Scenario.cold(max_output_tokens=2),
+    inputs={"prompt": "Hello"},
+    sampling=Sampling(processes=1),
+    output="target/gkm-response.json",
+)
+```
+
+GKM now declares its existing five Pipeline slots explicitly: decoder-capacity
+open-weight delegation, one-thread CPU, published linear verification, two online
+delegation roles and full client-local KV. Full/seeded arithmetic, source pins,
+budgets and profile identity are unchanged. Factories remain declarations, not
+paper-specific runners. This first facade/declaration slice does not establish
+new semantic component bindings or complete the ten-method migration.
+
+The facade resolves configuration (including native validation) before the
+shared measurement runner; this is not full source admission. Omitted sampling
+still means three fresh processes, one repetition, zero warmups, 300-second
+worker timeout, one thread and 512 MiB admission allowance. Each process gets
+the Experiment request envelope, not one study-wide allowance. The explicit
+single-process example is not a measured or guaranteed-admitted run; this
+checkpoint may exceed the unchanged 512 MiB default. Sampling caps do not fund
+or guarantee admission, and `TargetBudget` thresholds do not reserve resources.
+Omitted build uses the current interpreter's `BuildRef()` without an expected
+digest; the existing runner observes/checks build mutation, with no automatic
+capture. `BenchmarkRun.complete` records every attempt, not universal success or
+paper qualification. Response/output/finite checks are not an independent
+checkpoint oracle; use the separate quality route above for source fidelity.
+
 ### Completed quality smoke
 
 The [ordinary CLI report](../../paper/artifacts/gkm-sdk/quality-smoke.json) records
