@@ -643,16 +643,22 @@ def test_composed_factory_preserves_all_existing_declarations(monkeypatch):
 
 
 def test_legacy_and_selected_factories_complete_real_tiny_transport_windows(tmp_path, monkeypatch):
-    """Generated tensors only: no checkpoint/source qualification or physical claim.
+    """Generated checkpoint streamed through real source admission and imports.
 
     Callback echoes plus the clear oracle test ordinary greedy semantics, not an
     adversarial non-argmax canary. Both windows retain native resource guards.
+    Oracle arrays are additional borrowed test data, not a physical peak bound
+    or trained-checkpoint/security qualification.
     """
+    from contextlib import ExitStack
     import importlib.util
     from pathlib import Path
     import sys
     from types import MappingProxyType
+    from pllm.deployment.resources import reserve_incremental_memory
+    from pllm.runtime import delegated_source
     from test_delegated_decoder import clear_oracle
+    from test_delegated_source import write_source_fixture
 
     # Direct-file declarations use installed SDK imports, never a checkout path
     # or examples.* cache entry. Even a preexisting fake common cannot leak in.
@@ -675,7 +681,11 @@ def test_legacy_and_selected_factories_complete_real_tiny_transport_windows(tmp_
 
     cfg = deepcopy(config())
     cfg["max_position_embeddings"] = 64  # Declared envelope 32 + 1 fits.
-    _, arrays, tensors = fixture(cfg, rows=2, decode=1, capacity="decoder")
+    cfg, fixture_contract, arrays, tensors = write_source_fixture(
+        tmp_path, family=cfg["model_type"], tied=cfg["tie_word_embeddings"],
+        capacity="decoder", vocabulary=cfg["vocab_size"], config_overrides=cfg,
+        stored_dtype="F32")
+    del fixture_contract, tensors  # Imports read files, never this eager byte dict.
     expected = clear_oracle(cfg, arrays, (0, 4), 1)
     model, budget = Model.path(str(tmp_path)), ExecutionBudget(1, 32, 2)
     experiments = (gkm.experiment(model=model, budget=budget),
@@ -731,11 +741,10 @@ def test_legacy_and_selected_factories_complete_real_tiny_transport_windows(tmp_
 
     real_retire = decoder._Request.retire
     for index, experiment in enumerate(experiments):
-        # Nonzero digest strings label this generated fixture only. No source
-        # files were hashed, admitted, or verified by these declarations.
-        args = (experiment.canonical_bytes(), decoder._encode_config(cfg),
-                2, 2, "01" * 32, "02" * 32)
-        runtime = json.loads(_native.gkm_runtime_contract(*args))
+        # Each composition admits the same immutable generated files separately;
+        # real source/tokenizer digests bind its runtime and all three imports.
+        admission = delegated_source.admit_source(experiment)
+        runtime = json.loads(admission.runtime_contract(experiment, 2, 2))
         contract = runtime["decoder"]
         runtimes.append(runtime)
         assert contract["input_rows"] == 2 and contract["decode_steps"] == 1
@@ -774,13 +783,18 @@ def test_legacy_and_selected_factories_complete_real_tiny_transport_windows(tmp_
                 assert not request._coefficients
                 retired.append(True)
 
+        reservations = ExitStack()
         try:
-            client = _native._GkmTransportClient(*args, tensors)
+            reservations.enter_context(reserve_incremental_memory(
+                transport.request_memory_bytes(admission)))
+            client = admission.load_transport(experiment, 2, 2)
             publication, pin = client.publication(), client.publication_digest()
             starts = client.starts()
             for role in (0, 1):
-                workers.append(_native._GkmTransportWorker(
-                    *args, tensors, publication, pin, role, starts[role]))
+                reservations.enter_context(reserve_incremental_memory(
+                    transport.request_memory_bytes(admission, worker=True)))
+                workers.append(admission.load_transport(
+                    experiment, 2, 2, worker=(publication, pin, role, starts[role])))
             peers = SynchronousPeers(workers)
             owner = Observed(transport._NativeExchange(client, peers, len(contract["matrices"]) - 1))
             with monkeypatch.context() as control:
@@ -812,10 +826,14 @@ def test_legacy_and_selected_factories_complete_real_tiny_transport_windows(tmp_
             acceptances.append(acceptance)
             results.append(result)
         finally:
+            # Real PyO3 zero-argument abort clears inner synchronously and cannot
+            # reject these arguments. Retire every assigned owner before refunds,
+            # including when a later reservation or streaming import fails.
             if client is not None:
                 client.abort()
             for worker in workers:
                 worker.abort()
+            reservations.close()
         for native in (client, *workers):
             with pytest.raises(ValueError, match=r"\AGKM transport owner is retired\Z"):
                 native.request_id()
