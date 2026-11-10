@@ -394,8 +394,13 @@ def test_source_stage_refuses_before_tensor_import(setup, limited):
     if limited == "source_disk":
         setup.free = 3 * GiB
     topology = build(setup, **({"memory_budget_bytes": 1 << 20} if limited == "memory" else {}))
-    with pytest.raises(servers.TopologyError):
+    with pytest.raises(memory.BenchmarkMemoryError) as caught:
         topology.start()
+    assert type(caught.value) is memory.BenchmarkMemoryError
+    assert str(caught.value) == {
+        "memory": "source qualification budget cannot fund base owners",
+        "source_disk": "benchmark memory preflight rejected: native: insufficient disk headroom for compiled caches, bundles and 2 GiB reserve",
+    }[limited]
     assert setup.loaded is None and not setup.leases and "source.import" not in setup.events
     assert not topology.memory_admission["admitted"]
 
@@ -407,8 +412,10 @@ def test_nondefault_margin_is_enforced_before_import_not_only_reported(setup):
               + tighter["candidates"]["native"]["required_host_bytes"]) // 2
     assert memory.execution_memory_admission(setup.experiment, memory_budget_bytes=budget)["admitted"]
     topology = build(setup, memory_budget_bytes=budget, memory_safety_margin_percent=40)
-    with pytest.raises(servers.TopologyError):
+    with pytest.raises(memory.BenchmarkMemoryError) as caught:
         topology.start()
+    assert type(caught.value) is memory.BenchmarkMemoryError
+    assert str(caught.value) == "source qualification budget cannot fund base owners"
     assert "source.import" not in setup.events and not setup.leases
     assert not topology.memory_admission["admitted"]
 
