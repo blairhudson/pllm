@@ -91,8 +91,8 @@ silu_invocation!(DiagnosticSiluInvocation);
 /// Test-only isolated admitted-register control. Legacy means the former SiLU
 /// loop, not a selectable production implementation or a new component API.
 #[cfg(test)]
-fn silu_register_control<'d>(
-    program: &Program,
+fn silu_register_control<'p, 'd>(
+    program: &'p Program,
     node: usize,
     context: Context,
     role: u8,
@@ -106,7 +106,7 @@ fn silu_register_control<'d>(
     let mut state = Schedule::new(program, context, role, None, &tables)?;
     // Both callbacks share one test invocation lifetime, just like Schedule.
     let result = (|| {
-        let execute = |state: &mut Schedule<'_, '_, '_, '_>| {
+        let execute = |state: &mut Schedule<'p, '_, '_, '_>| {
             state.node = node;
             let Code::Activation { input: register, silu: true } = program.nodes[node].code else {
                 return Err(Error::Domain);
