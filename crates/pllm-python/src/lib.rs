@@ -47,6 +47,7 @@ mod sigma_linear_activation;
 mod sigma_linear_activation_admission;
 mod stage_kernel_plan;
 mod token_pruning;
+mod torus_lwe;
 mod wavelet_gated;
 
 use pyo3::exceptions::{PyBufferError, PyRuntimeError, PyTypeError, PyValueError};
@@ -1814,6 +1815,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     token_pruning::register(module)?;
     shared_selection::register(module)?;
     coded_delegation::register(module)?;
+    torus_lwe::register(module)?;
     compact_product::register(module)?;
     shared_rescale::register(module)?;
     mask_stream::register(module)?;
