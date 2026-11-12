@@ -17,8 +17,15 @@ pub mod window_linear;
 mod rsqrt;
 pub use rsqrt::{rsqrt_rn32, RSQRT_WORK};
 
+mod fixed_uint;
 mod finite_r32;
 pub use finite_r32::{add_rn32, div_rn32, mul_rn32, FINITE_R32_WORK};
+
+mod silu;
+pub use silu::{
+    silu_bf16_rn32_with_scratch, silu_bf16_rn32_work, silu_bf16_scratch_words,
+    silu_bf16_with_scratch, silu_bf16_work,
+};
 
 mod local_bf16;
 pub use local_bf16::{
@@ -371,3 +378,7 @@ pub fn linear_bf16(weights: &[i64], rows: usize, input: &[u16]) -> Result<Vec<u1
 #[cfg(test)]
 #[path = "field_float/tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "field_float/silu_rounding_tests.rs"]
+mod silu_rounding_tests;

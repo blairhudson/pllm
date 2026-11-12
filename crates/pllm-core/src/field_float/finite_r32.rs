@@ -58,54 +58,45 @@ impl Magnitude {
     }
 
     fn cmp(&self, other: &Self) -> Ordering {
-        for (left, right) in self.0.iter().zip(&other.0).rev() {
-            match left.cmp(right) {
-                Ordering::Equal => {}
-                order => return order,
-            }
-        }
-        Ordering::Equal
+        super::fixed_uint::cmp(&self.0, &other.0)
     }
 
     fn add(self, other: Self) -> Self {
         let mut out = Self([0; 5]);
-        let mut carry = false;
-        for (i, slot) in out.0.iter_mut().enumerate() {
-            let (sum, first) = self.0[i].overflowing_add(other.0[i]);
-            let (sum, second) = sum.overflowing_add(u64::from(carry));
-            *slot = sum;
-            carry = first || second;
-        }
+        let carry = super::fixed_uint::add_into(&self.0, &other.0, &mut out.0);
         debug_assert!(!carry);
         out
     }
 
     fn sub(self, other: Self) -> Self {
         let mut out = Self([0; 5]);
-        let mut borrow = false;
-        for (i, slot) in out.0.iter_mut().enumerate() {
-            let (difference, first) = self.0[i].overflowing_sub(other.0[i]);
-            let (difference, second) = difference.overflowing_sub(u64::from(borrow));
-            *slot = difference;
-            borrow = first || second;
-        }
+        let borrow = super::fixed_uint::sub_into(&self.0, &other.0, &mut out.0);
         debug_assert!(!borrow); // Callers subtract only smaller from larger.
         out
     }
 
     fn high(&self) -> Option<i32> {
-        for (i, limb) in self.0.iter().enumerate().rev() {
-            if *limb != 0 {
-                return Some((i * 64) as i32 + (63 - limb.leading_zeros()) as i32);
-            }
-        }
-        None
+        super::fixed_uint::high(&self.0)
     }
 }
 
 // Single rounding of exact magnitude*2^base, retaining every guard/sticky bit.
 fn round_dyadic(value: Magnitude, base: i32, negative: bool) -> Result<f32, Error> {
-    let Some(high) = value.high() else {
+    round_borrowed(&value.0, value.high(), base, negative)
+}
+
+/// Borrowed Q256 adapter: no temporary Magnitude or wide-array return/copy.
+pub(super) fn round_q256(value: &[u64; 8], negative: bool) -> Result<f32, Error> {
+    round_borrowed(value, super::fixed_uint::high(value), -256, negative)
+}
+
+fn round_borrowed<const N: usize>(
+    value: &[u64; N],
+    high: Option<i32>,
+    base: i32,
+    negative: bool,
+) -> Result<f32, Error> {
+    let Some(high) = high else {
         return pack(0, -149, negative);
     };
     let h = high + base;
@@ -117,11 +108,11 @@ fn round_dyadic(value: Magnitude, base: i32, negative: bool) -> Result<f32, Erro
     let mut quotient = 0_u64;
     let mut guard = false;
     let mut sticky = false;
-    // When reached: exactly 320 bit inspections, including tiny products and
+    // When reached: exactly N*64 bit inspections (legacy N=5; Q256 N=8), including
     // partial cancellation. Exact zero and early overflow bypass this scan.
     // Chosen quantum guarantees <=24 retained bits; left shifts <=23.
-    for bit in 0..320 {
-        if value.0[bit / 64] & (1_u64 << (bit % 64)) == 0 {
+    for bit in 0..N * 64 {
+        if value[bit / 64] & (1_u64 << (bit % 64)) == 0 {
             continue;
         }
         let position = bit as i32 - shift;
