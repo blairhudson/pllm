@@ -155,7 +155,430 @@ impl Pending {
 /// scans cannot mint certificates. Dropping the owner releases all payload.
 pub struct MatrixScan(Option<Pending>);
 
+/// Inert, conservative logical source-slot rates for PARTIAL append/retire work.
+/// Units are named slot bytes plus scalar-control allowances, not MIR copies,
+/// physical storage, RSS, CPU fuel, allocator internals, payment or refunds.
+/// This is NOT a full `MatrixScan` lifecycle quote or an execution capability.
+///
+/// A future caller may use checked arithmetic for
+/// `entries*append_entry + attempted_values*value + completed_rows*completed_row
+/// + failures*terminal_error + retirements*retire`. Reserve retirement ONCE per
+/// live Pending owner, for success, failure OR cancellation, not once per failure
+/// AND again per owner. An already retired append has entry/error work but no live
+/// deallocation. Zero invocations cost zero; one empty append takes then drops
+/// live state and needs entry + terminal_error + that owner's reserved retirement.
+///
+/// `attempted_values` bounds ACTUAL loop iterations, including an extra item
+/// rejected by the overproduction guard; advertised length is not that bound.
+/// `append_iter` accepts `ExactSizeIterator<Item = i64>`, not `IntoIterator`.
+/// Caller separately prices its concrete iterator construction, both `len` calls,
+/// `next`, helpers, storage/borrows and destruction (possibly arbitrary CPU).
+/// Core loop classification, bindings and branches remain in these rates.
+/// Rates do not bound arbitrary iterator fuel, panics or unwinding.
+///
+/// Column initialization, construction, block transitions, complete/finish
+/// traversal, certification and formatting remain outside these rates. Retirement
+/// covers only Pending/Option/Vec HEADER slots, drop control and one named
+/// deallocation invocation; NOT allocator implementation work. `Vec<u128>` is
+/// not Zeroizing: no element Drop or wipe is claimed. Finish's traversal and
+/// iterator ownership transitions need separate pricing even when retirement
+/// was reserved. Quote calculation itself must be separately prepaid by a future
+/// caller; this API establishes no already-funded prefix or downstream admission.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct MatrixScanWorkRates {
+    pub append_entry: u64,
+    pub value: u64,
+    pub completed_row: u64,
+    pub terminal_error: u64,
+    pub retire: u64,
+}
+
+/// Plain, unauthenticated lifecycle metadata, not funding or execution authority.
+/// Units combine logical scalar/site allowances and typed-byte extents; NOT CPU,
+/// RSS, physical copies, or opaque allocator implementation prices. Both full
+/// matrix and row-energy constructors/finishers fit the fixed envelopes.
+///
+/// Future callers must sponsor quote computation itself, then use CHECKED sums:
+/// `construct_attempts*construct + actual_initialized_columns*initialize_column
+/// + finish_attempts*finish + actual_visited_columns*finish_column
+/// + constructor_failures*construct_error + finish_failures*finish_error`, plus
+/// existing append terms and `live_retirements*append.retire`. Zero invocations
+/// cost zero. Column counts mean ACTUAL Vec backing length: full scans <=16384,
+/// row-energy scans zero even when their logical width exceeds MAX_COLUMNS.
+/// No full-matrix shape limit is added to row-energy mode.
+///
+/// Reserve append.retire ONCE per actual live Pending, including backing moved
+/// into IntoIter on successful finish. No second backing retirement is charged.
+/// Constructor failure before start has no Pending: its local Vec cleanup is
+/// covered separately by construct_error. Already-retired finish needs fixed
+/// finish/error terms only. Iterator headers belong to finish; opaque allocation,
+/// deallocation, panics/unwinding and formatting remain outside these rates.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct MatrixScanLifecycleRates {
+    pub append: MatrixScanWorkRates,
+    pub construct: u64,
+    pub initialize_column: u64,
+    pub finish: u64,
+    pub finish_column: u64,
+    pub construct_error: u64,
+    pub finish_error: u64,
+}
+
+// These are actual private layouts, not public stand-ins or assumptions that
+// Option/Result/ControlFlow sizes are monotone. Sequential source sites receive
+// separate logical allowances; overlapping payloads are deliberately retained.
+type ScanResidual = Result<std::convert::Infallible, Error>;
+type ScanFlow<T> = std::ops::ControlFlow<ScanResidual, T>;
+
+const SCAN_ENTRY_SLOTS: &[(usize, usize)] = &[
+    (2, size_of::<Pending>()), // take's local owner; successful restore operand
+    (3, size_of::<Option<Pending>>()), // self.0, take output, Some restore
+    (1, size_of::<Result<Pending, Error>>()), // take().ok_or
+    (1, size_of::<ScanFlow<Pending>>()), // extraction ? classification
+    (1, size_of::<Option<usize>>()), // checked end
+    (1, size_of::<Result<usize, Error>>()), // end.ok_or
+    (1, size_of::<ScanFlow<usize>>()), // end ? classification
+    (2, size_of::<ScanResidual>()), // two ? residual sites
+    (2, size_of::<Error>()), // Retired and Shape ok_or operands
+    // Six groups of four operand/result/binding slots: two len results/transfers,
+    // checked end, geometry product, order comparison, empty/end comparisons,
+    // final length comparison. Conservative spare slots within each group.
+    (24, size_of::<usize>()),
+    // Four comparisons, two short-circuit continuations, loop None/exit control.
+    (8, size_of::<bool>()),
+    (1, size_of::<&mut MatrixScan>()), // append_iter receiver
+    (1, size_of::<&mut Option<Pending>>()), // take/restore owner borrow
+    (1, size_of::<Option<i64>>()), // final next None classification, not next work
+    (1, size_of::<Result<(), Error>>()), // successful return
+    (1, size_of::<()>()), // Ok payload
+];
+// Beyond slots: take/ok_or/? 8; checked-end/ok_or/? 8; two len
+// call-boundary bindings/branches 2*4; short-circuit geometry/order 12;
+// loop final None 4; final-length branch 4; restore/Ok 8. Not sizeof-only pricing.
+const SCAN_ENTRY_CONTROL: usize = 8 + 8 + 2 * 4 + 12 + 4 + 4 + 8;
+
+const SCAN_VALUE_SLOTS: &[(usize, usize)] = &[
+    (2, size_of::<i64>()), // loop binding and unsigned_abs receiver
+    (2, size_of::<u64>()), // unsigned_abs result and conversion operand
+    // Eight groups of four operands/result/binding: conversion, squared helper,
+    // four checked accumulations, magnitude binding, square binding.
+    (32, size_of::<u128>()),
+    (5, size_of::<Option<u128>>()), // squared checked_mul + FOUR checked_add
+    (6, size_of::<Result<u128, Error>>()), // helper return/caller + four adds
+    (5, size_of::<ScanFlow<u128>>()), // squared caller ? + four adds ?
+    (5, size_of::<ScanResidual>()), // same five caller propagation sites
+    (5, size_of::<Error>()), // helper + four ok_or operands
+    // Six four-slot groups: overproduction guard, column remainder, read index,
+    // write index, offset increment, row-boundary remainder/test.
+    (24, size_of::<usize>()),
+    // Some classification, guard, empty test, two index checks, row test/branches.
+    (8, size_of::<bool>()),
+    (1, size_of::<Option<i64>>()), // next Some classification, not iterator internals
+    (2, size_of::<&Vec<u128>>()), // is_empty and column read
+    (1, size_of::<&mut Vec<u128>>()), // column write
+    (1, size_of::<&u128>()), // indexed read projection
+    (1, size_of::<&mut u128>()), // indexed write projection
+];
+// Some/bind/guard 8; unsigned_abs/conversion/bind 8; squared helper's
+// checked_mul/ok_or/return AND caller propagation 12; four accumulations 4*8;
+// empty branch 4; remainder + two index checks 12; increment/row test 8.
+// Completed-row maxima/resets deliberately NOT included here.
+const SCAN_VALUE_CONTROL: usize = 8 + 8 + 12 + 4 * 8 + 4 + 12 + 8;
+
+const SCAN_ROW_SLOTS: &[(usize, usize)] = &[
+    (12, size_of::<u128>()), // two maxima * four slots; two resets * two slots
+];
+const SCAN_ROW_CONTROL: usize = 2 * 4 + 2 * 2; // TWO max/commit; TWO zero/reset
+
+const SCAN_ERROR_SLOTS: &[(usize, usize)] = &[
+    (1, size_of::<Result<(), Error>>()), // failing append return
+    (1, size_of::<Error>()), // returned Shape/Bounds/Retired
+    (1, size_of::<()>()), // unit alternative, conservatively retained
+    (2, size_of::<bool>()), // failing classification and return branch
+];
+const SCAN_ERROR_CONTROL: usize = 4; // construct/transfer Err and return
+const SCAN_TAKE_FAILURE: &[(usize, usize)] = &[
+    (1, size_of::<Result<Pending, Error>>()),
+    (1, size_of::<ScanFlow<Pending>>()),
+    (1, size_of::<ScanResidual>()),
+]; // extraction ok_or/? failure
+const SCAN_END_FAILURE: &[(usize, usize)] = &[
+    (1, size_of::<Option<usize>>()),
+    (1, size_of::<Result<usize, Error>>()),
+    (1, size_of::<ScanFlow<usize>>()),
+    (1, size_of::<ScanResidual>()),
+]; // checked-end ok_or/? failure
+const SCAN_NUMERIC_FAILURE: &[(usize, usize)] = &[
+    (1, size_of::<Option<u128>>()),
+    (2, size_of::<Result<u128, Error>>()),
+    (1, size_of::<ScanFlow<u128>>()),
+    (1, size_of::<ScanResidual>()),
+    (2, size_of::<Error>()),
+]; // MAX nested squared checked_mul/ok_or/return + caller ?; adds are shorter
+// Terminal rate is common return + MAX single failing exit, NOT sum of exits.
+// Explicit Shape exits have no helper propagation. Success-site allowances
+// prepaid above may overlap failure slots/control: conservative EXTRA logical
+// allowance, not exact disjoint physical CPU work. Retirement is separate.
+
+const SCAN_RETIRE_SLOTS: &[(usize, usize)] = &[
+    (1, size_of::<Pending>()), // live owner being released
+    (1, size_of::<Option<Pending>>()), // taken/cleared owner container
+    (1, size_of::<Vec<u128>>()), // column header drop operand (not elements)
+    (1, size_of::<&mut Vec<u128>>()), // named Vec drop invocation receiver
+    (3, size_of::<usize>()), // pointer extent/length/capacity control allowances
+    (2, size_of::<bool>()), // live-Option and allocated-Vec drop branches
+];
+const SCAN_RETIRE_CONTROL: usize = 4 + 4 + 1; // owner/drop branches + named dealloc
+
+const fn scan_work_sum(slots: &[(usize, usize)], control: usize) -> Result<usize, Error> {
+    let mut total = control;
+    let mut index = 0;
+    while index < slots.len() {
+        let (count, bytes) = slots[index];
+        let product = match count.checked_mul(bytes) {
+            Some(product) => product,
+            None => return Err(Error::Bounds),
+        };
+        total = match total.checked_add(product) {
+            Some(total) => total,
+            None => return Err(Error::Bounds),
+        };
+        index += 1;
+    }
+    Ok(total)
+}
+
+// Inventory walks happen at constant evaluation, never against runtime state.
+const SCAN_ENTRY_WORK: Result<usize, Error> = scan_work_sum(SCAN_ENTRY_SLOTS, SCAN_ENTRY_CONTROL);
+const SCAN_VALUE_WORK: Result<usize, Error> = scan_work_sum(SCAN_VALUE_SLOTS, SCAN_VALUE_CONTROL);
+const SCAN_ROW_WORK: Result<usize, Error> = scan_work_sum(SCAN_ROW_SLOTS, SCAN_ROW_CONTROL);
+const SCAN_ERROR_WORK: Result<usize, Error> = scan_work_sum(SCAN_ERROR_SLOTS, SCAN_ERROR_CONTROL);
+const SCAN_TAKE_FAILURE_WORK: Result<usize, Error> = scan_work_sum(SCAN_TAKE_FAILURE, 8);
+const SCAN_END_FAILURE_WORK: Result<usize, Error> = scan_work_sum(SCAN_END_FAILURE, 8);
+const SCAN_NUMERIC_FAILURE_WORK: Result<usize, Error> = scan_work_sum(SCAN_NUMERIC_FAILURE, 12);
+const SCAN_RETIRE_WORK: Result<usize, Error> = scan_work_sum(SCAN_RETIRE_SLOTS, SCAN_RETIRE_CONTROL);
+
+fn scan_work_rate(work: Result<usize, Error>) -> Result<u64, Error> {
+    u64::try_from(work?).map_err(|_| Error::Bounds)
+}
+
+// Lifecycle reconciliation, exclusively against this file's source owners:
+// new -> payload_bytes -> shape; new_row_energy -> row_energy_payload_bytes;
+// both -> start. Full-path inventory plus row-only validation is deliberately
+// additive (not a multiplier). Four-slot scalar groups allow operands, result,
+// binding/transfer. No inventory purports to expose standard-library internals.
+const SCAN_CONSTRUCT_SLOTS: &[(usize, usize)] = &[
+    // shape: four bounds comparisons, checked product; payload: checked multiply
+    // and checked add; limit comparison; row-only: two zeros, product, fixed size.
+    (4 * (4 + 1 + 2 + 1 + 2 + 1 + 1), size_of::<usize>()),
+    // Full path boundary arguments: constructor 3, payload 2, shape 2,
+    // reserve/resize extents 2, start geometry 2 (row-only path is shorter).
+    (11, size_of::<usize>()),
+    (4 + 3 + 1 + 2 + 1 + 1, size_of::<bool>()), // comparisons + OR continuations
+    (5, size_of::<Option<usize>>()), // products, payload multiply/add + and_then
+    // shape product 1; full payload return/caller 2; row product 1;
+    // row payload return/caller 2. Alternatives deliberately overlap.
+    (6, size_of::<Result<usize, Error>>()),
+    (4, size_of::<ScanFlow<usize>>()), // both products + both constructor payload ?
+    (2, size_of::<Result<(), Error>>()), // shape return; reserve mapped result
+    (2, size_of::<ScanFlow<()>>()), // payload's shape ?; reserve ?
+    (6, size_of::<ScanResidual>()), // products 2, payload ? 2, shape ?, reserve ?
+    (8, size_of::<Error>()), // shape/product 2, payload 1, row 2, reserve 1, limits 2
+    (1, size_of::<Result<(), std::collections::TryReserveError>>()),
+    (1, size_of::<&mut Vec<u128>>()), // reserve boundary
+    (1, size_of::<&mut Vec<u128>>()), // resize boundary
+    (4, size_of::<Vec<u128>>()), // new/local, start argument, Pending field
+    (3, size_of::<usize>()), // start width/rows/offset fields
+    (6, size_of::<u128>()), // resize zero operand + start's five zero fields
+    (1, size_of::<Pending>()), // all nine fields assembled
+    (1, size_of::<Option<Pending>>()), // Some
+    (2, size_of::<MatrixScan>()), // start Self and constructor return operand
+    (1, size_of::<Result<MatrixScan, Error>>()),
+    (1, size_of::<()>()),
+];
+// shape: 4 comparisons + 3 OR + checked product/ok_or + return/propagation;
+// payload: checked multiply/add + and_then/ok_or + caller propagation + limit;
+// reserve: Vec.new + reserve/map_err/? + resize boundary; start: 9 fields,
+// Pending/Some/Self/Ok; row-only: 2 comparisons/OR/product/ok_or/return/limit.
+const SCAN_CONSTRUCT_CONTROL: usize =
+    4 + 3 + 8 + 4 + 8 + 8 + 4 + 1 + 8 + 1 + 9 + 4 + 2 + 1 + 8 + 4;
+const SCAN_INITIALIZE_COLUMN_SLOTS: &[(usize, usize)] = &[
+    (1, size_of::<u128>()), // semantic zero-write extent, not resize copies
+    (1, size_of::<usize>()), // logical initialized-column progress
+];
+const SCAN_INITIALIZE_COLUMN_CONTROL: usize = 2; // write + logical progress
+
+// finish -> Pending.complete -> Vec.into_iter.max -> from_bounds -> shape.
+// No core norm_bounds helper exists; compiler norm_bounds is downstream.
+const SCAN_FINISH_SLOTS: &[(usize, usize)] = &[
+    (2, size_of::<MatrixScan>()), // consuming receiver + cleared owner drop
+    (1, size_of::<&mut Option<Pending>>()), // take
+    (2, size_of::<Option<Pending>>()), // cleared field + take output
+    (1, size_of::<Pending>()),
+    (1, size_of::<Result<Pending, Error>>()),
+    (1, size_of::<ScanFlow<Pending>>()),
+    (1, size_of::<&Pending>()), // complete receiver
+    (3, size_of::<Result<(), Error>>()), // complete, shape, from_bounds shape ?
+    (2, size_of::<ScanFlow<()>>()), // complete ? and from_bounds shape ?
+    // complete: product + offset comparison; shape: four comparisons + product.
+    (4 * (1 + 1 + 4 + 1), size_of::<usize>()),
+    (8, size_of::<u128>()), // complete's two accumulator comparisons, four slots each
+    (3 + 2 + 1 + 4 + 3, size_of::<bool>()), // includes empty test
+    (1, size_of::<&Vec<u128>>()),
+    (2, size_of::<Vec<u128>>()), // field transfer + into_iter receiver
+    (3, size_of::<std::vec::IntoIter<u128>>()), // creation, max receiver, header retirement
+    (1, size_of::<Option<u128>>()), // max result, NOT hidden next slots
+    (1, size_of::<Result<u128, Error>>()),
+    (1, size_of::<ScanFlow<u128>>()),
+    (1, size_of::<Option<usize>>()), // shape checked product
+    (1, size_of::<Result<usize, Error>>()), // shape ok_or
+    (1, size_of::<ScanFlow<usize>>()),
+    (6, size_of::<ScanResidual>()), // take, complete, max, from_bounds, shape, product
+    (4, size_of::<Error>()), // take/max/product operands + explicit Shape
+    (6, size_of::<usize>()), // from_bounds arguments + both certificates' geometry fields
+    (9, size_of::<u128>()), // 4 matrix fields, energy assignment pair, row field + transfers
+    (2, size_of::<MatrixCertificate>()), // from_bounds construct + final operand
+    (3, size_of::<Result<MatrixCertificate, Error>>()), // helper/?, final Ok
+    (1, size_of::<ScanFlow<MatrixCertificate>>()),
+    (1, size_of::<RowEnergyCertificate>()), // alternate three-field result
+    (1, size_of::<Result<RowEnergyCertificate, Error>>()),
+    (1, size_of::<()>()),
+];
+// take/ok_or/? 8; complete product/3 comparisons/2 OR/return/? 12;
+// empty 4; into_iter/header transfers/max invocation/header retirement 6;
+// max ok_or/? 8; shape 4 comparisons/3 OR/product/ok_or/return/? 19;
+// from_bounds six fields/Ok/caller ? 11; energy assignment/final Ok 4;
+// alternate row certificate three fields/Ok 4. No backing retirement here.
+const SCAN_FINISH_CONTROL: usize = 8 + 12 + 4 + 6 + 8 + 19 + 11 + 4 + 4;
+const SCAN_FINISH_COLUMN_SLOTS: &[(usize, usize)] = &[
+    (3, size_of::<u128>()), // visited element, logical transfer, selected value
+    (1, size_of::<bool>()), // at most one comparison/selection per visited column
+    (1, size_of::<usize>()), // logical visited-column progress
+];
+// n visits and <=n comparisons conservatively cover max's n-1 comparisons.
+// Semantic traversal only: no invented std::Iterator::next Option/source slots.
+const SCAN_FINISH_COLUMN_CONTROL: usize = 4; // visit/transfer/selection/progress
+
+const SCAN_CONSTRUCT_ERROR_SLOTS: &[(usize, usize)] = &[
+    (1, size_of::<Result<MatrixScan, Error>>()),
+    (1, size_of::<Error>()),
+    (2, size_of::<bool>()),
+];
+const SCAN_CONSTRUCT_SHAPE_FAILURE: &[(usize, usize)] = &[
+    (1, size_of::<Option<usize>>()),
+    (1, size_of::<Result<usize, Error>>()), // shape product ok_or
+    (1, size_of::<ScanFlow<usize>>()),
+    (1, size_of::<Result<(), Error>>()), // shape return
+    (1, size_of::<ScanFlow<()>>()), // payload's shape ?
+    (1, size_of::<Result<usize, Error>>()), // payload return
+    (1, size_of::<ScanFlow<usize>>()), // constructor's payload ?
+    (3, size_of::<ScanResidual>()),
+    (3, size_of::<Error>()),
+];
+const SCAN_CONSTRUCT_PAYLOAD_FAILURE: &[(usize, usize)] = &[
+    (3, size_of::<Option<usize>>()), // multiply/add/and_then
+    (1, size_of::<Result<usize, Error>>()),
+    (1, size_of::<ScanFlow<usize>>()),
+    (1, size_of::<ScanResidual>()),
+    (1, size_of::<Error>()),
+];
+const SCAN_CONSTRUCT_RESERVE_FAILURE: &[(usize, usize)] = &[
+    (1, size_of::<Result<(), std::collections::TryReserveError>>()),
+    (1, size_of::<std::collections::TryReserveError>()), // map_err input/drop
+    (1, size_of::<Error>()), // mapped core error
+    (1, size_of::<Result<(), Error>>()),
+    (1, size_of::<ScanFlow<()>>()),
+    (1, size_of::<ScanResidual>()),
+    // Local Vec cleanup BEFORE Pending exists, never a ghost live retirement.
+    (1, size_of::<Vec<u128>>()),
+    (1, size_of::<&mut Vec<u128>>()),
+    (3, size_of::<usize>()),
+    (1, size_of::<bool>()),
+];
+const SCAN_FINISH_ERROR_SLOTS: &[(usize, usize)] = &[
+    // Both return layouts explicitly, without assuming Result-size monotonicity.
+    (1, size_of::<Result<MatrixCertificate, Error>>()),
+    (1, size_of::<Result<RowEnergyCertificate, Error>>()),
+    (1, size_of::<Error>()),
+    (2, size_of::<bool>()),
+];
+const SCAN_FINISH_COMPLETE_FAILURE: &[(usize, usize)] = &[
+    (1, size_of::<Error>()),
+    (1, size_of::<Result<(), Error>>()),
+    (1, size_of::<ScanFlow<()>>()),
+    (1, size_of::<ScanResidual>()),
+];
+const SCAN_FINISH_MAX_FAILURE: &[(usize, usize)] = &[
+    (1, size_of::<Option<u128>>()),
+    (1, size_of::<Result<u128, Error>>()),
+    (1, size_of::<ScanFlow<u128>>()),
+    (1, size_of::<ScanResidual>()),
+    (1, size_of::<Error>()),
+];
+const SCAN_FINISH_SHAPE_FAILURE: &[(usize, usize)] = &[
+    (1, size_of::<Option<usize>>()),
+    (1, size_of::<Result<usize, Error>>()),
+    (1, size_of::<ScanFlow<usize>>()),
+    (1, size_of::<Result<(), Error>>()),
+    (1, size_of::<ScanFlow<()>>()),
+    (1, size_of::<Result<MatrixCertificate, Error>>()),
+    (1, size_of::<ScanFlow<MatrixCertificate>>()),
+    (3, size_of::<ScanResidual>()),
+    (3, size_of::<Error>()),
+];
+
 impl MatrixScan {
+    /// Pure metadata calculation: no state reads, dummy scan or allocation.
+    /// Only fixed const inventories; future caller sponsors this calculation.
+    pub fn lifecycle_work_rates() -> Result<MatrixScanLifecycleRates, Error> {
+        // Common Err + MAX single propagation chain, never sum failing exits.
+        // Explicit shape/limit returns need only their common return + 4 control.
+        let construct_failure = scan_work_sum(SCAN_CONSTRUCT_SHAPE_FAILURE, 3 * 8)?
+            .max(scan_work_sum(SCAN_CONSTRUCT_PAYLOAD_FAILURE, 12)?)
+            .max(scan_work_sum(SCAN_CONSTRUCT_RESERVE_FAILURE, 8 + 4 + 1)?)
+            .max(4);
+        let construct_error = scan_work_sum(SCAN_CONSTRUCT_ERROR_SLOTS, 4)?
+            .checked_add(construct_failure).ok_or(Error::Bounds)?;
+        let finish_failure = SCAN_TAKE_FAILURE_WORK?
+            .max(scan_work_sum(SCAN_FINISH_COMPLETE_FAILURE, 8)?)
+            .max(scan_work_sum(SCAN_FINISH_MAX_FAILURE, 8)?)
+            .max(scan_work_sum(SCAN_FINISH_SHAPE_FAILURE, 3 * 8)?)
+            .max(4);
+        let finish_error = scan_work_sum(SCAN_FINISH_ERROR_SLOTS, 4)?
+            .checked_add(finish_failure).ok_or(Error::Bounds)?;
+        Ok(MatrixScanLifecycleRates {
+            append: Self::work_rates()?,
+            construct: scan_work_rate(scan_work_sum(SCAN_CONSTRUCT_SLOTS, SCAN_CONSTRUCT_CONTROL))?,
+            initialize_column: scan_work_rate(scan_work_sum(
+                SCAN_INITIALIZE_COLUMN_SLOTS, SCAN_INITIALIZE_COLUMN_CONTROL))?,
+            finish: scan_work_rate(scan_work_sum(SCAN_FINISH_SLOTS, SCAN_FINISH_CONTROL))?,
+            finish_column: scan_work_rate(scan_work_sum(
+                SCAN_FINISH_COLUMN_SLOTS, SCAN_FINISH_COLUMN_CONTROL))?,
+            construct_error: scan_work_rate(Ok(construct_error))?,
+            finish_error: scan_work_rate(Ok(finish_error))?,
+        })
+    }
+
+    /// Calculate inert rates without scan state, traversal, allocation or ledger.
+    /// Only constant private-type inventories and checked fixed-size arithmetic
+    /// are evaluated. The calculation's own work is outside the returned rates.
+    pub fn work_rates() -> Result<MatrixScanWorkRates, Error> {
+        let failing_exit = SCAN_TAKE_FAILURE_WORK?
+            .max(SCAN_END_FAILURE_WORK?)
+            .max(SCAN_NUMERIC_FAILURE_WORK?)
+            .max(4); // explicit Shape branch/return, no helper slots
+        let terminal = SCAN_ERROR_WORK?
+            .checked_add(failing_exit)
+            .ok_or(Error::Bounds)?;
+        Ok(MatrixScanWorkRates {
+            append_entry: scan_work_rate(SCAN_ENTRY_WORK)?,
+            value: scan_work_rate(SCAN_VALUE_WORK)?,
+            completed_row: scan_work_rate(SCAN_ROW_WORK)?,
+            terminal_error: u64::try_from(terminal).map_err(|_| Error::Bounds)?,
+            retire: scan_work_rate(SCAN_RETIRE_WORK)?,
+        })
+    }
+
     /// Preflight column payload plus owner/working-state sizes, excluding
     /// allocator bookkeeping and caller-owned input slices. No allocation occurs.
     pub fn payload_bytes(rows: usize, columns: usize) -> Result<usize, Error> {
@@ -601,6 +1024,10 @@ pub fn reciprocal_bound(spec: &ReciprocalBoundSpec) -> Result<ReciprocalBound, E
 
 #[cfg(test)]
 mod reciprocal_tests;
+
+#[cfg(test)]
+#[path = "integer_bounds_work_tests.rs"]
+mod integer_bounds_work_tests;
 
 #[cfg(test)]
 mod tests {
