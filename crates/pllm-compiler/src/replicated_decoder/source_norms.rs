@@ -11,6 +11,190 @@ use std::collections::BTreeMap;
 const MAX_BLOCKS: usize = 4096;
 pub(super) const MAX_METADATA_BYTES: usize = 1024 * 1024;
 
+/// Logical source-event/typed-slot work, not cycles, RSS, authority or funding.
+/// Evaluation itself needs future caller sponsorship. Only singleton, nonempty,
+/// one-value append attempts are qualified; arbitrary chunks are not. Delegated
+/// adapter/core work and completed/replacement bodies are separate components.
+/// No live state, geometry, graph counts, admission or workload composition here.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct SourceScanWorkRates {
+    pub preflight_p: u64,
+    pub preflight_a: u64,
+    pub preflight_s: u64,
+    pub source_construct_j: u64,
+    pub source_construct_reserve_error_k: u64,
+    pub adapter_construct_u: u64,
+    pub adapter_append_v: u64,
+    pub adapter_finish_f: u64,
+    pub adapter_terminal_error_mapper: u64,
+    pub core_append: pllm_core::integer_bounds::MatrixScanWorkRates,
+    pub core_lifecycle: pllm_core::integer_bounds::MatrixScanLifecycleRates,
+    pub validation_fixed: u64,
+    pub validation_record: u64,
+    pub validation_block: u64,
+    pub validation_terminal_error: u64,
+    /// Includes scalar allowance 48, in addition to KN's typed extents.
+    pub local_k_n: u64,
+    /// Includes scalar allowance 16, in addition to KB's typed extents.
+    pub local_k_b: u64,
+    /// Includes scalar allowance 8, in addition to KR's typed extents.
+    pub local_k_r: u64,
+    /// Includes scalar allowance 16. Finish validation traversal is separate;
+    /// this covers only consuming finish's receiver/result/Flow boundary.
+    pub local_k_t: u64,
+    pub source_retire_local: SourceRetireLocalRates,
+    /// One terminal extra per source path, not per value. Inner core retirement
+    /// and semantic retained blocks remain separate, each charged once.
+    pub source_terminal_error: u64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct SourceRetireLocalRates {
+    pub source_shell: u64,
+    pub record_shell: u64,
+    pub retained_block: u64,
+}
+
+fn source_work_narrow(value: u128) -> Result<u64, Error> {
+    u64::try_from(value).map_err(|_| Error::Bounds)
+}
+
+// Only fixed inventories supplied below; no collection, allocation or live scan.
+fn source_work_sum<const N: usize>(terms: [u64; N]) -> Result<u64, Error> {
+    terms.into_iter().try_fold(0u64, |sum, term| {
+        sum.checked_add(term).ok_or(Error::Bounds)
+    })
+}
+
+fn source_work_h<const N: usize>(k: u64, c: u64, types: [usize; N]) -> Result<u64, Error> {
+    let sizes = types.into_iter().try_fold(0u64, |sum, bytes| {
+        let bytes = source_work_narrow(u128::try_from(bytes).map_err(|_| Error::Bounds)?)?;
+        sum.checked_add(bytes).ok_or(Error::Bounds)
+    })?;
+    sizes.checked_mul(k).and_then(|n| c.checked_add(n)).ok_or(Error::Bounds)
+}
+
+/// Pure checked fixed inventories. Distinct types remain distinct even when
+/// their sizes coincide. No private core layout or adapter internals exposed.
+/// Successful caller counts (not computed here): P*(2B+2T+Tv), A*2B,
+/// S*2T, J*2T, U*2B, V*2N, F*2B; core construction is separate.
+/// Local per-pass counts N,B,B-T,T require checked subtraction. N bounds both
+/// append calls and forwarded loop iterations in the singleton domain only.
+/// Validation counts are independent attempts/records/block iterations, plus
+/// at most one terminal; whole-map traversal/lookup and payload P are excluded.
+/// ResidentBlockFinish::finish_into has different ownership, not qualified.
+pub(super) fn scan_work_rates() -> Result<SourceScanWorkRates, Error> {
+    use pllm_core::integer_bounds::{Error as K, MatrixCertificate as CC, MatrixScan as CM};
+    use std::{collections::TryReserveError, convert::Infallible, mem::size_of, ops::ControlFlow};
+    type E = Error;
+    type AM = MatrixScan;
+    type AC = MatrixCertificate;
+    type P = Pending;
+    type W = BlockScan;
+    type D = BlockNorms;
+    type RE<X> = Result<X, E>;
+    type RK<X> = Result<X, K>;
+    type ZE = RE<Infallible>;
+    type ZK = RK<Infallible>;
+    type FE<X> = ControlFlow<ZE, X>;
+    type FK<X> = ControlFlow<ZK, X>;
+    // Each macro expands to a fixed array, never a layout stand-in or heap bank.
+    macro_rules! h {
+        ($k:expr, $c:expr; $($ty:ty),+ $(,)?) => {
+            source_work_h($k, $c, [$(size_of::<$ty>()),+])
+        };
+    }
+    macro_rules! extent {
+        ($count:expr; $ty:ty) => { h!($count, 0; $ty) };
+    }
+    let cs = h!(256, 512; usize, bool, (), K, Option<usize>, RK<usize>, RK<()>, FK<usize>, ZK)?;
+    let cp = h!(256, 512; usize, (), K, Option<usize>, RK<usize>, RK<()>, FK<()>, ZK)?;
+    let as_ = h!(256, 512; usize, bool, (), E, RE<()>)?;
+    let ap = h!(256, 512; usize, (), E, K, RE<()>, FE<()>, ZE, RK<usize>, RE<usize>)?;
+    let preflight_p = source_work_sum([cs, cp, as_, ap, h!(256, 512; K, E)?])?;
+    // A explicitly owns norm_bounds::new's payload caller/propagation (53-54).
+    // U therefore must NOT duplicate RE<usize>/FE<usize>/ZE here.
+    let preflight_a = h!(256, 512; usize, E, RE<usize>, FE<usize>, ZE, RE<AM>)?;
+    let preflight_s = h!(256, 512; usize, bool, &usize, E, Option<usize>, RE<usize>, FE<usize>, ZE, RE<W>)?;
+    let source_construct_j = h!(64, 512;
+        usize, bool, (), E, Vec<Block>, &mut Vec<Block>, P, Option<P>, W,
+        RE<W>, AM, Option<AM>, RE<AM>, FE<AM>, Option<usize>, RE<usize>,
+        FE<usize>, RE<()>, FE<()>, ZE, Result<(), TryReserveError>)?;
+    // Only reserve failure's one local Vec cleanup, before any live Pending.
+    let source_construct_reserve_error_k = h!(8, 64;
+        TryReserveError, E, Vec<Block>, &mut Vec<Block>, usize, bool)?;
+    let adapter_construct_u = h!(8, 64; usize, CM, AM, RK<CM>, RK<AM>, RE<AM>)?;
+    let adapter_append_v = source_work_sum([
+        h!(1, 0; &mut AM, &mut CM, RK<()>)?, extent!(2; usize)?,
+        extent!(2; &[i64])?, extent!(2; RE<()>)?, 8,
+    ])?;
+    let adapter_finish_f = h!(32, 256;
+        AM, CM, CC, AC, usize, u128, E, RK<CC>, RE<CC>, FE<CC>, ZE, RE<AC>)?;
+    // Actual terminal mapping only; P already owns its own preflight mapping.
+    let adapter_terminal_error_mapper = h!(4, 16; K, E)?;
+
+    let kn = source_work_sum([
+        h!(1, 0; P, RE<P>, FE<P>, Option<&mut AM>, RE<&mut AM>, FE<&mut AM>,
+            &mut AM, FE<()>, &mut W, Option<usize>)?,
+        extent!(2; Option<P>)?, extent!(2; RE<()>)?, extent!(3; &[i64])?,
+        extent!(2; E)?, extent!(32; usize)?, extent!(16; bool)?,
+    ])?;
+    let kb = source_work_sum([
+        h!(1, 0; Option<AM>, RE<AM>, FE<AM>, AM, RE<AC>, FE<AC>, AC, Block, E)?,
+        extent!(8; usize)?, extent!(4; bool)?,
+    ])?;
+    let kr = source_work_sum([
+        h!(1, 0; RE<AM>, FE<AM>, AM, Option<AM>)?, extent!(8; usize)?,
+    ])?;
+    let kt = source_work_sum([
+        h!(1, 0; W, Option<P>, RE<P>, FE<P>, P, D, RE<D>, RE<()>, FE<()>, E, &D)?,
+        extent!(8; usize)?, extent!(4; bool)?,
+    ])?;
+    // Union by TYPE of KN/KB/KR/KT, once each; not weighted KN totals.
+    let terminal_inventory = h!(1, 0;
+        P, Option<P>, RE<P>, FE<P>, Option<&mut AM>, RE<&mut AM>, FE<&mut AM>,
+        &mut AM, RE<()>, FE<()>, &mut W, &[i64], E, Option<usize>, usize, bool,
+        Option<AM>, RE<AM>, FE<AM>, AM, RE<AC>, FE<AC>, AC, Block,
+        W, D, RE<D>, &D)?;
+    let source_terminal_error = source_work_sum([terminal_inventory, h!(1, 0; ZE)?])?
+        .checked_mul(32).and_then(|n| n.checked_add(64)).ok_or(Error::Bounds)?;
+
+    let validation_h = h!(1, 0;
+        Block, AC, CC, (usize, usize), &D, &Vec<Block>, &[Block], &Block,
+        Option<&Block>, Option<AC>, Option<usize>, Option<u128>, Option<Infallible>,
+        ControlFlow<Option<Infallible>, &Block>, RE<usize>, RE<()>, RE<AC>, RE<CC>,
+        RE<u128>, RK<usize>, RK<()>, RK<CC>, RK<u128>, FE<usize>, FE<()>, FE<AC>,
+        FE<CC>, FE<u128>, FK<usize>, FK<()>, FK<CC>, ZE, ZK, E, K)?;
+    let validation_j = h!(1, 0; usize, u128, bool, ())?;
+    let validation_u = source_work_sum([
+        256, validation_h.checked_mul(64).ok_or(Error::Bounds)?,
+        validation_j.checked_mul(128).ok_or(Error::Bounds)?,
+    ])?;
+    let validation_two = validation_u.checked_mul(2).ok_or(Error::Bounds)?;
+    let validation_nine = validation_u.checked_mul(9).ok_or(Error::Bounds)?;
+    Ok(SourceScanWorkRates {
+        preflight_p, preflight_a, preflight_s, source_construct_j,
+        source_construct_reserve_error_k, adapter_construct_u, adapter_append_v,
+        adapter_finish_f, adapter_terminal_error_mapper,
+        core_append: CM::work_rates().map_err(|_| Error::Bounds)?,
+        core_lifecycle: CM::lifecycle_work_rates().map_err(|_| Error::Bounds)?,
+        validation_fixed: validation_two,
+        validation_record: validation_two,
+        validation_block: validation_nine,
+        validation_terminal_error: validation_nine,
+        local_k_n: kn.checked_add(48).ok_or(Error::Bounds)?,
+        local_k_b: kb.checked_add(16).ok_or(Error::Bounds)?,
+        local_k_r: kr.checked_add(8).ok_or(Error::Bounds)?,
+        local_k_t: kt.checked_add(16).ok_or(Error::Bounds)?,
+        source_retire_local: SourceRetireLocalRates {
+            source_shell: h!(1, 8; P, W)?,
+            record_shell: h!(1, 8; D, Vec<Block>)?,
+            retained_block: h!(1, 0; Block)?,
+        },
+        source_terminal_error,
+    })
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Block {
