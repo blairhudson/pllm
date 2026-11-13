@@ -63,6 +63,100 @@ def fixture(cfg, rows=3, decode=2, *, capacity="capsule"):
     return contract, arrays, {key: value.tobytes() for key, value in arrays.items()}
 
 
+_REFERENCE_ROPE_KINDS = {"llama3": "wavelength_transition"}
+
+
+def _reference_rope_descriptor(cfg):
+    """Translate source spelling only; no production numeric implementation."""
+    source = cfg.get("rope_scaling")
+    if source is None:
+        return None
+    if not isinstance(source, Mapping):
+        raise ValueError("reference rope_scaling must be an object")
+    if source == {"rope_type": "default"}:
+        return None
+    fields = {"rope_type", "factor", "low_freq_factor", "high_freq_factor",
+              "original_max_position_embeddings"}
+    if set(source) != fields or type(source["rope_type"]) is not str:
+        raise ValueError("invalid reference rope_scaling fields")
+    kind = _REFERENCE_ROPE_KINDS.get(source["rope_type"])
+    if kind is None:
+        raise ValueError("unsupported reference rope_scaling type")
+    for name in ("factor", "low_freq_factor", "high_freq_factor"):
+        value = source[name]
+        if (type(value) not in (int, float) or not 0 < value <= 256
+                or not math.isfinite(value)):
+            raise ValueError("reference rope_scaling parameters must be finite numbers")
+    factor, low, high = (source[name] for name in
+                         ("factor", "low_freq_factor", "high_freq_factor"))
+    original = source["original_max_position_embeddings"]
+    maximum = cfg.get("max_position_embeddings")
+    if not (
+        1 < factor <= 256 and np.float32(factor) > np.float32(1)
+        and 1 / 256 <= low <= 256 and low < high <= 256
+        and np.float32(high) - np.float32(low) >= np.float32(1 / 256)
+        and type(original) is int and type(maximum) is int
+        and 1 <= original < maximum <= 2**24
+    ):
+        raise ValueError("reference rope_scaling exceeds numeric or context bounds")
+    return {"kind": kind, **{name: source[name] for name in fields - {"rope_type"}}}
+
+
+def _reference_scale_frequencies(frequencies, descriptor):
+    """Independent published wavelength equation, with explicit f32 stages."""
+    frequencies = np.asarray(frequencies)
+    if (frequencies.ndim != 1 or not len(frequencies)
+            or frequencies.dtype != np.dtype(np.float32)
+            or not np.all(np.isfinite(frequencies)) or not np.all(frequencies > 0)):
+        raise ValueError("reference rotary frequencies must be positive finite float32 vector")
+    if descriptor is None:
+        return frequencies
+    if descriptor.get("kind") != "wavelength_transition":
+        raise ValueError("unsupported reference rotary descriptor")
+    factor = np.float32(descriptor["factor"])
+    low = np.float32(descriptor["low_freq_factor"])
+    high = np.float32(descriptor["high_freq_factor"])
+    context = np.float32(descriptor["original_max_position_embeddings"])
+    wavelength = np.float32(2 * math.pi) / frequencies
+    result = np.empty_like(frequencies)
+    for index, (frequency, wave) in enumerate(zip(frequencies, wavelength, strict=True)):
+        if wave < np.float32(context / high):
+            result[index] = frequency
+        elif wave > np.float32(context / low):
+            result[index] = np.float32(frequency / factor)
+        else:
+            smooth = np.float32(np.float32(context / wave) - low) / np.float32(high - low)
+            left = np.float32(np.float32(np.float32(1) - smooth) * frequency) / factor
+            right = np.float32(smooth * frequency)
+            result[index] = np.float32(left + right)
+    return result
+
+
+def _reference_rotary(cfg, value, positions):
+    if value.ndim != 4:
+        raise ValueError("invalid reference rotary geometry")
+    width = value.shape[-1]
+    if width == 0 or width % 2 or positions.shape != (value.shape[-2],):
+        raise ValueError("invalid reference rotary geometry")
+    descriptor = _reference_rope_descriptor(cfg)
+    frequencies = 1 / (cfg["rope_theta"] ** (np.arange(0, width, 2, dtype=np.float32) / width))
+    if descriptor is not None:
+        frequencies = _reference_scale_frequencies(frequencies, descriptor)
+    angles = positions.astype(np.float32)[:, None] * frequencies[None, :]
+    cos = np.concatenate([np.cos(angles), np.cos(angles)], axis=-1)[None, None]
+    sin = np.concatenate([np.sin(angles), np.sin(angles)], axis=-1)[None, None]
+    half = width // 2
+    return value * cos + np.concatenate([-value[..., half:], value[..., :half]], axis=-1) * sin
+
+
+def _reference_norm(cfg, value, weight):
+    return (
+        value
+        / np.sqrt(np.mean(value * value, axis=-1, keepdims=True) + cfg["rms_norm_eps"])
+        * weight
+    )
+
+
 def clear_oracle(cfg, tensors, tokens, decode_steps, *, decode_tokens=None,
                  linear_reference=None, selection_observer=None):
     def linear(value, weight, bias=None):
@@ -77,20 +171,10 @@ def clear_oracle(cfg, tensors, tokens, decode_steps, *, decode_tokens=None,
         return output if bias is None else output + tensors[bias]
 
     def norm(value, weight):
-        return (
-            value
-            / np.sqrt(np.mean(value * value, axis=-1, keepdims=True) + cfg["rms_norm_eps"])
-            * tensors[weight]
-        )
+        return _reference_norm(cfg, value, tensors[weight])
 
     def rotary(value, positions):
-        width = value.shape[-1]
-        frequencies = 1 / (cfg["rope_theta"] ** (np.arange(0, width, 2, dtype=np.float32) / width))
-        angles = positions.astype(np.float32)[:, None] * frequencies[None, :]
-        cos = np.concatenate([np.cos(angles), np.cos(angles)], axis=-1)[None, None]
-        sin = np.concatenate([np.sin(angles), np.sin(angles)], axis=-1)[None, None]
-        half = width // 2
-        return value * cos + np.concatenate([-value[..., half:], value[..., :half]], axis=-1) * sin
+        return _reference_rotary(cfg, value, positions)
 
     if linear_reference is not None:
         linear = linear_reference
@@ -181,6 +265,201 @@ def clear_oracle(cfg, tensors, tokens, decode_steps, *, decode_tokens=None,
         (tuple(k.shape), k.astype("<f4").tobytes(), v.astype("<f4").tobytes()) for k, v in caches
     )
     return tuple(logits), kv, tuple(selections), tuple(executed), position
+
+
+def _wavelength_config():
+    cfg = config("llama")
+    cfg["rope_scaling"] = {
+        "rope_type": "llama3", "factor": 8, "low_freq_factor": 1,
+        "high_freq_factor": 4, "original_max_position_embeddings": 16,
+    }
+    return cfg
+
+
+def test_reference_rope_descriptor_maps_source_alias_without_model_family():
+    cfg = _wavelength_config()
+    expected = {
+        "kind": "wavelength_transition", "factor": 8, "low_freq_factor": 1,
+        "high_freq_factor": 4, "original_max_position_embeddings": 16,
+    }
+    for family in ("qwen2", "qwen3", "llama", "unrelated"):
+        assert _reference_rope_descriptor({**cfg, "model_type": family}) == expected
+    assert "kind" not in cfg["rope_scaling"]
+
+
+def test_reference_rope_descriptor_accepts_native_domain_boundaries():
+    cfg = _wavelength_config()
+    cfg["max_position_embeddings"] = 2**24
+    cfg["rope_scaling"].update(factor=256, low_freq_factor=1 / 256,
+                               high_freq_factor=2 / 256,
+                               original_max_position_embeddings=2**24 - 1)
+    descriptor = _reference_rope_descriptor(cfg)
+    assert descriptor["factor"] == 256
+    assert descriptor["original_max_position_embeddings"] == 2**24 - 1
+    cfg["rope_scaling"].update(factor=float(np.nextafter(np.float32(1), np.float32(2))),
+                               low_freq_factor=255, high_freq_factor=256,
+                               original_max_position_embeddings=1)
+    assert _reference_rope_descriptor(cfg)["high_freq_factor"] == 256
+
+
+def test_reference_wavelength_frequencies_match_literal_equation():
+    descriptor = _reference_rope_descriptor(_wavelength_config())
+    waves = np.array([2, 4, 8, 16, 32], dtype=np.float32)
+    frequencies = np.float32(2 * math.pi) / waves
+    actual = _reference_scale_frequencies(frequencies, descriptor)
+    # F=8,L=1,H=4,C=16: literal independently derived multipliers.
+    expected = frequencies * np.array([1, 1, 5 / 12, 1 / 8, 1 / 8], dtype=np.float32)
+    np.testing.assert_allclose(actual, expected, rtol=3e-7, atol=0)
+    assert actual.dtype == np.dtype(np.float32)
+
+
+@pytest.mark.parametrize("threshold", [4, 16])
+def test_reference_wavelength_threshold_float32_neighbors(threshold):
+    center = np.float32(threshold)
+    waves = np.array([np.nextafter(center, np.float32(0)), center,
+                      np.nextafter(center, np.float32(np.inf))], dtype=np.float32)
+    frequencies = np.float32(2 * math.pi) / waves
+    reconstructed = np.float32(2 * math.pi) / frequencies
+    # Division may round a neighbor back onto the boundary. Classify the actual
+    # reconstructed wavelength, not the desired pre-division input.
+    np.testing.assert_allclose(reconstructed, waves, rtol=2e-7, atol=0)
+    expected = []
+    for frequency, wave in zip(frequencies, reconstructed, strict=True):
+        if float(wave) < 4:
+            multiplier = 1.0
+        elif float(wave) > 16:
+            multiplier = 1 / 8
+        else:
+            smooth = (16 / float(wave) - 1) / 3
+            multiplier = (1 - smooth) / 8 + smooth
+        expected.append(float(frequency) * multiplier)
+    actual = _reference_scale_frequencies(
+        frequencies, _reference_rope_descriptor(_wavelength_config()),
+    )
+    np.testing.assert_allclose(actual, expected, rtol=4e-7, atol=0)
+    assert np.all(actual > 0)
+
+
+@pytest.mark.parametrize("positions", [(0, 1, 2), (3,), (4,)])
+def test_reference_scaled_rotary_prefill_and_two_decode_vectors(positions):
+    cfg = _wavelength_config()
+    # Width four gives wavelengths 2*pi and 8: both transition, neither identity.
+    cfg["rope_theta"] = (8 / (2 * math.pi)) ** 2
+    value = np.arange(1, len(positions) * 4 + 1, dtype=np.float32).reshape(1, 1, -1, 4)
+    positions = np.array(positions, dtype=np.int64)
+    base = 1 / (cfg["rope_theta"] ** (np.arange(0, 4, 2, dtype=np.float32) / 4))
+    wave = float(np.float32(2 * math.pi)) / base.astype(np.float64)
+    smooth = (16 / wave - 1) / 3
+    expected_frequency = (base.astype(np.float64) * ((1 - smooth) / 8 + smooth))
+    angles = positions[:, None] * expected_frequency[None, :]
+    expected = (value.astype(np.float64) * np.tile(np.cos(angles), (1, 2))[None, None]
+                + np.concatenate([-value[..., 2:], value[..., :2]], axis=-1)
+                * np.tile(np.sin(angles), (1, 2))[None, None])
+    actual = _reference_rotary(cfg, value, positions)
+    np.testing.assert_allclose(actual, expected, rtol=2e-6, atol=2e-6)
+    unscaled = _reference_rotary({**cfg, "rope_scaling": None}, value, positions)
+    if positions[0] == 0:
+        np.testing.assert_array_equal(actual[..., 0, :], value[..., 0, :])
+        assert not np.allclose(actual[..., 1:, :], unscaled[..., 1:, :])
+    else:
+        assert not np.allclose(actual, unscaled)
+
+
+@pytest.mark.parametrize("scaling", [None, {"rope_type": "default"}])
+def test_reference_unscaled_rotary_preserves_legacy_exact_bytes(scaling):
+    cfg = {**config(), "rope_scaling": scaling}
+    value = np.arange(24, dtype=np.float32).reshape(1, 2, 3, 4) / np.float32(7)
+    positions = np.array([0, 3, 4], dtype=np.int64)
+    width = value.shape[-1]
+    frequencies = 1 / (cfg["rope_theta"] ** (np.arange(0, width, 2, dtype=np.float32) / width))
+    angles = positions.astype(np.float32)[:, None] * frequencies[None, :]
+    cos = np.concatenate([np.cos(angles), np.cos(angles)], axis=-1)[None, None]
+    sin = np.concatenate([np.sin(angles), np.sin(angles)], axis=-1)[None, None]
+    half = width // 2
+    legacy = value * cos + np.concatenate([-value[..., half:], value[..., :half]], axis=-1) * sin
+    assert _reference_rotary(cfg, value, positions).tobytes() == legacy.tobytes()
+    absent = {key: value for key, value in cfg.items() if key != "rope_scaling"}
+    assert _reference_rotary(absent, value, positions).tobytes() == legacy.tobytes()
+
+
+def test_reference_normalization_uses_configured_epsilon_at_low_magnitude():
+    value = np.array([[1e-5, -2e-5, 3e-5, -4e-5]], dtype=np.float32)
+    weight = np.array([1, 2, 3, 4], dtype=np.float32)
+    outputs = []
+    for epsilon in (1e-6, 1e-3):
+        cfg = {**config(), "rms_norm_eps": epsilon}
+        actual = _reference_norm(cfg, value, weight)
+        expected = value.astype(np.float64) / math.sqrt(7.5e-10 + epsilon) * weight
+        np.testing.assert_allclose(actual, expected, rtol=2e-7, atol=0)
+        outputs.append(actual)
+    assert np.max(np.abs(outputs[0])) > 30 * np.max(np.abs(outputs[1]))
+
+
+@pytest.mark.parametrize("field,bad", [
+    ("rope_type", "unknown"), ("rope_type", True), ("rope_type", []),
+    ("factor", True), ("factor", "8"), ("factor", 1), ("factor", 1 + 2**-25),
+    ("factor", 257), ("factor", float("nan")), ("factor", float("inf")),
+    ("low_freq_factor", 0), ("low_freq_factor", 1 / 512),
+    ("low_freq_factor", False), ("low_freq_factor", float("nan")),
+    ("high_freq_factor", 257), ("high_freq_factor", 1),
+    ("high_freq_factor", 1 + 1 / 512), ("high_freq_factor", float("inf")),
+    ("high_freq_factor", "4"), ("original_max_position_embeddings", True),
+    ("original_max_position_embeddings", 16.0), ("original_max_position_embeddings", 0),
+    ("original_max_position_embeddings", 32),
+])
+def test_reference_rope_rejects_invalid_parameter_domains(field, bad):
+    cfg = _wavelength_config()
+    cfg["rope_scaling"][field] = bad
+    with pytest.raises(ValueError, match="reference rope_scaling"):
+        _reference_rope_descriptor(cfg)
+
+
+@pytest.mark.parametrize("bad", [True, [], "llama3", {}, {"rope_type": "unknown"},
+                                  {"rope_type": "default", "factor": 2}])
+def test_reference_rope_rejects_unknown_or_malformed_scaling(bad):
+    with pytest.raises(ValueError, match="reference rope_scaling"):
+        _reference_rope_descriptor({**config(), "rope_scaling": bad})
+
+
+@pytest.mark.parametrize("change", ["missing", "extra", "context_bool", "context_float",
+                                    "context_too_large", "context_not_extended"])
+def test_reference_rope_rejects_descriptor_fields_and_context_geometry(change):
+    cfg = _wavelength_config()
+    if change == "missing":
+        del cfg["rope_scaling"]["factor"]
+    elif change == "extra":
+        cfg["rope_scaling"]["extra"] = 1
+    else:
+        cfg["max_position_embeddings"] = {
+            "context_bool": True, "context_float": 32.0,
+            "context_too_large": 2**24 + 1, "context_not_extended": 16,
+        }[change]
+    with pytest.raises(ValueError, match="reference rope_scaling"):
+        _reference_rope_descriptor(cfg)
+
+
+@pytest.mark.parametrize("bad", [[0], [-1], [float("nan")], [float("inf")], []])
+def test_reference_rope_rejects_invalid_frequencies(bad):
+    with pytest.raises(ValueError, match="frequencies"):
+        _reference_scale_frequencies(np.array(bad, dtype=np.float32),
+                                     _reference_rope_descriptor(_wavelength_config()))
+
+
+@pytest.mark.parametrize("bad", [np.ones((1, 1), dtype=np.float32),
+                                  np.ones(1, dtype=np.float64)])
+def test_reference_rope_rejects_frequency_dtype_and_geometry(bad):
+    with pytest.raises(ValueError, match="frequencies"):
+        _reference_scale_frequencies(bad, _reference_rope_descriptor(_wavelength_config()))
+
+
+@pytest.mark.parametrize("shape,positions", [((1, 1, 1, 0), [0]),
+                                             ((1, 1, 1, 3), [0]),
+                                             ((1, 1, 2, 4), [0]),
+                                             ((1, 1, 4), [0])])
+def test_reference_rope_rejects_invalid_rotary_geometry(shape, positions):
+    with pytest.raises(ValueError, match="geometry"):
+        _reference_rotary(_wavelength_config(), np.ones(shape, dtype=np.float32),
+                          np.array(positions, dtype=np.int64))
 
 
 @pytest.mark.parametrize("family", ["qwen2", "qwen3", "llama"])
