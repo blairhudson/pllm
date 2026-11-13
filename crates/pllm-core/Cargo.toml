@@ -16,7 +16,7 @@ insecure-test-support = []
 aes.workspace = true
 rayon.workspace = true
 getrandom.workspace = true
-k256 = { version = "0.13.4", default-features = false, features = ["arithmetic", "std"] }
+k256 = { version = "0.14.0", default-features = false, features = ["arithmetic", "std"] }
 libm.workspace = true
 serde.workspace = true
 sha2.workspace = true
@@ -27,5 +27,5 @@ tempfile.workspace = true
 flate2.workspace = true
 
 [dev-dependencies]
-num-bigint = "0.4.6"
+num-bigint = "0.5.1"
 serde_json.workspace = true
