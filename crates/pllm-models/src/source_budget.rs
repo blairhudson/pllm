@@ -615,3 +615,122 @@ mod factory_quote_tests {
         assert!(ConfigLowererQuote::new(&document, workload(), expansion(), limits()).is_err());
     }
 }
+// Const-only lexical capacity algebra. None of these functions is called by a
+// quotation algorithm. Each row carries BOTH additive bytes and nominal maxima.
+pub(crate) mod quote_layout {
+    use std::{convert::Infallible, mem::size_of, ops::ControlFlow};
+
+    #[derive(Clone, Copy)]
+    pub(crate) struct Profile { pub(crate) bytes: usize, pub(crate) max: usize }
+    pub(crate) const fn add(a: usize, b: usize) -> usize {
+        match a.checked_add(b) { Some(n) => n, None => panic!("models quote control layout overflow") }
+    }
+    pub(crate) const fn mul(a: usize, b: usize) -> usize {
+        match a.checked_mul(b) { Some(n) => n, None => panic!("models quote control layout overflow") }
+    }
+    pub(crate) const fn maximum(a: usize, b: usize) -> usize { if a > b { a } else { b } }
+    impl Profile {
+        pub(crate) const fn times(self, n: usize) -> Self {
+            Self { bytes: mul(self.bytes, n), max: self.max }
+        }
+    }
+    pub(crate) const fn union<const N: usize>(rows: [Profile; N]) -> Profile {
+        let mut result = Profile { bytes: 0, max: 0 };
+        let mut i = 0;
+        while i < N {
+            result.bytes = add(result.bytes, rows[i].bytes);
+            result.max = maximum(result.max, rows[i].max);
+            i += 1;
+        }
+        result
+    }
+    pub(crate) const fn a<T>() -> Profile { Profile { bytes: mul(2, size_of::<T>()), max: size_of::<T>() } }
+    pub(crate) const fn v<T>() -> Profile { Profile { bytes: mul(4, size_of::<T>()), max: size_of::<T>() } }
+    pub(crate) const fn e<T, X>() -> Profile {
+        union([v::<T>(), v::<Option<T>>(), v::<Result<T, X>>(),
+            v::<ControlFlow<Result<Infallible, X>, T>>(), v::<Result<Infallible, X>>()])
+    }
+    pub(crate) const fn b<A, T>() -> Profile { union([a::<A>(), v::<T>()]) }
+    pub(crate) const fn c<A, T, X>() -> Profile { union([a::<A>(), e::<T, X>()]) }
+    pub(crate) const fn map<X, T, Y>() -> Profile { union([a::<(X,)>(), e::<T, Y>()]) }
+    pub(crate) const fn closure<Capture, Args, T>() -> Profile {
+        union([v::<Capture>(), a::<Args>(), v::<T>()])
+    }
+    pub(crate) const fn result_closure<Capture, Args, T, X>() -> Profile {
+        union([v::<Capture>(), a::<Args>(), e::<T, X>()])
+    }
+    pub(crate) const fn ot<T>() -> Profile {
+        union([v::<ControlFlow<Option<Infallible>, T>>(), v::<Option<Infallible>>()])
+    }
+
+    /// Additive typed alignment metadata; existing inventories retain Profile.
+    #[derive(Clone, Copy)]
+    pub(crate) struct AlignedProfile {
+        pub(crate) profile: Profile,
+        pub(crate) max_align: usize,
+    }
+    impl AlignedProfile {
+        pub(crate) const fn slot<T>() -> Self {
+            Self { profile: Profile { bytes: size_of::<T>(), max: size_of::<T>() },
+                max_align: std::mem::align_of::<T>() }
+        }
+        pub(crate) const fn times(self, n: usize) -> Self {
+            Self { profile: self.profile.times(n), max_align: self.max_align }
+        }
+    }
+    pub(crate) const fn aligned_union<const N: usize>(rows: [AlignedProfile; N]) -> AlignedProfile {
+        let mut result = AlignedProfile { profile: Profile { bytes: 0, max: 0 }, max_align: 1 };
+        let mut i = 0;
+        while i < N {
+            result.profile = union([result.profile, rows[i].profile]);
+            result.max_align = maximum(result.max_align, rows[i].max_align);
+            i += 1;
+        }
+        result
+    }
+
+    #[cfg(test)]
+    mod aligned_tests {
+        use super::*;
+        use std::mem::align_of;
+
+        #[repr(align(64))]
+        struct AlignedZst;
+
+        #[test]
+        fn typed_alignment_preserves_nominal_profile_and_empty_repetition() {
+            const EMPTY: AlignedProfile = aligned_union([]);
+            const ZST: AlignedProfile = AlignedProfile::slot::<AlignedZst>();
+            const TUPLE: AlignedProfile = AlignedProfile::slot::<(u8, u64)>();
+            const JOINED: AlignedProfile = aligned_union([ZST, TUPLE.times(3)]);
+            assert_eq!((EMPTY.profile.bytes, EMPTY.profile.max, EMPTY.max_align), (0, 0, 1));
+            assert_eq!((ZST.profile.bytes, ZST.profile.max, ZST.max_align), (0, 0, 64));
+            assert_eq!(JOINED.profile.bytes, 3 * size_of::<(u8, u64)>());
+            assert_eq!(JOINED.profile.max, size_of::<(u8, u64)>());
+            assert_eq!(JOINED.max_align, 64.max(align_of::<(u8, u64)>()));
+            let legacy = union([
+                Profile { bytes: size_of::<AlignedZst>(), max: size_of::<AlignedZst>() },
+                Profile { bytes: size_of::<(u8, u64)>(), max: size_of::<(u8, u64)>() }.times(3),
+            ]);
+            assert_eq!((JOINED.profile.bytes, JOINED.profile.max), (legacy.bytes, legacy.max));
+            let zero = JOINED.times(0);
+            assert_eq!((zero.profile.bytes, zero.profile.max, zero.max_align),
+                (0, JOINED.profile.max, JOINED.max_align));
+            let repeated_empty = EMPTY.times(7);
+            assert_eq!((repeated_empty.profile.bytes, repeated_empty.profile.max, repeated_empty.max_align), (0, 0, 1));
+        }
+
+        #[test]
+        #[should_panic(expected = "models quote control layout overflow")]
+        fn aligned_union_retains_checked_byte_addition() {
+            let huge = AlignedProfile { profile: Profile { bytes: usize::MAX, max: 1 }, max_align: 1 };
+            let _ = aligned_union([huge, AlignedProfile::slot::<u8>()]);
+        }
+
+        #[test]
+        #[should_panic(expected = "models quote control layout overflow")]
+        fn aligned_repetition_retains_checked_byte_multiplication() {
+            let _ = AlignedProfile::slot::<u16>().times(usize::MAX);
+        }
+    }
+}

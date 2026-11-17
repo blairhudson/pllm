@@ -503,6 +503,8 @@ pub mod owned_backing {
 
         fn json(&mut self, value: &Value, depth: usize) -> Result<(), Error> {
             if depth > MAX_JSON_DEPTH {
+    pub mod retirement;
+
                 return Err(Error::JsonDepth);
             }
             match value {
