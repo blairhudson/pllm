@@ -175,8 +175,19 @@ impl ValueQuote {
 
 /// Required real working payload BEFORE fixed scanner/traversal controls exist.
 pub fn bootstrap_bytes() -> Result<usize, Error> {
-    let resources = census::resources_for_slots(CENSUS_SLOTS).map_err(|_| Error::Overflow)?;
-    [
+    BOOTSTRAP_BYTES
+}
+
+// Target-local immutable layout metadata. Store errors too: no build-time panic,
+// fallback, lazy initialization or change to the caller's error chronology.
+const BOOTSTRAP_BYTES: Result<usize, Error> = compute_bootstrap_bytes();
+
+const fn compute_bootstrap_bytes() -> Result<usize, Error> {
+    let resources = match census::const_resources_for_slots(CENSUS_SLOTS) {
+        Ok(resources) => resources,
+        Err(_) => return Err(Error::Overflow),
+    };
+    let terms = [
         size_of::<Scanner<'_, '_, '_>>(),
         resources.logical_workspace_bytes,
         size_of::<ValueQuote>(),
@@ -206,9 +217,93 @@ pub fn bootstrap_bytes() -> Result<usize, Error> {
         size_of::<census::Resources>(),
         size_of::<NumberResources>(),
         size_of::<[u8; 4]>(),
-    ]
-    .into_iter()
-    .try_fold(0, add)
+    ];
+    bootstrap_checked_fold(&terms)
+}
+
+// Same ordered checked left fold as the former iterator/add expansion. Kept
+// private to this const chain; the shared runtime parser add remains unchanged.
+const fn bootstrap_checked_fold(terms: &[usize]) -> Result<usize, Error> {
+    let mut total: usize = 0;
+    let mut index = 0;
+    while index < terms.len() {
+        total = match total.checked_add(terms[index]) {
+            Some(value) => value,
+            None => return Err(Error::Overflow),
+        };
+        index += 1;
+    }
+    Ok(total)
+}
+
+#[cfg(test)]
+mod const_layout_tests {
+    use super::*;
+
+    const FIXED: Result<usize, Error> = compute_bootstrap_bytes();
+    const FOLD_OK: Result<usize, Error> = bootstrap_checked_fold(&[usize::MAX, 0]);
+    const FOLD_OVERFLOW: Result<usize, Error> = bootstrap_checked_fold(&[usize::MAX, 1, 0]);
+
+    #[test]
+    fn stage_a_bootstrap_independent_29_term_typed_oracle() {
+        // Census/Types own independent complete component/phase oracles. This
+        // inventory independently names all 29 importer slots, with a normal
+        // runtime checked fold, not the private const evaluator or its array.
+        let census = census::resources_for_slots(CENSUS_SLOTS).unwrap();
+        let terms: [usize; 29] = [
+            size_of::<Scanner<'_, '_, '_>>(),
+            census.logical_workspace_bytes,
+            size_of::<ValueQuote>(),
+            size_of::<Run<'_>>(),
+            size_of::<ImportedValue>(),
+            size_of::<Limits>(),
+            size_of::<SourceCounts>(),
+            size_of::<Meter>(),
+            size_of::<Builder<'_>>(),
+            size_of::<Resources>(),
+            size_of::<Work>(),
+            size_of::<Result<ValueQuote, Error>>(),
+            size_of::<Result<ImportedValue, NativeError>>(),
+            size_of::<Result<OwnedCharged<ImportedValue>, NativeError>>(),
+            size_of::<Result<OwnedCharged<ImportedValue>, Error>>(),
+            size_of::<Result<Value, Error>>(),
+            size_of::<Option<Error>>(),
+            size_of::<OwnedCharged<ImportedValue>>(),
+            size_of::<OwnedCharged<Vec<u8>>>(),
+            size_of::<OwnedExternalCharge>(),
+            size_of::<ExactBuffer<Span>>(),
+            size_of::<Vec<Span>>(),
+            size_of::<Result<Vec<Span>, Error>>(),
+            size_of::<Result<(SourceCounts, Meter), Error>>(),
+            size_of::<Result<SourceCounts, Error>>(),
+            size_of::<Result<&str, std::str::Utf8Error>>(),
+            size_of::<census::Resources>(),
+            size_of::<NumberResources>(),
+            size_of::<[u8; 4]>(),
+        ];
+        let expected = terms.into_iter().try_fold(0, add);
+        assert_eq!(bootstrap_bytes(), expected);
+        assert_eq!(FIXED, expected);
+        assert_eq!(compute_bootstrap_bytes(), expected);
+    }
+
+    #[test]
+    fn stage_a_bootstrap_const_left_fold_checked_prefixes() {
+        assert_eq!(FOLD_OK, Ok(usize::MAX));
+        assert_eq!(FOLD_OVERFLOW, Err(Error::Overflow));
+        for terms in [
+            &[][..], &[0][..], &[1, 17, 29][..], &[usize::MAX, 0][..],
+            &[usize::MAX, 1, 0][..], &[1, usize::MAX, 0][..],
+        ] {
+            // Every prefix checks left-to-right failure behavior, including a
+            // successful MAX prefix followed by the first overflowing addition.
+            for end in 0..=terms.len() {
+                let prefix = &terms[..end];
+                assert_eq!(bootstrap_checked_fold(prefix),
+                    prefix.iter().copied().try_fold(0, add));
+            }
+        }
+    }
 }
 
 fn payload(counts: SourceCounts) -> Result<usize, Error> {

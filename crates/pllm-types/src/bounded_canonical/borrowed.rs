@@ -542,7 +542,80 @@ fn times(bytes: usize, count: usize) -> Result<usize, Error> {
     bytes.checked_mul(count).ok_or(Error::Overflow)
 }
 
-fn resources(
+// Syntax adapters disappear during expansion. The runtime expansion retains the
+// original calls, Try boundaries, mapper, default, equality and maximum method.
+macro_rules! layout_try {
+    ($value:expr) => { $value? };
+}
+macro_rules! layout_const_try {
+    ($value:expr) => {
+        match $value {
+            Ok(value) => value,
+            Err(error) => return Err(error),
+        }
+    };
+}
+macro_rules! layout_map {
+    ($value:expr) => { $value.map_err(|_| Error::Overflow)? };
+}
+macro_rules! layout_const_map {
+    ($value:expr) => {
+        match $value {
+            Ok(value) => value,
+            Err(_) => return Err(Error::Overflow),
+        }
+    };
+}
+macro_rules! layout_phases {
+    () => { Phases::default() };
+}
+macro_rules! layout_const_phases {
+    () => { Phases { quotation: 0, construction: 0, entry: 0, number: 0,
+        selection: 0, delivery: 0, equality: 0, completion: 0 } };
+}
+macro_rules! layout_sorted {
+    ($order:expr) => { $order == Order::Sorted };
+}
+macro_rules! layout_const_sorted {
+    ($order:expr) => { match $order { Order::Sorted => true, Order::Native => false } };
+}
+macro_rules! layout_maximum {
+    ($phases:expr) => { $phases.maximum() };
+}
+macro_rules! layout_const_maximum {
+    ($phases:expr) => {{
+        let phases = $phases;
+        let values = [phases.quotation, phases.construction, phases.entry,
+            phases.number, phases.selection, phases.delivery, phases.equality,
+            phases.completion];
+        let mut maximum = values[0];
+        let mut index = 1;
+        while index < values.len() {
+            if values[index] > maximum { maximum = values[index]; }
+            index += 1;
+        }
+        maximum
+    }};
+}
+
+const fn layout_const_add(a: usize, b: usize) -> Result<usize, Error> {
+    match a.checked_add(b) {
+        Some(value) => Ok(value),
+        None => Err(Error::Overflow),
+    }
+}
+const fn layout_const_times(bytes: usize, count: usize) -> Result<usize, Error> {
+    match bytes.checked_mul(count) {
+        Some(value) => Ok(value),
+        None => Err(Error::Overflow),
+    }
+}
+
+// One field/phase formula; only language spelling differs for const evaluation.
+macro_rules! define_layout_resources {
+    ([$($qualifier:tt)*] fn $name:ident; $try:ident, $map:ident, $zero:ident,
+        $sorted:ident, $maximum:ident, $add:ident, $times:ident) => {
+$($qualifier)* fn $name(
     frame_slots: usize,
     order: Order,
     state_bytes: usize,
@@ -552,11 +625,10 @@ fn resources(
     equality: bool,
 ) -> Result<Resources, Error> {
     // Layout checks isize/size/alignment constraints before caller construction.
-    let layout = match order {
+    let layout = $map!(match order {
         Order::Sorted => std::alloc::Layout::array::<Frame<'_>>(frame_slots),
         Order::Native => std::alloc::Layout::array::<NativeFrame<'_>>(frame_slots),
-    }
-    .map_err(|_| Error::Overflow)?;
+    });
     let (frame_size, frame_alignment) = match order {
         Order::Sorted => (size_of::<Frame<'_>>(), std::mem::align_of::<Frame<'_>>()),
         Order::Native => (
@@ -572,10 +644,10 @@ fn resources(
         state_bytes,
         operation_result_bytes: result_bytes,
         visit_result_bytes: size_of::<Result<Option<Event<'_>>, Error>>(),
-        formatter_bytes: add(
+        formatter_bytes: $try!($add(
             size_of::<NumberCounter<'_>>(),
             size_of::<CompactFormatter>(),
-        )?,
+        )),
         // Borrowed numeric counting no longer uses format_args!: no hidden
         // core::fmt::rt::Argument pointee array to guess from Arguments' size.
         format_arguments_bytes: 0,
@@ -586,10 +658,10 @@ fn resources(
         arithmetic_result_bytes: size_of::<Result<usize, Error>>(),
         layout_bytes: size_of::<std::alloc::Layout>(),
         layout_result_bytes: size_of::<Result<std::alloc::Layout, std::alloc::LayoutError>>(),
-        quote_bytes: add(
+        quote_bytes: $try!($add(
             size_of::<Resources>(),
             size_of::<Result<Resources, Error>>(),
-        )?,
+        )),
         cursor_result_bytes: size_of::<Result<Cursor<'_, '_>, Error>>(),
         ordering_result_bytes: size_of::<Result<Ordering, Error>>(),
         iterator_bytes: size_of::<serde_json::map::Iter<'_>>(),
@@ -600,41 +672,41 @@ fn resources(
         optional_event_pair_bytes: size_of::<(Option<Event<'_>>, Option<Event<'_>>)>(),
         same_event_arguments_bytes: size_of::<(Event<'_>, Event<'_>, &mut Meter)>(),
         // Trait forwarding -> Meter::compare (with key flag) -> str::cmp.
-        comparison_arguments_bytes: add(
-            add(
+        comparison_arguments_bytes: $try!($add(
+            $try!($add(
                 size_of::<(&mut Meter, &str, &str)>(),
                 size_of::<(&mut Meter, &str, &str, bool)>(),
-            )?,
+            )),
             size_of::<(&str, &str)>(),
-        )?,
+        )),
         cursor_arguments_bytes: size_of::<(&mut Cursor<'_, '_>, &mut Meter)>(),
-        workspace_argument_bytes: add(size_of::<Workspace<'_, '_>>(), size_of::<&Value>())?,
+        workspace_argument_bytes: $try!($add(size_of::<Workspace<'_, '_>>(), size_of::<&Value>())),
         // reset constructs a Frame; native reset additionally constructs a
         // NativeFrame. Both slots are explicit, not mistaken for live input.
-        frame_transition_bytes: add(size_of::<Frame<'_>>(), frame_size)?,
-        number_arguments_bytes: add(
+        frame_transition_bytes: $try!($add(size_of::<Frame<'_>>(), frame_size)),
+        number_arguments_bytes: $try!($add(
             size_of::<(&Number, &mut NumberCounter<'_>)>(),
             size_of::<u64>(),
-        )?,
-        number_write_arguments_bytes: add(
+        )),
+        number_write_arguments_bytes: $try!($add(
             size_of::<(&mut NumberCounter<'_>, &[u8])>(),
             size_of::<(&mut NumberCounter<'_>, usize)>(),
-        )?,
+        )),
         selection_arguments_bytes: size_of::<(
             &mut Selection<'_>,
             &serde_json::Map<String, Value>,
             Option<&str>,
             &mut Meter,
         )>(),
-        number_probe_bytes: add(
-            add(size_of::<Option<u64>>(), size_of::<Option<i64>>())?,
+        number_probe_bytes: $try!($add(
+            $try!($add(size_of::<Option<u64>>(), size_of::<Option<i64>>())),
             size_of::<Option<f64>>(),
-        )?,
+        )),
         formatter_write_result_bytes: size_of::<io::Result<usize>>(),
         formatter_error_bytes: size_of::<io::Error>(),
         constructor_result_bytes,
         completion_value_bytes,
-        phases: Phases::default(),
+        phases: $zero!(),
         logical_workspace_bytes: 0,
         dependency_buffer_bytes: None,
         dependency_call_stack_bytes: None,
@@ -642,100 +714,108 @@ fn resources(
     // Quote creation/check forwarding: local Resources + returned Resources,
     // producer/caller Result slots, Layout and its Result, checked sum results,
     // and the by-value Limits argument. No temporary accounting-term array.
-    let phase = add(times(quote.quote_bytes, 2)?, quote.layout_bytes)?;
-    let phase = add(phase, quote.layout_result_bytes)?;
-    let phase = add(phase, times(quote.arithmetic_result_bytes, 2)?)?;
-    quote.phases.quotation = add(phase, size_of::<Limits>())?;
+    let phase = $try!($add($try!($times(quote.quote_bytes, 2)), quote.layout_bytes));
+    let phase = $try!($add(phase, quote.layout_result_bytes));
+    let phase = $try!($add(phase, $try!($times(quote.arithmetic_result_bytes, 2))));
+    quote.phases.quotation = $try!($add(phase, size_of::<Limits>()));
 
     // Cursor::new return + caller ? Result; constructor result; Workspace/root
     // argument copy and frame initializer/reset slots. Equality builds two cursors
     // sequentially: their retained owners already reside in state_bytes.
-    let phase = add(
-        times(quote.cursor_result_bytes, 2)?,
-        times(quote.constructor_result_bytes, 2)?,
-    )?;
-    let phase = add(phase, quote.workspace_argument_bytes)?;
-    let phase = add(phase, quote.frame_transition_bytes)?;
-    quote.phases.construction = add(phase, quote.unit_result_bytes)?;
+    let phase = $try!($add(
+        $try!($times(quote.cursor_result_bytes, 2)),
+        $try!($times(quote.constructor_result_bytes, 2)),
+    ));
+    let phase = $try!($add(phase, quote.workspace_argument_bytes));
+    let phase = $try!($add(phase, quote.frame_transition_bytes));
+    quote.phases.construction = $try!($add(phase, quote.unit_result_bytes));
 
     // Scalar/container entry: producer Event -> Option -> return Result,
     // text_limit/bytes/text unit returns, node/byte checked arithmetic, and
     // native iterator construction on object entry. These are separate logical
     // slots, not space borrowed from Result<Cursor> or Resources padding.
-    let phase = add(size_of::<Event<'_>>(), size_of::<Option<Event<'_>>>())?;
-    let phase = add(phase, quote.visit_result_bytes)?;
-    let phase = add(phase, times(quote.unit_result_bytes, 3)?)?;
-    let phase = add(phase, times(quote.arithmetic_result_bytes, 2)?)?;
-    let phase = add(phase, quote.iterator_bytes)?;
-    quote.phases.entry = add(phase, quote.iterator_option_bytes)?;
+    let phase = $try!($add(size_of::<Event<'_>>(), size_of::<Option<Event<'_>>>()));
+    let phase = $try!($add(phase, quote.visit_result_bytes));
+    let phase = $try!($add(phase, $try!($times(quote.unit_result_bytes, 3))));
+    let phase = $try!($add(phase, $try!($times(quote.arithmetic_result_bytes, 2))));
+    let phase = $try!($add(phase, quote.iterator_bytes));
+    quote.phases.entry = $try!($add(phase, quote.iterator_option_bytes));
 
     // NumberCounter local, primitive argument/probe slots, formatter return and
     // caller result, Write::write return + caller write_all propagation, builtin
     // io error binding, NumberCounter::number and Cursor ? unit result copies.
-    let phase = add(quote.formatter_bytes, quote.number_arguments_bytes)?;
-    let phase = add(phase, quote.number_write_arguments_bytes)?;
-    let phase = add(phase, quote.number_probe_bytes)?;
-    let phase = add(phase, times(quote.format_result_bytes, 2)?)?;
-    let phase = add(phase, times(quote.formatter_write_result_bytes, 2)?)?;
-    let phase = add(phase, quote.formatter_error_bytes)?;
-    let phase = add(phase, times(quote.unit_result_bytes, 2)?)?;
-    let phase = add(phase, quote.arithmetic_result_bytes)?;
-    quote.phases.number = add(phase, quote.visit_result_bytes)?;
+    let phase = $try!($add(quote.formatter_bytes, quote.number_arguments_bytes));
+    let phase = $try!($add(phase, quote.number_write_arguments_bytes));
+    let phase = $try!($add(phase, quote.number_probe_bytes));
+    let phase = $try!($add(phase, $try!($times(quote.format_result_bytes, 2))));
+    let phase = $try!($add(phase, $try!($times(quote.formatter_write_result_bytes, 2))));
+    let phase = $try!($add(phase, quote.formatter_error_bytes));
+    let phase = $try!($add(phase, $try!($times(quote.unit_result_bytes, 2))));
+    let phase = $try!($add(phase, quote.arithmetic_result_bytes));
+    quote.phases.number = $try!($add(phase, quote.visit_result_bytes));
 
     // Iterator construction/Some temporary, next/and_then/selected()/local
     // Option-entry copies; candidate/best/final tuple bindings. Sorted comparisons
     // additionally return through Meter, KeyMeter forwarding, and selector ?.
-    let phase = add(quote.iterator_bytes, quote.iterator_option_bytes)?;
-    let phase = add(phase, times(quote.iterator_entry_result_bytes, 4)?)?;
-    let phase = add(phase, times(quote.entry_binding_bytes, 3)?)?;
+    let phase = $try!($add(quote.iterator_bytes, quote.iterator_option_bytes));
+    let phase = $try!($add(phase, $try!($times(quote.iterator_entry_result_bytes, 4))));
+    let phase = $try!($add(phase, $try!($times(quote.entry_binding_bytes, 3))));
     // Meter leaf -> KeyMeter forwarding -> Selection::run -> caller ?.
-    let phase = add(phase, times(quote.unit_result_bytes, 4)?)?;
-    let phase = add(phase, quote.arithmetic_result_bytes)?;
-    let phase = add(phase, quote.selection_arguments_bytes)?;
-    quote.phases.selection = if order == Order::Sorted {
-        add(
-            add(phase, times(quote.ordering_result_bytes, 3)?)?,
+    let phase = $try!($add(phase, $try!($times(quote.unit_result_bytes, 4))));
+    let phase = $try!($add(phase, quote.arithmetic_result_bytes));
+    let phase = $try!($add(phase, quote.selection_arguments_bytes));
+    quote.phases.selection = if $sorted!(order) {
+        $try!($add(
+            $try!($add(phase, $try!($times(quote.ordering_result_bytes, 3)))),
             quote.comparison_arguments_bytes,
-        )?
+        ))
     } else {
         phase
     };
 
     // Cursor return -> next_event local result -> preflight/consumer ? result;
     // caller/callee cursor argument slots plus push's frame construction.
-    let phase = add(
-        times(quote.visit_result_bytes, 3)?,
-        times(quote.cursor_arguments_bytes, 2)?,
-    )?;
-    let phase = add(phase, quote.frame_transition_bytes)?;
-    let phase = add(phase, times(quote.unit_result_bytes, 2)?)?;
-    quote.phases.delivery = add(phase, quote.arithmetic_result_bytes)?;
+    let phase = $try!($add(
+        $try!($times(quote.visit_result_bytes, 3)),
+        $try!($times(quote.cursor_arguments_bytes, 2)),
+    ));
+    let phase = $try!($add(phase, quote.frame_transition_bytes));
+    let phase = $try!($add(phase, $try!($times(quote.unit_result_bytes, 2))));
+    quote.phases.delivery = $try!($add(phase, quote.arithmetic_result_bytes));
 
     if equality {
         // match optional-event tuple, caller Some bindings, actual same_event
         // arguments (including meter reference), and callee match Event tuple.
-        let phase = add(
+        let phase = $try!($add(
             quote.optional_event_pair_bytes,
-            times(quote.event_pair_bytes, 2)?,
-        )?;
-        let phase = add(phase, quote.same_event_arguments_bytes)?;
-        let phase = add(phase, times(quote.leaf_result_bytes, 2)?)?;
-        let phase = add(phase, quote.comparison_arguments_bytes)?;
-        let phase = add(phase, times(quote.ordering_result_bytes, 2)?)?;
-        let phase = add(phase, quote.unit_result_bytes)?;
-        quote.phases.equality = add(phase, quote.arithmetic_result_bytes)?;
+            $try!($times(quote.event_pair_bytes, 2)),
+        ));
+        let phase = $try!($add(phase, quote.same_event_arguments_bytes));
+        let phase = $try!($add(phase, $try!($times(quote.leaf_result_bytes, 2))));
+        let phase = $try!($add(phase, quote.comparison_arguments_bytes));
+        let phase = $try!($add(phase, $try!($times(quote.ordering_result_bytes, 2))));
+        let phase = $try!($add(phase, quote.unit_result_bytes));
+        quote.phases.equality = $try!($add(phase, quote.arithmetic_result_bytes));
     }
     // Completed token/value plus producer and caller Result slots.
-    quote.phases.completion = add(
+    quote.phases.completion = $try!($add(
         quote.completion_value_bytes,
-        times(quote.operation_result_bytes, 2)?,
-    )?;
-    quote.logical_workspace_bytes = add(
-        add(quote.frame_bytes, quote.state_bytes)?,
-        quote.phases.maximum(),
-    )?;
+        $try!($times(quote.operation_result_bytes, 2)),
+    ));
+    quote.logical_workspace_bytes = $try!($add(
+        $try!($add(quote.frame_bytes, quote.state_bytes)),
+        $maximum!(quote.phases),
+    ));
     Ok(quote)
 }
+    };
+}
+
+define_layout_resources!([] fn resources; layout_try, layout_map, layout_phases,
+    layout_sorted, layout_maximum, add, times);
+define_layout_resources!([const] fn const_resources; layout_const_try, layout_const_map,
+    layout_const_phases, layout_const_sorted, layout_const_maximum,
+    layout_const_add, layout_const_times);
 
 fn check_resources(resources: Resources, limits: Limits) -> Result<(), Error> {
     if resources.logical_workspace_bytes > limits.max_workspace_bytes {
@@ -761,6 +841,22 @@ pub struct Traversal<'a, 'w> {
     failed: bool,
 }
 
+macro_rules! traversal_layout {
+    ([$($qualifier:tt)*] $name:ident, $resources:ident, $a:lifetime) => {
+        $($qualifier)* fn $name(slots: usize, order: Order) -> Result<Resources, Error> {
+            $resources(
+                slots,
+                order,
+                size_of::<Self>(),
+                size_of::<Result<Preflight<$a>, Error>>(),
+                size_of::<Result<Self, Error>>(),
+                size_of::<Preflight<$a>>(),
+                false,
+            )
+        }
+    };
+}
+
 impl<'a, 'w> Traversal<'a, 'w> {
     /// Quote before allocating a caller stack or constructing this traversal.
     /// Also covers the optional preflight token and its return Result.
@@ -772,17 +868,14 @@ impl<'a, 'w> Traversal<'a, 'w> {
         Self::resources_for_order(slots, Order::Native)
     }
 
-    fn resources_for_order(slots: usize, order: Order) -> Result<Resources, Error> {
-        resources(
-            slots,
-            order,
-            size_of::<Self>(),
-            size_of::<Result<Preflight<'a>, Error>>(),
-            size_of::<Result<Self, Error>>(),
-            size_of::<Preflight<'a>>(),
-            false,
-        )
+    /// Const quotation for immutable layout metadata, not runtime admission.
+    /// Dynamic traversal construction continues to use its original evaluator.
+    pub const fn const_resources_for_native_slots(slots: usize) -> Result<Resources, Error> {
+        Self::const_resources_for_order(slots, Order::Native)
     }
+
+    traversal_layout!([] resources_for_order, resources, 'a);
+    traversal_layout!([const] const_resources_for_order, const_resources, 'a);
 
     pub fn new(
         value: &'a Value,
@@ -1037,3 +1130,172 @@ pub fn structural_eq<'a>(
 #[cfg(test)]
 #[path = "borrowed_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod const_layout_tests {
+    use super::*;
+    use std::alloc::Layout;
+
+    const NATIVE: Result<Resources, Error> =
+        Traversal::const_resources_for_native_slots(17);
+    const SORTED: Result<Resources, Error> =
+        Traversal::const_resources_for_order(17, Order::Sorted);
+    const EQUALITY: Result<Resources, Error> = const_resources(
+        17, Order::Sorted, size_of::<EqualityState<'static, 'static>>(),
+        size_of::<Result<Equality<'static>, Error>>(), 0, size_of::<Equality<'static>>(), true,
+    );
+    const TOO_LARGE: Result<Resources, Error> =
+        Traversal::const_resources_for_native_slots(usize::MAX);
+
+    // Independent typed inventory, not Resources fields or production arithmetic
+    // helpers. Flat sums deliberately differ from the production nesting.
+    fn oracle(slots: usize, order: Order, equality: bool) -> Result<Resources, Error> {
+        let (layout, frame_size, frame_alignment) = match order {
+            Order::Sorted => (
+                Layout::array::<Frame<'_>>(slots),
+                size_of::<Frame<'_>>(), std::mem::align_of::<Frame<'_>>(),
+            ),
+            Order::Native => (
+                Layout::array::<NativeFrame<'_>>(slots),
+                size_of::<NativeFrame<'_>>(), std::mem::align_of::<NativeFrame<'_>>(),
+            ),
+        };
+        let layout = layout.map_err(|_| Error::Overflow)?;
+        let (state_bytes, operation_result_bytes, constructor_result_bytes, completion_value_bytes) =
+            if equality {
+                (size_of::<EqualityState<'_, '_>>(), size_of::<Result<Equality<'_>, Error>>(),
+                    0, size_of::<Equality<'_>>())
+            } else {
+                (size_of::<Traversal<'_, '_>>(), size_of::<Result<Preflight<'_>, Error>>(),
+                    size_of::<Result<Traversal<'_, '_>, Error>>(), size_of::<Preflight<'_>>())
+            };
+        let quotation = 2 * size_of::<Resources>() + 2 * size_of::<Result<Resources, Error>>()
+            + size_of::<Layout>() + size_of::<Result<Layout, std::alloc::LayoutError>>()
+            + 2 * size_of::<Result<usize, Error>>() + size_of::<Limits>();
+        let construction = 2 * size_of::<Result<Cursor<'_, '_>, Error>>()
+            + 2 * constructor_result_bytes + size_of::<Workspace<'_, '_>>()
+            + size_of::<&Value>() + size_of::<Frame<'_>>() + frame_size
+            + size_of::<Result<(), Error>>();
+        let entry = size_of::<Event<'_>>() + size_of::<Option<Event<'_>>>()
+            + size_of::<Result<Option<Event<'_>>, Error>>() + 3 * size_of::<Result<(), Error>>()
+            + 2 * size_of::<Result<usize, Error>>() + size_of::<serde_json::map::Iter<'_>>()
+            + size_of::<Option<serde_json::map::Iter<'_>>>();
+        let number = size_of::<NumberCounter<'_>>() + size_of::<CompactFormatter>()
+            + size_of::<(&Number, &mut NumberCounter<'_>)>() + size_of::<u64>()
+            + size_of::<(&mut NumberCounter<'_>, &[u8])>()
+            + size_of::<(&mut NumberCounter<'_>, usize)>()
+            + size_of::<Option<u64>>() + size_of::<Option<i64>>() + size_of::<Option<f64>>()
+            + 2 * size_of::<io::Result<()>>() + 2 * size_of::<io::Result<usize>>()
+            + size_of::<io::Error>() + 2 * size_of::<Result<(), Error>>()
+            + size_of::<Result<usize, Error>>() + size_of::<Result<Option<Event<'_>>, Error>>();
+        let comparison = size_of::<(&mut Meter, &str, &str)>()
+            + size_of::<(&mut Meter, &str, &str, bool)>() + size_of::<(&str, &str)>();
+        let selection = size_of::<serde_json::map::Iter<'_>>()
+            + size_of::<Option<serde_json::map::Iter<'_>>>()
+            + 4 * size_of::<Option<(&String, &Value)>>() + 3 * size_of::<(&String, &Value)>()
+            + 4 * size_of::<Result<(), Error>>() + size_of::<Result<usize, Error>>()
+            + size_of::<(&mut Selection<'_>, &serde_json::Map<String, Value>, Option<&str>, &mut Meter)>()
+            + if order == Order::Sorted { 3 * size_of::<Result<Ordering, Error>>() + comparison } else { 0 };
+        let delivery = 3 * size_of::<Result<Option<Event<'_>>, Error>>()
+            + 2 * size_of::<(&mut Cursor<'_, '_>, &mut Meter)>()
+            + size_of::<Frame<'_>>() + frame_size + 2 * size_of::<Result<(), Error>>()
+            + size_of::<Result<usize, Error>>();
+        let equality_phase = if equality {
+            size_of::<(Option<Event<'_>>, Option<Event<'_>>)>()
+                + 2 * size_of::<(Event<'_>, Event<'_>)>()
+                + size_of::<(Event<'_>, Event<'_>, &mut Meter)>()
+                + 2 * size_of::<Result<bool, Error>>() + comparison
+                + 2 * size_of::<Result<Ordering, Error>>() + size_of::<Result<(), Error>>()
+                + size_of::<Result<usize, Error>>()
+        } else { 0 };
+        let completion = completion_value_bytes + 2 * operation_result_bytes;
+        let peak = [quotation, construction, entry, number, selection, delivery,
+            equality_phase, completion].into_iter().max().unwrap();
+        let logical_workspace_bytes = layout.size().checked_add(state_bytes)
+            .and_then(|value| value.checked_add(peak)).ok_or(Error::Overflow)?;
+        Ok(Resources {
+            order, frame_size, frame_alignment, frame_bytes: layout.size(), state_bytes,
+            operation_result_bytes,
+            visit_result_bytes: size_of::<Result<Option<Event<'_>>, Error>>(),
+            formatter_bytes: size_of::<NumberCounter<'_>>() + size_of::<CompactFormatter>(),
+            format_arguments_bytes: 0, format_argument_backing_bytes: 0,
+            format_result_bytes: size_of::<io::Result<()>>(),
+            unit_result_bytes: size_of::<Result<(), Error>>(),
+            leaf_result_bytes: size_of::<Result<bool, Error>>(),
+            arithmetic_result_bytes: size_of::<Result<usize, Error>>(),
+            layout_bytes: size_of::<Layout>(),
+            layout_result_bytes: size_of::<Result<Layout, std::alloc::LayoutError>>(),
+            quote_bytes: size_of::<Resources>() + size_of::<Result<Resources, Error>>(),
+            cursor_result_bytes: size_of::<Result<Cursor<'_, '_>, Error>>(),
+            ordering_result_bytes: size_of::<Result<Ordering, Error>>(),
+            iterator_bytes: size_of::<serde_json::map::Iter<'_>>(),
+            iterator_option_bytes: size_of::<Option<serde_json::map::Iter<'_>>>(),
+            iterator_entry_result_bytes: size_of::<Option<(&String, &Value)>>(),
+            entry_binding_bytes: size_of::<(&String, &Value)>(),
+            event_pair_bytes: size_of::<(Event<'_>, Event<'_>)>(),
+            optional_event_pair_bytes: size_of::<(Option<Event<'_>>, Option<Event<'_>>)>(),
+            same_event_arguments_bytes: size_of::<(Event<'_>, Event<'_>, &mut Meter)>(),
+            comparison_arguments_bytes: comparison,
+            cursor_arguments_bytes: size_of::<(&mut Cursor<'_, '_>, &mut Meter)>(),
+            workspace_argument_bytes: size_of::<Workspace<'_, '_>>() + size_of::<&Value>(),
+            frame_transition_bytes: size_of::<Frame<'_>>() + frame_size,
+            number_arguments_bytes: size_of::<(&Number, &mut NumberCounter<'_>)>() + size_of::<u64>(),
+            number_write_arguments_bytes: size_of::<(&mut NumberCounter<'_>, &[u8])>()
+                + size_of::<(&mut NumberCounter<'_>, usize)>(),
+            selection_arguments_bytes: size_of::<(&mut Selection<'_>, &serde_json::Map<String, Value>, Option<&str>, &mut Meter)>(),
+            number_probe_bytes: size_of::<Option<u64>>() + size_of::<Option<i64>>() + size_of::<Option<f64>>(),
+            formatter_write_result_bytes: size_of::<io::Result<usize>>(),
+            formatter_error_bytes: size_of::<io::Error>(),
+            constructor_result_bytes, completion_value_bytes,
+            phases: Phases { quotation, construction, entry, number, selection, delivery,
+                equality: equality_phase, completion },
+            logical_workspace_bytes, dependency_buffer_bytes: None, dependency_call_stack_bytes: None,
+        })
+    }
+
+    #[test]
+    fn stage_a_complete_typed_layout_oracle_native_sorted_and_equality() {
+        assert_eq!(NATIVE, oracle(17, Order::Native, false));
+        assert_eq!(SORTED, oracle(17, Order::Sorted, false));
+        assert_eq!(EQUALITY, oracle(17, Order::Sorted, true));
+        assert_eq!(TOO_LARGE, Err(Error::Overflow));
+        for order in [Order::Native, Order::Sorted] {
+            let stride = match order {
+                Order::Native => size_of::<NativeFrame<'_>>(),
+                Order::Sorted => size_of::<Frame<'_>>(),
+            };
+            let last = isize::MAX as usize / stride;
+            for slots in [0, 1, 17, last, last + 1, usize::MAX] {
+                let expected = oracle(slots, order, false);
+                assert_eq!(Traversal::resources_for_order(slots, order), expected);
+                assert_eq!(Traversal::const_resources_for_order(slots, order), expected);
+                let expected = oracle(slots, order, true);
+                assert_eq!(resources(slots, order, size_of::<EqualityState<'_, '_>>(),
+                    size_of::<Result<Equality<'_>, Error>>(), 0, size_of::<Equality<'_>>(), true), expected);
+                assert_eq!(const_resources(slots, order, size_of::<EqualityState<'_, '_>>(),
+                    size_of::<Result<Equality<'_>, Error>>(), 0, size_of::<Equality<'_>>(), true), expected);
+            }
+        }
+        assert_eq!(equality_resources_for_slots(1, 16), oracle(17, Order::Sorted, true));
+        assert_eq!(equality_resources_for_slots(usize::MAX, 1), Err(Error::Overflow));
+    }
+
+    #[test]
+    fn stage_a_const_checked_errors_and_first_propagation() {
+        const fn first(value: Result<usize, Error>) -> Result<usize, Error> {
+            let _ = layout_const_try!(value);
+            layout_const_times(usize::MAX, 2)
+        }
+        fn runtime_first(value: Result<usize, Error>) -> Result<usize, Error> {
+            let _ = layout_try!(value);
+            times(usize::MAX, 2)
+        }
+        const FIRST: Result<usize, Error> = first(Err(Error::NodeLimit));
+        assert_eq!(FIRST, Err(Error::NodeLimit));
+        assert_eq!(runtime_first(Err(Error::NodeLimit)), FIRST);
+        assert_eq!(layout_const_add(usize::MAX, 1), add(usize::MAX, 1));
+        assert_eq!(layout_const_times(usize::MAX, 2), times(usize::MAX, 2));
+        assert_eq!(const_resources(0, Order::Native, usize::MAX, 0, 0, 0, false),
+            Err(Error::Overflow));
+    }
+}

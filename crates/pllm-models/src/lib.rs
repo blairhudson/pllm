@@ -708,7 +708,9 @@ pub mod owned_backing {
             Error::Backing(error)
         }
 
-        fn json_error(error: json::Error) -> Error {
+        macro_rules! census_json_error {
+            ([$($qualifier:tt)*] $name:ident) => {
+        $($qualifier)* fn $name(error: json::Error) -> Error {
             match error {
                 json::Error::Overflow => Error::Overflow,
                 json::Error::WorkLimit => Error::WorkLimit,
@@ -717,6 +719,10 @@ pub mod owned_backing {
                 other => Error::Json(other),
             }
         }
+            };
+        }
+        census_json_error!([] json_error);
+        census_json_error!([const] const_json_error);
 
         fn add(a: usize, b: usize) -> Result<usize, Error> {
             a.checked_add(b).ok_or(Error::Overflow)
@@ -893,123 +899,169 @@ pub mod owned_backing {
             }
         }
 
+        // These adapters expand to the legacy runtime expression syntax, or to
+        // const-safe spelling. They introduce no runtime dispatch/callback layer.
+        macro_rules! census_try {
+            ($value:expr) => { $value? };
+        }
+        macro_rules! census_const_try {
+            ($value:expr) => {
+                match $value {
+                    Ok(value) => value,
+                    Err(error) => return Err(error),
+                }
+            };
+        }
+        macro_rules! census_map {
+            ($value:expr) => { $value.map_err(json_error)? };
+        }
+        macro_rules! census_const_map {
+            ($value:expr) => {
+                match $value {
+                    Ok(value) => value,
+                    Err(error) => return Err(const_json_error(error)),
+                }
+            };
+        }
+        macro_rules! census_mul {
+            ($value:expr, $count:expr) => {
+                $value.checked_mul($count).ok_or(Error::Overflow)
+            };
+        }
+        macro_rules! census_const_mul {
+            ($value:expr, $count:expr) => {
+                match $value.checked_mul($count) {
+                    Some(value) => Ok(value),
+                    None => Err(Error::Overflow),
+                }
+            };
+        }
+        const fn const_add(a: usize, b: usize) -> Result<usize, Error> {
+            match a.checked_add(b) {
+                Some(value) => Ok(value),
+                None => Err(Error::Overflow),
+            }
+        }
+        const fn const_twice(n: usize) -> Result<usize, Error> {
+            census_const_mul!(n, 2)
+        }
+
+        macro_rules! census_layout {
+            ([$($qualifier:tt)*] $name:ident; $try:ident, $map:ident,
+                $mul:ident, $add:ident, $twice:ident, $native:ident, $header:ident) => {
         /// Call BEFORE constructing caller frame storage or the census session.
         /// Actual construction re-quotes the actual typed pool, including unused
         /// slots. This quote does not price a Vec allocator or user factory.
-        pub fn resources_for_slots(slots: usize) -> Result<Resources, Error> {
-            let json = Traversal::resources_for_native_slots(slots).map_err(json_error)?;
+        pub $($qualifier)* fn $name(slots: usize) -> Result<Resources, Error> {
+            let json = $map!(Traversal::$native(slots));
             let mut quote = Resources {
                 json,
                 control_bytes: size_of::<Census<'_, '_>>(),
                 backing_counter_bytes: size_of::<Backing>(),
                 // IntoIterator producer and retained loop iterator for every
                 // concrete DTO loop; sum all loop kinds conservatively.
-                dto_iterators_bytes: twice(add(
-                    add(
+                dto_iterators_bytes: $try!($twice($try!($add(
+                    $try!($add(
                         size_of::<slice::Iter<'_, AppliedMethod>>(),
                         size_of::<slice::Iter<'_, ModelOperation>>(),
-                    )?,
-                    add(
+                    )),
+                    $try!($add(
                         size_of::<slice::Iter<'_, String>>(),
-                        add(
+                        $try!($add(
                             size_of::<std::array::IntoIter<&Vec<StateTensor>, 2>>(),
                             size_of::<slice::Iter<'_, StateTensor>>(),
-                        )?,
-                    )?,
-                )?)?,
+                        )),
+                    )),
+                )))),
                 // For-loop next producer/match results and element bindings, plus the actual
                 // two-state-collection array consumed by IntoIter.
-                dto_entry_slots_bytes: add(
-                    add(
-                        twice(size_of::<Option<&AppliedMethod>>())? + size_of::<&AppliedMethod>(),
-                        twice(size_of::<Option<&ModelOperation>>())? + size_of::<&ModelOperation>(),
-                    )?,
-                    add(
-                        twice(size_of::<Option<&String>>())? + size_of::<&String>(),
-                        add(
+                dto_entry_slots_bytes: $try!($add(
+                    $try!($add(
+                        $try!($twice(size_of::<Option<&AppliedMethod>>())) + size_of::<&AppliedMethod>(),
+                        $try!($twice(size_of::<Option<&ModelOperation>>())) + size_of::<&ModelOperation>(),
+                    )),
+                    $try!($add(
+                        $try!($twice(size_of::<Option<&String>>())) + size_of::<&String>(),
+                        $try!($add(
                             size_of::<[&Vec<StateTensor>; 2]>()
-                                + twice(size_of::<Option<&Vec<StateTensor>>>())?
+                                + $try!($twice(size_of::<Option<&Vec<StateTensor>>>() ))
                                 + size_of::<&Vec<StateTensor>>(),
-                            twice(size_of::<Option<&StateTensor>>())? + size_of::<&StateTensor>(),
-                        )?,
-                    )?,
-                )?,
+                            $try!($twice(size_of::<Option<&StateTensor>>())) + size_of::<&StateTensor>(),
+                        )),
+                    )),
+                )),
                 // run/plan/graph/json headers and the event handler; source-level
                 // argument copies, not machine ABI or callback-stack estimates.
-                argument_bytes: add(
-                    add(
-                        add(
+                argument_bytes: $try!($add(
+                    $try!($add(
+                        $try!($add(
                             size_of::<(&mut Census<'_, '_>, Input<'_>)>(),
                             size_of::<(&mut Census<'_, '_>, &DecoderPlan, &mut Backing)>(),
-                        )?,
-                        add(
+                        )),
+                        $try!($add(
                             size_of::<(&mut Census<'_, '_>, &DecoderGraph, &mut Backing)>(),
-                            add(
+                            $try!($add(
                                 size_of::<(&mut Census<'_, '_>, &Value, &mut Backing)>(),
                                 size_of::<(&mut Backing, &mut Option<Header>, Event<'_>)>(),
-                            )?,
-                        )?,
-                    )?,
-                    add(
+                            )),
+                        )),
+                    )),
+                    $try!($add(
                         size_of::<(&mut Census<'_, '_>, &DecoderPlan)>(),
-                        add(
+                        $try!($add(
                             size_of::<(&mut Census<'_, '_>, &DecoderGraph)>(),
                             size_of::<(&mut Census<'_, '_>, &Value)>(),
-                        )?,
-                    )?,
-                )?,
-                json_limits_bytes: twice(size_of::<json::Limits>())?,
-                event_slots_bytes: add(
-                    twice(size_of::<Result<Option<Event<'_>>, json::Error>>())?,
-                    size_of::<Event<'_>>()
-                        .checked_mul(3)
-                        .ok_or(Error::Overflow)?,
-                )?,
-                usage_transition_bytes: add(
-                    twice(size_of::<json::Usage>())?,
-                    twice(size_of::<Usage>())?,
-                )?,
+                        )),
+                    )),
+                )),
+                json_limits_bytes: $try!($twice(size_of::<json::Limits>())),
+                event_slots_bytes: $try!($add(
+                    $try!($twice(size_of::<Result<Option<Event<'_>>, json::Error>>())),
+                    $try!($mul!(size_of::<Event<'_>>(), 3)),
+                )),
+                usage_transition_bytes: $try!($add(
+                    $try!($twice(size_of::<json::Usage>())),
+                    $try!($twice(size_of::<Usage>())),
+                )),
                 // JSON constructor result/forwarding, backing and outer unit
                 // return/propagation, checked arithmetic and public run result.
-                result_slots_bytes: add(
-                    add(
-                        twice(size_of::<Result<Traversal<'_, '_>, json::Error>>())?,
-                        twice(size_of::<Result<(), super::Error>>())?,
-                    )?,
-                    add(
+                result_slots_bytes: $try!($add(
+                    $try!($add(
+                        $try!($twice(size_of::<Result<Traversal<'_, '_>, json::Error>>())),
+                        $try!($twice(size_of::<Result<(), super::Error>>())),
+                    )),
+                    $try!($add(
                         // Event charge/propagation, loop outcome, JSON body,
                         // graph body and plan body unit-result slots.
-                        size_of::<Result<(), Error>>()
-                            .checked_mul(6)
-                            .ok_or(Error::Overflow)?,
-                        add(
-                            twice(size_of::<Result<usize, Error>>())?,
-                            add(
-                                twice(size_of::<Result<Report<'_>, Error>>())?,
-                                twice(size_of::<Result<usize, super::Error>>())?,
-                            )?,
-                        )?,
-                    )?,
-                )?,
+                        $try!($mul!(size_of::<Result<(), Error>>(), 6)),
+                        $try!($add(
+                            $try!($twice(size_of::<Result<usize, Error>>())),
+                            $try!($add(
+                                $try!($twice(size_of::<Result<Report<'_>, Error>>())),
+                                $try!($twice(size_of::<Result<usize, super::Error>>())),
+                            )),
+                        )),
+                    )),
+                )),
                 // Own local/return/caller quote slots and constructor results;
                 // child JSON quotation phase already resides in json's envelope.
-                quotation_bytes: add(
-                    twice(add(
+                quotation_bytes: $try!($add(
+                    $try!($twice($try!($add(
                         size_of::<Resources>(),
                         size_of::<Result<Resources, Error>>(),
-                    )?)?,
-                    add(
-                        twice(size_of::<Result<Census<'_, '_>, Error>>())?,
-                        add(
-                            twice(size_of::<Limits>())?,
+                    )))),
+                    $try!($add(
+                        $try!($twice(size_of::<Result<Census<'_, '_>, Error>>())),
+                        $try!($add(
+                            $try!($twice(size_of::<Limits>())),
                             size_of::<Result<json::Resources, json::Error>>(),
-                        )?,
-                    )?,
-                )?,
-                completion_bytes: add(
-                    add(size_of::<Report<'_>>(), twice(size_of::<Input<'_>>())?)?,
-                    header_slots_bytes()?,
-                )?,
+                        )),
+                    )),
+                )),
+                completion_bytes: $try!($add(
+                    $try!($add(size_of::<Report<'_>>(), $try!($twice(size_of::<Input<'_>>())))),
+                    $try!($header()),
+                )),
                 logical_workspace_bytes: 0,
                 dependency_buffer_bytes: None,
                 compiled_callframe_bytes: None,
@@ -1017,45 +1069,157 @@ pub mod owned_backing {
             };
             let mut total = quote.json.logical_workspace_bytes;
             // Explicit field additions: no temporary accounting array/buffer.
-            total = add(total, quote.control_bytes)?;
-            total = add(total, quote.backing_counter_bytes)?;
-            total = add(total, quote.dto_iterators_bytes)?;
-            total = add(total, quote.dto_entry_slots_bytes)?;
-            total = add(total, quote.argument_bytes)?;
-            total = add(total, quote.json_limits_bytes)?;
-            total = add(total, quote.event_slots_bytes)?;
-            total = add(total, quote.usage_transition_bytes)?;
-            total = add(total, quote.result_slots_bytes)?;
-            total = add(total, quote.quotation_bytes)?;
-            total = add(total, quote.completion_bytes)?;
+            total = $try!($add(total, quote.control_bytes));
+            total = $try!($add(total, quote.backing_counter_bytes));
+            total = $try!($add(total, quote.dto_iterators_bytes));
+            total = $try!($add(total, quote.dto_entry_slots_bytes));
+            total = $try!($add(total, quote.argument_bytes));
+            total = $try!($add(total, quote.json_limits_bytes));
+            total = $try!($add(total, quote.event_slots_bytes));
+            total = $try!($add(total, quote.usage_transition_bytes));
+            total = $try!($add(total, quote.result_slots_bytes));
+            total = $try!($add(total, quote.quotation_bytes));
+            total = $try!($add(total, quote.completion_bytes));
             quote.logical_workspace_bytes = total;
             Ok(quote)
         }
+            };
+        }
+        census_layout!([] resources_for_slots; census_try, census_map, census_mul,
+            add, twice, resources_for_native_slots, header_slots_bytes);
+        census_layout!([const] const_resources_for_slots; census_const_try,
+            census_const_map, census_const_mul, const_add, const_twice,
+            const_resources_for_native_slots, const_header_slots_bytes);
 
-        fn header_slots_bytes() -> Result<usize, Error> {
+        macro_rules! census_header_layout {
+            ([$($qualifier:tt)*] $name:ident; $try:ident, $mul:ident, $add:ident) => {
+        $($qualifier)* fn $name() -> Result<usize, Error> {
             // Initializer Header; new's None and run's Some temporaries; take's
             // replacement None operand and complete Option result. Also price
             // consuming Report argument/moved Header return, run's extracted
             // Some pattern/local Header bindings, and Report field operand.
             let mut bytes = size_of::<Header>();
-            bytes = add(bytes, size_of::<Option<Header>>()
-                .checked_mul(4).ok_or(Error::Overflow)?)?;
-            bytes = add(bytes, size_of::<Report<'_>>())?;
-            bytes = add(bytes, size_of::<Header>())?;
-            bytes = add(bytes, size_of::<Header>())?;
-            bytes = add(bytes, size_of::<Header>())?;
-            bytes = add(bytes, size_of::<Header>())?;
+            bytes = $try!($add(bytes, $try!($mul!(size_of::<Option<Header>>(), 4))));
+            bytes = $try!($add(bytes, size_of::<Report<'_>>()));
+            bytes = $try!($add(bytes, size_of::<Header>()));
+            bytes = $try!($add(bytes, size_of::<Header>()));
+            bytes = $try!($add(bytes, size_of::<Header>()));
+            bytes = $try!($add(bytes, size_of::<Header>()));
             // Ten DTO match scrutinee references (plan, methods collection,
             // method, graph, operations collection, operation, inputs collection,
             // input, states collection, state), JSON caller reference, take's
             // &mut Option argument, and charge_event's direct match scrutinee.
-            bytes = add(bytes, size_of::<&mut Option<Header>>()
-                .checked_mul(13).ok_or(Error::Overflow)?)?;
+            bytes = $try!($add(bytes, $try!($mul!(size_of::<&mut Option<Header>>(), 13))));
             // Ten DTO Some bindings plus JSON Some binding. These are distinct
             // source slots, summed without a register/compiled-frame claim.
-            bytes = add(bytes, size_of::<&mut Header>()
-                .checked_mul(11).ok_or(Error::Overflow)?)?;
+            bytes = $try!($add(bytes, $try!($mul!(size_of::<&mut Header>(), 11))));
             Ok(bytes)
+        }
+            };
+        }
+        census_header_layout!([] header_slots_bytes; census_try, census_mul, add);
+        census_header_layout!([const] const_header_slots_bytes; census_const_try,
+            census_const_mul, const_add);
+
+        #[cfg(test)]
+        mod const_layout_tests {
+            use super::*;
+
+            const FIXED: Result<Resources, Error> = const_resources_for_slots(17);
+            const HUGE: Result<Resources, Error> = const_resources_for_slots(usize::MAX);
+
+            fn oracle(slots: usize) -> Result<Resources, Error> {
+                // Child's complete typed inventory is independently tested in
+                // Types. Check its real Layout here, then independently rebuild
+                // every census-owned component without production helpers.
+                let layout = std::alloc::Layout::array::<NativeFrame<'_>>(slots)
+                    .map_err(|_| Error::Overflow)?;
+                let json = Traversal::resources_for_native_slots(slots).map_err(json_error)?;
+                assert_eq!(json.frame_bytes, layout.size());
+                assert_eq!(json.frame_alignment, layout.align());
+                let control_bytes = size_of::<Census<'_, '_>>();
+                let backing_counter_bytes = size_of::<Backing>();
+                let dto_iterators_bytes = 2 * (size_of::<slice::Iter<'_, AppliedMethod>>()
+                    + size_of::<slice::Iter<'_, ModelOperation>>()
+                    + size_of::<slice::Iter<'_, String>>()
+                    + size_of::<std::array::IntoIter<&Vec<StateTensor>, 2>>()
+                    + size_of::<slice::Iter<'_, StateTensor>>());
+                let dto_entry_slots_bytes = 2 * size_of::<Option<&AppliedMethod>>()
+                    + size_of::<&AppliedMethod>() + 2 * size_of::<Option<&ModelOperation>>()
+                    + size_of::<&ModelOperation>() + 2 * size_of::<Option<&String>>()
+                    + size_of::<&String>() + size_of::<[&Vec<StateTensor>; 2]>()
+                    + 2 * size_of::<Option<&Vec<StateTensor>>>() + size_of::<&Vec<StateTensor>>()
+                    + 2 * size_of::<Option<&StateTensor>>() + size_of::<&StateTensor>();
+                let argument_bytes = size_of::<(&mut Census<'_, '_>, Input<'_>)>()
+                    + size_of::<(&mut Census<'_, '_>, &DecoderPlan, &mut Backing)>()
+                    + size_of::<(&mut Census<'_, '_>, &DecoderGraph, &mut Backing)>()
+                    + size_of::<(&mut Census<'_, '_>, &Value, &mut Backing)>()
+                    + size_of::<(&mut Backing, &mut Option<Header>, Event<'_>)>()
+                    + size_of::<(&mut Census<'_, '_>, &DecoderPlan)>()
+                    + size_of::<(&mut Census<'_, '_>, &DecoderGraph)>()
+                    + size_of::<(&mut Census<'_, '_>, &Value)>();
+                let json_limits_bytes = 2 * size_of::<json::Limits>();
+                let event_slots_bytes = 2 * size_of::<Result<Option<Event<'_>>, json::Error>>()
+                    + 3 * size_of::<Event<'_>>();
+                let usage_transition_bytes = 2 * size_of::<json::Usage>() + 2 * size_of::<Usage>();
+                let result_slots_bytes = 2 * size_of::<Result<Traversal<'_, '_>, json::Error>>()
+                    + 2 * size_of::<Result<(), super::super::Error>>()
+                    + 6 * size_of::<Result<(), Error>>() + 2 * size_of::<Result<usize, Error>>()
+                    + 2 * size_of::<Result<Report<'_>, Error>>()
+                    + 2 * size_of::<Result<usize, super::super::Error>>();
+                let quotation_bytes = 2 * size_of::<Resources>()
+                    + 2 * size_of::<Result<Resources, Error>>()
+                    + 2 * size_of::<Result<Census<'_, '_>, Error>>()
+                    + 2 * size_of::<Limits>() + size_of::<Result<json::Resources, json::Error>>();
+                let header = 5 * size_of::<Header>() + 4 * size_of::<Option<Header>>()
+                    + size_of::<Report<'_>>() + 13 * size_of::<&mut Option<Header>>()
+                    + 11 * size_of::<&mut Header>();
+                let completion_bytes = size_of::<Report<'_>>() + 2 * size_of::<Input<'_>>() + header;
+                let logical_workspace_bytes = [json.logical_workspace_bytes, control_bytes,
+                    backing_counter_bytes, dto_iterators_bytes, dto_entry_slots_bytes,
+                    argument_bytes, json_limits_bytes, event_slots_bytes, usage_transition_bytes,
+                    result_slots_bytes, quotation_bytes, completion_bytes].into_iter()
+                    .try_fold(0usize, |sum, term| sum.checked_add(term).ok_or(Error::Overflow))?;
+                assert_eq!(header_slots_bytes(), Ok(header));
+                assert_eq!(const_header_slots_bytes(), Ok(header));
+                Ok(Resources { json, control_bytes, backing_counter_bytes, dto_iterators_bytes,
+                    dto_entry_slots_bytes, argument_bytes, json_limits_bytes, event_slots_bytes,
+                    usage_transition_bytes, result_slots_bytes, quotation_bytes, completion_bytes,
+                    logical_workspace_bytes, dependency_buffer_bytes: None,
+                    compiled_callframe_bytes: None, rss_bytes: None })
+            }
+
+            #[test]
+            fn stage_a_complete_census_typed_layout_oracle_and_const() {
+                assert_eq!(FIXED, oracle(17));
+                assert_eq!(HUGE, Err(Error::Overflow));
+                let last = isize::MAX as usize / size_of::<NativeFrame<'_>>();
+                for slots in [0, 1, 17, last, last + 1, usize::MAX] {
+                    assert_eq!(resources_for_slots(slots), oracle(slots));
+                    assert_eq!(const_resources_for_slots(slots), oracle(slots));
+                }
+            }
+
+            #[test]
+            fn stage_a_census_checked_error_mapping_and_first_propagation() {
+                const fn first(value: Result<json::Resources, json::Error>) -> Result<usize, Error> {
+                    let _ = census_const_map!(value);
+                    const_add(usize::MAX, 1)
+                }
+                fn runtime_first(value: Result<json::Resources, json::Error>) -> Result<usize, Error> {
+                    let _ = census_map!(value);
+                    add(usize::MAX, 1)
+                }
+                const FIRST: Result<usize, Error> = first(Err(json::Error::DepthLimit));
+                assert_eq!(FIRST, Err(Error::Backing(super::super::Error::JsonDepth)));
+                assert_eq!(runtime_first(Err(json::Error::DepthLimit)), FIRST);
+                assert_eq!(const_add(usize::MAX, 1), Err(Error::Overflow));
+                assert_eq!(const_twice(usize::MAX), twice(usize::MAX));
+                for error in [json::Error::Overflow, json::Error::WorkLimit,
+                    json::Error::WorkspaceLimit, json::Error::DepthLimit, json::Error::Poisoned] {
+                    assert_eq!(const_json_error(error), json_error(error));
+                }
+            }
         }
 
         /// Caller retains the original plan/graphs/values until the workspace
