@@ -56,6 +56,141 @@ def example() -> Experiment:
     )
 
 
+def _census_experiment(params=None, *, model=None, deployment=None, name="borrowed"):
+    # Raw external ComponentRef is legitimate configuration, not method closure.
+    return Experiment(name=name, pipeline=Pipeline(
+        model=model or Model("org/model"),
+        components={"external": ComponentRef("example/component/v1", params or {})}),
+        deployment=deployment or Deployment.local(root=".pllm/borrowed"),
+        budget=ExecutionBudget(requests=1, max_input_tokens=2, max_new_tokens=1))
+
+
+@pytest.mark.parametrize("text", [
+    'quote"/backslash\\/short\b\f\n\r\t',
+    "".join(chr(i) for i in range(32)), "é漢😀", "\u2028\u2029",
+])
+def test_borrowed_canonical_census_matches_old_wire_and_independent_counts(text):
+    from pllm.configuration import _bounded_canonical_preflight
+    value = _census_experiment({"text": text, "items": [None, True, False, -42, 0.0, -0.0, 1e100]})
+    # Independent pre-change wire shape, including omitted model defaults.
+    expected = {"schema": "pllm.experiment.v2", "name": "borrowed",
+        "pipeline": {"model": {"source": "org/model"}, "components": {
+            "external": {"component": "example/component/v1", "params": {
+                "text": text, "items": [None, True, False, -42, 0.0, -0.0, 1e100]}}}},
+        "deployment": {"kind": "local", "root": ".pllm/borrowed"},
+        "budget": {"requests": 1, "max_input_tokens": 2, "max_new_tokens": 1}}
+    wire = json.dumps(expected, ensure_ascii=False, allow_nan=False,
+                      sort_keys=True, separators=(",", ":")).encode("utf-8")
+    census = _bounded_canonical_preflight(value, max_bytes=len(wire))
+    assert value.canonical_bytes() == wire
+    assert census.encoded_bytes == len(wire)
+    nodes = [expected]
+    mappings = entries = sequences = elements = strings = characters = largest = 0
+    while nodes:
+        node = nodes.pop()
+        if type(node) is dict:
+            mappings += 1
+            entries += len(node)
+            nodes.extend(node.keys())
+            nodes.extend(node.values())
+        elif type(node) is list:
+            sequences += 1
+            elements += len(node)
+            nodes.extend(node)
+        elif type(node) is str:
+            strings += 1
+            characters += len(node)
+            largest = max(largest, len(node))
+    assert dataclasses.astuple(census) == (
+        len(wire), mappings, entries, sequences, elements, strings, characters, largest)
+    with pytest.raises(ConfigurationError, match="byte limit"):
+        _bounded_canonical_preflight(value, max_bytes=len(wire) - 1)
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        census.encoded_bytes = 0
+
+
+@pytest.mark.parametrize("model", [Model("org/model"),
+    Model.hf("org/model", model_id="alias", revision="rev-é", local_files_only=True),
+    Model.path("/models/unit", format="safetensors"), Model.ollama("unit:latest")])
+@pytest.mark.parametrize("network", [False, True])
+def test_borrowed_census_covers_optional_model_and_network_fields(model, network):
+    from pllm.configuration import _bounded_canonical_preflight
+    deployment = (Deployment.network(network_id="unit", network_spec_digest="1" * 64)
+                  if network else Deployment.local(root=".pllm/optional"))
+    value = _census_experiment(model=model, deployment=deployment)
+    wire = value.canonical_bytes()
+    assert _bounded_canonical_preflight(value, max_bytes=len(wire)).encoded_bytes == len(wire)
+    if network:
+        assert value.to_spec()["deployment"]["snapshot_digest"] is None
+        assert value.to_spec()["schema"] == "pllm.experiment.v3"
+        pinned = dataclasses.replace(value, deployment=dataclasses.replace(
+            deployment, snapshot_digest="2" * 64))
+        pinned_wire = pinned.canonical_bytes()
+        assert _bounded_canonical_preflight(pinned, max_bytes=len(pinned_wire)).encoded_bytes == len(pinned_wire)
+
+
+def test_borrowed_census_forward_budget_omission_and_root_name():
+    from pllm.configuration import ForwardBudget, _bounded_canonical_preflight
+    from pllm.numeric import SourceFloat32
+    from pllm.profiles import ClientOnlyCpu
+    value = Experiment("name-é😀", ClientOnlyCpu(Model("org/model"), numeric=SourceFloat32()),
+        Deployment.local(root=".pllm/forward"), ForwardBudget(1, 8))
+    assert value.to_spec()["schema"] == "pllm.experiment.forward.v1"
+    assert value.to_spec()["budget"] == {"requests": 1, "max_input_tokens": 8}
+    wire = value.canonical_bytes()
+    assert _bounded_canonical_preflight(value, max_bytes=len(wire)).encoded_bytes == len(wire)
+
+
+def test_borrowed_census_accepts_typed_and_raw_configuration_without_thaw(monkeypatch):
+    import pllm.configuration as config
+    typed, raw = example(), _census_experiment({"nested": ({"n": 7},)})
+    expected = [len(value.canonical_bytes()) for value in (typed, raw)]
+    def forbidden(*args, **kwargs):
+        pytest.fail("preflight copied/serialized configuration")
+    monkeypatch.setattr(config, "_thaw_json", forbidden)
+    monkeypatch.setattr(ComponentRef, "get_params", forbidden)
+    monkeypatch.setattr(Experiment, "to_spec", forbidden)
+    monkeypatch.setattr(config.json, "dumps", forbidden)
+    for value, count in zip((typed, raw), expected):
+        assert config._bounded_canonical_preflight(value, max_bytes=count).encoded_bytes == count
+
+
+@pytest.mark.parametrize("params,name", [
+    ({}, "x" * 10000),
+    ({"items": [1 << 100000] + [0] * 10000}, "bounded"),
+    ({"items": {str(i): 0 for i in range(10000)}}, "bounded"),
+    ({"integer": 1 << 100000}, "bounded"),
+])
+def test_borrowed_census_refuses_oversize_before_thaw_encode_or_giant_integer_format(monkeypatch, params, name):
+    import pllm.configuration as config
+    value = _census_experiment(params, name=name)
+    def forbidden(*args, **kwargs):
+        pytest.fail("oversize configuration reached thaw/encoder")
+    monkeypatch.setattr(config, "_thaw_json", forbidden)
+    monkeypatch.setattr(config.json, "dumps", forbidden)
+    # The huge int would hit Python's decimal digit guard if formatted first.
+    with pytest.raises(ConfigurationError, match="byte limit"):
+        config._bounded_canonical_preflight(value, max_bytes=512)
+
+
+def test_borrowed_census_nested_budget_and_strict_utf8():
+    from pllm.configuration import _bounded_canonical_preflight
+    nested = 0
+    for _ in range(100):
+        nested = (nested,)
+    value = _census_experiment({"nested": nested})
+    wire = value.canonical_bytes()
+    assert _bounded_canonical_preflight(value, max_bytes=len(wire)).encoded_bytes == len(wire)
+    with pytest.raises(ConfigurationError):
+        _bounded_canonical_preflight(value, max_bytes=len(wire) - 1)
+    for surrogate in ("\ud800", "\udfff"):
+        invalid = _census_experiment({"text": surrogate})
+        with pytest.raises(UnicodeEncodeError):
+            _bounded_canonical_preflight(invalid, max_bytes=32768)
+        with pytest.raises(UnicodeEncodeError):
+            invalid.canonical_bytes()
+
+
 def test_python_yaml_and_importable_example_have_schema_parity():
     expected = example()
     loaded = load_configuration(YAML_EXAMPLE)

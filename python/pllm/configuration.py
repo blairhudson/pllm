@@ -158,6 +158,9 @@ def _freeze_json(value: object, path: str = "value", active: set[int] | None = N
 
 
 def _thaw_json(value: object) -> Any:
+    if isinstance(value, (Model, ComponentRef, Pipeline, Deployment,
+                          ExecutionBudget, ForwardBudget, Experiment)):
+        return value.to_spec()
     if isinstance(value, Mapping):
         return {key: _thaw_json(item) for key, item in value.items()}
     if isinstance(value, tuple):
@@ -393,18 +396,7 @@ class Model(_Configuration):
         return validated
 
     def to_spec(self) -> dict[str, Any]:
-        result: dict[str, Any] = {"source": self.source}
-        if self.kind != "huggingface":
-            result["kind"] = self.kind
-        if self.model_id is not None:
-            result["model_id"] = self.model_id
-        if self.revision is not None:
-            result["revision"] = self.revision
-        if self.local_files_only:
-            result["local_files_only"] = True
-        if self.endpoint is not None:
-            result["endpoint"] = self.endpoint
-        return result
+        return _materialize_spec_fields(self)
 
     def to_runtime_spec(self) -> dict[str, Any]:
         return {"kind": self.kind, **self.to_spec()}
@@ -476,7 +468,7 @@ class ComponentRef(_Configuration):
         return output
 
     def to_spec(self) -> dict[str, Any]:
-        return {"component": self.component, "params": _thaw_json(self.params)}
+        return _materialize_spec_fields(self)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, ComponentRef):
@@ -574,12 +566,7 @@ class Pipeline(_Configuration):
         )
 
     def to_spec(self) -> dict[str, Any]:
-        return {
-            "model": self.model.to_spec(),
-            "components": {
-                name: component.to_spec() for name, component in self.components.items()
-            },
-        }
+        return _materialize_spec_fields(self)
 
     def canonical_bytes(self) -> bytes:
         return json.dumps(
@@ -643,11 +630,7 @@ class Deployment(_Configuration):
                    network_spec_digest=network_spec_digest, snapshot_digest=snapshot_digest)
 
     def to_spec(self) -> dict[str, Any]:
-        if self.kind == "network":
-            return {"kind": "network", "network_id": self.network_id,
-                    "network_spec_digest": self.network_spec_digest,
-                    "snapshot_digest": self.snapshot_digest}
-        return {"kind": self.kind, "root": self.root}
+        return _materialize_spec_fields(self)
 
 
 @dataclass(frozen=True, slots=True)
@@ -662,11 +645,7 @@ class ExecutionBudget(_Configuration):
         _integer(self.max_new_tokens, "budget.max_new_tokens")
 
     def to_spec(self) -> dict[str, Any]:
-        return {
-            "requests": self.requests,
-            "max_input_tokens": self.max_input_tokens,
-            "max_new_tokens": self.max_new_tokens,
-        }
+        return _materialize_spec_fields(self)
 
 
 @dataclass(frozen=True, slots=True)
@@ -683,7 +662,7 @@ class ForwardBudget(_Configuration):
                 raise ConfigurationError(f"budget.{name} exceeds uint64")
 
     def to_spec(self) -> dict[str, Any]:
-        return {"requests": self.requests, "max_input_tokens": self.max_input_tokens}
+        return _materialize_spec_fields(self)
 
 
 @dataclass(frozen=True, slots=True)
@@ -737,14 +716,7 @@ class Experiment(_Configuration):
         return load_configuration(path, providers=providers)
 
     def to_spec(self) -> dict[str, Any]:
-        return {
-            "schema": (_FORWARD_EXPERIMENT_SCHEMA if isinstance(self.budget, ForwardBudget)
-                       else "pllm.experiment.v3" if self.deployment.kind == "network" else _EXPERIMENT_SCHEMA),
-            "name": self.name,
-            "pipeline": self.pipeline.to_spec(),
-            "deployment": self.deployment.to_spec(),
-            "budget": self.budget.to_spec(),
-        }
+        return _materialize_spec_fields(self)
 
     def canonical_bytes(self) -> bytes:
         return canonical_bytes(self)
@@ -787,6 +759,166 @@ class Experiment(_Configuration):
             return compiled.forward(inputs)
         finally:
             compiled.close()
+
+
+def _spec_fields(value):
+    """Shared wire fields, borrowing immutable owners until materialization."""
+    if isinstance(value, Model):
+        yield "source", value.source
+        if value.kind != "huggingface":
+            yield "kind", value.kind
+        for key in ("model_id", "revision"):
+            if getattr(value, key) is not None:
+                yield key, getattr(value, key)
+        if value.local_files_only:
+            yield "local_files_only", True
+        if value.endpoint is not None:
+            yield "endpoint", value.endpoint
+    elif isinstance(value, ComponentRef):
+        yield "component", value.component
+        yield "params", value.params
+    elif isinstance(value, Pipeline):
+        yield "model", value.model
+        yield "components", value.components
+    elif isinstance(value, Deployment):
+        yield "kind", value.kind
+        if value.kind == "network":
+            for key in ("network_id", "network_spec_digest", "snapshot_digest"):
+                yield key, getattr(value, key)
+        else:
+            yield "root", value.root
+    elif isinstance(value, (ExecutionBudget, ForwardBudget)):
+        yield "requests", value.requests
+        yield "max_input_tokens", value.max_input_tokens
+        if isinstance(value, ExecutionBudget):
+            yield "max_new_tokens", value.max_new_tokens
+    elif isinstance(value, Experiment):
+        yield "schema", (_FORWARD_EXPERIMENT_SCHEMA if isinstance(value.budget, ForwardBudget)
+                         else "pllm.experiment.v3" if value.deployment.kind == "network"
+                         else _EXPERIMENT_SCHEMA)
+        for key in ("name", "pipeline", "deployment", "budget"):
+            yield key, getattr(value, key)
+    else:
+        raise TypeError("unsupported specification owner")
+
+
+def _materialize_spec_fields(value):
+    return {key: _thaw_json(item) for key, item in _spec_fields(value)}
+
+
+@dataclass(frozen=True, slots=True)
+class _CanonicalCensus:
+    """Exact output/representation counts, NOT a memory price or admission."""
+
+    encoded_bytes: int
+    mappings: int
+    mapping_entries: int
+    sequences: int
+    sequence_elements: int
+    strings: int
+    characters: int
+    largest_string: int
+
+
+def _bounded_canonical_preflight(experiment: Experiment, *, max_bytes: int) -> _CanonicalCensus:
+    """Census borrowed fields before get_params/to_spec/thaw/JSON copies.
+
+    Iterators retain at most one pending child per container. Syntax charged on
+    entry bounds depth/stack by the finite output budget, not input fanout.
+    Method closure remains the native validator's separate responsibility.
+    """
+    if not isinstance(experiment, Experiment):
+        raise TypeError("configuration must be an Experiment")
+    if type(max_bytes) is not int or max_bytes < 1:
+        raise ValueError("max_bytes must be a positive integer")
+    encoded = mappings = entries = sequences = elements = strings = characters = largest = 0
+
+    def charge(amount):
+        nonlocal encoded
+        if amount > max_bytes - encoded:
+            raise ConfigurationError("Experiment exceeds its byte limit")
+        encoded += amount
+
+    def text(value):
+        nonlocal strings, characters, largest
+        if len(value) > max_bytes - encoded - 2:
+            raise ConfigurationError("Experiment exceeds its byte limit")
+        charge(2)
+        strings += 1
+        characters += len(value)
+        largest = max(largest, len(value))
+        for character in value:
+            code = ord(character)
+            if character in '\"\\':
+                charge(2)
+            elif code < 32:
+                charge(2 if character in "\b\f\n\r\t" else 6)
+            elif code < 128:
+                charge(1)
+            elif code < 2048:
+                charge(2)
+            elif 0xD800 <= code <= 0xDFFF:
+                character.encode("utf-8")  # Same strict UTF-8 failure as encoder.
+            else:
+                charge(3 if code < 65536 else 4)
+
+    owners = (Model, ComponentRef, Pipeline, Deployment, ExecutionBudget, ForwardBudget, Experiment)
+    stack = [("value", experiment)]
+    while stack:
+        kind, value = stack.pop()
+        if kind in ("mapping", "sequence"):
+            try:
+                item = next(value)
+            except StopIteration:
+                continue
+            stack.append((kind, value))
+            if kind == "mapping":
+                key, child = item
+                text(key)
+                stack.append(("value", child))
+            else:
+                stack.append(("value", item))
+            continue
+        if isinstance(value, owners) or isinstance(value, Mapping):
+            # At most six fixed schema fields; never copy the components/params
+            # maps. Check their O(1) lengths before creating/traversing iterators.
+            fields = tuple(_spec_fields(value)) if isinstance(value, owners) else value
+            count = len(fields)
+            minimum = 2 + max(0, count - 1) + 4 * count
+            if minimum > max_bytes - encoded:
+                raise ConfigurationError("Experiment exceeds its byte limit")
+            charge(2 + max(0, count - 1) + count)
+            mappings += 1
+            entries += count
+            stack.append(("mapping", iter(fields if isinstance(value, owners) else fields.items())))
+        elif type(value) in (tuple, list):
+            count = len(value)
+            if 2 + max(0, count - 1) + count > max_bytes - encoded:
+                raise ConfigurationError("Experiment exceeds its byte limit")
+            charge(2 + max(0, count - 1))
+            sequences += 1
+            elements += count
+            stack.append(("sequence", iter(value)))
+        elif type(value) is str:
+            text(value)
+        elif value is None:
+            charge(4)
+        elif type(value) is bool:
+            charge(4 if value else 5)
+        elif type(value) is int:
+            # Conservative decimal lower bound before any potentially giant
+            # decimal conversion; bounded conversion preserves Python's own limit.
+            minimum = max(1, (value.bit_length() - 1) * 3 // 10 + 1) + (value < 0)
+            if minimum > max_bytes - encoded:
+                raise ConfigurationError("Experiment exceeds its byte limit")
+            charge(len(str(value)))
+        elif type(value) is float:
+            if not math.isfinite(value):
+                raise ValueError("Out of range float values are not JSON compliant")
+            charge(len(repr(value)))
+        else:
+            raise TypeError("unsupported JSON value")
+    return _CanonicalCensus(encoded, mappings, entries, sequences, elements, strings, characters, largest)
 
 
 @dataclass(frozen=True, slots=True, init=False)
