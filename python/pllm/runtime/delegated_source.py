@@ -309,18 +309,46 @@ def _read_range(path, identity, offset, size, *, limit=_MAX_SOURCE_BYTES):
     return raw
 
 
+def _initialize_tensor_metadata(store, root, specs):
+    """Install already parsed metadata without invoking filesystem discovery."""
+    store.root = root
+    store._specs = dict(specs)
+    store._locations = {
+        name: TensorLocation(name, root / row[0] if root is not None else Path(row[0]))
+        for name, row in specs.items()
+    }
+    store._metadata = {name: (row[1], row[2]) for name, row in specs.items()}
+    store._cache, store._file_signatures, store.quantization = {}, {}, {}
+
+
+class _MetadataTensorStore(SafeTensorStore):
+    """Resolution/semantic preflight only; no inherited path-read fallback."""
+
+    def __init__(self, specs):
+        _initialize_tensor_metadata(self, None, specs)
+
+    def _tensor_metadata(self, key_or_suffix):
+        key = self.resolve(key_or_suffix)
+        try:
+            return self._metadata[key]
+        except KeyError as exc:
+            raise DelegatedSourceError("GKM parsed tensor metadata is unavailable") from exc
+
+    def _unavailable(self, *args, **kwargs):
+        raise DelegatedSourceError("GKM metadata-only tensor store cannot read paths or values")
+
+    _discover = _load_quantization_config = _unavailable
+    get = get_slice = iter_slices = source_signature = _unavailable
+
+
 class _AdmittedTensorStore(SafeTensorStore):
     """Shared resolution/conversion with frozen metadata and checked range reads."""
 
     def __init__(self, root, identities, specs):
         # The ordinary constructor re-opens config/headers. All metadata here
         # already came from bounded reads; inherited metadata access never reopens.
-        self.root = root
+        _initialize_tensor_metadata(self, root, specs)
         self._identities = dict(identities)
-        self._specs = specs
-        self._locations = {name: TensorLocation(name, root / row[0]) for name, row in specs.items()}
-        self._metadata = {name: (row[1], row[2]) for name, row in specs.items()}
-        self._cache, self._file_signatures, self.quantization = {}, {}, {}
 
     def get(self, key_or_suffix, *, dtype=np.float32):
         key = self.resolve(key_or_suffix)
@@ -330,9 +358,8 @@ class _AdmittedTensorStore(SafeTensorStore):
         return self._convert(value, dtype)
 
 
-def _store(root: Path, identities, contract) -> tuple[SafeTensorStore, tuple]:
-    """Bound all headers/ranges before shared shape and float-dtype preflight."""
-
+def _tensor_geometry(contract):
+    """Keep native/shared geometry refusal ahead of ordinary filesystem checks."""
     capacity = _capacity(contract)
     expanded = capacity == "decoder"
     header_limit = _DECODER_HEADER_BYTES if expanded else _MAX_HEADER_BYTES
@@ -346,24 +373,68 @@ def _store(root: Path, identities, contract) -> tuple[SafeTensorStore, tuple]:
     # semantic preflight below still checks every tensor's exact shape and dtype.
     dimension_limit = max(max(shape) for shape in shapes.values())
     element_limit = max(math.prod(shape) for shape in shapes.values())
-    _unchanged(root, contract["source_float32_bytes"], identities, capacity)
+    return header_limit, metadata_limit, shapes, plan, dimension_limit, element_limit
+
+
+def _parse_tensor_inventory(inventory, read_at, geometry, *, strict_inventory=True):
+    """Parse one frozen inventory through exact, at-most-64-KiB positioned reads.
+
+    The reader owns byte provenance. This parser neither discovers files nor
+    retains the reader in its metadata-only result. Geometry comes from the
+    same native/shared contract check used by the ordinary adapter. Sealed-reader
+    names default to the stricter flat namespace; ordinary POSIX paths retain
+    their admitted literal backslash basenames.
+    """
+    header_limit, metadata_limit, shapes, plan, dimension_limit, element_limit = geometry
+    if type(inventory) is not tuple or len(inventory) > _MAX_FILES:
+        raise DelegatedSourceError("GKM invalid parser inventory")
+    sizes = {}
+    for row in inventory:
+        if (type(row) is not tuple or len(row) != 2
+                or type(row[0]) is not str or not row[0] or row[0] in {".", ".."}
+                or "/" in row[0] or (strict_inventory and "\\" in row[0]) or "\0" in row[0]
+                or row[0] in sizes or type(row[1]) is not int or row[1] < 0):
+            raise DelegatedSourceError("GKM invalid parser inventory")
+        sizes[row[0]] = row[1]
+
+    def read(name, offset, count, *, limit):
+        # Cap the whole assembly before the first read, not merely each piece.
+        if (type(offset) is not int or type(count) is not int or offset < 0
+                or not 0 <= count <= min(limit, _DECODER_METADATA_BYTES)
+                or offset + count > sizes[name]):
+            raise DelegatedSourceError("GKM source read range exceeds admitted file bounds")
+        raw = bytearray()
+        block = None
+        try:
+            for begin in range(0, max(1, count), 64 << 10):
+                size = min(64 << 10, count - begin)
+                block = read_at(name, offset + begin, size)
+                if type(block) is not bytes or len(block) != size:
+                    raise DelegatedSourceError("GKM source positioned reader returned an inexact range")
+                raw.extend(block)
+            return bytes(raw)
+        finally:
+            # A retained traceback must not retain preceding assembly pieces
+            # through this frame. Do not touch callback locals or owner custody.
+            raw.clear()
+            del block
+
     locations = {}
     specs = {}
     indexes = []
     header_bytes = 0
-    for name, identity in identities:
+    for name, file_size in inventory:
         if name.endswith(".safetensors.index.json"):
             indexes.append(name)
         if not name.endswith(".safetensors"):
             continue
-        path = root / name
-        prefix = _read_range(path, identity, 0, 8)
+        prefix = read(name, 0, 8, limit=8)
         size = int.from_bytes(prefix, "little")
         header_bytes += size
-        if (len(prefix) != 8 or size > header_limit or size + 8 > identity[9]
+        if (len(prefix) != 8 or size > header_limit or size + 8 > file_size
                 or header_bytes > metadata_limit):
             raise DelegatedSourceError("GKM Safetensors header exceeds its byte limit")
-        header = _json(_read_range(path, identity, 8, size), "Safetensors header")
+        header = _json(read(name, 8, size, limit=header_limit), "Safetensors header")
         metadata = header.pop("__metadata__", {})
         if type(metadata) is not dict or any(type(value) is not str for value in metadata.values()):
             raise DelegatedSourceError("GKM invalid Safetensors metadata")
@@ -385,7 +456,7 @@ def _store(root: Path, identities, contract) -> tuple[SafeTensorStore, tuple]:
             if (type(offsets) is not list or len(offsets) != 2
                     or any(type(i) is not int or i < 0 for i in offsets)
                     or offsets[1] - offsets[0] != math.prod(shape) * _DTYPES[dtype].itemsize
-                    or offsets[1] > identity[9] - size - 8):
+                    or offsets[1] > file_size - size - 8):
                 raise DelegatedSourceError("GKM source tensor byte range mismatch")
             spans.append(tuple(offsets))
             locations[key] = name
@@ -395,27 +466,48 @@ def _store(root: Path, identities, contract) -> tuple[SafeTensorStore, tuple]:
             if begin != end:
                 raise DelegatedSourceError("GKM source has overlapping or gapped tensor ranges")
             end = stop
-        if end + size + 8 != identity[9]:
+        if end + size + 8 != file_size:
             raise DelegatedSourceError("GKM source payload differs from header byte ranges")
     if len(locations) != len(shapes):
         raise DelegatedSourceError("GKM source tensor cardinality mismatch")
     if len(indexes) > 1:
         raise DelegatedSourceError("GKM multiple Safetensors indexes are unsupported")
     if indexes:
-        index = _json(_read_bounded(root / indexes[0], header_limit), "tensor index")
+        name = indexes[0]
+        if sizes[name] > header_limit:
+            raise DelegatedSourceError(f"GKM {name} exceeds its byte limit")
+        index = _json(read(name, 0, sizes[name], limit=header_limit), "tensor index")
         # Exact equality also rejects external paths, unlisted shards/tensors,
         # hidden extras, duplicate ownership and absent index entries.
         if index.get("weight_map") != locations:
             raise DelegatedSourceError("GKM Safetensors index differs from shard headers")
-    store = _AdmittedTensorStore(root, identities, specs)
+    store = _MetadataTensorStore(specs)
     preflight_semantic_checkpoint(plan, store)
     if {store.resolve(name) for name in shapes} != set(locations):
         raise DelegatedSourceError("GKM source tensor identities differ")
-    _unchanged(root, contract["source_float32_bytes"], identities, capacity)
     return store, tuple(sorted(specs.items()))
 
 
-def _manifest(root, model, raw, identities):
+def _store(root: Path, identities, contract) -> tuple[SafeTensorStore, tuple]:
+    """Ordinary checked-path adapter for the shared bounded metadata parser."""
+    geometry = _tensor_geometry(contract)
+    capacity = _capacity(contract)
+    _unchanged(root, contract["source_float32_bytes"], identities, capacity)
+    by_name = dict(identities)
+    inventory = tuple((name, identity[9]) for name, identity in identities)
+
+    def read_at(name, offset, count):
+        return _read_range(root / name, by_name[name], offset, count)
+
+    metadata, specs = _parse_tensor_inventory(inventory, read_at, geometry, strict_inventory=False)
+    # Public specs remain sorted, but ordinary keys() retains shard/header order.
+    store = _AdmittedTensorStore(root, identities, metadata._specs)
+    del metadata
+    _unchanged(root, contract["source_float32_bytes"], identities, capacity)
+    return store, specs
+
+
+def _manifest(root, model, raw, identities, *, _model_id=None):
     """Reuse source dimension parsing without a second, ordinary W8A8 lowering.
 
     Native admission has already validated this immutable configuration snapshot.
@@ -426,7 +518,8 @@ def _manifest(root, model, raw, identities):
     hidden = _int(cfg, "hidden_size", "d_model", "n_embd")
     heads = _int(cfg, "num_attention_heads", "n_head", "num_heads")
     return ModelManifest(
-        id=model_loader.expected_model_id(model), architecture=_architecture(raw, cfg),
+        id=model_loader.expected_model_id(model) if _model_id is None else _model_id,
+        architecture=_architecture(raw, cfg),
         source_format=model.kind, source=str(root), vocab_size=_int(cfg, "vocab_size"),
         hidden_size=hidden, intermediate_size=_int(cfg, "intermediate_size", "ffn_dim", "n_inner",
                                                   default=hidden * 4),
@@ -451,6 +544,12 @@ def _tokenizer(root, manifest, config, contract):
     if (root / "tokenizer_config.json").exists():
         options = _json(_read_bounded(root / "tokenizer_config.json", _MAX_CONFIG_BYTES),
                         "tokenizer_config.json")
+    return _tokenizer_from_bytes(raw, options, manifest, config, contract)
+
+
+def _tokenizer_from_bytes(raw, options, manifest, config, contract):
+    """Shared descriptor policy; callers own byte provenance and assembly limits."""
+    expanded = _capacity(contract) == "decoder"
     context = options.get("model_max_length", manifest.context_length)
     if (type(context) is not int or context < contract["input_rows"] + contract["decode_steps"]
             or manifest.context_length < contract["input_rows"] + contract["decode_steps"]):
@@ -677,6 +776,11 @@ class AdmittedSource:
 
 def _source_float_frame(path, identity, offset, count, dtype):
     raw = _read_range(path, identity, offset, count * _DTYPES[dtype].itemsize)
+    return _source_float_frame_from_bytes(raw, dtype)
+
+
+def _source_float_frame_from_bytes(raw, dtype):
+    """Canonical conversion only; no path lookup or source authority."""
     value = np.frombuffer(raw, dtype=_DTYPES[dtype])
     # Reuse the source reader's exact F16/BF16 conversion, including signed zero.
     value = SafeTensorStore._convert(value, np.dtype("<f4"))
