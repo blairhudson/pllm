@@ -202,7 +202,8 @@ class Tape:
         self.batches = dict(batches)
         self.used = set()
 
-    def truncate(self, name, raw, shift=18):
+    @staticmethod
+    def _checked_raw(raw, shift):
         raw = np.asarray(raw, dtype=object)
         if not 1 <= shift <= 62 or not 0 < raw.size <= MAX_VALUES:
             raise OracleError("truncation geometry")
@@ -211,6 +212,10 @@ class Tape:
             raise OracleError("integer truncation input required")
         if any(not -GAP <= int(x) < GAP for x in raw.flat):
             raise OracleError("unwrapped truncation outside quarter-gap")
+        return raw
+
+    def truncate(self, name, raw, shift=18):
+        raw = self._checked_raw(raw, shift)
         if name in self.used or name not in self.batches:
             raise OracleError(f"missing or repeated tape: {name}")
         batch = self.batches[name]
@@ -242,6 +247,8 @@ class StreamingTape(Tape):
         self.provider = iter(batches)
 
     def truncate(self, name, raw, shift=18):
+        # Same acceptance law as Tape, before advancing the residue provider.
+        raw = self._checked_raw(raw, shift)
         try:
             observed_name, batch = next(self.provider)
         except StopIteration as error:
@@ -1044,6 +1051,12 @@ def silu(x, tape, name):
     return np.where(x < -8*Q, 0, np.where(x < -4*Q, low, np.where(x <= 4*Q, high, x)))
 
 
+def _silu_gate_up(gate, up, tape, prefix, emit):
+    """Shared test-only decoder boundary, including streaming trace emission."""
+    activated = emit(prefix + "silu", silu(gate, tape, prefix + "silu"))
+    return emit(prefix + "gate_up", mul(activated, up, tape, prefix + "gate_up"))
+
+
 def softmax(x, tape, name):
     """One visible causal row. Tail still consumes all guarded exponent draws."""
     x = array(x)
@@ -1308,8 +1321,7 @@ def _run_decoder(config, weights, input_ids, outputs, tape, rotary, *, partition
             norm = normalize(x, weight(src + "post_attention_layernorm.weight", (hidden,)), p + "post_attention_norm")
             gate = emit(p + "gate_proj", linear(norm, weight(src + "mlp.gate_proj.weight", (mid, hidden)), tape, p + "gate_proj"))
             up = emit(p + "up_proj", linear(norm, weight(src + "mlp.up_proj.weight", (mid, hidden)), tape, p + "up_proj"))
-            activated = emit(p + "silu", silu(gate, tape, p + "silu"))
-            product = emit(p + "gate_up", mul(activated, up, tape, p + "gate_up"))
+            product = _silu_gate_up(gate, up, tape, p, emit)
             down = emit(p + "down_proj", linear(product, weight(src + "mlp.down_proj.weight", (hidden, mid)), tape, p + "down_proj"))
             x = emit(p + "output", ring(x + down))
         x = normalize(x, weight("model.norm.weight", (hidden,)), root + "final_norm")

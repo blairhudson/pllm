@@ -1228,6 +1228,88 @@ def test_silu_guard_cutoffs_identity_zero_and_per_coefficient_truncation():
     replay.finish()
 
 
+@pytest.fixture(params=[0, 1, Q//2, Q-1])
+def forced_gate_up_residue(request):
+    """Explicit synthetic low bits, never inferred from an arithmetic output."""
+    return request.param
+
+
+@pytest.mark.parametrize("streaming", [False, True])
+@pytest.mark.parametrize("up_word,raw_product,quotient", [
+    (2147483648, 4611686018427387904, None),
+    (2147483647, 4611686016279904256, 17592186036224),
+    (-2147483648, -4611686018427387904, -17592186044416),
+])
+def test_silu_gate_up_synthetic_quarter_gap_witness(
+        forced_gate_up_residue, streaming, up_word, raw_product, quotient):
+    # Synthetic public projections only; no trained-model or native-run claim.
+    assert Q == 262144 and GAP == 4611686018427387904
+    prefix = "s0/layer.0/"
+    names = [prefix + suffix for suffix in ("gate_proj", "up_proj")]
+    names += [prefix + "silu/" + suffix for suffix in
+              ("x2", "x4", "x6", "low.x", "low.x2", "high.x",
+               "high.x2", "high.x4", "high.x6")]
+    names += [prefix + "gate_up"]
+    batches = {name: {"shift": 18, "residues": [[forced_gate_up_residue]]}
+               for name in names}
+    consulted = []
+
+    def provider():
+        for name in names:
+            consulted.append(name)
+            yield name, batches[name]
+
+    class ObservedBatches(dict):
+        def __getitem__(self, name):
+            consulted.append(name)
+            return super().__getitem__(name)
+
+    if streaming:
+        tape = StreamingTape(provider())
+    else:
+        tape = Tape(batches)
+        tape.batches = ObservedBatches(tape.batches)
+    trace = {}
+
+    def emit(name, value):
+        trace[name] = array(value).copy()
+        return value
+
+    x, gate_weight, up_weight = array([[Q]]), array([[1 << 31]]), array([[up_word]])
+    # Complete dots are safely inside the existing unwrapped quarter-gap.
+    assert (x @ gate_weight.T).item() == 562949953421312
+    assert (x @ up_weight.T).item() == Q*up_word
+    assert -GAP <= Q*up_word < GAP and -GAP <= Q*(1 << 31) < GAP
+    gate = emit(prefix + "gate_proj", linear(x, gate_weight, tape, prefix + "gate_proj"))
+    up = emit(prefix + "up_proj", linear(x, up_weight, tape, prefix + "up_proj"))
+    assert gate.tolist() == [[2147483648]] and up.tolist() == [[up_word]]
+    assert consulted == names[:2] and tape.used == set(names[:2])
+    assert gate.item() > 4*Q and gate.item()*up.item() == raw_product
+    # All candidate products divide Q exactly: accepted quotients cannot depend
+    # on ANY residue in [0,Q), not merely the four forced fixture controls.
+    assert raw_product % Q == 0
+    if quotient is None:
+        with pytest.raises(OracleError, match="^unwrapped truncation outside quarter-gap$"):
+            oracle._silu_gate_up(gate, up, tape, prefix, emit)
+        assert consulted == names[:-1] and tape.used == set(names[:-1])
+        assert prefix + "gate_up" not in trace
+        # Rejected product's batch remains unused, including in streaming mode.
+        with pytest.raises(OracleError, match="excess.*tape batches"):
+            tape.finish()
+    else:
+        product = oracle._silu_gate_up(gate, up, tape, prefix, emit)
+        assert product.tolist() == [[quotient]]
+        assert (raw_product + 0)//Q == (raw_product + Q-1)//Q == quotient
+        assert consulted == names and tape.used == set(names)
+        assert trace[prefix + "gate_up"].tolist() == [[quotient]]
+        tape.finish()
+    # Guarded positive-tail SiLU succeeded and emitted before product admission;
+    # its nine polynomial truncations still advanced the tape despite safe=0.
+    assert trace[prefix + "silu"].tolist() == [[2147483648]]
+    assert list(trace) == [prefix + "gate_proj", prefix + "up_proj", prefix + "silu"] + (
+        [] if quotient is None else [prefix + "gate_up"])
+
+
 def test_softmax_strict_minus14_cutoff_guard_and_all_draws():
     t = FixtureTape("ceil")
     values = softmax([0, -14*Q, -14*Q+1, -1000000*Q], t, "sm")
