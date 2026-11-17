@@ -444,13 +444,11 @@ class ReplicatedSource(source_io.AdmittedSource):
                     owner._close_preserving(error)
                 raise
         self.runtime_contract(experiment, len(ids), outputs)
-        owner = _native.ReplicatedPublisher(
-            self.config_bytes, len(ids), outputs, bytes.fromhex(self.source_lock_digest),
-            bytes.fromhex(experiment.pipeline.digest()), self.contract.get("weights", "private"),
-            **(execution_binding(experiment) or {}),
-        )
+        owner = _expanded_publisher(self, experiment, len(ids), outputs)
         try:
             self._append_source(owner.shapes, owner.append, cancelled)
+            if cancelled():
+                raise ValueError("replicated source import cancelled")
             manifest = owner.seal(b"".join(token.to_bytes(4, "little") for token in ids))
             value = json.loads(manifest)
             validate_execution_binding(experiment, value)
@@ -459,6 +457,26 @@ class ReplicatedSource(source_io.AdmittedSource):
             if owner is not None:
                 owner.close()
             raise
+
+
+def _expanded_publisher(source, experiment, rows, outputs):
+    """One native factory shared by ordinary selection and dormant local toys."""
+    return _native.ReplicatedPublisher(
+        source.config_bytes, rows, outputs, bytes.fromhex(source.source_lock_digest),
+        bytes.fromhex(experiment.pipeline.digest()), source.contract.get("weights", "private"),
+        **(execution_binding(experiment) or {}),
+    )
+
+
+def _local_toy_generation(experiment, ids, outputs, cancelled, *, cleanup_scope):
+    """Dormant local-only proof. Return sealed manifest, never a source/publisher.
+
+    No dispatch calls this function. The explicit cleanup scope retains partial
+    and ambiguous retirements; this grants no payer, checkpoint or fit approval.
+    """
+    from ._authenticated_source_generation import _run_local_toy
+
+    return _run_local_toy(experiment, ids, outputs, cancelled, cleanup_scope=cleanup_scope)
 
 
 def admit_source(experiment: Experiment) -> ReplicatedSource:
