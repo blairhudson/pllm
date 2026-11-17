@@ -9,6 +9,8 @@ use std::alloc::Layout;
 use std::mem::{ManuallyDrop, MaybeUninit};
 use std::ptr::NonNull;
 
+pub(crate) mod linked_rows;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Error {
     Overflow,
@@ -86,6 +88,44 @@ impl<T> ExactBuffer<T> {
         // SAFETY: every slot is initialized. This only transfers ownership.
         Ok(unsafe { slots.assume_init() })
     }
+
+    /// Transfer the initialized prefix and all backing into a `Vec`, without
+    /// allocation, copying, cloning or initializing the unused tail.
+    ///
+    /// The returned length is the number of successful pushes. For non-zero-sized
+    /// elements, capacity is the original requested slot count (including zero),
+    /// and the allocation/pointer is unchanged. Zero-sized elements keep their
+    /// initialized length but have `Vec` capacity `usize::MAX`, independently of
+    /// the requested slots; their aligned dangling storage is never allocated.
+    ///
+    /// This transfers ownership, not persistent fixed-capacity enforcement:
+    /// callers must guard subsequent pushes if growth is forbidden. Element-owned
+    /// backing, allocator rounding and RSS remain outside the logical contract.
+    pub fn into_initialized_vec(self) -> Vec<T> {
+        let initialized = self.initialized;
+        let this = ManuallyDrop::new(self);
+        // SAFETY: move the uniquely owned Box exactly once. Its old owner cannot
+        // run prefix Drop or field Drop, and is not accessed again. Stable boxed
+        // slice into_vec transfers that same global allocation without allocation,
+        // copying or running element destructors. Suppress the temporary Vec's
+        // Drop before transferring its ownership; only infallible header/pointer
+        // operations intervene, with no callbacks, initialization or assertions.
+        let slots = unsafe { std::ptr::read(&this.slots) };
+        let mut slots = ManuallyDrop::new(slots.into_vec());
+        let capacity = slots.capacity();
+        let pointer = slots.as_mut_ptr().cast::<T>();
+        // SAFETY: MaybeUninit<T> and T have identical size/alignment. The pointer
+        // comes from the actual owning Vec, not a guessed header or allocation.
+        // Its actual capacity preserves the original global deallocation layout
+        // and validated isize byte bound. Exactly `initialized` leading elements
+        // are live T, initialized once by push; the tail stays spare capacity.
+        // initialized <= original slots <= capacity, also for ZST capacity MAX.
+        // Empty/ZST pointers remain non-null and aligned, with no deallocation.
+        // The returned Vec alone drops the prefix and frees any positive backing;
+        // both previous owners are suppressed, and no fallible operation occurs
+        // before this new owner is installed.
+        unsafe { Vec::from_raw_parts(pointer, initialized, capacity) }
+    }
 }
 
 impl<T> Drop for ExactBuffer<T> {
@@ -121,3 +161,5 @@ unsafe fn allocate_nonzero(layout: Layout) -> *mut u8 {
 #[cfg(test)]
 #[path = "exact_buffer_tests.rs"]
 mod tests;
+#[cfg(test)]
+pub(crate) use tests::AllocationScope;

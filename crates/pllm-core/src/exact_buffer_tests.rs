@@ -16,14 +16,14 @@ pub(super) fn refuse_allocation() -> bool {
     })
 }
 
-struct AllocationScope;
+pub(crate) struct AllocationScope;
 impl AllocationScope {
-    fn new(refuse: bool) -> Self {
+    pub(crate) fn new(refuse: bool) -> Self {
         ALLOCATIONS.with(|state| state.set((0, refuse)));
         Self
     }
 
-    fn entries(&self) -> usize {
+    pub(crate) fn entries(&self) -> usize {
         ALLOCATIONS.with(|state| state.get().0)
     }
 }
@@ -266,4 +266,241 @@ fn destructor_unwind_drops_remaining_prefix_not_uninitialized_tail() {
     assert!(result.is_err());
     assert!(fired.get());
     assert_eq!(counts(&drops), [1, 1, 1, 0, 0]);
+}
+
+#[test]
+fn into_initialized_vec_preserves_empty_partial_full_and_overaligned_backing() {
+    for (requested, initialized) in [(0, 0), (1, 0), (4, 0), (4, 1), (4, 3), (4, 4)] {
+        let scope = AllocationScope::new(false);
+        let mut buffer = ExactBuffer::new(requested).unwrap();
+        let pointer = buffer.slots.as_ptr().cast::<Aligned>();
+        let bytes = layout_bytes::<Aligned>(requested).unwrap();
+        for ordinal in 0..initialized {
+            buffer.push(Aligned(ordinal as u8 + 17)).unwrap();
+        }
+        assert_eq!(buffer.initialized, initialized);
+        let entries = scope.entries();
+        assert_eq!(entries, usize::from(requested != 0));
+        // Reuse the private refusal seam without resetting its entry count.
+        // It observes ExactBuffer allocator entries, not every global allocation.
+        ALLOCATIONS.with(|state| state.set((entries, true)));
+        let values = buffer.into_initialized_vec();
+        assert_eq!(scope.entries(), entries);
+        assert_eq!(values.as_ptr(), pointer);
+        assert_eq!(values.as_ptr().addr() % 256, 0);
+        assert_eq!((values.len(), values.capacity()), (initialized, requested));
+        assert_eq!(layout_bytes::<Aligned>(values.capacity()).unwrap(), bytes);
+        for (ordinal, value) in values.iter().enumerate() {
+            assert_eq!(value.0, ordinal as u8 + 17);
+        }
+        drop(values);
+        assert_eq!(scope.entries(), entries);
+    }
+}
+
+#[test]
+fn into_initialized_vec_transfers_unique_live_owners_and_never_drops_unused_tail() {
+    for initialized in [0, 1, 3, 5] {
+        let scope = AllocationScope::new(false);
+        let drops = Rc::new(std::array::from_fn(|_| Cell::new(0)));
+        let mut buffer = ExactBuffer::new(5).unwrap();
+        for ordinal in 0..initialized {
+            buffer.push(probe(ordinal, &drops)).unwrap();
+        }
+        let pointer = buffer.slots.as_ptr().cast::<Probe>();
+        assert_eq!(Rc::strong_count(&drops), initialized + 1);
+        ALLOCATIONS.with(|state| state.set((scope.entries(), true)));
+        let values = buffer.into_initialized_vec();
+        assert_eq!(scope.entries(), 1);
+        assert_eq!(values.as_ptr(), pointer);
+        assert_eq!((values.len(), values.capacity()), (initialized, 5));
+        assert_eq!(counts(&drops), [0; 5]);
+        assert_eq!(Rc::strong_count(&drops), initialized + 1);
+        for (ordinal, value) in values.iter().enumerate() {
+            assert_eq!(value.ordinal, ordinal);
+            assert!(Rc::ptr_eq(&value.drops, &drops));
+        }
+        // Probe is neither Copy nor Clone. No prefix owner was duplicated or
+        // destroyed at transfer; only the returned Vec owns these live values.
+        drop(values);
+        let expected: [usize; 5] = std::array::from_fn(|i| usize::from(i < initialized));
+        assert_eq!(counts(&drops), expected);
+        assert_eq!(Rc::strong_count(&drops), 1);
+        assert_eq!(scope.entries(), 1);
+    }
+}
+
+#[test]
+fn into_initialized_vec_after_full_push_refusal_preserves_incoming_owner() {
+    let scope = AllocationScope::new(false);
+    let drops = Rc::new(std::array::from_fn(|_| Cell::new(0)));
+    let mut buffer = ExactBuffer::new(2).unwrap();
+    buffer.push(probe(0, &drops)).unwrap();
+    buffer.push(probe(1, &drops)).unwrap();
+    let returned = buffer.push(probe(2, &drops)).unwrap_err();
+    let pointer = buffer.slots.as_ptr().cast::<Probe>();
+    ALLOCATIONS.with(|state| state.set((scope.entries(), true)));
+    let values = buffer.into_initialized_vec();
+    assert_eq!(values.as_ptr(), pointer);
+    assert_eq!((values.len(), values.capacity()), (2, 2));
+    assert_eq!(counts(&drops), [0; 5]);
+    assert_eq!(returned.ordinal, 2);
+    assert!(Rc::ptr_eq(&returned.drops, &drops));
+    drop(returned);
+    assert_eq!(counts(&drops), [0, 0, 1, 0, 0]);
+    drop(values);
+    assert_eq!(counts(&drops), [1, 1, 1, 0, 0]);
+    assert_eq!(Rc::strong_count(&drops), 1);
+    assert_eq!(scope.entries(), 1);
+}
+
+#[test]
+fn into_initialized_vec_spare_capacity_accepts_moved_values_without_growth() {
+    let scope = AllocationScope::new(false);
+    let drops = Rc::new(std::array::from_fn(|_| Cell::new(0)));
+    let mut buffer = ExactBuffer::new(5).unwrap();
+    buffer.push(probe(0, &drops)).unwrap();
+    buffer.push(probe(1, &drops)).unwrap();
+    let pointer = buffer.slots.as_ptr().cast::<Probe>();
+    ALLOCATIONS.with(|state| state.set((scope.entries(), true)));
+    let mut values = buffer.into_initialized_vec();
+    assert_eq!((values.len(), values.capacity()), (2, 5));
+    for ordinal in 2..5 {
+        assert!(values.len() < values.capacity());
+        values.push(probe(ordinal, &drops));
+        assert_eq!(values.as_ptr(), pointer);
+        assert_eq!(values.capacity(), 5);
+    }
+    assert_eq!(values.len(), 5);
+    assert_eq!(counts(&drops), [0; 5]);
+    assert_eq!(Rc::strong_count(&drops), 6);
+    drop(values);
+    assert_eq!(counts(&drops), [1; 5]);
+    assert_eq!(Rc::strong_count(&drops), 1);
+    assert_eq!(scope.entries(), 1);
+}
+
+#[test]
+fn into_initialized_vec_zst_capacity_differs_from_requested_slots_but_length_is_exact() {
+    for (requested, initialized) in [(0, 0), (4, 0), (4, 2), (4, 4), (usize::MAX, 2)] {
+        let scope = AllocationScope::new(true);
+        ZST_DROPS.with(|drops| drops.set(0));
+        let mut buffer = ExactBuffer::new(requested).unwrap();
+        for _ in 0..initialized {
+            buffer.push(DropZst).unwrap();
+        }
+        assert_eq!(buffer.slots.len(), requested);
+        let pointer = buffer.slots.as_ptr().cast::<DropZst>();
+        let values = buffer.into_initialized_vec();
+        assert_eq!(values.as_ptr(), pointer);
+        assert_eq!(values.as_ptr().addr() % 256, 0);
+        assert_eq!((values.len(), values.capacity()), (initialized, usize::MAX));
+        ZST_DROPS.with(|drops| assert_eq!(drops.get(), 0));
+        drop(values);
+        ZST_DROPS.with(|drops| assert_eq!(drops.get(), initialized));
+        assert_eq!(scope.entries(), 0);
+    }
+}
+
+#[test]
+fn into_initialized_vec_destructor_unwind_cleans_remaining_live_prefix_once() {
+    #[derive(Debug)]
+    struct PanicOnce {
+        probe: Probe,
+        fired: Rc<Cell<bool>>,
+    }
+    impl Drop for PanicOnce {
+        fn drop(&mut self) {
+            if self.probe.ordinal == 1 && !self.fired.replace(true) {
+                panic!("single transferred destructor failure");
+            }
+        }
+    }
+    for initialized in [3, 5] {
+        let scope = AllocationScope::new(false);
+        let drops = Rc::new(std::array::from_fn(|_| Cell::new(0)));
+        let fired = Rc::new(Cell::new(false));
+        let mut buffer = ExactBuffer::new(5).unwrap();
+        for ordinal in 0..initialized {
+            buffer.push(PanicOnce { probe: probe(ordinal, &drops), fired: fired.clone() }).unwrap();
+        }
+        let pointer = buffer.slots.as_ptr().cast::<PanicOnce>();
+        ALLOCATIONS.with(|state| state.set((scope.entries(), true)));
+        let values = buffer.into_initialized_vec();
+        assert_eq!(values.as_ptr(), pointer);
+        assert_eq!((values.len(), values.capacity()), (initialized, 5));
+        assert_eq!(counts(&drops), [0; 5]);
+        assert!(!fired.get());
+        let result = catch_unwind(AssertUnwindSafe(|| drop(values)));
+        assert!(result.is_err());
+        assert!(fired.get());
+        let expected: [usize; 5] = std::array::from_fn(|i| usize::from(i < initialized));
+        assert_eq!(counts(&drops), expected);
+        assert_eq!(Rc::strong_count(&drops), 1);
+        assert_eq!(Rc::strong_count(&fired), 1);
+        assert_eq!(scope.entries(), 1);
+    }
+}
+
+#[test]
+fn into_initialized_vec_zst_destructor_unwind_drops_length_not_capacity() {
+    #[repr(align(256))]
+    #[derive(Debug)]
+    struct PanicZst;
+    impl Drop for PanicZst {
+        fn drop(&mut self) {
+            let ordinal = ZST_DROPS.with(|drops| {
+                let ordinal = drops.get();
+                drops.set(ordinal + 1);
+                ordinal
+            });
+            if ordinal == 1 {
+                panic!("single transferred ZST destructor failure");
+            }
+        }
+    }
+    let scope = AllocationScope::new(true);
+    ZST_DROPS.with(|drops| drops.set(0));
+    let mut buffer = ExactBuffer::new(5).unwrap();
+    for _ in 0..3 {
+        buffer.push(PanicZst).unwrap();
+    }
+    let pointer = buffer.slots.as_ptr().cast::<PanicZst>();
+    let values = buffer.into_initialized_vec();
+    assert_eq!(values.as_ptr(), pointer);
+    assert_eq!((values.len(), values.capacity()), (3, usize::MAX));
+    ZST_DROPS.with(|drops| assert_eq!(drops.get(), 0));
+    assert!(catch_unwind(AssertUnwindSafe(|| drop(values))).is_err());
+    ZST_DROPS.with(|drops| assert_eq!(drops.get(), 3));
+    assert_eq!(scope.entries(), 0);
+}
+
+#[test]
+fn into_initialized_vec_keeps_zero_null_and_overflow_allocation_rules() {
+    let scope = AllocationScope::new(true);
+    let empty = ExactBuffer::<u64>::new(0).unwrap();
+    let pointer = empty.slots.as_ptr().cast::<u64>();
+    let empty = empty.into_initialized_vec();
+    assert_eq!(empty.as_ptr(), pointer);
+    assert_eq!((empty.len(), empty.capacity()), (0, 0));
+    drop(empty);
+    assert_eq!(scope.entries(), 0);
+    assert!(matches!(ExactBuffer::<u64>::new(usize::MAX), Err(Error::Overflow)));
+    assert!(matches!(ExactBuffer::<u8>::new(isize::MAX as usize + 1), Err(Error::Overflow)));
+    assert_eq!(scope.entries(), 0);
+    assert!(matches!(ExactBuffer::<Aligned>::new(3), Err(Error::Allocation)));
+    assert!(matches!(ExactBuffer::<u64>::new(1), Err(Error::Allocation)));
+    assert_eq!(scope.entries(), 2);
+    ALLOCATIONS.with(|state| state.set((scope.entries(), false)));
+    let mut buffer = ExactBuffer::new(3).unwrap();
+    buffer.push(42u64).unwrap();
+    let pointer = buffer.slots.as_ptr().cast::<u64>();
+    assert_eq!(scope.entries(), 3);
+    ALLOCATIONS.with(|state| state.set((scope.entries(), true)));
+    let values = buffer.into_initialized_vec();
+    assert_eq!(values.as_ptr(), pointer);
+    assert_eq!((values.len(), values.capacity()), (1, 3));
+    assert_eq!(values.as_slice(), &[42]);
+    drop(values);
+    assert_eq!(scope.entries(), 3);
 }
