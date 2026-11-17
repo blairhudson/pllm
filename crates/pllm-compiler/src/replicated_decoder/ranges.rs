@@ -1,6 +1,68 @@
 //! Public frozen range guards. No private observations affect construction.
 use super::*;
 
+#[path = "public_dot_metadata.rs"]
+#[allow(dead_code)] // Inactive metadata leaf; no production consumer is attached.
+mod public_dot_metadata;
+pub(super) use public_dot_metadata::StoredRowDotCap;
+
+/// Largest requested symmetric operand cap under a complete public row-L1 premise.
+/// The triangle inequality bounds every product and prefix by cap * row_l1.
+/// This pure calculation does not authenticate statistics, narrow a view, emit
+/// a guard, admit a program, or account for post-dot bias or the full graph.
+#[allow(dead_code)] // Deliberately not adopted by production consumers yet.
+pub(super) fn public_dot_operand_cap(requested: i64, row_l1: u64) -> Result<i64, Error> {
+    if requested < 0 {
+        return Err(Error::Bounds);
+    }
+    if row_l1 == 0 {
+        return Ok(requested);
+    }
+    // Native TruncAPr accepts [-2^62, 2^62); symmetry forgoes -2^62.
+    let domain = (puma::INPUT_MAX_EXCLUSIVE - 1) as u128;
+    let cap = (requested as u128).min(domain / u128::from(row_l1));
+    i64::try_from(cap).map_err(|_| Error::Bounds)
+}
+
+#[cfg(test)]
+#[path = "public_dot_operand_cap_tests.rs"]
+mod public_dot_operand_cap_tests;
+
+/// Maximal common symmetric cap at most requested, from public mathematical
+/// premises only: for positive inner n and D = INPUT_MAX_EXCLUSIVE - 1,
+/// n*C*C <= D. Conditional on actual integer operands satisfying |q_j|,|k_j|
+/// <= C, every product, subset subtotal and prefix has magnitude <= n*C*C.
+/// This proves no operand membership or provenance and supplies no guards,
+/// view narrowing, certificates, authentication, admission or runtime adoption.
+/// Maximality is among equal Q/K caps, not asymmetric pairs trading magnitudes.
+/// Zero denotes only the singleton zero box; abstract widths admit no shape.
+/// Products are raw encoded integers, before the existing complete-dot rescale.
+/// Post-score scaling needs its own bound and cannot rescue an unsafe raw dot;
+/// pre-rotary membership does not prove post-rotary membership. Bias, residual,
+/// softmax, native constructor/resource checks and full graph fit remain separate.
+#[allow(dead_code)] // Pure prerequisite; no production consumer attached.
+pub(super) fn private_dot_operand_caps(
+    requested: i64,
+    inner: usize,
+) -> Result<(i64, i64), Error> {
+    if requested < 0 || inner == 0 {
+        return Err(Error::Bounds);
+    }
+    let requested = u128::try_from(requested).map_err(|_| Error::Bounds)?;
+    let inner = u128::try_from(inner).map_err(|_| Error::Bounds)?;
+    let domain = puma::INPUT_MAX_EXCLUSIVE
+        .checked_sub(1)
+        .and_then(|value| u128::try_from(value).ok())
+        .ok_or(Error::Bounds)?;
+    let cap = requested.min((domain / inner).isqrt());
+    let cap = i64::try_from(cap).map_err(|_| Error::Bounds)?;
+    Ok((cap, cap))
+}
+
+#[cfg(test)]
+#[path = "private_dot_operand_cap_tests.rs"]
+mod private_dot_operand_cap_tests;
+
 impl Builder {
     /// Zero fallback cannot increase a certified complete row's exact energy,
     /// even on rejected requests. Match the entire ordered producer row; never
