@@ -2416,13 +2416,14 @@ class _MockSourceOwner:
         self.payloads = None
 
 
-def _source_fixture(*, tied=False, vocab=131, dtype="F32", hidden=2, heads=1, kv=1, dim=2):
+def _source_fixture(*, tied=False, vocab=131, dtype="F32", hidden=2, heads=1, kv=1, dim=2,
+                    layers=1, input_rows=3, generated_24=False):
     """Small non-two-row Qwen2, independent exact dyadic source coefficients."""
     cfg = dict(model_type="qwen2", hidden_size=hidden, intermediate_size=3,
-               num_hidden_layers=1, num_attention_heads=heads, num_key_value_heads=kv,
+               num_hidden_layers=layers, num_attention_heads=heads, num_key_value_heads=kv,
                head_dim=dim, vocab_size=vocab, attention_bias=True,
                tie_word_embeddings=tied, hidden_act="silu", rms_norm_eps=1e-6)
-    geometry = source.Geometry(json.dumps(cfg, sort_keys=True).encode(), 3)
+    geometry = source.Geometry(json.dumps(cfg, sort_keys=True).encode(), input_rows)
     descriptors, payloads, integers = [], {}, {}
     for index, (name, shape) in enumerate(geometry.roles()):
         if tied and name == "lm_head.weight":
@@ -2432,6 +2433,15 @@ def _source_fixture(*, tied=False, vocab=131, dtype="F32", hidden=2, heads=1, kv
             words = [Q]*count
         else:
             words = [((i*3+index*5) % 11-5)*(Q//64) for i in range(count)]
+        if generated_24 and name == "model.embed_tokens.weight":
+            # Exact BF16 dyadics, unique tied-head winner instead of repeated rows.
+            words = [value for row in range(vocab)
+                     for value in ((row+1)*(Q//128), -(row+1)*(Q//256))]
+        elif generated_24 and name.startswith("model.layers.") and "layernorm" not in name:
+            layer = int(name.split(".")[2])
+            # All nonzero; every layer differs, including each attention/MLP role.
+            words = [(-1 if (index+i) % 3 == 0 else 1)
+                     * (4*(layer+1)+index % 12+i+1)*(Q//4096) for i in range(count)]
         integers[name] = np.array(words, dtype=object).reshape(shape)
         canonical = b"".join(struct.pack("<f", word/Q) for word in words)
         if dtype == "F16":
@@ -2634,13 +2644,15 @@ def test_source_cut_complete_mixed_sign_contraction_one_negative_truncation():
     assert (-131073)//Q + 131074//Q == -1
 
 
-def _source_scalar_qwen2(cfg, weights, original_ids, rotary):
+def _source_scalar_qwen2(cfg, weights, original_ids, rotary, *, mixed_trace=False, epsilon=1):
     """Independent complete small decoder: lists/scalar dots, no adapter helpers.
 
     Reuses preexisting standalone scalar HAL norm/reciprocal. Fixed zero low
     residues are an explicit consumer mock, not a native randomness claim.
     Returns every logit, last hidden and feedback for both selections.
     """
+    if mixed_trace:
+        return _source_scalar_qwen2_mixed_trace(cfg, weights, original_ids, rotary, epsilon=epsilon)
     shared = offline_module("shared_profile_oracle.py")
     w = {name: value.tolist() for name, value in weights.items()}
     if cfg["tie_word_embeddings"]:
@@ -2706,16 +2718,188 @@ def _source_scalar_qwen2(cfg, weights, original_ids, rotary):
     return result
 
 
-def _source_expected_reads(view, tied):
+def _source_scalar_qwen2_mixed_trace(cfg, weights, original_ids, rotary, *, epsilon=1):
+    """Generated narrow Qwen2 specification, not a trace/tape authoring replay.
+
+    Only container shaping uses NumPy. Dots, HAL recipes and signed rounding use
+    Python integers. No decoder, Tape, oracle primitive or emitted value supplies
+    expectations. The fixed name/lane residue rule is public mock data, not PRSS.
+    """
+    assert (cfg["hidden_size"], cfg["intermediate_size"], cfg["num_attention_heads"],
+            cfg["num_key_value_heads"], cfg["head_dim"]) == (2, 3, 1, 1, 2)
+    w = {name: value.tolist() for name, value in weights.items()}
+    w["lm_head.weight"] = w["model.embed_tokens.weight"]
+    trace, batches, negative_rounds = {}, {}, []
+
+    def emit(name, value):
+        assert name not in trace
+        trace[name] = np.array(value, dtype=object)
+        return value
+
+    def tr(name, raw, shift=18):
+        values = np.asarray(raw, dtype=object)
+        assert name not in batches
+        modulus = 1 << shift
+        seed = sum((i+1)*ord(char) for i, char in enumerate(name))
+        lows = [(seed+lane*104729) % modulus for lane in range(values.size)]
+        batches[name] = {"shift": shift,
+                         "residues": np.array(lows, dtype=object).reshape(values.shape)}
+        rounded = []
+        for lane, (value, low) in enumerate(zip(values.flat, lows)):
+            value = int(value)
+            # Mathematical signed quotient: deliberately not Tape.truncate or
+            # an unsigned/high-bit implementation copied from the consumer.
+            answer = (value+low)//modulus
+            if value < 0 and answer != value//modulus:
+                negative_rounds.append((name, lane, value, low, shift, answer))
+            rounded.append(answer)
+        return np.array(rounded, dtype=object).reshape(values.shape).tolist()
+
+    def pair(a, b, fn):
+        return [[fn(x, y) for x, y in zip(left, right)] for left, right in zip(a, b)]
+
+    def project(rows, name, operation, bias=None):
+        result = tr(operation, [[sum(x*y for x, y in zip(row, coefficient))
+                                 for coefficient in w[name]] for row in rows])
+        if bias is not None:
+            result = [[value+bias[col] for col, value in enumerate(row)] for row in result]
+        return result
+
+    def norm(rows, name, operation):
+        squares = tr(operation+"/squares", [[x*x for x in row] for row in rows])
+        denominator = [x+epsilon for x in tr(operation+"/mean",
+                                             [sum(row)*131072 for row in squares])]
+        lengths = [x.bit_length() for x in denominator]
+        factors = [1 << (35-length) for length in lengths]
+        u = tr(operation+"/rsqrt/u", [x*f for x, f in zip(denominator, factors)])
+        u2 = tr(operation+"/rsqrt/u2", [x*x for x in u])
+        u3 = tr(operation+"/rsqrt/u3", [a*b for a, b in zip(u2, u)])
+        u4 = tr(operation+"/rsqrt/u4", [a*b for a, b in zip(u3, u)])
+        polynomial = tr(operation+"/rsqrt/polynomial",
+            [-4057974*a+10085068*b-13072088*c+6823457*d
+             for a, b, c, d in zip(u, u2, u3, u4)])
+        compensation = [(724 if length % 2 == 0 else 512)*(1 << (17-length//2))
+                        for length in lengths]
+        inverse = tr(operation+"/rsqrt/out",
+                     [(p+1086023)*c for p, c in zip(polynomial, compensation)])
+        normalized = tr(operation+"/normalize",
+                        [[x*inv for x in row] for row, inv in zip(rows, inverse)])
+        return emit(operation, tr(operation+"/gamma",
+                    [[x*g for x, g in zip(row, w[name])] for row in normalized]))
+
+    def activation(rows, operation):
+        safe = [[x if -8*Q <= x <= 4*Q else 0 for x in row] for row in rows]
+        x2 = tr(operation+"/x2", pair(safe, safe, lambda a, b: a*b))
+        x4 = tr(operation+"/x4", pair(x2, x2, lambda a, b: a*b))
+        x6 = tr(operation+"/x6", pair(x2, x4, lambda a, b: a*b))
+        terms = []
+        for suffix, coefficient, values in (("low.x", -21489, safe), ("low.x2", -1453, x2),
+                ("high.x", 131072, safe), ("high.x2", 59806, x2),
+                ("high.x4", -2913, x4), ("high.x6", 71, x6)):
+            terms.append(tr(operation+"/"+suffix, [[coefficient*x for x in row] for row in values]))
+        result = []
+        for r, row in enumerate(rows):
+            result.append([0 if x < -8*Q else -80413+terms[0][r][c]+terms[1][r][c]
+                           if x < -4*Q else 2229+sum(term[r][c] for term in terms[2:])
+                           if x <= 4*Q else x for c, x in enumerate(row)])
+        return emit(operation, result)
+
+    def probabilities(scores, operation):
+        shifted = [x-max(scores) for x in scores]
+        keep = [x > -14*Q for x in shifted]
+        reduced = tr(operation+"/reduce", [x if valid else 0 for x, valid in zip(shifted, keep)], 5)
+        exps = [Q+x for x in reduced]
+        for square in range(5):
+            exps = tr(operation+f"/square.{square}", [x*x for x in exps])
+        exps = [x if valid else 0 for x, valid in zip(exps, keep)]
+        total = sum(exps)
+        factor = 1 << (36-total.bit_length())
+        c = tr(operation+"/reciprocal/c", total*factor)
+        initial = tr(operation+"/reciprocal/w", (763940-2*c)*factor)
+        error = Q-tr(operation+"/reciprocal/xw", total*initial)
+        improved = tr(operation+"/reciprocal/r", initial*(Q+error))
+        error2 = tr(operation+"/reciprocal/e2", error*error)
+        inverse = tr(operation+"/reciprocal/out", improved*(Q+error2))
+        return tr(operation+"/probabilities", [x*inverse for x in exps])
+
+    ids, outputs = list(original_ids), []
+    for selection in range(2):
+        root = f"s{selection}/"
+        emit(root+"input.tokens", list(ids))
+        x = emit(root+"embedding", [list(w["model.embed_tokens.weight"][i]) for i in ids])
+        n = len(ids)
+        for layer in range(cfg["num_hidden_layers"]):
+            p, src = root+f"layer.{layer}/", f"model.layers.{layer}."
+            residual = x
+            normalized = norm(x, src+"input_layernorm.weight", p+"input_norm")
+            qkv = []
+            for kind in "qkv":
+                projected = emit(p+kind+"_proj", project(normalized,
+                    src+f"self_attn.{kind}_proj.weight", p+kind+"_proj",
+                    w[src+f"self_attn.{kind}_proj.bias"]))
+                emit(p+kind+"_heads", [projected])
+                if kind in "qk":
+                    rotated = []
+                    for position, (a, b) in enumerate(projected):
+                        (cosine,), (sine,) = rotary[position]
+                        operation = p+f"{kind}_rotary/h0/p{position}"
+                        ca, cb = tr(operation+"/cos", [a*cosine, b*cosine])
+                        sa, sb = tr(operation+"/sin", [-b*sine, a*sine])
+                        rotated.append([ca+sa, cb+sb])
+                    emit(p+kind+"_rotary", [rotated])
+                    projected = rotated
+                qkv.append(projected)
+            q, k, v = qkv
+            emit(p+"full_prefix_k", [k])
+            emit(p+"full_prefix_v", [v])
+            scores = [tr(p+f"scores/h0/r{row}",
+                         [sum(a*b for a, b in zip(q[row], key)) for key in k[:row+1]])
+                      + [0]*(n-row-1) for row in range(n)]
+            emit(p+"scores", [scores])
+            scores = tr(p+"scale", [[[x*185363 for x in row] for row in scores]])[0]
+            emit(p+"scaled_scores", [scores])
+            emit(p+"causal_mask", [scores])
+            probs = [probabilities(scores[row][:row+1], p+f"softmax/h0/r{row}")
+                     + [0]*(n-row-1) for row in range(n)]
+            emit(p+"probabilities", [probs])
+            context = [tr(p+f"context/h0/r{row}",
+                          [sum(probs[row][j]*v[j][col] for j in range(row+1)) for col in range(2)])
+                       for row in range(n)]
+            emit(p+"context", [context])
+            emit(p+"merged", context)
+            out = emit(p+"o_proj", project(context, src+"self_attn.o_proj.weight", p+"o_proj"))
+            x = emit(p+"attention_residual", pair(residual, out, lambda a, b: a+b))
+            normalized = norm(x, src+"post_attention_layernorm.weight", p+"post_attention_norm")
+            gate = emit(p+"gate_proj", project(normalized, src+"mlp.gate_proj.weight", p+"gate_proj"))
+            up = emit(p+"up_proj", project(normalized, src+"mlp.up_proj.weight", p+"up_proj"))
+            activated = activation(gate, p+"silu")
+            product = emit(p+"gate_up", tr(p+"gate_up", pair(activated, up, lambda a, b: a*b)))
+            down = emit(p+"down_proj", project(product, src+"mlp.down_proj.weight", p+"down_proj"))
+            x = emit(p+"output", pair(x, down, lambda a, b: a+b))
+        normalized = norm(x, "model.norm.weight", root+"final_norm")
+        last = emit(root+"last_hidden", normalized[-1])
+        logits = emit(root+"logits", tr(root+"head",
+            [sum(a*b for a, b in zip(last, row)) for row in w["lm_head.weight"]]))
+        token = max(range(len(logits)), key=lambda i: (logits[i], -i))
+        emit(root+"selected", token)
+        ids.append(token)
+        emit(root+"feedback", list(ids))
+        outputs.append(token)
+    return trace, batches, outputs, negative_rounds
+
+
+def _source_expected_reads(view, tied, *, layers=1):
     # Hand-enumerated consumer grammar, NOT Geometry.roles / adapter cursor.
-    p = "model.layers.0."
-    names = ["model.embed_tokens.weight", p+"input_layernorm.weight",
-        p+"self_attn.q_proj.bias", p+"self_attn.q_proj.weight",
-        p+"self_attn.k_proj.bias", p+"self_attn.k_proj.weight",
-        p+"self_attn.v_proj.bias", p+"self_attn.v_proj.weight",
-        p+"self_attn.o_proj.weight", p+"post_attention_layernorm.weight",
-        p+"mlp.gate_proj.weight", p+"mlp.up_proj.weight", p+"mlp.down_proj.weight",
-        "model.norm.weight", "lm_head.weight"]
+    names = ["model.embed_tokens.weight"]
+    for layer in range(layers):
+        p = f"model.layers.{layer}."
+        names += [p+"input_layernorm.weight",
+            p+"self_attn.q_proj.bias", p+"self_attn.q_proj.weight",
+            p+"self_attn.k_proj.bias", p+"self_attn.k_proj.weight",
+            p+"self_attn.v_proj.bias", p+"self_attn.v_proj.weight",
+            p+"self_attn.o_proj.weight", p+"post_attention_layernorm.weight",
+            p+"mlp.gate_proj.weight", p+"mlp.up_proj.weight", p+"mlp.down_proj.weight"]
+    names += ["model.norm.weight", "lm_head.weight"]
     descs = {d.name: d for d in view.descriptors}
     def frames(name):
         d = descs["model.embed_tokens.weight" if tied and name == "lm_head.weight" else name]
@@ -2780,6 +2964,109 @@ def test_source_cut_non2row_two_selection_real_decoder_scalar_complete_outputs(t
     assert len(seen) == 8 and view.owner.calls == expected_reads
     assert max(encoded_sizes) == 256 and all(ref() is None for ref, _ in encoded_refs)
     assert view.owner.closed and view.owner.closes == 1
+
+
+@pytest.mark.parametrize("mutation", ["none", "middle_word"])
+def test_source_cut_generated_24_layer_bf16_tied_complete_differential(monkeypatch, mutation):
+    """Generated source-only consumer evidence, NOT a native/model qualification.
+
+    Four input IDs, two selections, 24 narrow layers. Exact logical source quotas
+    below are fixture limits, not requested changes to production admission caps.
+    """
+    cfg, geometry, view, integers = _source_fixture(tied=True, dtype="BF16",
+        layers=24, input_rows=4, generated_24=True)
+    ids = [4, 2, 4, 7]
+    rotary = {0: ([Q], [0]), 1: ([141637], [220586]),
+              2: ([-109090], [238366]), 3: ([-259520], [36994]),
+              4: ([-171347], [-198386])}
+    expected, batches, tokens, negative_rounds = _source_scalar_qwen2(
+        cfg, integers, ids, rotary, mixed_trace=True)
+    expected_reads = _source_expected_reads(view, True, layers=24)
+    assert len(expected) == 1262 and len(batches) == 5950 and len(expected_reads) == 877
+    assert tokens[0] not in ids  # Feedback cannot pass by reusing any prompt ID.
+    for suffix in ("self_attn.q_proj.weight", "self_attn.k_proj.weight",
+                   "self_attn.v_proj.weight", "self_attn.o_proj.weight",
+                   "mlp.gate_proj.weight", "mlp.up_proj.weight", "mlp.down_proj.weight"):
+        layers = [integers[f"model.layers.{layer}.{suffix}"] for layer in range(24)]
+        assert all(all(int(x) != 0 for x in value.flat) for value in layers)
+        assert len({tuple(value.flat) for value in layers}) == 24
+    # Independently generated epsilon-zero trace must disagree with actual
+    # epsilon-one contract, even though config's float epsilon is below 1/Q.
+    if mutation == "none":
+        without_epsilon, _, _, _ = _source_scalar_qwen2(
+            cfg, integers, ids, rotary, mixed_trace=True, epsilon=0)
+        assert not np.array_equal(expected["s0/layer.0/input_norm"],
+                                  without_epsilon["s0/layer.0/input_norm"])
+    # Negative activation/up product must actually move by one under its fixed
+    # low residue. Merely possessing mixed nonzero masks is not a discriminator.
+    witnesses = [entry for entry in negative_rounds if entry[0].endswith("/gate_up")]
+    assert witnesses
+    operation, lane, raw, low, shift, rounded = witnesses[0]
+    assert raw < 0 and 0 < low < (1 << shift)
+    assert rounded == raw//(1 << shift)+1
+    assert expected[operation].flat[lane] == rounded
+    assert len(set(int(x) for x in batches[operation]["residues"].flat)) > 1
+
+    changed = []
+    if mutation == "middle_word":
+        original_linear = oracle.linear
+        def corrupt_one_word(x, weight, tape, name, bias=None):
+            result = original_linear(x, weight, tape, name, bias)
+            if name == "s0/layer.12/down_proj":
+                before = result.copy()
+                result = result.copy()
+                result[0, 0] += 1
+                assert np.count_nonzero(result != before) == 1
+                changed.append(name)
+            return result
+        monkeypatch.setattr(oracle, "linear", corrupt_one_word)
+
+    limits = source.Limits(frame_words=256, scratch_bytes=7680, vector_words=2,
+                           gather_words=10, index_records=291, index_bytes=9312)
+    tape = Tape(batches)
+    gathered = []
+    with _open_source(view, geometry, limits) as weights:
+        gather = weights.gather_embedding
+        def observe_gather(prefix):
+            gathered.append((weights._selection, list(prefix)))
+            assert view.owner.generation == view.generation == 7
+            return gather(prefix)
+        monkeypatch.setattr(weights, "gather_embedding", observe_gather)
+        actual = run_decoder(cfg, weights, ids, 2, tape, rotary)
+        assert weights._selection == 2
+        weights.finish()
+    tape.finish()
+    assert tape.used == batches.keys()  # No authored-but-unconsumed operation.
+    assert actual.accepted and actual.tokens == tokens
+    assert list(actual.trace) == list(expected)  # Every node name, in both epochs.
+    assert all(actual.trace[name].shape == value.shape for name, value in expected.items())
+    assert gathered == [(0, ids), (1, ids+[tokens[0]])]
+    assert actual.trace["s1/input.tokens"].tolist() == ids+[tokens[0]]
+    assert actual.trace["s1/embedding"][-1].tolist() == integers["model.embed_tokens.weight"][tokens[0]].tolist()
+    for selection in range(2):
+        root = f"s{selection}/"
+        suffixes = (("final_norm", "last_hidden", "logits", "selected", "feedback")
+                    if mutation == "none" else ("selected", "feedback"))
+        for suffix in suffixes:
+            assert np.array_equal(actual.trace[root+suffix], expected[root+suffix])
+        assert actual.trace[root+"feedback"].tolist() == ids+tokens[:selection+1]
+    assert view.owner.calls == expected_reads
+    embedding_id = view.descriptors[0].source_id
+    embedding_reads = [call for call in view.owner.calls if call[0] == embedding_id]
+    # Verification + (gather + tied-head reread) for EACH compute epoch.
+    assert embedding_reads == [(embedding_id, 0, 512), (embedding_id, 512, 12)]*5
+    assert view.owner.closed and view.owner.closes == 1
+    if mutation == "none":
+        assert changed == []
+        compare_trace(expected, actual.trace)
+        assert actual.trace[operation].flat[lane] == rounded
+        with pytest.raises(OracleError, match="trace mismatch"):
+            compare_trace(without_epsilon, actual.trace)
+    else:
+        assert changed == ["s0/layer.12/down_proj"]
+        assert actual.trace[changed[0]][0, 0] == expected[changed[0]][0, 0]+1
+        with pytest.raises(OracleError, match=r"trace mismatch: s0/layer\.12/down_proj"):
+            compare_trace(expected, actual.trace)
 
 
 def test_source_cut_private_ids_and_rejection_have_identical_public_reads():
