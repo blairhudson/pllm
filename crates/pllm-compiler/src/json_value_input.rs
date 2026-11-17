@@ -24,10 +24,6 @@ use pllm_garble::shared_allocation::Budget;
 use serde_json::Value;
 use std::{cell::Cell, mem::size_of};
 
-#[allow(dead_code)] // Disconnected length-only metadata; not startup admission.
-#[path = "json_original_intake_envelope.rs"]
-mod original_intake_envelope;
-
 /// Disjoint logical work slices, not CPU fuel or refundable credit.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Work {

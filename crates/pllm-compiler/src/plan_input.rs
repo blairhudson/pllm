@@ -35,59 +35,6 @@ use std::{cell::Cell, fmt, mem::size_of};
 const DEPTH: usize = 32;
 const CENSUS_SLOTS: usize = 17;
 
-/// Per-object retained member bound for a successful ordinary byte import.
-/// For m > 0, Scanner consumes two braces, m pairs of key quotes, m
-/// colons, at least m value bytes and m-1 commas within that object alone.
-/// Builder inserts one entry per scanned child; duplicate keys only shrink
-/// the result. Nested values, escapes and whitespace cannot reduce that cost.
-pub(crate) const fn object_members_from_byte_limit(limit: usize) -> usize {
-    limit.saturating_sub(1) / 5
-}
-
-#[cfg(test)]
-#[test]
-fn experiment_object_bound_ordinary_byte_grammar() {
-    let bound = object_members_from_byte_limit;
-    assert_eq!((0..=11).map(bound).collect::<Vec<_>>(), [0,0,0,0,0,0,1,1,1,1,1,2]);
-    let wide = usize::MAX as u128;
-    let fitted = (bound(usize::MAX) as u128).checked_mul(5).unwrap();
-    assert!((1..=5).contains(&(wide-fitted)));
-    fn retained(value: &Value, raw_len: usize) -> Vec<usize> {
-        let mut widths = Vec::new();
-        if let Value::Object(map) = value {
-            assert!(map.len() <= object_members_from_byte_limit(raw_len));
-            widths.push(map.len());
-            for child in map.values() { widths.extend(retained(child, raw_len)); }
-        }
-        if let Value::Array(items) = value {
-            for child in items { widths.extend(retained(child, raw_len)); }
-        }
-        widths
-    }
-    for (text, members, widths) in [
-        (r#"{}"#, 0, &[0][..]),
-        (r#"{"":0}"#, 1, &[1][..]),
-        (r#"{"":0,"":1}"#, 2, &[1][..]),
-        (r#"{"x":0,"\u0078":[{"é":{"":1}}]}"#, 4, &[1,1,1][..]),
-    ] {
-        let raw = text.as_bytes();
-        let limits = Limits {max_source_bytes:raw.len(),max_nodes:64,max_depth:16,
-            max_string_bytes:64,max_number_bytes:8,max_number_work:100_000,
-            max_work:100_000,max_payload_bytes:usize::MAX};
-        let scan = |output| {
-            let mut meter = Meter {used:0,limit:limits.max_work};
-            Scanner::<DEPTH,false> {raw,position:0,stack:[Frame::EMPTY;DEPTH],active:0,
-                stats:SourceCounts::default(),meter:&mut meter,output,limits}.run().unwrap()
-        };
-        let counts = scan(None);
-        assert_eq!(counts.map_entries,members);
-        let mut spans = vec![Span::EMPTY;counts.spans];
-        scan(Some(&mut spans[..]));
-        let value = Builder {raw,spans:&spans,numeric:Cell::new(Meter {used:0,limit:limits.max_number_work})}.json(0).unwrap();
-        assert_eq!(retained(&value,raw.len()).as_slice(),widths);
-    }
-}
-
 #[derive(Clone, Copy, Debug)]
 pub struct Limits {
     pub max_source_bytes: usize,
