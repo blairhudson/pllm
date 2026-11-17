@@ -1,7 +1,8 @@
-"""Gupta–Katz–Miers: legacy compositions and an unmeasured benchmark target.
+"""Gupta–Katz–Miers: legacy compositions and a bounded canonical benchmark.
 
-The canonical script declares planned reusable bindings, not implemented or
-qualified execution. SDK admission may honestly refuse the target composition.
+The canonical 17-component target completed one native CPU loopback benchmark
+through the public SDK on 2026-11-10. See README.md for its measured scope and
+limitations; this does not qualify subsequent source changes.
 """
 
 from pllm import Deployment, ExecutionBudget, Experiment, Model, Pipeline, benchmark
@@ -104,7 +105,7 @@ def composed_bounded_response(model=MODEL, budget=None):
 
 
 def benchmark_experiment(*, model=None, budget=None):
-    """Explicit target declaration; planned components confer no run authority."""
+    """Canonical 17-component benchmark composition; bounded measurement documented in README.md."""
     return Experiment(
         "gkm-benchmark",
         Pipeline(
