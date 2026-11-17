@@ -39,6 +39,36 @@ descriptor manifest still prevents claiming its exact evaluated numeric identity
 The complete method remains unqualified until F5 passes. Earlier gates supply
 only their stated scopes; generated benchmarks cannot fill a trained-model cell.
 
+## Current generated-source SDK evidence
+
+The fresh installed wheel passed
+[`tests/test_fss_sdk.py::test_selected_twenty_dense_rope_public_sdk_real_qualification_and_private_feedback`](../../tests/test_fss_sdk.py)
+with the original selected 20-component composition and generated dense checkpoint.
+The ordinary renderer produces the unknown input token `[2]`; two selections
+`(2, 2)` were independently predicted before protected execution by
+[`sdk_fixture_reference.py`](../reproduction-contracts/fusefss/decoder/sdk_fixture_reference.py)
+using the existing Q12 semantic reference. The test passed real native source
+admission/import/program construction, funded coordinator qualification, three-role
+startup, source pins and raw contract equality. It also checked usage (one input,
+two output tokens), tokenizer-decoded text, no additional response-time parent
+tensor imports, holder routing, dealer retirement, continuation refusal and child
+shutdown. Current G1/G2/G3/G4 groups passed 138/270/55/1 checks; capacity passed
+71 separately on the same candidate. These may overlap, not a unique aggregate.
+The environment had 69 dependencies refreshed during installation; this
+documentation pass did not change it. These are correctness checks, not benchmark
+latency or speed evidence.
+
+This does not establish trained-model or security qualification, a native 68-node
+SDK trace, persistent-KV or source-digest parity, or one-share security from
+distinct child PIDs. Intended/historical 30+2 geometry requires prefixes 30 and 31,
+above sequence cap 16; actual current rendered token count is unestablished in
+this audit (Astra88's verified 30 remains HYPOTHETICAL here). The unchanged native
+32 GiB (34,359,738,368 B) cumulative material cap covers paired private material,
+not each holder. The optimistic 49,983,442,944 B per-holder estimate is HISTORICAL,
+not current; canonical party packets are a separate quantity. Native 64 MiB peak
+fit remains unknown. This evidence authorizes no trained execution, prompt/
+vocabulary/layer truncation or cap shortcuts. Historical failures stay historical.
+
 ## Implemented paths
 
 - Shared absolute-position model lowering lives in
@@ -90,9 +120,10 @@ cost. For the proposed new joint signed-SiLU construction, only specification an
 independent review are authorized; implementation, keys and activation remain held.
 D64 fully costed capability pursuit remains authorized, not new crypto, cap or
 sequence increases, trained execution or adoption.
-Corrected ordinary ChatML workload is **30 prefill + 2 output tokens**: it still
-requires prefixes **30 and 31**, both over source cap 16, and remains over the
-unchanged full-cost material budget. No silent sequence-32 change or cap rise.
+Intended/historical ChatML **30 prefill + 2 output tokens** geometry requires
+prefixes **30 and 31**, both over source cap 16; actual current rendered count is
+unestablished in this audit, not verified current tokenization. No silent
+sequence-32 change or cap rise; complete funding remains open.
 All 1+1, 3+1 and 4+1 prompt/admission results below are **HISTORICAL**, unchanged;
 `user: hi` = 3 there is not current ordinary corrected-30 ChatML fit or proof.
 
@@ -318,7 +349,7 @@ Parent assigns independent Astra review before any further work.
 ### Conditional cost only; no achieved bound
 
 - Proposed projection **25,601,495,040 B/holder** is **UNIMPLEMENTED/UNAPPROVED**,
-  not verified achieved bound. It leaves **8,758,243,328 B** of 32 GiB for
+  not verified achieved bound. Its historical per-holder budget subtraction leaves **8,758,243,328 B** of 32 GiB for
   **7,120,896 logical SiLU lanes plus all other operations**; **1229.936 B/lane**
   is only the historical 61-row optimistic ceiling, not achieved gate cost,
   lower bound or complete padded-construction/pricing bound.
@@ -327,14 +358,48 @@ Parent assigns independent Astra review before any further work.
   epochs; `Schedule::run` calls `Quote::begin/tables/finish` for each visit
   (runtime.rs:492–563). The existing padded-scan regression at
   runtime_accounting_tests.rs:117–143 corroborates that pricing convention.
-  D64 corrected-30 maximum extent P=31 therefore means **62 padded rows**;
+  D64 intended/historical 30+2 maximum extent P=31 therefore means **62 padded rows**;
   the full I=32/O=2 envelope has P=33 and **66 padded rows**, not 65.
   No revised byte tariff, complete repricing, fit or new approval follows;
   historical projection figures and tariff rates remain historical/conditional.
+- **Current source SiLU-only floor (TEN146, independent Astra49 PASS packet):**
+  public declared `L=24/F=4864`; actual scalar accounting for ten units totals
+  `6,888` private bytes per party, or `13,776` paired private bytes per lane.
+  Separate canonical packet is `8,392` B/party including public predicate-VM
+  metadata and ten envelopes, not private material. With `I` initial tokens,
+  `T` selections and `S=I+T-1` padded rows, `T` full
+  padded graph walks and `N=TLFS`, the current source-dependent coefficient
+  branch set gives `M=1,608,155,136*TS` paired private bytes. At `T=2`, extents
+  `S=16/31/33` give `51,460,964,352/99,705,618,432/106,138,238,976 B`.
+  `S=16` exceeds 32 GiB by `17,101,225,984 B` before other nonnegative costs;
+  `S=31/33` are geometry-refused counterfactuals under cap 16. Historical paired
+  lookup totals `40,284,192,768/78,050,623,488/83,086,147,584 B` remain HISTORICAL,
+  not current. Current one-DCF/FC03 changes already feed the native counter;
+  no historical-ratio extrapolation. This is not a complete quote, actual first
+  refusal (kernels/work may refuse earlier), RSS, execution, model, numeric or
+  security qualification. No cap, adoption, activation, funding or qualification
+  change; overall publication remains 0/10.
+- **Conditional projection-plus-SiLU floor:** For the declared bias-free dense,
+  no-QK-normalization geometry `L=24,H=896,F=4864,K=128`, conditional on the same
+  current profile/range-proof graph being admitted, seven projections contribute
+  `3H+2K+2F=12,672` outputs per layer and padded row. Each output incurs one signed
+  ARS12 with input/output width 50: two scalar-u64 keys of depths 50/12 plus 16
+  private bytes give 1,676 bytes per party, or 3,352 paired. Thus 304,128 projection
+  outputs contribute 1,019,437,056 paired bytes per padded row/selection; existing
+  SiLU contributes 1,608,155,136, giving a combined lower bound `2,627,592,192 ST`.
+  Both `S=8,T=2` and `S=16,T=1` yield 42,041,475,072 bytes, exceeding the unchanged
+  32-GiB ceiling by 7,681,736,704 bytes. Here `I=S−T+1`: padded `S=16,T=2` means
+  `I=15`; `I=16,T=2` requires 17 rows and exceeds sequence cap 16. The existing
+  SiLU-only 51,460,964,352-byte result at padded 16/two selections remains unchanged.
+  Normalization, RoPE, attention, head and gated-product costs are excluded;
+  projection floors are counted once, separately from SiLU conversions. This is
+  neither a complete quote nor first-refusal, source-authority, activation or
+  funding evidence. Historical evidence, ordinary caps and publication 0/10 remain
+  unchanged.
 - Require complete ledger: projection/embedding/norm/attention/FFN products/RoPE,
   head/selection/checks/output masks, tape/frame/envelope, work and live owners.
-  Retirement never refunds cumulative one-use bytes. Preserve **32 GiB material
-  per holder**, existing **64 MiB native-resident budget**, separate host RSS guards,
+  Retirement never refunds cumulative one-use bytes. Preserve **32 GiB cumulative
+  paired private material**, existing **64 MiB native-resident budget** (peak fit UNKNOWN), separate host RSS guards,
   descriptors and work caps unchanged. No cost/admission substitution between them.
 
 ## D64 actual/configured request-envelope contract (proposed; activation held)
@@ -347,7 +412,7 @@ Existing facts below identify reuse points; metadata and regressions are proposa
 
 | Envelope | Input I / outputs O | Logical phase prefixes | Status |
 | --- | --- | --- | --- |
-| Corrected ordinary request | 30 / 2 | 30, 31 | Both exceed native sequence 16 |
+| Intended/historical request geometry; current rendered count unestablished | 30 / 2 | 30, 31 | Both exceed native sequence 16 |
 | D59 bounded campaign ceiling | 32 / 2 | 32, 33 | Requires fresh grant and admission; exceeds 16 |
 | Common configured workload | 64 / 8 | 64 through 71 | Exceeds 16 and selection ceiling 4 |
 
@@ -401,12 +466,373 @@ frames and peak owners. Its lines 1–4, 41–70 admit only an initial bootstrap
 not complete cost. Preserve checked arithmetic, cache-delta error ordering,
 invocation contexts and obligation hashes; do not introduce another quote/tariff.
 
+The cumulative-accounting changes in `resource_quote` / `runtime_accounting` have independent SOURCE REVIEW PASS verdicts and 24 reported execution-test passes under Rust 1.85.1 `--locked --offline -j1`: 23 runtime-accounting tests plus one private-metadata-overflow test. Twelve successful normal-entry constructor births price `12B + 1536S + 12(W-B) = 12W + 1536S` and twelve backing-metadata copies, where `B` is original single-constructor backing work, `W` total constructor work and `S` stored Lookup chunks. Original backing return and existing three-schedule native reservation formulas remain unchanged; this does not establish that physical peak is actually three schedules. The obsolete retained-Lookup test fixture's SiLU was replaced with `nExp`, which has two genuine Lookup nodes; the current bounded SiLU Lookup census is zero, not two. No original `SourceWork` debit is established; setup, preflight, extra admissions and bootstrap funding remain unproved. Nativeworker84 reports two additional Rust transport tests PASS after fixture-only fixes, each looping Serial/WavefrontV1/TensorV1: real generated three-thread `P=2/T=3/S=4/D=2/F=1/L=1/V=3` execution checks 120 actual SiLU callbacks per role and 240 matching dealer deliveries per mode, 12 scalar outputs against the frozen-table oracle, three selected tokens and cross-mode equivalence; cross-epoch old-packet replay in each mode burns the fresh request without publishing epoch 1, and endpoints drain. These bring the compiler total to 26 tests (23 accounting + one metadata + two transport, not 26 distinct fixture cases), with matching Rust 1.85.1 flags, transport times 337.69s/183.41s and separate 600-second timeouts, zero ignored tests or retries in the fixed packet—not a claim of no historical fixture failures; source-only review remains distinct from runtime evidence. Reported existing Native F3 input-1 frozen-node/head trace passed in 68.57s, bringing compiler evidence to 27 unique tests across packets (23 accounting + one metadata + two transport + one trace); the preceding 26-test count is historical. A fresh ordinary Rust 1.85.1 release wheel built in 226s, with offline reinstall and origin/API checks PASS; separate packets on that same wheel report 18 actual SDK passes (dense nine + F3 positive one + failure/recovery four + async one + gateway three), plus two reference prompt/tokenizer cases—not 20 SDK tests or one combined run. Checkout-only fixture contract migrations map the full rendered F3 prompt to known input 1 while preserving Dense full input 2/unsuffixed input 1, and close the failed client and stop old children before a genuinely new client; earlier failures were diagnosed contract mismatches, not unchanged-test passes. Production rendering and the retained-history 409 guard are unchanged; neither checkout migration required a wheel rebuild. Only SDK/reference pytest packets reported no warnings, skips or timeouts; Rust builds/tests had existing warnings. This adds no GPT-2 input-2 correctness, whole-method, full-funding, physical-retirement, source-authority, activation, security or quality claim. Caps, legacy bytes, routes, activation, security, quality and publication 0/10 remain unchanged; no trained, whole-method, security, quality, funding, activation or current-wheel qualification follows.
+
+Separate isolated-comparison evidence reports eight `pllm-garble` tests PASS under Rust 1.85.1 (`--locked --offline -j1`): five new reference tests and three existing compatibility tests, with warnings unsuppressed. This packet remains separate from compiler, Core and SDK evidence. The crate-private reference uses caller-provided provenance, which grants no source authority. One key and two evaluations per party, including empty/full sentinels, are source properties rather than instrumented operation counts. At input width50, scalar key/body/packet lengths are 1,324/1,332/1,452 bytes per party. Source review and tests cover conditional logical-allocation accounting, canonical validation, failed-import claim burn and detached frame/output leases; they establish neither global allocator counts nor complete CPU/`SourceWork` funding, physical erasure, independently reviewed security or activation. No production routing, current material savings, wheel rebuild or new SDK validation follows. Existing SiLU costs remain 6,888 private bytes per party/13,776 paired; the documented SiLU-only floor still exceeds the unchanged 32-GiB cumulative paired-private-material ceiling. Publication qualification remains 0/10.
+
+### Shared packet ownership-bridge evidence
+
+Later source reviews all passed before a separate fresh Rust 1.85.1 native
+packet reported **66 passing checks**. Its **49 ownership-bridge checks** comprise
+15 shared `material_wire` checks, 12 isolated native typed-comparison checks
+(five reference plus seven packet-ownership checks), and 22 existing backend-wire
+checks. The same packet also contains 16 SIGMA checks (eight arithmetic-material
+units, three original GPU127 controls, two floor-chain integration tests and three
+existing negative compile-fail documentation controls) and one additional GPU127
+legacy draw-order check: `49+16+1=66`, not `66+49` or `66+16`. The earlier isolated
+eight-test packet above remains distinct historical evidence, not another addend
+to this packet. Source-review passes and native passes remain separate evidence.
+
+For actual packet backing capacity `C`, standalone self-owned reservation is
+`O(C)=C+sizeof(MaterialPacket)`, with separately admitted transition owners
+`D=2*sizeof(MaterialPacket)+2*sizeof(Lease)`. Upgrading a legacy packet admits
+`sizeof(MaterialPacket)+D` before transfer; copying/re-homing a self-owned packet
+admits destination `O(C)+D` while the source charge remains live. This includes
+spare capacity, not merely delivery length. Transition charges survive completed
+return-owner construction. Legacy capacity-only packet behavior stays unchanged.
+Passing checks cover claim-first rejection, failed-import/replay claim burn,
+source/destination budget exhaustion, exact/one-short admission and metadata
+overlap. These are logical owner/lifetime bounds, not complete CPU, allocator/RSS,
+physical erasure or original `SourceWork` funding proofs.
+
+The arithmetic handoff uses the legacy shared-packet branch with its own wrapper
+metadata and continuously retained original reservation. The isolated comparison's
+native opaque packet import is a separate bridge; no four-file end-to-end
+composition has yet been established. Shared frozen-wire/native-codec roundtrips
+and layout twins are not an independent frozen full native-typed-comparison
+golden. The original frozen GPU codec golden was run; it is not such a comparison
+golden. See [SIGMA's reported serial verification packet](../../docs/research/sigma-native-reference.md#reported-serial-verification-packet)
+for all ten ordinary selectors, counts, direct Cargo/RUSTC/RUSTDOC/PATH 1.85.1
+arm64 settings, 8 MiB worker stack, serial execution, individual 600-second
+timeouts and visible unsuppressed warnings. All ten matched counts, with zero
+failures, retries or unrun commands on frozen inputs and no fixes/control changes;
+this documentation pass did not rerun them.
+
+The reference remains inactive and grants no source authority or activation.
+No remote authentication, durable replay, compiler/checkpoint provenance,
+complete nonlinear composition, independent security review, model admission,
+wheel or SDK qualification follows. Existing SiLU costs remain **6,888 private
+bytes per party / 13,776 paired**; the SiLU-only floor and unchanged **32 GiB
+cumulative paired-private-material ceiling** are unaffected. Publication remains
+**0/10**.
+
+### Reported fresh heap-safe native component validation
+
+Independent post-source review passed before a fresh frozen-source packet reported
+**37/37 PASS** in nine foreground, serial Rust 1.85.1 Cargo invocations, each with
+a separate 600-second ceiling, no test-source fixes or retries within the packet,
+and existing warnings unsuppressed. This supersedes the older **18 PASS / one
+layout-oracle FAIL / 18 unrun** only for current test source: not 55 passes.
+Selectors overlap the earlier 66-check Garble packet; totals are not 103.
+This documentation update did not execute tests.
+
+| Selector | Selection | PASS |
+| --- | --- | ---: |
+| `heap_safe_lifecycle_tests` | filter | 19 |
+| `fusefss_backend::predicates::typed_comparison::tests::` | filter | 5 |
+| `fusefss_backend::predicates::typed_comparison::packet_ownership_tests::` | filter | 7 |
+| `compact_dcf::ring_tests::ring50_threshold_endpoints_and_payload_hiding_shapes` | exact | 1 |
+| `compact_dcf::ring_tests::same_roots_preserve_each_legacy_u32_share_and_key_words` | exact | 1 |
+| `compact_dcf::ring_tests::invalid_geometry_limits_and_entropy_failure_are_fail_closed` | exact | 1 |
+| `interval_fss::ring_tests::uniform_split_refuses_before_entropy` | exact | 1 |
+| `interval_fss::ring_tests::public_cyclic_interval_invalid_arguments` | exact | 1 |
+| `fusefss_backend::wire::tests::conversion_scalar_v2_codec_lengths_and_fresh_roundtrip` | exact | 1 |
+
+Ordinary Cargo reproduction **template, not verbatim execution history**: run once
+per selector above, serially, with a separate external 600-second ceiling each;
+omit `--exact` for filter rows. Actual execution used the direct Cargo path below,
+not a `cargo +...` shim; Cargo, rustc, rustdoc and first PATH toolchain matched.
+
+```sh
+PATH="/Users/blairhudson/.rustup/toolchains/1.85.1-aarch64-apple-darwin/bin:$PATH" \
+RUSTC=/Users/blairhudson/.rustup/toolchains/1.85.1-aarch64-apple-darwin/bin/rustc \
+RUSTDOC=/Users/blairhudson/.rustup/toolchains/1.85.1-aarch64-apple-darwin/bin/rustdoc \
+RUST_MIN_STACK=8388608 CARGO_NET_OFFLINE=true \
+/Users/blairhudson/.rustup/toolchains/1.85.1-aarch64-apple-darwin/bin/cargo \
+  test -p pllm-garble --lib -j1 '<selector>' -- --test-threads=1 --exact
+```
+
+This remains the normal uv/Cargo/Maturin workflow, with no archive, receipt or
+custom-wrapper gate. Bounded source-private `HeapSafeParty` uses one stable Vec,
+clear transfer and a retirement guard across `compact_dcf`, `interval_fss` and
+`typed_comparison`. Tests inspect actual borrowed correction seed, value and both
+controls after zeroize, with nonvacuous exact windows, addresses, budget/state,
+cancellation, import/export and unwind assertions. The test-only unsupported
+600/136/136 layout oracle was repaired to current-target composition/niche bounds,
+not hardcoded 592; 360/72/48/40 resource/secret/work/safe-party assertions remain.
+Production behavior, quotes and wire are unchanged. Only `typed_comparison.rs`
+is untracked with its historical ABI/layout baseline unrecovered; shared
+`compact_dcf`/`interval_fss` core declarations are tracked and stable. Current
+layout checks are not historical ABI proof; six legacy selectors are not a full
+compatibility baseline.
+
+Evidence qualifies only the opt-in `HeapSafeNative` component, not a newly
+heap-certified V1/default. Existing `PacketBridge` ownership/burn scope is
+unchanged. Destination Root/Mask drop is not directly observed; first-install
+failure, occupied commit rejection and artificial private body-lease failure
+remain untested. No after-free or stack-copy physical-erasure, AES security, full
+CPU or original `SourceWork` proof follows. `NativeFrame`/`NativeOutput` own inline
+metadata plus payload, but final-composition Output accounting currently covers
+payload only: its adapter is **UNIMPLEMENTED**, resource closure remains open
+(source plan audited). No compiler, SDK, wheel, model, transport authentication,
+3886-security, activation/adoption or per-method gate closure follows.
+
+Kind-6 width-50 body size **1,332 bytes per party** does not replace current SiLU
+**6,888 private bytes per party**. The conditional **42,041,475,072-byte** floor,
+ordinary caps and publication **0/10** remain unchanged.
+
+### Reported opt-in kind-6 composition adapter validation
+
+The opt-in kind-6 composition adapter now has bounded actual-source resource and
+custody review PASS followed by a reported fresh **18/18 PASS** packet: the same
+six frozen legacy AFTER tests, then twelve composition tests. This supersedes
+only the preceding historical statement that the final-composition adapter was
+unimplemented and Output covered payload alone. Compiler-facing issuance,
+source binding and caller-cover construction remain open.
+
+The runner reported eighteen separate serial ordinary Cargo invocations, each
+with exactly one selected test, one pass, zero failed/ignored, exit 0 and 1,110
+filtered out. Filtered tests are not passes. There were no zero/multiple
+selections, retries, substitutions, timeouts, unrun cases, extra commands or
+remaining children; warnings stayed visible. First compilation took 20.32s.
+This documentation records the reported run; it did not independently audit
+stdout or execute tests. The prior six BEFORE observations are not six additional
+tests in this packet: eighteen, not twenty-four. Historical Native37, shared61
+and Core21 remain separate evidence, not a summed qualification count.
+
+**Source scope.** Implementation lives in
+`crates/pllm-garble/src/fusefss_backend/composition.rs` and its
+`composition/{reference_comparison.rs,runtime.rs,wire.rs,lanes.rs,wavefront.rs}`
+modules. Source review covers the bounded logical named/typed-slot profile:
+implicit field-place projections import their dereference body and exclude the
+unnamed projection alias cells only for the constructible `&Plan` and standard
+`Arc<Plan>` carriers. Rust borrows and Deref calls still exist; this is not a
+physical stack, CPU, complete stdlib SourceWork or security proof. Explicit
+semantic accessor/context references remain counted: S has four references and
+four Options, Hctx two Plan references. Removed Bpre and R=0 introduce no new
+legacy named caller slots under that profile. Seven inline range predicates use
+the private chunk-word marker, committed only after successful reference push;
+the getter masks it back to the logical count. Legacy dispatch and count rules
+remain unchanged.
+
+Preparation A precedes selection/binding copy and context hashing; paired dealer
+2A+I admission precedes copy/entropy. Context is derived once. Import reserves
+before native input and uses the real one-claim guard keyed by role + nonce;
+context and provenance are validated separately, not a third guard-key field.
+Actual Engine runtime cover is separate from the Builder
+headroom probe. Both frame-emission paths attach Df before restoring execution;
+terminal Output retains payload plus Do. Cancellation retains the runtime lease
+until Engine Drop, and export keeps payload/native ownership before adapter
+cover on refusal paths. NativeFrame's inline ownership and conservative
+composition Df are distinct. `PreparationRequest` is borrowed caller-owned
+input: these checks do not fund its provider construction. The private adapter
+APIs are not a public compiler bridge or original-source authority.
+
+At width 50, the new instruction still accounts for **1,332 fresh private bytes
+per party / 2,664 paired**, an **88-byte frame per party**, and partial native
+work `2k+1` including the existing single instruction charge. The
+`kind6-private-key-mask-v1` identifier is bound by the frozen typed variant's
+derived-Debug spelling, fields and types, not newly serialized version bytes.
+Native canonical mod-two output is **Xor1**, not arithmetic50. Wider B2A and
+selection require separately fresh issued/priced material. Signed native
+thresholds, including the positive half endpoint, do not change legacy rules.
+
+**Compiled compatibility on this target/profile.** All ten frozen layout checks
+passed: Primitive/OptionPrimitive 424, Material 504, Execution/OptionExecution
+456, Runtime/OwnedRuntime 592, Instruction 56, Builder 480 and Plan 408 bytes,
+all alignment 8. The 5,224-byte owner, complete Resources, digest, six step quotes
+and aggregate transport goldens also passed unchanged. This is current ARM64
+compiled compatibility, not historical all-ABI or cross-platform proof. Do not
+regenerate those goldens to accommodate a regression.
+
+#### Ordinary reproduction and exact selectors
+
+These are durable ordinary commands/selectors, independent of ignored manifests
+or logs. The reported run used direct Rust/Cargo 1.85.1 on ARM64, matching
+RUSTC/RUSTDOC/PATH, explicit target and repository-root target directory,
+offline/locked dependencies, one build job, 8 MiB test stack and a separate
+600-second external command timeout. No source edits occurred during the packet.
+For reproduction, keep compilation inputs frozen and run one command at a time
+without concurrent Rust writers/builds; this is the bounded reproduction
+workflow, not a new permanent archive or approval gate. Preserve repository AES
+ARM flags and visible warnings. Stop on compilation error, failed/ignored test,
+zero/multiple selection, nonzero exit or timeout; diagnose rather than substitute
+selectors or update expectations. No custom driver, receipts or archive needed.
+
+Template: substitute one fully qualified selector from the ordered groups below,
+then execute that command separately with an external 600-second timeout. All
+eighteen use `--exact`; no module-filter substitution.
+
+```sh
+PATH="/Users/blairhudson/.rustup/toolchains/1.85.1-aarch64-apple-darwin/bin:$PATH" \
+RUSTC=/Users/blairhudson/.rustup/toolchains/1.85.1-aarch64-apple-darwin/bin/rustc \
+RUSTDOC=/Users/blairhudson/.rustup/toolchains/1.85.1-aarch64-apple-darwin/bin/rustdoc \
+CARGO_TARGET_DIR=/Users/blairhudson/workspace/pllm/target \
+RUST_MIN_STACK=8388608 CARGO_BUILD_JOBS=1 \
+/Users/blairhudson/.rustup/toolchains/1.85.1-aarch64-apple-darwin/bin/cargo \
+  test --offline --locked --target aarch64-apple-darwin -j1 \
+  -p pllm-garble --lib '<fully-qualified-selector>' \
+  -- --exact --nocapture --test-threads=1
+```
+
+Working directory is the repository root. The template records the invocation
+shape, not a verbatim command transcript; paths may be adjusted to the matching
+already-installed toolchain and repository without downloading dependencies.
+Join each group's exact prefix and function name to obtain the full selector.
+
+Same six legacy AFTER selectors, in order:
+
+Prefix `fusefss_backend::composition::runtime::tests::`
+
+1. `legacy_current_profile_layout_resource_digest_baseline`
+2. `legacy_comparison_encoding_ids_digest_resources_and_output_order_stay_identical`
+3. `complete_envelope_preflights_exact_budget_one_byte_short_and_live_headroom`
+4. `exact_envelope_prices_previous_frames_while_issuing_next_primitive`
+
+Prefix `fusefss_backend::composition::runtime::wire::tests::`
+
+5. `optional_pricing_preserves_historical_resources_and_plan_digest`
+6. `separate_dealer_and_workers_compute_all_material_kinds_from_real_bytes`
+
+The first four reside in `composition/runtime_tests.rs`; the next two in
+`composition/wire_tests.rs`, under the source directory identified above.
+
+Twelve substantive composition tests follow. First eight live in
+`composition/reference_comparison_tests.rs` with prefix
+`fusefss_backend::composition::reference_comparison::tests::`:
+
+| # | Exact function | Bounded coverage |
+| --- | --- | --- |
+| 7 | `reference_adapter_domains_and_legacy_endpoint_unchanged` | Widths 1/5/50, signed/unsigned endpoints, Xor1 and wider B2A guards, typed hash/cost, independent marker census. |
+| 8 | `reference_prepare_admission_precedes_binding_and_claim` | A exact/short/live headroom before binding and claim; invalid binding/budget and legacy tensor refusal. |
+| 9 | `reference_native_one_claim_postclaim_failures_and_replay` | Real packet/byte claims, postclaim burn and replay; failpoint 3 immediately before native import of an already-self-owned packet from separate Bp, not a new byte-copy allocation test. |
+| 10 | `reference_actual_admission_boundaries_and_live_headroom` | 2A+I and native admission; exact/short/live headroom with preexisting PlanLease baseline removed; conservative envelope distinguished from actual admission peak. |
+| 11 | `reference_builder_supplement_survives_rejection` | First-failure nonmutation, retained cover after later validation/charge failure, lookup-before/after marker/getter/stat checks and actual runtime reservation. |
+| 12 | `reference_repeat_and_wavefront_reject_before_shortcuts` | Repeat/tensor/wavefront rejection including one lane, before shortcuts/admission; legacy repeat unchanged. |
+| 13 | `reference_frame_attachment_is_atomic_without_counter_updates` | Genuine frame; same-budget transfer without reserve/refund; short/foreign donor refusal without partial mutation. |
+| 14 | `reference_export_consumes_wrong_phase_and_keeps_packet_owner` | Wrong-phase consumption, cancellation/export refusal and allocation paths, retained packet and genuine reimport. |
+
+Last four live in `composition/reference_runtime_tests.rs`, prefix
+`fusefss_backend::composition::runtime::reference_tests::`:
+
+| # | Exact function | Bounded coverage |
+| --- | --- | --- |
+| 15 | `reference_adapter_xor_edges_and_wider_b2a` | Fresh real endpoint executions, legitimate Output reconstruction, Xor1 truth and separately issued arithmetic-width B2A. |
+| 16 | `reference_adapter_mixed_packet_bytes_single_derivation` | Borrowed/shared-plan runtime coverage, mixed legacy/kind-6 real transport, both roles, nonzero PCs, actual exported nonce and once-derived context. |
+| 17 | `reference_both_engine_emissions_and_retained_outputs` | Feed and advance emissions, multiple old frames and Output outliving Engine with independent cover. |
+| 18 | `reference_cancel_and_attachment_failure_consume_without_refund_gap` | Retained frames, cancel lease retained until Drop, attachment refusal consumes execution without a refund gap. |
+
+Successful native execution cases use fresh issuance. Deliberate replay tests only
+refusal. Known local inputs are reconstructed only from legitimate Output by
+test observers, not a production clear fallback. Independent typed quote oracles
+and instruction census check source formulas rather than reusing production
+coefficients. Builder `room()` rejection remains **DEFERRED**, not passed.
+Semantic rejection checks both retained lease and plan-reservation fields; the
+synthetic MAX_WORK charge case directly checks lease, with corresponding field
+ordering source-reviewed, not an additional paired-field assertion.
+
+**Limits retained.** Compiler-facing binding records, original-source issuance
+and caller-cover construction remain open. Neither whole SiLU nor a versioned
+lowering is adopted. Default **6,888 bytes/party**, the **42,041,475,072-byte**
+conditional floor and **32 GiB** cap are unchanged; candidate **31,791,120,384**
+is not a whole-model quote, physical-fit result or activation evidence. No
+authenticated-transport, full SourceWork, physical erasure, no-wrap,
+3886-security or whole-method qualification follows; publication stays **0/10**.
+
+### Reported private issued-record component validation
+
+Separate bounded actual-source Resource/Custody reviews passed for the private
+issued-record component. A later parent-reported fresh **25/25 PASS** packet ran
+six unchanged legacy selectors, seven new issued-record selectors, then the twelve
+existing composition selectors. Eighteen overlap Native18: this is **25 distinct
+selectors, not 43**. Native18/Native37, Maverick41, Core/Gamma and shared61 remain
+separate historical evidence, not summed qualification counts.
+
+The runner reported twenty-five serial ordinary Cargo commands, each exactly one
+selected test, one pass, zero failed/ignored and exit 0. There were no timeouts,
+retries, extra commands or source/document/golden edits; the final command finished
+with no remaining children and the native runner idle. The first command freshly
+compiled pllm-garble in 9.33s; warnings remained visible (64 core, 41 garble), with
+no errors. These are parent-reported stdout results, not an independent stdout
+audit or rerun by this documentation reviewer. The six compiled legacy cases
+retained all ten current-target layout checks (alignment 8), the 5,224-byte owner,
+complete Resources, digest, six step quotes and transport goldens unchanged.
+This is target/profile compatibility, not an all-ABI guarantee.
+
+**Private component scope.** The private module
+`crates/pllm-garble/src/fusefss_backend/composition/reference_comparison/issued.rs`
+constructs records only through genuine existing adapter issuance/export. A record
+owns its native packet, stored binding and independent same-budget R cover, in
+that field order. It retains the original request base and reads each role's nonce
+from its own native export; the stored step uses actual material plan/operation,
+without a second context hash. Public provenance digests remain caller-supplied,
+not authenticated original-source authority. No secret-byte cloning, public API,
+record extraction, serialization or provider route is introduced.
+
+Under the existing bounded logical named/typed-slot profile,
+`Eprime = E + size_of::<PairR>()` covers the named pair result that survives
+`drop(stage)`. F, D, R and the `2R+D` metadata reservation remain unchanged;
+`D = F + 2H`. R uses the full inline record type, conservatively including the
+packet inline owner, without enlarging the packet's existing C/O(C) lease.
+Both R slices precede native issuance; returned records retain independent R
+owners after staging ends. The tests compare an independent typed source-site
+census with the queries and observe original-budget ownership/refunds.
+
+All factory call sites are `cfg(test)` only. Their Eprime guard precedes request
+construction and remains through the entry Result cleanup; guard bootstrap,
+request construction and additional forwarding are explicitly test scaffolding,
+not production Compiler caller funding. Worker tests separately prepay Bi; issuer
+Bd/R supplies no worker credit. Native guard keys remain role + nonce, with
+context/provenance validation separate. Wrong derived-as-base context is rejected
+at native import, not by packet-free preparation; malformed borrowed input burns
+the selected claim, replay refuses, and the other role remains independent.
+
+#### Ordinary reproduction: retained eighteen plus seven
+
+Reuse the durable command template and environment in
+[Ordinary reproduction and exact selectors](#ordinary-reproduction-and-exact-selectors):
+matching direct Rust/Cargo 1.85.1 ARM64, RUSTC/RUSTDOC/PATH, repository-root target
+directory, offline/locked dependencies, explicit ARM64 target, one build job,
+8 MiB stack, serial exact selection and an external 600-second timeout per command.
+Run one ordinary command per selector; keep warnings visible. No ignored manifest,
+custom wrapper, receipt collection or archive is needed.
+
+Order: existing table entries **1–6**, the seven fully qualified selectors below,
+then existing entries **7–18**. Thus all retained eighteen are rerun once, with
+seven additions; do not rerun the full eighteen and also count their six legacy
+members again. The seven source definitions live in the private `issued::tests`
+module at the path above.
+
+| Exact selector | Bounded coverage |
+| --- | --- |
+| `fusefss_backend::composition::reference_comparison::issued::tests::issued_record_actual_pair_nonce` | Genuine pair roles/nonces, original base, actual derived step, same-budget R ownership. |
+| `fusefss_backend::composition::reference_comparison::issued::tests::issued_record_derived_context_once` | Nonzero PC, correct stored base succeeds; derived-as-base reaches native context refusal and burns its claim; separately prepaid worker scope. |
+| `fusefss_backend::composition::reference_comparison::issued::tests::issued_record_metadata_exact_short_live` | Independent typed census, live baseline, one-short metadata refusal; exact metadata admits/splits then refuses unfunded 2A+I before native allocation/entropy. Not an exact whole-issuance peak claim. |
+| `fusefss_backend::composition::reference_comparison::issued::tests::issued_record_second_export_failure_retires_first` | Existing `fail_after(9)` reaches second-export allocation failure; source-derived allocation trace and budget cleanup, not direct physical destructor/wipe instrumentation. |
+| `fusefss_backend::composition::reference_comparison::issued::tests::issued_record_outlives_factory` | Independent packet/R owners survive factory and entry staging, separate role drops refund only their own charges, final record outlives Plan. |
+| `fusefss_backend::composition::reference_comparison::issued::tests::issued_record_native_claim_boundary` | Separate Bi prepayment; pre-input refusal, borrowed malformed-slice burn, replay refusal and other-role isolation through real native guards. |
+| `fusefss_backend::composition::reference_comparison::issued::tests::issued_record_legacy_isolation` | Unchanged adapter quotes/digest and legacy transport; no public record registration or constructor exposure. |
+
+**Limits retained.** This closes only the private component's reported validation
+packet. Compiler bridge funding/lifetime, expected-nonce provenance and
+original-source issuance authority remain open; test Eprime is not their caller
+owner. Builder `room()` failure coverage remains deferred. Native25 does not prove
+physical wiping or destructor order, full stdlib/SourceWork funding, security,
+authenticated transport, whole SiLU, a whole-request quote or adoption. Default
+**6,888 bytes/party**, the conditional **42,041,475,072-byte** floor and **32 GiB**
+cap remain unchanged; candidate **31,791,120,384** is not a whole-fit or activation
+result. No 3886-security, method qualification or publication **0/10** advancement.
+
+### Existing source admission and transport obligations
+
 [program.rs:50–87](../../crates/pllm-compiler/src/fss_decoder/program.rs#L50) retains
 sequence 16 / selections 4 even for Decoder; Decoder work, material, frames and
 public-copy limits remain distinct. Preserve combined native admission at 64 MiB
-and documented 32 GiB per-holder material scope. Neither substitutes for native
-aggregate material, source, tape, RSS, descriptor or kernel caps. Aggregate versus
-per-holder reconciliation remains OPEN; no fit claim follows from either number.
+(peak fit UNKNOWN) and 32 GiB (34,359,738,368 B) cumulative paired private material:
+`NativeResources.material_bytes` sums `private_material_bytes_total` across BOTH
+roles, not per holder. Canonical party packets remain separate. This scope
+correction grants no fit, funding or adoption; source, tape, RSS, descriptor,
+work, refusal and custody gates remain unchanged.
 Reuse `SourcePhaseAdmission` / `phase_admission` in sdk.rs:459–496, 552–623 for
 serialization, ingestion and compile-preparation overlap, not merely payload size.
 Proposed D64 requirement: bind and charge initialized source owners before cache

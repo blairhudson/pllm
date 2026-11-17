@@ -2,7 +2,7 @@
 
 Review date: **17 October 2026**. Status: **bounded Poulpy qualification approved; eager-key profile blocked before allocation; no HE execution**.
 
-**Current OpenFHE direction (4 November 2026):** candidate direction approved; adoption/implementation unapproved. See §1.1; the Poulpy decisions below remain historical decisions, unchanged.
+**Current OpenFHE decision (15 November 2026):** pinned generic dependency/Rust FFI bounded prototyping and separately reviewed, resource-admitted primitive qualification permitted; no production/full-model, numeric or security adoption. See §1.3 for funding and admission conditions. The 4 November review-only restrictions (§1.1), single-counter study (§1.2) and Poulpy decisions remain historical records, not new absolute prohibitions.
 
 ## 1. Decision
 
@@ -26,6 +26,8 @@ qualification remain open.
 This review supplements [encrypted-computation-contracts.md](encrypted-computation-contracts.md) and [encrypted-inference.md](../reproduction-contracts/encrypted-inference.md). Their Lattigo recommendations were proposals, not adoption. Their older library pins remain historical evidence, not current release claims. This work owns this report, [its source manifest](rust-he-backend-sources.json), `benchmarks/native/poulpy_refresh/` and `scripts/qualify_rust_ckks_refresh.py`; root Cargo files and other agents' lifecycle/GKM files are outside its scope.
 
 ### 1.1 OpenFHE candidate-direction approval — 4 November 2026
+
+**Historical decision record.** The review-only grant and implementation prohibitions in this subsection describe 4 November; the user's 15 November choices in §1.3 supersede those permission limits only. Source findings and unresolved qualification gates remain applicable.
 
 **User choice and scope.** The user approved reviewing generic **OpenFHE v1.6.1**, commit `b59e1f291965f14fbee5172cd83a20f5b856204f`, as a foreign candidate for shared THOR/CacheMir primitives through Rust. This is an exception to the native-Rust preference **for candidate direction only**: **candidate direction approved; adoption/implementation unapproved**. It grants no dependency addition, installation, build, Rust wrapper, code or execution. Permission to recover source mathematics is not a backend grant; paper runtimes remain reference oracles only, not implementation dependencies. No Poulpy historical approval or blocked result is superseded.
 
@@ -56,7 +58,7 @@ retains `z+conj(z)=2Re(z)` and `i*(conj(z)-z)=2Im(z)`: pre-GELU packing has a
 preceding half, residual packing does not; no implicit normalization is allowed.
 This extends primitive evidence only, not a THOR-qualified profile or source run.
 
-**Exact basis/profile still unresolved.** `CCParams`/`GenCryptoContext` [generate Q][O10] and [P/derived CRT tables][O11], rather than accepting arbitrary ordered source Q/P arrays. Lower-level `CryptoParametersCKKSRNS`/`ILDCRTParams` can represent explicit Q, but `PrecomputeCRTTables` generates P; equality with source P is unknown. Reversing source Q and separating P require proofs of basis order, roots, rounding and HYBRID partition semantics, not a list reversal alone. This establishes neither adapter feasibility nor impossibility. The [THOR audit](../../docs/research/thor-multiblock-indexing-audit.md) recovered **30 Q + 4 P, 1759 total bits** from an artifact; binding to the evaluated run remains missing. CacheMir's residual **Q14/P4**, bootstrap **Q29/P5**, and **13 usable levels + 15 bootstrap depth** are different profile facts, not automatically OpenFHE depth 28.
+**Exact basis/profile still unresolved.** `CCParams`/`GenCryptoContext` [generate Q][O10] and [P/derived CRT tables][O11], rather than accepting arbitrary ordered source Q/P arrays. Lower-level `CryptoParametersCKKSRNS`/`ILDCRTParams` can represent explicit Q, but `PrecomputeCRTTables` generates P; equality with source P is unknown. Reversing source Q and separating P require proofs of basis order, roots, rounding and HYBRID partition semantics, not a list reversal alone. This establishes neither adapter feasibility nor impossibility. The [THOR audit](../../docs/research/thor-multiblock-indexing-audit.md) recovered **30 Q + 4 P, 1759 total bits** from an artifact; binding to the evaluated run remains missing. CacheMir's released v0.1.2-ae caller requests residual Q14/P4; conditional Standard/PREC64 construction yields bootstrap Q29/P4, not P5. Paper descriptions of 13 usable levels and 15 bootstrap depth do not establish the evaluated N=65536 manifest or OpenFHE depth equivalence.
 
 **Reuse and funding boundary.** Reuse or extend shared `Budget`, `OriginalSourcePlan`, `PrimitiveAttempt`, move capsules and level-DAG contracts; their existence does not establish HE debit coverage. [`shared_allocation::Budget`](../../crates/pllm-garble/src/shared_allocation.rs) limits **each counter to 64 MiB**, not the global host or RSS. The pinned [`PKERNS::EncryptZeroCore(publicKey, params)`][O12] retains two public-key polynomials while `v`, `e0`, `e1` are populated: a coefficient-payload floor is `N*w*(2*Lpk + 3*ell)`, where `Lpk` is retained key limb count and `ell` is encryption limb count. With `N=65536`, `w=8`, and `Lpk=ell`, THOR Q30 gives **75 MiB**, CacheMir full bootstrap Q29 **72.5 MiB**, and residual Q14 **35 MiB**. The residual figure assumes a residual-sized retained key; a full-basis key increases it. These exclude P and other live owners. Nonfit follows **only if the full-basis route is charged to one original counter**; the actual HE root binding is unselected. Neither cap changes nor counter splitting are authorized; total actual peak is unknown.
 
@@ -65,6 +67,93 @@ Missing admission proofs include complete physical capacities, caches, aliases, 
 **Security and disclosure remain independent gates.** The parameter generator's `HEStd_128` check includes actual QP for HYBRID; it does not prove security of the full key graph. Preserve sparse-secret laws, encapsulation relationships, source parameter differences and **sigma 3.2 versus `3.19f`** explicitly. Unbounded sampling paths still require a bound/refusal design: three provider attempts do not cap all RNG work, and no Maverick-32 allowance transfers here. [CacheMir §2.3](https://arxiv.org/html/2602.11470v1#S2.SS3) requires privacy of **client input and server weights**, while the client holds the secret key. IND-CPA and client-side decryption noise flooding do not establish circuit privacy. The experimental [CKKS noise-flooding mode][O13] does not provide a supported bootstrap composition. THOR's exact privacy clause remains unresolved; no public-weight adaptation is selected.
 
 **Before any backend implementation:** obtain an explicit grant plus complete profile, numerical, funding, custody and security proofs. Pin transitive dependencies/notices and qualify C++ ABI, exception containment and Apple-Silicon artifacts. Any later approved build must use standard uv/Maturin commands and ordinary tests; no bespoke build wrappers, evidence archives or copied source trees. This update is documentation/source review only: no execution or local cryptographic result.
+
+### 1.2 Bounded single-counter feasibility study
+
+**Historical single-counter scope.** The study below preserves its original arithmetic, tables and disposition under one 64 MiB counter. See §1.3 for the later permission to propose a separate whole-HE reservation; this study establishes neither its upper bound nor an absolute prohibition on that route.
+
+**Disposition: NO ADMISSIBLE ROUTE ESTABLISHED.** This is a static-only study
+under one unchanged **64 MiB original `Budget` counter**, not an execution,
+numeric, security, capability or backend-adoption grant. No splitting, rerooting,
+new issuer, cap increase or smaller invented profile is permitted. Historical
+approvals and results above and below remain unchanged.
+
+**Source authority only:** OpenFHE **v1.6.1**, commit
+`b59e1f291965f14fbee5172cd83a20f5b856204f`. Existing [O12] pins
+`src/pke/lib/schemerns/rns-pke.cpp`, both `PKERNS::EncryptZeroCore` overloads;
+[O9] pins `src/pke/lib/scheme/ckksrns/ckksrns-fhe.cpp`, specifically
+`EvalBootstrapSetup`, `EvalBootstrapKeyGen`, `EvalBootstrapPrecompute` and
+`EvalBootstrap`. [O8] supplies context/API ownership, [O10] generated Q and
+[O11] generated P/CRT tables. These locators establish inspected source
+authority only, not a built artifact, security qualification or admission.
+
+Let `B=N*w`, with `N=65536`, `w=8` bytes per stored coefficient, so
+`B=0.5 MiB` per polynomial limb. `Lpk` is retained public-key Q limb count,
+`ell` encryption Q limb count, and `Ls` retained secret-key limb count.
+The following three candidates exhaust this study; floors are coefficient
+payloads, never complete physical-capacity upper bounds.
+
+| Candidate | Source-derived simultaneous payload floor | Static disposition under the same counter |
+| --- | --- | --- |
+| Full-basis public-key encryption | O12 retains two Q30 public-key polynomials and populates `v`, `e0`, `e1`, each at Q30: `B*(2*Lpk+3*ell)=75 MiB` for `Lpk=ell=30`. Plaintext, P, context, keys other than these two polynomials, scratch, outputs and expression overlap are additional. | **REJECT same-cap route:** unavoidable floor already exceeds 64 MiB. |
+| Reduced-level public-key encryption, full retained Q30 key | O12 clones `p0` and `p1` when `ell != Lpk`; these coexist with retained full-basis key and `v/e0/e1`. Floor `B*(2*Lpk+5*ell)=30+2.5*ell MiB` for `Lpk=30` on this basis-difference branch. `ell>=14` already exceeds 64 MiB. | Lower entry basis is source-supported but does **not** shrink retained key. Below that rejection threshold, complete BERT entry/refresh schedule and full upper bound are **MISSING**; level/numeric departure remains unapproved. No fit established. |
+| Client secret-key encryption overload | O12 retains secret at `Ls`, samples `a/e` at `ell`, and clones `s` into `scopy` on basis difference. Conservative floor `B*[Ls+2*ell+I(ell!=Ls)*ell]`; outputs and expression temporaries are additional. | **Not an admitted route.** Key, disclosure and encryption-contract changes require separate review. Public/evaluation material cannot be assumed to disappear; complete whole-BERT bound and admission proof are missing. |
+
+No candidate proves whole-BERT fit. A smaller floor is not admission, and
+changing encryption overload does not qualify an altered key or privacy contract.
+
+| Owner / phase | Required simultaneous lifetime and bound |
+| --- | --- |
+| Context generation/import and retention (O8/O10/O11) | All Q/P parameters, roots, CRT tables/caches, backing capacities and generation/import overlap, including retained foreign/static aliases. |
+| Complete key graph: generation, import and evaluation (O8/O9/O12) | All actual rotation keys, conjugation `M-1`, relinearization and bootstrap keys; optional `SPARSE_ENCAPSULATED` switching keys `M-4`/`M-2`. Include client secret/public material and all-role construction, serialization and import overlap; do not count only encryption samples. |
+| Bootstrap setup/precompute and retention (O9) | Retained `m_bootPrecomMap` contents plus construction temporaries and old/new table overlap. Setup is not a zero-cost phase preceding admission. |
+| Encryption, every encoder/readout operation and refresh | Distinct live ciphertext/plaintext backings and aliases, extended bases, scratch and expression/output overlap at actual source-defined phases. |
+| Transport, failure and retirement | Expanded serialization/deserialization buffers before parsing, exception/cancellation cleanup, partial results and last-alias/destructor overlap; preserve original source/work payer throughout. |
+
+**Specific precompute rejection, not a universal bootstrap bound:** in O9's
+full-slot `levelBudget=(1,1)` branch, two `s*s` complex matrices coexist.
+For `s=32768` and the **assumed ABI coefficient width of 16 bytes per complex
+coefficient**, `2*s*s*16 = 32 GiB` of coefficient payload alone exceeds 64 MiB.
+This is conditional static arithmetic for that branch and width assumption,
+not a measured ABI size or a claim about every bootstrap branch. Other branches
+have **UNKNOWN complete upper bounds**; they are not thereby admitted.
+
+Any hypothetical survivor must fix entry/output ordered bases, scale and noise
+degree, preserve ordered paired channels and cover both complex approximation
+paths. Exclude clone-return as refresh evidence and establish restored usable
+levels composed through **all twelve BERT layers, residual joins, pooler Tanh and
+task head**, not a toy refresh. Compute peak as the maximum sum of **distinct
+live backings**, plus scratch, construction, serialization/deserialization,
+exception, cancellation and last-alias overlap; deduplicate only proved aliases.
+Existing `Budget`, source/attempt, level-DAG and transport seams do not grant HE
+authority, custody coverage or backend-issued capabilities.
+
+**Finite stop rule:** inspect only O8–O12 and directly needed pinned callees for
+these three candidates. Stop a route at unavoidable overflow or missing
+whole-BERT/admission proof; do not parameter-sweep or invent a smaller profile.
+The valid hard stop is **NO ADMISSIBLE ROUTE ESTABLISHED**, not universal
+impossibility. This study stops there; no native/build/test/install/model/import,
+AST, probe or formatting execution supplies evidence.
+
+The [THOR execution contract §7](thor-execution-contract.md#7-prompt--artifact--acceptance-checklist)
+staging remains binding: stage A first needs an approved concrete qualification
+profile, security/disclosure and complete admission/custody contracts, finite
+commands/budgets and independent review. Paired-refresh/restored-capacity
+measurement is an **output of separately authorized A**, then a prerequisite
+for whole-BERT stage B along with B's full source/numeric/owner/SDK gates.
+**At this study's close, both A and B remained UNAPPROVED; task/checkpoint remained unselected.** See §1.3 for the later bounded primitive-qualification permission, not whole-BERT approval. No
+numeric, security, admission or custody condition is relaxed. Freeze this file
+and the THOR execution contract for independent Astra review.
+
+### 1.3 User decision record — 15 November 2026
+
+**New permission, bounded scope.** The user's structured answers permit generic **OpenFHE v1.6.1**, commit `b59e1f291965f14fbee5172cd83a20f5b856204f`, as a dependency through Rust FFI for bounded prototyping and separately reviewed, **RESOURCE-ADMITTED primitive qualification**. This supersedes §1.1's review-only/no-implementation permission boundary; it does not authorize production adoption, full-model execution, paper upstream runtimes, or numerical/security adoption. Generic OpenFHE library primitives are allowed; PLLM must independently implement paper algorithms through shared, method-neutral contracts. No new numerical fit, qualification, admission or execution result is claimed here.
+
+**Funding choice, not established fit.** The original **64 MiB source/streaming budget remains unchanged**. A **separate explicit whole-HE reservation with a proven complete bound** is permitted; it is not counter splitting, rerooting or an exclusion of foreign owners. The §1.2 **75 MiB coefficient-payload floor is not an upper bound**, and rejection under the old single-counter study is not an absolute prohibition on this separately funded route. No complete HE bound or fit is established. Preserve the trained resource policy exactly: **24 GiB LAUNCH available floor / 16 GiB ONGOING available floor / 8 GiB SAMPLED AGGREGATE RSS ceiling / zeroSwap**. These host observations do not replace owner funding, prove physical bounds or authorize weakened RSS/swap rules.
+
+**Before RESOURCE-ADMITTED entry.** Prove pricing and custody for the whole foreign lifetime: allocations and backing capacities, thread stacks, mappings, retained contexts/keys/tables/caches, scratch and overlaps, aliases, exception/cancellation paths, destructor and last-alias retirement. Include startup, import and control costs. The **benchmark launcher owns subprocess funding before spawn**, covering startup/import/control, and retains it **until confirmed exit**; a child cannot retroactively fund its own startup. Reuse or extend shared source/attempt, reservation, transport and lifetime contracts without treating their existence as HE coverage. Separate reservation permission alone admits no primitive attempt.
+
+**Remaining gates and workflow.** Full source parameters and ordered Q/P, exact complex-refresh behavior and restored capacity, joint numerical error, complete key/security and input/weight privacy contracts, admission/custody proofs and whole-model gates remain binding. Primitive qualification is separately reviewed and resource-admitted; no full-model or paper-runtime execution follows from this decision. Approved build work uses standard **uv/Maturin/Cargo** commands and normal options/tests, not bespoke wrappers, vendored/copied source or evidence archives. This update is documentation only; source findings and Poulpy history remain unchanged.
 
 ## 2. Requirements used for qualification
 
@@ -91,7 +180,7 @@ The contracts' §§3, 8.2 and G1 require explicit scheme/key/layout/scale/level 
 | **fhe.rs**, default-branch snapshot 16 Oct 2026; `98a087f1bf5f7fa95196ebe16b0e1b0eeb632442` | Native Rust; MIT | Current checkout declares `fhe` **0.2.0**, but registry latest observed is **0.1.1**. README and exported modules implement RNS-BFV/experimental multiparty BFV, not CKKS bootstrap. | BFV/RNS substrate does not establish the requested TFHE/CKKS bridge | Inspected CI is Ubuntu; no Apple-M qualification established here. Experimental/unaudited per its README. Not the requested CKKS dependency. [F1–F3] |
 | **Fheanor 0.11.9**, `2ba00539204cc03816dd258b57fad94904f54d41` | Rust toolkit; MIT declared in README/Cargo; optional foreign Intel HEXL acceleration | BFV, BGV, CLPX; bootstrap for **BFV/BGV**, not evidence of CKKS bootstrap | Useful ring/gadget/RNS building blocks; no qualified requested hybrid pipeline | Research/alpha, single-threaded per README; Apple-M support not established by inspected evidence. Does not meet this full-backend/maturity gate. [H1–H2] |
 | **FairMath OpenFHE-rs 0.3.2**, `a60b38a101e9cccbada7629245c6a79a4c65741e` | **Rust wrapper over C++**, BSD-2-Clause | Wrapper exposes `EvalBootstrap`, `EvalCKKStoFHEW`, `EvalFHEWtoCKKS` | Its inspected bindings do not expose the raw accumulator API discussed below | WIP wrapper; C++/CXX/OpenMP integration and exact upstream-version compatibility require qualification. Not native Rust. [O1–O3] |
-| **OpenFHE v1.6.1**, release 9 Oct 2026; `b59e1f291965f14fbee5172cd83a20f5b856204f` | **C++**, BSD-2-Clause | Standard complex-slot RNS-CKKS and implemented ciphertext-only bootstrap; source-profile refresh/error UNRUN. CKKS↔FHEW/TFHE and vectorized functional-bootstrap paths present. | Public CGGI `EvalAcc(..., RLWECiphertext& acc, ...)` is concrete encrypted-accumulator evidence. Still no demonstrated ROSETTA round trip at its source parameters. | Upstream macOS documentation, not local Apple-M validation. Shared THOR/CacheMir through-Rust **candidate direction approved; adoption/implementation unapproved** (§1.1). [O4–O13] |
+| **OpenFHE v1.6.1**, release 9 Oct 2026; `b59e1f291965f14fbee5172cd83a20f5b856204f` | **C++**, BSD-2-Clause | Standard complex-slot RNS-CKKS and implemented ciphertext-only bootstrap; source-profile refresh/error UNRUN. CKKS↔FHEW/TFHE and vectorized functional-bootstrap paths present. | Public CGGI `EvalAcc(..., RLWECiphertext& acc, ...)` is concrete encrypted-accumulator evidence. Still no demonstrated ROSETTA round trip at its source parameters. | Upstream macOS documentation, not local Apple-M validation. Bounded dependency/Rust FFI prototyping and separately reviewed resource-admitted primitive qualification permitted (§1.3); historical candidate-only decision in §1.1. [O4–O13] |
 | **Sunscreen `seal_fhe` 0.8.1**, `f8ee4a0dc32418f2acd9e176c6f0af73cdf68d40` | **Rust SEAL wrapper**, AGPL-3.0-only for this crate | Inspected crate explicitly says CKKS is unsupported and exports BFV evaluator/encoders | No requested refresh/conversion evidence | A Rust API does not make SEAL native Rust. Not suitable for this slice. Its pinned SEAL submodule is `8426f35e35a67d382fa76451e2d8ff2940098bed`, not current SEAL. [S1–S2] |
 | **LIT Protocol `openfhe-rs` 0.1.0**, `b0b901d0a1f6afb59387e778cbbc6c2fbb483fc9` | Separately named Rust port; Cargo declares Apache-2.0 OR MIT | No complete CKKS capability qualified here | Not confused with FairMath's wrapper | Current README says **archived, no longer maintained, educational/reference only**. Reject as the mature dependency candidate without asserting it contains no useful code. [L1–L2] |
 
@@ -180,7 +269,7 @@ License: [T6] is **BSD-3-Clause-Clear**, whose line 19 grants no patent license.
 
 **fhe.rs and Fheanor were checked at current source snapshots, not dismissed from historical memory.** fhe.rs's actual `lib.rs` exports `bfv` and feature-gated `mbfv`; Fheanor's README explicitly names BFV/BGV bootstrapping and research/alpha status. Their RNS machinery could support new cryptographic development, but writing a CKKS bootstrap on it is a substantially different proposal from selecting an existing mature CKKS backend. [F1–F3, H1–H2]
 
-**OpenFHE deserves a current, stronger description than “advertises scheme switching.”** v1.6.1 has public CKKS bootstrap setup/keygen/evaluation and raw homomorphic CtS/StC declarations. Its CGGI accumulator's public `EvalAcc` accepts a mutable `RLWECiphertext`, and the implementation updates its existing elements. [O5–O6] FairMath's Rust wrapper exposes high-level bootstrap and both switch directions through `cxx::bridge`, but its inspected bindings do not expose `EvalAcc`; `build.rs` links `OPENFHEpke`, `OPENFHEbinfhe` and `OPENFHEcore`. [O2–O3] The wrapper snapshot predates v1.6.1, so compatibility is unproved. Current shared THOR/CacheMir through-Rust status is **candidate direction approved; adoption/implementation unapproved** (§1.1). This remains a foreign backend; a wrapper and low-level binding qualification require a separate explicit grant.
+**OpenFHE deserves a current, stronger description than “advertises scheme switching.”** v1.6.1 has public CKKS bootstrap setup/keygen/evaluation and raw homomorphic CtS/StC declarations. Its CGGI accumulator's public `EvalAcc` accepts a mutable `RLWECiphertext`, and the implementation updates its existing elements. [O5–O6] FairMath's Rust wrapper exposes high-level bootstrap and both switch directions through `cxx::bridge`, but its inspected bindings do not expose `EvalAcc`; `build.rs` links `OPENFHEpke`, `OPENFHEbinfhe` and `OPENFHEcore`. [O2–O3] The wrapper snapshot predates v1.6.1, so compatibility is unproved. Current shared THOR/CacheMir through-Rust permission is bounded dependency/Rust FFI prototyping and separately reviewed resource-admitted primitive qualification (§1.3), superseding the historical candidate-only grant (§1.1). This remains a foreign backend; binding qualification and all numerical/security gates remain open.
 
 Per-method blockers remain:
 
@@ -220,7 +309,7 @@ A successful result would establish an owned Rust evaluator with real refresh an
 | **Representation/profile adaptation** | A distinctly named torus qualification profile is approved. Source-method representation mapping is expressly not approved and needs a separate decision. |
 | **Execution** | Dependency resolution/build is allowed, jobs ≤2, pinned nightly without changing global default. Parent owns serial actual qualification. Current eager-key profile is rejected at 8 GiB; changed key residency needs a reviewed complete bound before execution. |
 | **Changed method behavior, if necessary** | Obtain approval before alternative index-bit conversion, altered trace/recovery arithmetic, different bootstrap/approximation schedules or changed compiler cost semantics. Faithful resolution of missing source constants should be researched first. |
-| **Foreign-backend fallback, only if chosen** | OpenFHE for shared THOR/CacheMir through Rust: **candidate direction approved; adoption/implementation unapproved** (§1.1). Separately approve backend implementation and qualify the binding. Go/Lattigo remains unapproved; no adoption follows from native-candidate failure. |
+| **Foreign-backend fallback, only if chosen** | OpenFHE for shared THOR/CacheMir through Rust: bounded dependency/Rust FFI prototyping and separately reviewed resource-admitted primitive qualification permitted (§1.3); binding qualification remains open. No production/full-model or numerical/security adoption. Go/Lattigo remains unapproved; no adoption follows from native-candidate failure. |
 
 The existing source numerical, key-ownership, circuit-privacy, output/feedback and persistent-cache gates remain. Those implementation areas belong to their respective owners; this review neither implements nor changes them.
 

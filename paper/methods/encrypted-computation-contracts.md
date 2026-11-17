@@ -73,9 +73,9 @@ The Llama table retains labels `GELU` and `LayerNorm` and displays three full-wi
 
 N §II.A and Appendix D claim privacy of both input and model against a static, computationally bounded semi-honest adversary corrupting either client or server. The server holds weights; the client holds its private input and final decryption capability. This is not malicious-result verification.
 
-**Two key domains matter.** In §III.C, the server first sends compressed weights encrypted under its own key. The client decompresses them, chooses a fresh random matrix `U`, computes encrypted `U W`, and applies the commutable encryption step under the client's key. The server removes its encryption layer to retain `Enc_C(U W)`. Online, the client sends `A-U`; the server evaluates `(A-U)W + Enc_C(UW)`. Appendix B p.16 specifies the RLWE transformation `(A, A s_S + m + e)` to `(A, A s_S + A s_C + m + e + e')`, followed by removal of `A s_S`.
+**Two key domains and the actual ciphertext components matter.** Paper §III.B's packing/extraction gives a constant **message** replicated across slots, not constant noise. Section III.C intends offline dual-key preprocessing, not ordinary client-key CKKS evaluation. At a fixed ring and aligned scale, multiplying `(h, h*s_S + m + e)` by `U` gives first component `U*h` and phase `U*m + U*e`. A transition retaining that current first component, followed by the clear `(A-U)*m` branch, leaves `A*m + U*e + e'`; the idealized identity omits the masked error. Conditional on the fixed unit error `e=1`, uniform `U` in `R_Q` gives a uniform product. This is an algebraic example, not an actual failure probability for the source error/extraction distribution; matrix-error correlations remain unresolved. There is also a conditional scalar privacy obstruction: if the server knows the actual expanded `h`, observes unchanged `U*h`, `h` is a unit, and no intervening rerandomization occurs, it recovers `U` and then `A` from `A-U`. Aggregated matrix observations require a linear-system analysis; this is not a full-protocol attack claim. Independent review of legible extracted primary-paper text confirms that [Appendix B p.16](https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf#page=16) gives `(H,H*s_S+m+e)` → `(H,H*s_S+H*s_C+m+e+e')` → subtract `(0,H*s_S)` → `(H,H*s_C+m+e+e')`, with `H` renaming the printed `A`: the current weighted first component and existing error remain, with added `e'`; no fresh first component, conventional evaluation-key switch, or distribution for `e'` is specified. [Appendix D p.16, right column](https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf#page=16), continuing on [p.17, left column](https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf#page=17), assumes uniform one-time pads in `R_Q=Z_Q[X]/(X^N+1)` and outlines ciphertext simulation, random plaintexts replacing `a-u`, and forwarding the encrypted output. The uniform marginal is not a complete component-level joint-view or uniform-mask error proof. This closes the source-attribution gap, not the security or numerical qualifications; plaintext inspection is not PDF-image authentication. At pinned NEXUS commit `e15058c7f8f58fcf037c4709211109cb1be7d1e0`, [`src/matrix_mul.cpp`](https://github.com/zju-abclab/NEXUS/blob/e15058c7f8f58fcf037c4709211109cb1be7d1e0/src/matrix_mul.cpp) and [`src/main.cpp`](https://github.com/zju-abclab/NEXUS/blob/e15058c7f8f58fcf037c4709211109cb1be7d1e0/src/main.cpp) expose the single-key `MM_test` kernel, not a complete dual-key transcript or a demonstrated cancellation/rerandomization repair.
 
-This preprocessing is not ordinary client-key CKKS evaluation and cannot be replaced by public weights or a single generic key-switch without a protocol change. Its storage, client rotations, initial weight transfer, model-change invalidation, and fresh single-use masks must be charged. Appendix D uses uniform masks in the plaintext polynomial ring; sampling arbitrary bounded real masks is not that proof. Resolve representation/scaling of masks and composition with already-encrypted intermediate activations before implementing the offline-online construction throughout a network.
+Require one complete projection transcript binding expanded components, mask encoding/distribution, scales/moduli, key transition, rerandomization and correction, with correctness and server-view proofs. Using the same effective weight in both branches could remove `U*e`, but that is a proposal, neither adopted nor source-established. Public weights or a generic key-switch cannot silently replace the intended preprocessing. Composition with already-encrypted intermediate activations remains unresolved; fresh single-use masks, storage, initial weight transfer, model-change invalidation, client rotations, funding and backend qualification remain gates. [§III.C p.6](https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf#page=6) samples `U ∈_$ R^((tm)×n)` over real matrices without a fully specified sampling/encoding bridge to Appendix D's uniform ring; bounded real masks do not establish that premise. Appendix D's exponent `N` also differs from [§II.C p.3](https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf#page=3)'s degree `N'` and slot count `N=N'/2`; this discrepancy remains unresolved. A derived aligned-ring residual, not a printed theorem, is conditional on compatible packing, a fixed ring and aligned scale, before unspecified rescale/modulus rounding: for `c_i=(h_i,h_i*s_S+m_i+ε_i)` and actual multipliers `µ_i`, let `H=Σ_i µ_i*h_i`, `M=Σ_i µ_i*m_i`, `E=Σ_i µ_i*ε_i`; Appendix B preserves `H` and `E`, adding `e'`. For actual plaintext correction `P` and target `T`, `δ_corr=M+P-T` gives phase error `δ_corr+Σ_i µ_i*ε_i+e'`, not ciphertext-byte equality, a fresh-ciphertext distribution, an actual failure probability or a full privacy-attack claim. No protocol, profile, authority, cap, ranking or publication-status adoption follows.
 
 ### 4.2 HE parameters, levels, and refresh
 
@@ -171,6 +171,31 @@ profiles that still require reconciliation with the PDF. Importing that bundled
 bootstrap would not meet the independent implementation requirement. Audit F3
 records the commit, functions and unresolved profile relationships.
 
+**Source-qualified candidate cut, not an adopted role boundary.** At THOR
+[`b513c06aaabccc04b560721e35e9a98008428c25`](https://github.com/crypto-starlab/THOR/tree/b513c06aaabccc04b560721e35e9a98008428c25),
+[`forward.ipynb`](https://github.com/crypto-starlab/THOR/blob/b513c06aaabccc04b560721e35e9a98008428c25/forward.ipynb)
+and `data.py` place complete `bert.embeddings` before encryption. The candidate
+`embedding.norm` cut therefore includes token, segment and position embeddings
+and embedding LayerNorm; bind inference mode so dropout is identity. Equivalence
+between the notebook's base embeddings and the fine-tuned/body artifacts is not
+proved: this remains a same-source candidate adaptation unless established.
+The candidate evaluator has plaintext weights, but every input-dependent body
+and pooler operation remains encrypted, and only `classifier.logits` ciphertext
+may return. Client alone holds the secret key, decrypts and selects a local
+binary label using upstream `0 if a > b else 1` (ties select 1). Notebook
+`plot_variables` decrypts intermediates in the same process; it does not enforce
+role separation or final-only privacy. Existing clear-forward runtime is not
+protected issuance; hidden-state or pooler extra outputs are disallowed by this
+proposal, not established protections of that runtime.
+
+**Public-mask attachment.** `data.py` counts nonzero mask entries and uses that
+count as a prefix of width 128; it does not preserve holes. The candidate supports
+only right-padded masks with `1 <= length <= 128`, leaks length, and must reject
+holes and all-zero masks. Those rejections are proposed validation, not already
+upstream validation. `he_softmax` masks exponential values before the denominator
+and `update_inv_D` reapplies the mask. Replace clear `float32_min` masking and
+softmax jointly; do not feed that sentinel into a polynomial approximation.
+
 ### 5.2 Packing and kernel contract
 
 THOR's contribution is a complete matrix-layout strategy, not a softmax-only variant:
@@ -229,9 +254,26 @@ b[i+1] = sqrt(k[i])·b[i]·(3-k[i]·a[i])/2
 k = (2.6374, 2.1722, 1.5135, 1.0907)
 ```
 
-LayerNorm includes mean, variance, checkpoint epsilon, gamma and beta (§5.2 p.10). Freeze the input normalization and inverse normalization factors; the listed iteration coefficients alone do not define LayerNorm.
+LayerNorm requires reconciliation of mean/variance semantics, epsilon value and placement, gamma, beta, and input/output normalization. The listed iteration coefficients alone do not define checkpoint-equivalent LayerNorm; this review does not establish the paper’s exact epsilon requirement.
 
 **GELU/Tanh:** use the composition `f2(f1(x))`, degrees 31 and 27 for GELU, evaluated with Paterson–Stockmeyer at reported depth 11 and 39 multiplications; Tanh uses two degree-15 polynomials. Appendix C p.15 prints all four coefficient lists. Preserve those lists, their ordering, input/output scaling, and evaluation schedule. The reviewed text does not clearly freeze all fitting domains or normalization transforms; this must be resolved before code. Polynomial degree alone is not the contract.
+
+**Pinned-code numerical qualifications, separate from paper recovery.** The
+same THOR pin's readable nonlinear source supplies `softmax1` on
+`[-27.2493, 21.72692]` with `n=2, l=2`, and `softmax2` on `[-70,70]` with
+`n=2, l=4` at layer index 2. Notebook diagnostics restore incoming scores by multiplying by 32 and 64 respectively; `he_exp1` and `he_exp2` expect the corresponding incoming scaling rather than performing those divisions themselves. Bind the caller's full scaling schedule,
+not just the exponential's local coefficients. LayerNorm uses `var_e=1e-5`,
+`D=(1.05*max_var + var_e)*n^2`, input scaling, `var_e/D`, and a non-attention
+half-scale. Literal `1e-5` alone does not prove the logical checkpoint epsilon;
+reconcile the complete source epsilon/affine schedule. Primary-paper plaintext
+was not inspected in this review, so these are code findings, not new independent
+authentication of the paper formulas above. GELU uses reversed degree-31/27
+coefficient lists, a second polynomial scaled by `0.5`, and the outer expression
+`64*input*(composite + 0.5)`; the full call scale must be bound. Tanh uses reversed
+degree-15/15 lists and pooler input divided by 40. Upstream’s second polynomial has degree-5 coefficient `2.74974898`. This review establishes no paper coefficient discrepancy or typo. These numerical profiles remain unadopted; source
+equivalence, authority and funding remain open, with existing backend, custody,
+admission and quality gates intact. No cap, ranking or publication-status change
+follows.
 
 ### 5.4 Source hardware, geometry, and slice
 
