@@ -1448,8 +1448,25 @@ class LocalTopology:
                     max_input_tokens=budget.max_input_tokens,
                     max_output_tokens=budget.max_new_tokens)
                 admission = admit_memory(estimate, host_memory(), backend="native")
+                self._memory_admission = admission
                 if not admission["admitted"]:
-                    raise TopologyError("complete topology exceeds safe memory admission")
+                    error = TopologyError("complete topology exceeds safe memory admission")
+                    # Only bounded scalar fields from this admission's observation;
+                    # never resample the host or serialize reasons/source metadata.
+                    scalars = {
+                        "native.required_host_bytes": admission["candidates"]["native"]["required_host_bytes"],
+                        "host.admission_budget_bytes": admission["host"]["admission_budget_bytes"],
+                        "native.required_disk_bytes": admission["candidates"]["native"]["required_disk_bytes"],
+                        "host.disk_free": admission["host"]["disk_free"],
+                        "host.available": admission["host"]["available"],
+                        "host.reserve_bytes": admission["host"]["reserve_bytes"],
+                    }
+                    note = {key: value if type(value) is int and 0 <= value < (1 << 64) else None
+                            for key, value in scalars.items()}
+                    pressure = admission["host"]["pressure"]
+                    note["pressure"] = pressure if pressure in {"normal", "warning", "critical"} else None
+                    error.add_note(json.dumps(note, ensure_ascii=True, separators=(",", ":")))
+                    raise error
                 if self._privacy_mode == "fss_public":
                     self._source_pins = dict(source.snapshot_pins)
                 del source
