@@ -247,3 +247,59 @@ impl Sparse {
             .fold(0, |sum, (i, value)| add(sum, mul(value, vector[i])))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::{AllocationPlan, DIMENSION, LENGTH};
+    use super::*;
+
+    #[test]
+    fn structural_validation_accepts_primary_weight_two_witness() -> Result<()> {
+        assert_eq!(FIELD, 2_013_265_921);
+        assert_eq!(DIMENSION, 64);
+        assert_eq!(REPEAT, 8);
+        assert_eq!(LENGTH, 512);
+        assert_eq!(LENGTH, DIMENSION * REPEAT);
+
+        let first_permutation: Vec<u32> = (0..LENGTH as u32).collect();
+        let first_support = [504_u32, 506, 508, 510];
+        let second_permutation: Vec<u32> = (0..LENGTH as u32)
+            .filter(|index| !first_support.contains(index))
+            .chain(first_support)
+            .collect();
+        let mut first_scale = [1; LENGTH];
+        for index in [505, 507, 509, 511] {
+            first_scale[index] = FIELD - 1;
+        }
+        let mut second_scale = [1; LENGTH];
+        for index in [509, 511] {
+            second_scale[index] = FIELD - 1;
+        }
+        let description = CodeDescription {
+            field: FIELD,
+            dimension: DIMENSION,
+            first_permutation: &first_permutation,
+            second_permutation: &second_permutation,
+            first_scale: &first_scale,
+            second_scale: &second_scale,
+        };
+        description.validate(DIMENSION)?;
+
+        let memory = AllocationPlan::bounded()?.start();
+        let code = Code::copy(&memory, description)?;
+        let mut message = [0; DIMENSION];
+        message[DIMENSION - 1] = 1;
+        let encoded = code.encode(&memory, &message)?;
+        let mut expected = [0; LENGTH];
+        expected[508] = 1;
+        expected[510] = 1;
+        assert_eq!(encoded.as_slice(), expected.as_slice());
+        assert_eq!(
+            encoded.as_slice().iter().filter(|&&value| value != 0).count(),
+            2
+        );
+        // A nonzero weight-two word proves distance at most two, not equality.
+        // Structural validation is not a distance or provenance certificate.
+        Ok(())
+    }
+}
