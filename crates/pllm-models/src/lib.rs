@@ -432,6 +432,8 @@ pub struct AppliedMethod {
 /// tensor contents and borrowed aliases are excluded. No serialization, cloning,
 /// semantic validation, or source-owner inference occurs here.
 pub mod owned_backing {
+    pub mod retirement;
+
     use super::{AppliedMethod, DecoderGraph, DecoderPlan, ModelOperation, StateTensor};
     use serde_json::Value;
     use std::{fmt, mem::size_of};
@@ -503,8 +505,6 @@ pub mod owned_backing {
 
         fn json(&mut self, value: &Value, depth: usize) -> Result<(), Error> {
             if depth > MAX_JSON_DEPTH {
-    pub mod retirement;
-
                 return Err(Error::JsonDepth);
             }
             match value {
