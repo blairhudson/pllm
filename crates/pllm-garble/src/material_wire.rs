@@ -16,7 +16,77 @@ pub struct MaterialPacket<'b> {
     bytes: Zeroizing<Vec<u8>>,
     _lease: Lease<'b>,
 }
+
+// Partial transitions must erase the packet before either covering lease drops.
+// D inventories two packet move/return slots and two transient lease slots;
+// embedded packet leases are already included in I. This is logical owned
+// staging, not a CPU-stack, allocator-metadata or physical-memory bound.
+struct OwnershipStage<'s, 'd> {
+    packet: MaterialPacket<'s>,
+    cover: Lease<'d>,
+}
+
 impl<'b> MaterialPacket<'b> {
+    #[cfg(test)]
+    pub(crate) fn test_copy_with_spare(bytes: &[u8], spare: usize, budget: &'b Budget) -> Self {
+        let capacity = bytes.len().checked_add(spare).unwrap();
+        let lease = budget.reserve(capacity).unwrap();
+        let mut copy = Zeroizing::new(allocate(capacity, budget).unwrap());
+        copy.extend_from_slice(bytes);
+        copy.resize(capacity, 0xa5);
+        copy.truncate(bytes.len());
+        Self { bytes: copy, _lease: lease }
+    }
+    pub(crate) fn owned_reservation_bytes(capacity: usize) -> Result<usize, Error> {
+        capacity.checked_add(std::mem::size_of::<Self>()).ok_or(Error::Resource)
+    }
+    pub(crate) fn ownership_transition_bytes() -> Result<usize, Error> {
+        std::mem::size_of::<Self>().checked_mul(2)
+            .and_then(|n| std::mem::size_of::<Lease<'_>>().checked_mul(2)
+                .and_then(|leases| n.checked_add(leases)))
+            .ok_or(Error::Resource)
+    }
+    /// Retain this inline owner on its original counter, without copying bytes.
+    /// Legacy C -> O(C), with U = I + D admitted before accounting transfer.
+    pub(crate) fn into_self_owned(self) -> Result<Self, Error> {
+        let capacity = self.capacity_bytes();
+        let owned = Self::owned_reservation_bytes(capacity)?;
+        if self._lease.bytes == owned { return Ok(self); }
+        if self._lease.bytes != capacity { return Err(Error::Resource); }
+        let inline = std::mem::size_of::<Self>();
+        let upgrade = inline.checked_add(Self::ownership_transition_bytes()?)
+            .ok_or(Error::Resource)?;
+        let budget = self._lease.budget;
+        let mut stage = OwnershipStage { packet: self, cover: budget.reserve(upgrade)? };
+        let mut increment = stage.cover.split(inline)?;
+        // All arithmetic, balances and identity checked before these adjacent
+        // assignments. No callback, fallibility, panic or refund between them.
+        stage.packet._lease.bytes = owned;
+        increment.bytes = 0;
+        drop(increment);
+        let packet = stage.packet;
+        let result = Ok(packet);
+        drop(stage.cover); // D survives completed return-owner construction.
+        result
+    }
+
+    pub(crate) fn from_bytes_self_owned(bytes: &[u8], budget: &'b Budget) -> Result<Self, Error> {
+        if !(ENVELOPE_BYTES..=MAX_ALLOCATION_BYTES).contains(&bytes.len()) {
+            return Err(Error::Resource);
+        }
+        let owned = Self::owned_reservation_bytes(bytes.len())?;
+        let total = owned.checked_add(Self::ownership_transition_bytes()?).ok_or(Error::Resource)?;
+        let mut cover = budget.reserve(total)?;
+        let lease = cover.split(owned)?;
+        // Later byte local drops before both leases on every partial failure.
+        let mut copy = Zeroizing::new(allocate(bytes.len(), budget)?);
+        if copy.capacity() != bytes.len() { return Err(Error::Resource); }
+        copy.extend_from_slice(bytes);
+        let packet = Self { bytes: copy, _lease: lease };
+        let result = Ok(packet);
+        drop(cover);
+        result
+    }
     pub fn as_bytes(&self) -> &[u8] {
         &self.bytes
     }
@@ -27,9 +97,26 @@ impl<'b> MaterialPacket<'b> {
     /// Consume this standalone byte owner into another admitted Budget lifetime.
     /// Reserve the FULL backing capacity before refunding its original charge,
     /// even for the same Budget. No allocation, copy, parsing or RNG occurs.
+    /// Legacy packets retain their historical C admission. Self-owned packets
+    /// instead admit O(C) + D on destination while source O(C) remains live.
     /// Failure consumes/erases this packet; success keeps erasure before the
     /// final destination refund. No native party or borrowed payload is moved.
     pub fn into_budget(self, budget: &Budget) -> Result<MaterialPacket<'_>, Error> {
+        let capacity = self.capacity_bytes();
+        if self._lease.bytes != capacity {
+            let owned = Self::owned_reservation_bytes(capacity)?;
+            if self._lease.bytes != owned { return Err(Error::Resource); }
+            let total = owned.checked_add(Self::ownership_transition_bytes()?)
+                .ok_or(Error::Resource)?;
+            let mut stage = OwnershipStage { packet: self, cover: budget.reserve(total)? };
+            let lease = stage.cover.split(owned)?;
+            let Self { bytes, _lease: source_lease } = stage.packet;
+            let packet = MaterialPacket { bytes, _lease: lease };
+            drop(source_lease);
+            let result = Ok(packet);
+            drop(stage.cover);
+            return result;
+        }
         let lease = budget.reserve(self.capacity_bytes())?;
         let Self {
             bytes,
@@ -509,6 +596,142 @@ mod tests {
         assert!(matches!(destination.reserve(1), Err(Error::Resource)));
         drop(moved);
         assert_eq!(destination.used_bytes(), 0);
+    }
+
+    #[test]
+    fn self_owned_layout_formula_and_upgrade_identity() {
+        #[allow(dead_code)]
+        struct LegacyPacket<'a> { bytes: Zeroizing<Vec<u8>>, lease: Lease<'a> }
+        assert_eq!(std::mem::size_of::<MaterialPacket<'_>>(), std::mem::size_of::<LegacyPacket<'_>>());
+        assert_eq!(std::mem::align_of::<MaterialPacket<'_>>(), std::mem::align_of::<LegacyPacket<'_>>());
+        let i = std::mem::size_of::<MaterialPacket<'_>>();
+        let d = MaterialPacket::ownership_transition_bytes().unwrap();
+        assert_eq!(d, 2 * i + 2 * std::mem::size_of::<Lease<'_>>());
+        assert_eq!(MaterialPacket::owned_reservation_bytes(usize::MAX), Err(Error::Resource));
+        for spare in [0, 73] {
+            let c = golden().len() + spare;
+            for short in [true, false] {
+                let budget = Budget::new(c + i + d - usize::from(short)).unwrap();
+                let packet = with_spare(&budget, spare);
+                let pointer = packet.as_bytes().as_ptr();
+                budget.fail_after.store(0, Ordering::SeqCst);
+                let result = packet.into_self_owned();
+                if short {
+                    assert!(matches!(result, Err(Error::Resource)));
+                } else {
+                    let packet = result.unwrap();
+                    assert_eq!(packet._lease.bytes, c + i);
+                    assert_eq!(budget.used_bytes(), c + i);
+                    assert_eq!(budget.admitted_peak_bytes(), c + i + d);
+                    let updates = budget.test_accounting_updates();
+                    let mut packet = packet.into_self_owned().unwrap();
+                    assert_eq!(budget.test_accounting_updates(), updates);
+                    assert_eq!(packet.as_bytes().as_ptr(), pointer);
+                    assert_eq!(packet.as_bytes(), golden());
+                    assert_eq!(packet.capacity_bytes(), c);
+                    assert_eq!(budget.fail_after.load(Ordering::SeqCst), 0);
+                    packet.bytes.zeroize();
+                    assert!(packet.as_bytes().is_empty());
+                    assert_eq!(budget.used_bytes(), c + i);
+                    drop(packet);
+                }
+                assert_eq!(budget.used_bytes(), 0);
+            }
+        }
+    }
+
+    #[test]
+    fn self_owned_copy_exact_admission_allocation_failure_and_wipe_cover() {
+        let c = golden().len();
+        let o = MaterialPacket::owned_reservation_bytes(c).unwrap();
+        let d = MaterialPacket::ownership_transition_bytes().unwrap();
+        for short in [true, false] {
+            let budget = Budget::new(o + d - usize::from(short)).unwrap();
+            budget.fail_after.store(0, Ordering::SeqCst);
+            let result = MaterialPacket::from_bytes_self_owned(&golden(), &budget);
+            assert!(matches!(result, Err(e) if e == if short { Error::Resource } else { Error::Allocation }));
+            assert_eq!(budget.used_bytes(), 0);
+            assert_eq!(budget.fail_after.load(Ordering::SeqCst), 0);
+        }
+        let budget = Budget::new(o + d).unwrap();
+        assert!(matches!(MaterialPacket::from_bytes_self_owned(&[0; ENVELOPE_BYTES - 1], &budget), Err(Error::Resource)));
+        let mut packet = MaterialPacket::from_bytes_self_owned(&golden(), &budget).unwrap();
+        assert_eq!(packet.as_bytes(), golden());
+        assert_eq!(packet.capacity_bytes(), c);
+        assert_eq!(budget.used_bytes(), o);
+        assert_eq!(budget.admitted_peak_bytes(), o + d);
+        packet.bytes.zeroize();
+        assert!(packet.as_bytes().is_empty());
+        assert_eq!(budget.used_bytes(), o);
+        drop(packet);
+        assert_eq!(budget.used_bytes(), 0);
+    }
+
+    #[test]
+    fn self_owned_rehome_same_and_cross_budget_full_overlap() {
+        let d = MaterialPacket::ownership_transition_bytes().unwrap();
+        for spare in [0, 73] {
+            let c = golden().len() + spare;
+            let o = MaterialPacket::owned_reservation_bytes(c).unwrap();
+            for same in [false, true] {
+                for short in [true, false] {
+                    let source = Budget::new(if same { 2 * o + d - usize::from(short) } else { o + d }).unwrap();
+                    let destination = Budget::new(o + d - usize::from(short)).unwrap();
+                    let target = if same { &source } else { &destination };
+                    let packet = if spare == 0 {
+                        MaterialPacket::from_bytes_self_owned(&golden(), &source).unwrap()
+                    } else {
+                        with_spare(&source, spare)
+                    };
+                    let pointer = packet.as_bytes().as_ptr();
+                    source.fail_after.store(0, Ordering::SeqCst);
+                    target.fail_after.store(0, Ordering::SeqCst);
+                    // Actual C, not encoded length, drives upgrade and rehome.
+                    // Shared ownership helpers permit spare capacity unchanged.
+                    let packet = packet.into_self_owned().unwrap();
+                    assert_eq!(packet.capacity_bytes(), c);
+                    assert_eq!(packet.as_bytes().as_ptr(), pointer);
+                    assert_eq!(packet.as_bytes(), golden());
+                    assert_eq!(source.used_bytes(), o);
+                    let result = packet.into_budget(target);
+                    if short {
+                        assert!(matches!(result, Err(Error::Resource)));
+                    } else {
+                        let packet = result.unwrap();
+                        assert_eq!(packet._lease.bytes, o);
+                        assert_eq!(packet.capacity_bytes(), c);
+                        assert_eq!(packet.as_bytes().as_ptr(), pointer);
+                        assert_eq!(packet.as_bytes(), golden());
+                        assert_eq!(target.used_bytes(), o);
+                        assert_eq!(target.admitted_peak_bytes(), if same { 2 * o + d } else { o + d });
+                        if !same { assert_eq!(source.used_bytes(), 0); }
+                        drop(packet);
+                    }
+                    assert_eq!(source.fail_after.load(Ordering::SeqCst), 0);
+                    assert_eq!(target.fail_after.load(Ordering::SeqCst), 0);
+                    assert_eq!(source.used_bytes(), 0);
+                    assert_eq!(destination.used_bytes(), 0);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn self_owned_rejects_invalid_internal_balance_without_leaking_charge() {
+        let budget = Budget::new(4096).unwrap();
+        let mut packet = make(&budget);
+        // A legitimately reserved, but invalid, extra byte: never forge a refund.
+        let mut extra = budget.reserve(1).unwrap();
+        packet._lease.bytes += 1;
+        extra.bytes = 0;
+        assert!(matches!(packet.into_self_owned(), Err(Error::Resource)));
+        assert_eq!(budget.used_bytes(), 0);
+        let mut packet = make(&budget);
+        let mut extra = budget.reserve(1).unwrap();
+        packet._lease.bytes += 1;
+        extra.bytes = 0;
+        assert!(matches!(packet.into_budget(&budget), Err(Error::Resource)));
+        assert_eq!(budget.used_bytes(), 0);
     }
 
     #[test]

@@ -98,7 +98,8 @@ pub struct Resources {
     pub frames_per_party: usize,
     pub frame_bytes: usize,
     pub total_peer_frame_bytes: usize,
-    /// Delivery has no codec/transport yet. Logical key bits are NOT wire bytes.
+    /// Resident lane backing, NOT delivery bytes. See `material::resources` for
+    /// consuming process-local delivery; logical key bits are NOT wire bytes.
     pub party_material_payload_bytes: usize,
     pub borrowed_input_mask_bytes: usize,
     pub borrowed_masked_input_bytes: usize,
@@ -662,3 +663,5 @@ impl<C: AllocationContext> PartyFor<C> {
 
 #[cfg(test)]
 mod tests;
+
+pub mod material;

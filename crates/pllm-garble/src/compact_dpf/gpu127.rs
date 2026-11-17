@@ -143,10 +143,7 @@ pub(crate) struct GpuKey {
 
 impl Drop for GpuKey {
     fn drop(&mut self) {
-        self.root.zeroize();
-        self.words.zeroize();
-        self.right.zeroize();
-        self.terminal.zeroize();
+        self.clear_secret_fields();
         #[cfg(test)]
         {
             assert_eq!(*self.root, 0);
@@ -282,6 +279,23 @@ fn children(packed: u128) -> Zeroizing<[u128; 2]> {
 }
 
 impl GpuKey {
+    /// Erase still-live secret fields in their current storage. Does not retire
+    /// the owner or increment the test-only actual-Drop counter.
+    pub(crate) fn clear_secret_fields(&mut self) {
+        self.root.zeroize();
+        self.words.zeroize();
+        self.right.zeroize();
+        self.terminal.zeroize();
+    }
+
+    #[cfg(test)]
+    pub(crate) fn secret_fields_are_zero(&self) -> bool {
+        *self.root == 0
+            && self.words.iter().all(|v| *v == 0)
+            && self.right.iter().all(|v| *v == 0)
+            && self.terminal.iter().all(|v| *v == 0)
+    }
+
     #[allow(dead_code)] // Inactive preparation's geometry preflight only.
     pub(crate) fn profile(&self) -> Profile {
         self.profile
@@ -603,6 +617,16 @@ impl GpuKey {
 
     pub(crate) fn into_material_with_reservation(
         self,
+        allocation_limit: usize,
+        before_reserve: impl FnMut(usize) -> Result<(), Error>,
+    ) -> Result<Zeroizing<Vec<u8>>, Error> {
+        self.material_with_reservation(allocation_limit, before_reserve)
+    }
+
+    /// Borrow without moving inline secrets out of their original backing. The
+    /// enclosing owner must erase that backing in place before deallocation.
+    pub(crate) fn material_with_reservation(
+        &self,
         allocation_limit: usize,
         mut before_reserve: impl FnMut(usize) -> Result<(), Error>,
     ) -> Result<Zeroizing<Vec<u8>>, Error> {

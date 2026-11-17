@@ -102,3 +102,52 @@ fn caller_composes_tr_gapars_drelu_with_fresh_output_masks_and_exact_floors() {
     drop((tr_outputs, gap_outputs, signs));
     assert_eq!(budget.used_bytes(), 0);
 }
+
+#[test]
+fn caller_composes_handed_off_tr_gapars_drelu_with_exact_floors() {
+    fn handoff(parties: [Party<'_>; 2]) -> [Party<'_>; 2] {
+        parties.map(|party| {
+            let (permit, packet) = party.export_material().unwrap().into_parts();
+            permit.import(packet).unwrap()
+        })
+    }
+    let budget = Budget::new(64 << 20).unwrap();
+    let input = [-12_801i64, -257, -1, 0, 255, 256, 12_801];
+    let rin = [0xffff_ffff, 13, 0x1234_5678, 0, 256, 255, 42];
+    let masked = input.iter().zip(rin)
+        .map(|(&x, mask)| (x as u64).wrapping_add(mask) & 0xffff_ffff)
+        .collect::<Vec<_>>();
+    let tr = Spec { bits: 32, lanes: input.len(), gate: Gate::Tr { shift: 8 } };
+    let (tr_masks, tr_parties) = issue(tr, context(3), &rin, &budget).unwrap();
+    let mut tr_parties = handoff(tr_parties);
+    let tr_outputs = run(&mut tr_parties, &masked);
+    assert_eq!(tr_outputs[0].values(), tr_outputs[1].values());
+    for (i, &x) in input.iter().enumerate() {
+        assert_eq!(tr_outputs[0].values()[i].wrapping_sub(tr_masks.values()[i]) & 0xff_ffff,
+            x.div_euclid(256) as u64 & 0xff_ffff);
+    }
+    let gap = Spec { bits: 24, gate: Gate::GapArs { shift: 2 }, ..tr };
+    // Dependent mask owners stay local; never enter either party packet.
+    // Independent fixture bounds establish GapARS's quarter-ring promise.
+    assert!(input.iter().all(|x| (-51..=50).contains(&x.div_euclid(256))));
+    let (gap_masks, gap_parties) = issue(gap, context(4), tr_masks.values(), &budget).unwrap();
+    let mut gap_parties = handoff(gap_parties);
+    let gap_outputs = run(&mut gap_parties, tr_outputs[0].values());
+    assert_eq!(gap_outputs[0].values(), gap_outputs[1].values());
+    for (i, &x) in input.iter().enumerate() {
+        assert_eq!(gap_outputs[0].values()[i].wrapping_sub(gap_masks.values()[i]) & 0xff_ffff,
+            x.div_euclid(1024) as u64 & 0xff_ffff);
+    }
+    let sign = Spec { gate: Gate::Drelu, ..gap };
+    let (sign_masks, sign_parties) = issue(sign, context(5), gap_masks.values(), &budget).unwrap();
+    let mut sign_parties = handoff(sign_parties);
+    let signs = run(&mut sign_parties, gap_outputs[0].values());
+    assert_eq!(signs[0].values(), signs[1].values());
+    for (i, &x) in input.iter().enumerate() {
+        assert_eq!(signs[0].values()[i] ^ sign_masks.values()[i], u64::from(x >= 0));
+    }
+    drop((tr_parties, gap_parties, sign_parties, tr_masks, gap_masks, sign_masks));
+    assert!(budget.used_bytes() > 0);
+    drop((tr_outputs, gap_outputs, signs));
+    assert_eq!(budget.used_bytes(), 0);
+}
