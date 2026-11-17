@@ -317,10 +317,22 @@ def native_mask_tapes(events, pair_keys, public_seed, shifts):
     wire binds but does not disclose shift; complete tensor equality also checks
     that claimed shift matches actual execution. Unmapped invocations fail.
     """
-    if len(pair_keys) != 3 or any(type(key) is not bytes or len(key) != 16 for key in pair_keys):
-        raise OracleError("three test-local 128-bit edge keys required")
-    if type(public_seed) is not int or not 0 <= public_seed < 1 << 128:
-        raise OracleError("test public seed required")
+    replay = NativeMaskReplay(pair_keys, public_seed, max_invocations=len(shifts))
+    physical = {}
+    for event in events:
+        binding = event["binding"]
+        if binding not in shifts:
+            raise OracleError("complete native truncation binding/shift map required")
+        completed = replay.ingest(event, shifts[binding])
+        if completed is not None:
+            physical[binding] = completed
+    replay.finish()
+    if not physical or set(physical) != set(shifts):
+        raise OracleError("complete native truncation binding/shift map required")
+    return physical
+
+
+def _independent_aes_reference():
     path = Path(__file__).resolve().parents[1] / "paper/reproduction-contracts/puma/aes_reference.py"
     spec = importlib.util.spec_from_file_location("independent_puma_aes", path)
     reference = importlib.util.module_from_spec(spec)
@@ -341,22 +353,73 @@ def native_mask_tapes(events, pair_keys, public_seed, shifts):
             sys.modules.pop("oracle", None)
         else:
             sys.modules["oracle"] = previous
-    grouped, previous_by_role = {}, {}
-    for event in events:
+    return reference
+
+
+class NativeMaskReplay:
+    """Scoped actual-seed replay; ingest in physical order, consume masks later.
+
+    Only incomplete four-route groups retain event headers. Completed identities
+    and per-role cursors are bounded public metadata, never an event/mask spool.
+    The independent AES fixture is loaded once per replay owner.
+    """
+    def __init__(self, pair_keys, public_seed, *, max_invocations):
+        if len(pair_keys) != 3 or any(type(k) is not bytes or len(k) != 16 for k in pair_keys):
+            raise OracleError("three test-local 128-bit edge keys required")
+        if type(public_seed) is not int or not 0 <= public_seed < 1 << 128:
+            raise OracleError("test public seed required")
+        if type(max_invocations) is not int or max_invocations <= 0:
+            raise OracleError("bounded native invocation census required")
+        self.keys, self.seed = pair_keys, public_seed
+        self.reference = _independent_aes_reference()
+        self.limit = max_invocations
+        self.pending, self.previous_by_role = {}, {}
+        self.seen_bindings, self.seen_cursors = set(), set()
+        self.closed = False
+
+    def ingest(self, event, shift):
+        if self.closed or (shift is not None and (type(shift) is not int or not 1 <= shift <= 62)):
+            raise OracleError("native replay state/shift")
         role = event["role"]
         if type(role) is not int or role not in (0, 1, 2):
             raise OracleError("native truncation sender role")
-        previous = previous_by_role.get(role)
+        binding = event["binding"]
+        if binding in self.seen_bindings:
+            raise OracleError("duplicate native truncation binding")
+        lanes, public_end, pair_end = (event[key] for key in ("lanes", "public_end", "pair_end"))
+        if any(type(value) is not int for value in (lanes, public_end, pair_end)) or not 0 < lanes <= 1024:
+            raise OracleError("native truncation event geometry")
+        reserved_blocks = 2*((lanes+1)//2)
+        if not 1 <= public_end < 1 << 64 or not reserved_blocks <= pair_end < 1 << 64:
+            raise OracleError("native truncation cursor")
+        reservation_start = pair_end-reserved_blocks
+        previous = self.previous_by_role.get(role)
         if previous is not None and event["binding"] != previous["binding"]:
-            if event["public_end"] <= previous["public_end"] or event["pair_end"] <= previous["pair_end"]:
+            if public_end <= previous["public_end"] or pair_end <= previous["pair_end"]:
                 raise OracleError("native truncation schedule order/cursor reuse")
-        previous_by_role[role] = event
-        grouped.setdefault(event["binding"], []).append(event)
-    if not grouped or set(grouped) != set(shifts):
-        raise OracleError("complete native truncation binding/shift map required")
-    physical = {}
-    seen_cursors = set()
-    for binding, group in grouped.items():
+            # begin_inner burns BOTH ceil(lanes/2)-block fills. Increasing
+            # endpoints alone permits a rewind into the preceding output fill.
+            # Gaps belong to other protocols and are valid; the helper's second
+            # route for this same binding is not a fresh reservation.
+            if reservation_start < previous["pair_end"]:
+                raise OracleError("overlapping native PRSS pair reservation")
+        self.previous_by_role[role] = event
+        if binding not in self.pending:
+            if len(self.pending) + len(self.seen_bindings) >= self.limit:
+                raise OracleError("native invocation census exceeded")
+            self.pending[binding] = (shift, [])
+        old_shift, group = self.pending[binding]
+        if shift != old_shift:
+            raise OracleError("one native invocation assigned inconsistent shifts")
+        if group and any(event.get(k) != group[0].get(k) for k in
+                         ("node", "loop_offset", "tensor_step", "invocation", "lanes")):
+            raise OracleError("native truncation owner metadata differs across parties")
+        if any((e["role"], e["to"], e["phase"]) ==
+               (role, event["to"], event["phase"]) for e in group):
+            raise OracleError("incomplete or duplicate actual truncation routes")
+        group.append(event)
+        if len(group) < 4:
+            return None
         first = group[0]
         lanes, public_end, pair_end = (first[key] for key in ("lanes", "public_end", "pair_end"))
         if any(type(value) is not int for value in (lanes, public_end, pair_end)) or not 0 < lanes <= 1024:
@@ -364,12 +427,11 @@ def native_mask_tapes(events, pair_keys, public_seed, shifts):
         q = (lanes+1)//2
         if not 1 <= public_end < 1 << 64 or not 2*q <= pair_end < 1 << 64:
             raise OracleError("native truncation cursor")
-        if (public_end, pair_end) in seen_cursors:
+        if (public_end, pair_end) in self.seen_cursors:
             raise OracleError("duplicate native PRSS invocation")
-        seen_cursors.add((public_end, pair_end))
         if any((event["lanes"], event["public_end"], event["pair_end"]) != (lanes, public_end, pair_end) for event in group):
             raise OracleError("native parties disagree on truncation cursors")
-        pivot = reference.source_fill(public_seed.to_bytes(16, "little"), public_end-1, 1)[0]
+        pivot = self.reference.source_fill(self.seed.to_bytes(16, "little"), public_end-1, 1)[0]
         if pivot > (1 << 64)-3:
             raise OracleError("source pivot rejected top aliases")
         a = pivot % 3
@@ -381,11 +443,305 @@ def native_mask_tapes(events, pair_keys, public_seed, shifts):
         # Source begin reserves mask and output fills before sending messages.
         # Both fills consume ceil(lanes/2) blocks; discarded odd halves stay lost.
         mask_start = pair_end-2*q
-        left = reference.source_fill(pair_keys[a], mask_start, lanes)
-        right = reference.source_fill(pair_keys[h], mask_start, lanes)
-        physical[binding] = {"shift": shifts[binding],
-                             "masks": [(x+y) % (1 << 64) for x, y in zip(left, right)]}
-    return physical
+        left = self.reference.source_fill(self.keys[a], mask_start, lanes)
+        right = self.reference.source_fill(self.keys[h], mask_start, lanes)
+        self.seen_bindings.add(binding)
+        self.seen_cursors.add((public_end, pair_end))
+        del self.pending[binding]
+        return {"shift": shift, "masks": [(x+y) % (1 << 64) for x, y in zip(left, right)]}
+
+    def finish(self):
+        if self.closed or self.pending:
+            raise OracleError("incomplete native truncation replay")
+        self.closed = True
+
+
+_ROOT_ALIASES = {"token_lookup": "embedding", "input.tokens": "input.tokens",
+                 "final_norm": "final_norm", "last_hidden": "last_hidden",
+                 "output_head": "logits", "token_selection": "selected",
+                 "token_feedback": "selected", "feedback.history": "feedback"}
+_LAYER_ALIASES = {"q_linear": "q_proj", "k_linear": "k_proj", "v_linear": "v_proj",
+                  "input_norm": "input_norm", "q_heads": "q_heads", "k_heads": "k_heads",
+                  "v_heads": "v_heads", "q_norm": "q_norm", "k_norm": "k_norm",
+                  "rope_q": "q_rotary", "rope_k": "k_rotary", "key_append": "full_prefix_k",
+                  "key_view": "full_prefix_k", "value_append": "full_prefix_v",
+                  "value_view": "full_prefix_v", "attention_scores": "scores",
+                  "attention_scale": "scaled_scores", "causal_mask": "causal_mask",
+                  "softmax": "probabilities", "attention_values": "context",
+                  "attention_hidden": "merged", "o_proj": "o_proj",
+                  "attention_residual": "attention_residual", "post_norm": "post_attention_norm",
+                  "gate_proj": "gate_proj", "up_proj": "up_proj", "silu": "silu",
+                  "gated_multiply": "gate_up", "down_proj": "down_proj", "mlp_residual": "output"}
+
+
+def _native_checkpoint_name(selection, native_id, oracle_name=None):
+    if type(selection) is not int or not 0 <= selection < 8:
+        raise OracleError("native checkpoint selection domain")
+    if type(native_id) is not str or not native_id:
+        raise OracleError("native checkpoint identity")
+    if oracle_name is not None:
+        if type(oracle_name) is not str or not oracle_name:
+            raise OracleError("native diagnostic name")
+        return oracle_name
+    if native_id in _ROOT_ALIASES:
+        suffix = _ROOT_ALIASES[native_id]
+    elif native_id.startswith("layer.") and native_id.count(".") == 2:
+        _, layer, operator = native_id.split(".")
+        if (not layer.isascii() or not layer.isdecimal() or str(int(layer)) != layer
+                or not 0 <= int(layer) < 64 or operator not in _LAYER_ALIASES):
+            raise OracleError("unmapped native semantic operator/layer")
+        suffix = f"layer.{layer}/" + _LAYER_ALIASES[operator]
+    else:
+        raise OracleError(f"unmapped native checkpoint: {native_id}")
+    return f"s{selection}/" + suffix
+
+
+def _native_checkpoint_shape(shape, batch_dimension, native_id):
+    if (type(shape) not in (list, tuple) or type(batch_dimension) is not bool
+            or any(type(n) is not int or n <= 0 for n in shape)
+            or math.prod(shape) > MAX_VALUES):
+        raise OracleError("native checkpoint bounded shape metadata")
+    shape = tuple(shape)
+    if batch_dimension and (not shape or shape[0] != 1):
+        raise OracleError("native checkpoint requires batch-one shape")
+    normalized = shape[1:] if batch_dimension else shape
+    if native_id == "token_feedback":
+        if math.prod(normalized) != 1:
+            raise OracleError("native feedback scalar shape")
+        normalized = ()
+    return shape, normalized
+
+
+def _native_flat_words(words, count):
+    # Validate flat input/count BEFORE NumPy conversion can expand nested input.
+    if (not isinstance(words, (list, tuple, np.ndarray))
+            or isinstance(words, np.ndarray) and words.ndim != 1
+            or len(words) != count
+            or any(isinstance(word, (bool, np.bool_)) or not isinstance(word, (int, np.integer))
+                   for word in words)):
+        raise OracleError("native flat integer word count/schema")
+
+
+def _native_checkpoint_value(checkpoint):
+    """Validate one existing capture record; reconstruction does not prove origin.
+
+    A native producer must independently check overlapping replicated pairs.
+    Generated records are synthetic controls, not evidence that producer ran.
+    """
+    required = {"selection", "id", "shape"}
+    optional = {"batch_dimension", "oracle_name", "values", "components"}
+    if (type(checkpoint) is not dict or not required <= checkpoint.keys()
+            or checkpoint.keys() - required - optional):
+        raise OracleError("native checkpoint schema")
+    _native_checkpoint_name(checkpoint["selection"], checkpoint["id"], checkpoint.get("oracle_name"))
+    shape, normalized = _native_checkpoint_shape(
+        checkpoint["shape"], checkpoint.get("batch_dimension", True), checkpoint["id"])
+    if ("components" in checkpoint) == ("values" in checkpoint):
+        raise OracleError("exactly one native reconstructed/shared checkpoint representation required")
+    if "components" in checkpoint:
+        components = checkpoint["components"]
+        if (not isinstance(components, (list, tuple, np.ndarray))
+                or isinstance(components, np.ndarray) and components.ndim != 2
+                or len(components) != 3):
+            raise OracleError("native checkpoint component shape")
+        for part in components:
+            _native_flat_words(part, math.prod(shape))
+        value = reconstruct_test_shares(components)
+    else:
+        _native_flat_words(checkpoint["values"], math.prod(shape))
+        value = array(checkpoint["values"])
+        if value.shape != (math.prod(shape),):
+            raise OracleError("native reconstructed checkpoint shape")
+    return value.reshape(normalized)
+
+
+def _check_native_final(result, outputs, checked_profile, final_components):
+    if (type(outputs) is not int or not 1 <= outputs <= 8
+            or type(checked_profile) is not bool or type(result.accepted) is not bool
+            or type(result.tokens) is not list
+            or len(result.tokens) != (outputs if result.accepted else 0)
+            or any(type(token) is not int or token < 0 for token in result.tokens)):
+        raise OracleError("native final result geometry")
+    if final_components is None:
+        raise OracleError("native final response components required")
+    expected = result.tokens if result.accepted else [0]*outputs
+    if checked_profile:
+        expected = [*expected, int(result.accepted)]
+    if (not isinstance(final_components, (list, tuple, np.ndarray))
+            or isinstance(final_components, np.ndarray) and final_components.ndim != 2
+            or len(final_components) != 3):
+        raise OracleError("native final component shape")
+    for part in final_components:
+        _native_flat_words(part, len(expected))
+    final = reconstruct_test_shares(final_components)
+    if final.shape != (len(expected),) or final.tolist() != expected:
+        raise OracleError("native final token masking/aggregate acceptance mismatch")
+
+
+class StreamingTraceComparator:
+    """Finite semantic-ordered comparator, NOT a native capture/source verifier.
+
+    Public declaration/provenance must be frozen before private iteration. No
+    payload/array/history is retained by this object after a callback; only the
+    one-shot provider, public tuples, schedule, counters and terminal state remain.
+    Provider itself must not buffer private payloads. No search-ahead or queue.
+    Budgets count every alias. Peak counters are logical words, not Python RSS:
+    components transiently need three vectors plus a reconstructed array, beside
+    the expected oracle array and decoder/operator working set. Declaration and
+    run_decoder.emitted/StreamingTape.used still scale with scheduled boundaries.
+    """
+
+    def __init__(self, checkpoints, *, declaration, source_provenance,
+                 checked_ranges, outputs, max_records, max_total_values):
+        if (any(type(n) is not int or n <= 0 for n in (outputs, max_records, max_total_values))
+                or outputs > 8):
+            raise OracleError("positive exact integer stream budgets/outputs required")
+        if checked_ranges is not None and type(checked_ranges) is not CheckedRangeSchedule:
+            raise OracleError("immutable checked-range schedule required")
+
+        def immutable(value):
+            return type(value) in (str, int, bool, type(None)) or (
+                type(value) is tuple and all(immutable(item) for item in value))
+
+        if type(source_provenance) is not tuple or not source_provenance:
+            raise OracleError("immutable public source provenance required")
+        keys = set()
+        for entry in source_provenance:
+            if (type(entry) is not tuple or len(entry) != 2
+                    or type(entry[0]) is not str or not entry[0] or entry[0] in keys
+                    or not immutable(entry[1])):
+                raise OracleError("immutable public source provenance schema")
+            keys.add(entry[0])
+        if type(declaration) is not tuple or not declaration:
+            raise OracleError("immutable nonempty stream declaration required")
+        diagnostics = set()
+        if checked_ranges is not None:
+            diagnostics.add("acceptance.valid")
+            for name, _ in checked_ranges.entries:
+                diagnostics.add(name)
+                diagnostics.update(name + "/checked_range/" + suffix for suffix in
+                                   ("safe", "valid", "all_valid", "tile_sticky", "sticky"))
+        names, identities = set(), set()
+        records = values = 0
+        for group in declaration:
+            if type(group) is not tuple or len(group) != 2:
+                raise OracleError("immutable stream group required")
+            name, specs = group
+            if (type(name) is not str or name in names or type(specs) is not tuple or not specs):
+                raise OracleError("duplicate or mutable stream group")
+            names.add(name)
+            for spec in specs:
+                if type(spec) is not tuple or len(spec) != 5 or type(spec[2]) is not tuple:
+                    raise OracleError("immutable native record declaration required")
+                selection, native_id, shape, batch, oracle_name = spec
+                mapped = _native_checkpoint_name(selection, native_id, oracle_name)
+                if selection >= outputs or mapped != name or (selection, native_id) in identities:
+                    raise OracleError("stream declaration identity/name/selection")
+                if oracle_name is not None and (name not in diagnostics or (
+                        name != "acceptance.valid" and not name.startswith(f"s{selection}/"))):
+                    raise OracleError("undeclared diagnostic name/placement")
+                _native_checkpoint_shape(shape, batch, native_id)
+                identities.add((selection, native_id))
+                records += 1
+                values += math.prod(shape)
+        if checked_ranges is not None:
+            if declaration[-1][0] != "acceptance.valid":
+                raise OracleError("checked stream requires terminal acceptance declaration")
+            for spec in declaration[-1][1]:
+                if _native_checkpoint_shape(spec[2], spec[3], spec[1])[1] != ():
+                    raise OracleError("scalar acceptance declaration required")
+        if records > max_records or values > max_total_values:
+            raise OracleError("declared stream budget exceeded")
+        self._declaration = declaration
+        self._source_provenance = source_provenance
+        self._checked_ranges = checked_ranges
+        self._outputs = outputs
+        self._max_records, self._max_total_values = max_records, max_total_values
+        self.declared_records, self.declared_values = records, values
+        self.consumed_records = self.consumed_values = 0
+        self.peak_record_values = self.peak_record_words = 0
+        self._index, self._state = 0, "active"
+        # Iteration starts only after all public validation/budget checks.
+        self._checkpoints = iter(checkpoints)
+
+    @property
+    def declaration(self):
+        return self._declaration
+
+    @property
+    def source_provenance(self):
+        return self._source_provenance
+
+    def _active(self):
+        if self._state != "active":
+            raise OracleError("stream comparator terminal")
+
+    def __call__(self, name, value):
+        self._active()
+        try:
+            if self._index >= len(self.declaration) or name != self.declaration[self._index][0]:
+                raise OracleError("stream boundary order mismatch")
+            expected = array(value)
+            specs = self.declaration[self._index][1]
+            # Validate all public shapes before consuming any private alias.
+            for _, native_id, shape, batch, _ in specs:
+                if _native_checkpoint_shape(shape, batch, native_id)[1] != expected.shape:
+                    raise OracleError("stream declared boundary shape")
+            for spec in specs:
+                count = math.prod(spec[2])
+                if (self.consumed_records + 1 > self._max_records
+                        or self.consumed_values + count > self._max_total_values):
+                    raise OracleError("stream budget exceeded")
+                sentinel = object()
+                checkpoint = next(self._checkpoints, sentinel)
+                if checkpoint is sentinel:
+                    raise OracleError("missing streamed checkpoint")
+                if type(checkpoint) is not dict:
+                    raise OracleError("native checkpoint schema")
+                # Avoid Python equality accepting bool as integer metadata.
+                selection = checkpoint.get("selection")
+                native_id = checkpoint.get("id")
+                _native_checkpoint_name(selection, native_id, checkpoint.get("oracle_name"))
+                shape, _ = _native_checkpoint_shape(checkpoint.get("shape"),
+                    checkpoint.get("batch_dimension", True), native_id)
+                actual_spec = (selection, native_id, shape,
+                    checkpoint.get("batch_dimension", True), checkpoint.get("oracle_name"))
+                if actual_spec != spec:
+                    raise OracleError("stream checkpoint identity/order/metadata mismatch")
+                self.consumed_records += 1
+                self.consumed_values += count
+                self.peak_record_values = max(self.peak_record_values, count)
+                self.peak_record_words = max(self.peak_record_words,
+                                             count*(4 if "components" in checkpoint else 1))
+                actual = _native_checkpoint_value(checkpoint)
+                compare_trace({name: expected}, {name: actual})
+                del actual, checkpoint
+            self._index += 1
+        except BaseException:
+            self._state, self._checkpoints = "failed", None
+            raise
+        finally:
+            # Do not leave payload references in this callback's traceback frame.
+            value = expected = actual = checkpoint = None
+
+    def finish(self, result, *, final_components):
+        self._active()
+        try:
+            if self._checked_ranges is not None and not self._checked_ranges.entries:
+                # Expected empty conjunction ONLY; actual checkpoint remains mandatory.
+                if result.accepted is not True:
+                    raise OracleError("empty checked conjunction must accept")
+                self("acceptance.valid", array(int(result.accepted)))
+            if self._index != len(self.declaration):
+                raise OracleError("unfinished stream declaration")
+            sentinel = object()
+            if next(self._checkpoints, sentinel) is not sentinel:
+                raise OracleError("excess streamed checkpoint")
+            _check_native_final(result, self._outputs, self._checked_ranges is not None, final_components)
+        except BaseException:
+            self._state, self._checkpoints = "failed", None
+            raise
+        self._state, self._checkpoints = "finished", None
 
 
 def audit_native_capture(config, weights, input_ids, outputs, rotary, *,
@@ -417,22 +773,6 @@ def audit_native_capture(config, weights, input_ids, outputs, rotary, *,
         # Checked profile with no placed guards still emits final aggregate one.
         # This follows public empty schedule, not an unobserved native value.
         result.trace["acceptance.valid"] = array(1)
-    root_aliases = {"token_lookup": "embedding", "input.tokens": "input.tokens",
-                    "final_norm": "final_norm", "last_hidden": "last_hidden",
-                    "output_head": "logits", "token_selection": "selected",
-                    "token_feedback": "selected", "feedback.history": "feedback"}
-    layer_aliases = {"q_linear": "q_proj", "k_linear": "k_proj", "v_linear": "v_proj",
-                     "input_norm": "input_norm", "q_heads": "q_heads", "k_heads": "k_heads",
-                     "v_heads": "v_heads", "q_norm": "q_norm", "k_norm": "k_norm",
-                     "rope_q": "q_rotary", "rope_k": "k_rotary", "key_append": "full_prefix_k",
-                     "key_view": "full_prefix_k", "value_append": "full_prefix_v",
-                     "value_view": "full_prefix_v", "attention_scores": "scores",
-                     "attention_scale": "scaled_scores", "causal_mask": "causal_mask",
-                     "softmax": "probabilities", "attention_values": "context",
-                     "attention_hidden": "merged", "o_proj": "o_proj",
-                     "attention_residual": "attention_residual", "post_norm": "post_attention_norm",
-                     "gate_proj": "gate_proj", "up_proj": "up_proj", "silu": "silu",
-                     "gated_multiply": "gate_up", "down_proj": "down_proj", "mlp_residual": "output"}
     actual, seen = {}, set()
     for checkpoint in checkpoints:
         selection, native_id = checkpoint["selection"], checkpoint["id"]
@@ -440,58 +780,14 @@ def audit_native_capture(config, weights, input_ids, outputs, rotary, *,
         if identity in seen:
             raise OracleError("duplicate native checkpoint")
         seen.add(identity)
-        if "oracle_name" in checkpoint:
-            # Explicit compiler-public identity for guard/acceptance diagnostic
-            # views. Never infer placement from observed private magnitudes.
-            name = checkpoint["oracle_name"]
-            suffix = None
-        elif native_id in root_aliases:
-            suffix = root_aliases[native_id]
-        elif native_id.startswith("layer.") and native_id.count(".") == 2:
-            _, layer, operator = native_id.split(".")
-            if operator not in layer_aliases:
-                raise OracleError("unmapped native semantic operator")
-            suffix = f"layer.{layer}/" + layer_aliases[operator]
-        else:
-            raise OracleError(f"unmapped native checkpoint: {native_id}")
-        if suffix is not None:
-            name = f"s{selection}/" + suffix
-        shape = tuple(checkpoint["shape"])
-        batch_dimension = checkpoint.get("batch_dimension", True)
-        if type(batch_dimension) is not bool or math.prod(shape) > MAX_VALUES:
-            raise OracleError("native checkpoint bounded shape metadata")
-        if batch_dimension and (not shape or shape[0] != 1):
-            raise OracleError("native checkpoint requires batch-one shape")
-        if ("components" in checkpoint) == ("values" in checkpoint):
-            raise OracleError("exactly one native reconstructed/shared checkpoint representation required")
-        if "components" in checkpoint:
-            components = checkpoint["components"]
-            if len(components) != 3 or any(len(part) != math.prod(shape) for part in components):
-                raise OracleError("native checkpoint component shape")
-            value = reconstruct_test_shares(components)
-        else:
-            # oracle_trace.rs checked overlapping replicated components and
-            # reconstructed this tensor BEFORE discarding all three local pairs.
-            value = array(checkpoint["values"])
-            if value.ndim != 1 or value.size != math.prod(shape):
-                raise OracleError("native reconstructed checkpoint shape")
-        value = value.reshape(shape[1:] if batch_dimension else shape)
-        if native_id == "token_feedback":
-            value = value.reshape(())
+        name = _native_checkpoint_name(selection, native_id, checkpoint.get("oracle_name"))
+        value = _native_checkpoint_value(checkpoint)
         if name not in result.trace:
             raise OracleError(f"native boundary absent from oracle: {name}")
         compare_trace({name: result.trace[name]}, {name: value})
         actual[name] = value
     compare_trace(result.trace, actual)
-    if final_components is None:
-        raise OracleError("native final response components required")
-    final = reconstruct_test_shares(final_components)
-    checked_profile = checked_ranges is not None
-    expected_final = result.tokens if result.accepted else [0]*outputs
-    if checked_profile:
-        expected_final = [*expected_final, int(result.accepted)]
-    if final.shape != (len(expected_final),) or final.tolist() != expected_final:
-        raise OracleError("native final token masking/aggregate acceptance mismatch")
+    _check_native_final(result, outputs, checked_ranges is not None, final_components)
     if gqa_controls:
         _assert_fixture_gqa_coverage(config, result.trace, outputs, tape.batches)
     if dense_head_control:
@@ -546,6 +842,14 @@ def generated_native_layout(config, input_rows, outputs, events, spans):
             raise OracleError("native truncation requires one exact semantic compiler span")
         span = ordered_spans[at]
         owners.setdefault((span["selection"], span["id"]), []).append(event)
+    return _generated_owner_layout(config, input_rows, owners)
+
+
+def _generated_owner_layout(config, input_rows, owners):
+    """Shared owner/stage recipe, used by collector and single-owner bridge."""
+    h, kv = config["num_attention_heads"], config["num_key_value_heads"]
+    hidden, mid, layers = config["hidden_size"], config["intermediate_size"], config["num_hidden_layers"]
+    d = config.get("head_dim", hidden//h)
     layout = {}
 
     def put(name, shape, draws, shift=18):
@@ -660,7 +964,11 @@ def linear(x, weight, tape, name, bias=None):
     if isinstance(weight, PublicMatrix):
         raw = np.empty(shape, dtype=object)
         for start, block in weight.blocks():
-            raw[..., start:start+len(block)] = x @ block.T
+            try:
+                raw[..., start:start+len(block)] = x @ block.T
+            finally:
+                # Release caller's previous block before generator requests next.
+                del block
     else:
         raw = x @ weight.T  # dtype=object: unwrapped integer accumulation
     out = tape.truncate(name, raw)
@@ -815,6 +1123,31 @@ def reconstruct_test_shares(shares):
 
 def run_decoder(config, weights, input_ids, outputs, tape, rotary, *, partitioned=True,
                 checked_ranges=None, trace_sink=None):
+    """Optional mock-source lifecycle/error boundary; ordinary callers unchanged.
+
+    Source-backed exceptions keep their type/message, but subordinate traceback
+    locals are retired so an actual bias/gamma cannot outlive the failed scope.
+    This is the only public source-completion route: validate privately, invoke
+    the fixed existing body (not a caller-selected callback), then mark complete.
+    It is not a native/source-authority attestation or an introspection barrier.
+    """
+    begin = getattr(weights, "_begin_decoder", None)
+    if begin is None:
+        return _run_decoder(config, weights, input_ids, outputs, tape, rotary,
+            partitioned=partitioned, checked_ranges=checked_ranges, trace_sink=trace_sink)
+    try:
+        frozen_config = begin(config, input_ids, outputs)
+        ids = list(input_ids)  # Source hook first bounds the exact list length.
+        result = _run_decoder(frozen_config, weights, ids, outputs, tape, rotary,
+            partitioned=partitioned, checked_ranges=checked_ranges, trace_sink=trace_sink)
+        weights._end_decoder()
+        return result
+    except BaseException as error:
+        weights.abort_decoder(error)
+
+
+def _run_decoder(config, weights, input_ids, outputs, tape, rotary, *, partitioned=True,
+                checked_ranges=None, trace_sink=None):
     """Recompute COMPLETE prefix per selection. No KV reuse, no early EOS exit.
 
     See module docstring. Trace names below are the integration interface. Each
@@ -878,7 +1211,8 @@ def run_decoder(config, weights, input_ids, outputs, tape, rotary, *, partitione
     def weight(name, shape):
         if name not in weights:
             raise OracleError(f"missing source: {name}")
-        w = weights[name] if isinstance(weights[name], PublicMatrix) else array(weights[name])
+        w = weights[name]
+        w = w if isinstance(w, PublicMatrix) else array(w)
         if w.shape != shape:
             raise OracleError(f"source shape: {name}")
         return w
@@ -912,12 +1246,16 @@ def run_decoder(config, weights, input_ids, outputs, tape, rotary, *, partitione
     for selection in range(outputs):
         root = f"s{selection}/"
         emit(root + "input.tokens", ids)
-        if isinstance(embedding, PublicMatrix):
+        gather = getattr(weights, "gather_embedding", None)
+        if gather is not None:
+            embedded = gather(ids)
+        elif isinstance(embedding, PublicMatrix):
             # Clear fixture IDs only. This is not a private runtime lookup API.
             embedded = np.concatenate([embedding.rows(i, i+1) for i in ids], axis=0)
         else:
             embedded = embedding[ids]
         x = emit(root + "embedding", embedded)
+        del embedded
         n = len(ids)
         if h*n*n > MAX_VALUES or h*n*d > MAX_VALUES:
             raise OracleError("bounded attention geometry")
@@ -930,6 +1268,7 @@ def run_decoder(config, weights, input_ids, outputs, tape, rotary, *, partitione
                 name = p + kind + "_proj"
                 bias = weight(src + f"self_attn.{kind}_proj.bias", (heads*d,)) if config.get("attention_bias", family == "qwen2") else None
                 projected = emit(name, linear(norm, weight(src + f"self_attn.{kind}_proj.weight", (heads*d, hidden)), tape, name, bias))
+                del bias
                 shaped = emit(p + kind + "_heads", projected.reshape(n, heads, d).transpose(1, 0, 2))
                 if family == "qwen3" and kind in {"q", "k"}:
                     shaped = normalize(shaped, weight(src + f"self_attn.{kind}_norm.weight", (d,)), p + kind + "_norm")
@@ -982,6 +1321,9 @@ def run_decoder(config, weights, input_ids, outputs, tape, rotary, *, partitione
         selected.append(token)
         ids.append(token)
         emit(root + "feedback", ids)
+        selection_finished = getattr(weights, "selection_finished", None)
+        if selection_finished is not None:
+            selection_finished()
     if guards.keys() != guards_used:
         raise OracleError(f"unused guard placements: {sorted(guards.keys()-guards_used)}")
     tape.finish()
@@ -1198,9 +1540,619 @@ def _native_capture_main():
     receipt()
 
 
+# Anonymous-pipe adapter, generated expanded fixtures ONLY. No collector bundle,
+# private stdout diagnostics, alternate evaluator, or source authority is added.
+_PIPE_HEADER = struct.Struct("<4sBBHIIII")
+_CAPTURE_WORDS = 1 << 20
+
+
+def _pipe_exact(reader, count, *, raw_limit=None):
+    """Per-read requested payload envelope, NOT allocated backing or total memory.
+
+    3n covers result plus prior/replacement read returns, assuming read(requested)
+    obeys its size bound. Buffered IO internals, JSON/Python objects, native/RSS
+    and raw payloads retained by callers/callbacks are outside this policy.
+    """
+    if type(count) is not int or not 0 <= count <= 64 << 20:
+        raise OracleError("pipe allocation bound")
+    if raw_limit is not None and (type(raw_limit) is not int or raw_limit < 0):
+        raise OracleError("pipe raw requested-payload limit")
+    if raw_limit is not None and 3*count > raw_limit:
+        raise OracleError("pipe raw requested-payload envelope")
+    result = bytearray(count)
+    at = 0
+    while at < count:
+        requested = count-at
+        chunk = reader.read(requested)
+        if not chunk:
+            raise OracleError("truncated pipe frame")
+        # An excessive external return already exists; reject before assignment
+        # can grow our destination. No preallocation claim over that reader.
+        if len(chunk) > requested:
+            raise OracleError("oversized pipe reader return")
+        result[at:at+len(chunk)] = chunk
+        at += len(chunk)
+    return result
+
+
+def _pipe_receive(reader, sequence, expected, *, event=None, spans=(), raw_limit=None):
+    """Validate fixed header and exact per-kind geometry BEFORE payload allocation."""
+    while True:
+        magic, version, kind, reserved, seq, index, count, length = _PIPE_HEADER.unpack(
+            _pipe_exact(reader, _PIPE_HEADER.size, raw_limit=raw_limit))
+        if magic != b"POT1" or version != 1 or reserved or seq != sequence:
+            raise OracleError("pipe header/order")
+        if kind == 13:
+            if (index, count, length) != (0, 1, 2):
+                raise OracleError("pipe failure schema")
+            code = struct.unpack("<H", _pipe_exact(reader, 2, raw_limit=raw_limit))[0]
+            if not 1 <= code <= 8:
+                raise OracleError("pipe failure code")
+            raise OracleError("native pipe failure")
+        if kind == 6 and event is not None:
+            if not 0 <= index < len(spans) or count != 1 or length != 92:
+                raise OracleError("pipe event bounds")
+            event(index, _pipe_exact(reader, 92, raw_limit=raw_limit))
+            continue
+        if (kind, index, count, length) != expected:
+            raise OracleError("unexpected pipe response geometry")
+        return _pipe_exact(reader, length, raw_limit=raw_limit)
+
+
+def _metadata_raw_remaining(mbytes, raw_limit):
+    """Pure metadata requested-payload admission, before allocation/read/JSON.
+
+    Exact policy threshold M + max(72, 3*min(M,4096)); not a JSON expansion,
+    allocator capacity or total-owner proof. Generated <=64 MiB stays HOLD.
+    """
+    if type(mbytes) is not int or not 0 < mbytes <= 64 << 20:
+        raise OracleError("metadata raw length")
+    if type(raw_limit) is not int or raw_limit < 0:
+        raise OracleError("metadata raw requested-payload limit")
+    if mbytes + max(72, 3*min(mbytes, 4096)) > raw_limit:
+        raise OracleError("metadata raw requested-payload envelope")
+    return raw_limit-mbytes
+
+
+def _pipe_send(writer, kind, seq, index=0):
+    if kind not in range(32, 38) or not 1 <= seq < 1 << 32 or not 0 <= index < 1 << 32:
+        raise OracleError("pipe command geometry")
+    writer.write(_PIPE_HEADER.pack(b"POT1", 1, kind, 0, seq, index, 0, 0))
+    writer.flush()
+
+
+def _freeze_public(value):
+    if type(value) is dict:
+        return tuple((k, _freeze_public(v)) for k, v in sorted(value.items()))
+    if type(value) is list:
+        return tuple(_freeze_public(v) for v in value)
+    if type(value) not in (str, int, bool, type(None), float):
+        raise OracleError("public metadata type")
+    # Comparator provenance permits only exact immutable leaves.
+    return repr(value) if type(value) is float else value
+
+
+@dataclass(frozen=True, slots=True)
+class JSONLexicalPolicy:
+    """Optional lexical refusal only; ordinary json.loads has NO byte quote.
+
+    requested_copy_bytes admits only the NEW immutable config payload, not its
+    header, outer graph, decoding, total memory or parser workspace. copy_admit
+    observes (requested_bytes, held_outer_meta) before that one conversion.
+    """
+    byte_limit: int = 16_777_216
+    node_limit: int = 65_536
+    depth_limit: int = 17
+    token_limit: int = 1024
+    requested_copy_bytes: int = 4096
+    copy_admit: object = None
+
+    def __post_init__(self):
+        _validate_json_policy(self)
+
+
+def _validate_json_policy(policy):
+    if policy is None:
+        return
+    if type(policy) is not JSONLexicalPolicy:
+        raise OracleError("invalid JSON lexical policy")
+    try:
+        limits = ((policy.byte_limit, 16_777_216), (policy.node_limit, 65_536),
+                  (policy.depth_limit, 17), (policy.token_limit, 1024),
+                  (policy.requested_copy_bytes, 4096))
+        hook = policy.copy_admit
+    except AttributeError:
+        raise OracleError("invalid JSON lexical policy") from None
+    for value, ceiling in limits:
+        if type(value) is not int or not 0 < value <= ceiling:
+            raise OracleError("invalid JSON lexical policy")
+    if hook is not None and not callable(hook):
+        raise OracleError("invalid JSON lexical policy")
+
+
+_JSON_CENSUS_REFERENCE = None
+
+
+def _json_census_reference():
+    """Load neutral file once, before INIT/admitted work; no package startup."""
+    global _JSON_CENSUS_REFERENCE
+    if _JSON_CENSUS_REFERENCE is None:
+        path = Path(__file__).resolve().parents[1] / "python/pllm/_json_census.py"
+        spec = importlib.util.spec_from_file_location("independent_json_census", path)
+        reference = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(reference)
+        _JSON_CENSUS_REFERENCE = reference
+    return _JSON_CENSUS_REFERENCE
+
+
+def _lexical_json_census(raw, policy, reference):
+    try:
+        return reference.json_census(raw, byte_limit=policy.byte_limit,
+            node_limit=policy.node_limit, depth_limit=policy.depth_limit,
+            token_limit=policy.token_limit)
+    except reference.JSONCensusError:
+        raise OracleError("JSON lexical envelope refused") from None
+
+
+def _stream_public_schema(meta, init, *, json_policy=None):
+    import json
+
+    _validate_json_policy(json_policy)
+    reference = _json_census_reference() if json_policy is not None else None
+    required = {"config", "config_bytes", "policy", "provenance", "recipe", "program", "sources",
+                "boundaries", "spans", "guards", "demands", "frontiers", "terminal",
+                "capture_peak", "pending_peak", "tape_words", "source_words",
+                "checkpoint_words", "total_tape", "invocations", "logical_len", "outputs", "input_rows",
+                "fixture_mode", "expected_accepted"}
+    if type(meta) is not dict or set(meta) != required or meta["provenance"] != "generated":
+        raise OracleError("generated public metadata schema")
+    c = meta["config"]
+    raw = meta["config_bytes"]
+    if (type(raw) is not list or not 0 < len(raw) <= 4096
+            or any(type(n) is not int or not 0 <= n <= 255 for n in raw)):
+        raise OracleError("actual generated config bytes required")
+    if json_policy is not None:
+        n = len(raw)
+        if n > json_policy.byte_limit or n > json_policy.requested_copy_bytes:
+            raise OracleError("JSON requested immutable-copy envelope refused")
+        if json_policy.copy_admit is not None:
+            try:
+                json_policy.copy_admit(n, meta)
+            except Exception:
+                # Only caller copy admission; decoder exceptions below unchanged.
+                raise OracleError("JSON requested immutable-copy envelope refused") from None
+            if type(meta) is not dict or set(meta) != required or meta["provenance"] != "generated":
+                raise OracleError("generated public metadata schema")
+            _validate_json_policy(json_policy)
+            if (meta.get("config_bytes") is not raw or meta.get("config") is not c
+                    or type(raw) is not list or len(raw) != n
+                    or not 0 < n <= min(4096, json_policy.byte_limit, json_policy.requested_copy_bytes)
+                    or any(type(value) is not int or not 0 <= value <= 255 for value in raw)):
+                raise OracleError("JSON requested immutable-copy envelope refused")
+    config_bytes = bytes(raw)
+    if json_policy is not None:
+        _lexical_json_census(config_bytes, json_policy, reference)
+    if json.loads(config_bytes) != c:
+        raise OracleError("actual generated config bytes required")
+    del config_bytes
+    # This first native selector is deliberately narrower than the collector.
+    if (type(c) is not dict or c.get("model_type") != "qwen3"
+            or (c.get("hidden_size"), c.get("intermediate_size"), c.get("num_hidden_layers"))
+            not in ((2, 2, 1), (72, 131, 2))
+            or meta["outputs"] != 2 or meta["input_rows"] != 2):
+        raise OracleError("generated stream geometry")
+    for key in ("capture_peak", "pending_peak", "source_words", "checkpoint_words", "total_tape",
+                "invocations", "logical_len"):
+        if type(meta[key]) is not int or not 0 < meta[key] <= 8_000_000:
+            raise OracleError("public finite census")
+    if max(meta["capture_peak"], meta["pending_peak"]) > _CAPTURE_WORDS:
+        raise OracleError("public frontier bound")
+    boundaries, spans, demands = (meta[k] for k in ("boundaries", "spans", "demands"))
+    if any(type(v) is not list or not 0 < len(v) <= _CAPTURE_WORDS for v in (boundaries, spans, demands)):
+        raise OracleError("public metadata counts")
+    _, r, s, d, inv, ws, wc, wt, outputs, rows = init
+    if (r, s, d, inv, ws, wc, wt, outputs, rows) != (len(boundaries), len(spans), len(demands),
+            meta["invocations"], meta["source_words"], meta["checkpoint_words"], meta["total_tape"], 2, 2):
+        raise OracleError("public INIT census disagreement")
+    if type(meta["sources"]) is not dict or not meta["sources"]:
+        raise OracleError("generated source descriptors required")
+    source_words = 0
+    for name, source in meta["sources"].items():
+        if (type(name) is not str or not name or type(source) is not dict
+                or "public_q18" in source or "values" in source):
+            raise OracleError("public source descriptor schema")
+        shape = source["shape"]
+        if (type(shape) is not list or not 1 <= len(shape) <= 2
+                or any(type(n) is not int or n <= 0 for n in shape)
+                or math.prod(shape) > _CAPTURE_WORDS or len(shape) == 2 and shape[1] > 65536
+                or type(source["digest"]) is not list or len(source["digest"]) != 32
+                or any(type(n) is not int or not 0 <= n <= 255 for n in source["digest"])):
+            raise OracleError("public source shape/commitment")
+        source_words += math.prod(shape)
+    if source_words != ws:
+        raise OracleError("public source word census")
+    checked = meta["policy"].get("range_policy") == "checked"
+    if meta["policy"].get("range_policy") not in ("static", "checked"):
+        raise OracleError("public checked policy")
+    guards = CheckedRangeSchedule.from_mapping({g["name"]: RangeCheck(g["lower"], g["upper"], g["fallback"])
+                                                for g in meta["guards"]}) if checked else None
+    if len(meta["guards"]) != (len(guards.entries) if guards is not None else 0):
+        raise OracleError("duplicate/unchecked guard placement")
+    declaration, used, tape_names = [], set(), set()
+    record_words = tape_words = 0
+    owner_words = [0]*s
+    for demand in demands:
+        if type(demand) is not dict or demand.get("kind") not in ("C", "T"):
+            raise OracleError("public demand kind")
+        shape = demand["shape"]
+        if type(shape) is not list or any(type(n) is not int or n <= 0 for n in shape):
+            raise OracleError("public demand shape")
+        count = math.prod(shape)
+        if not 0 < count <= _CAPTURE_WORDS or type(demand["end"]) is not int or not 0 < demand["end"] <= meta["logical_len"]:
+            raise OracleError("public demand endpoint/word count")
+        if demand["kind"] == "T":
+            j = demand["span"]
+            if (type(j) is not int or not 0 <= j < len(spans) or demand["end"] != spans[j]["end"]
+                    or demand["name"] in tape_names or demand["shift"] not in (5, 18)):
+                raise OracleError("public tape owner/order")
+            tape_names.add(demand["name"])
+            tape_words += count
+            owner_words[j] += count
+        else:
+            specs = []
+            for index in demand["aliases"]:
+                if type(index) is not int or not 0 <= index < len(boundaries) or index in used:
+                    raise OracleError("public checkpoint alias coverage")
+                used.add(index)
+                b = boundaries[index]
+                spec = (b["selection"], b["id"], tuple(b["shape"]), b["batch_dimension"], b["oracle_name"])
+                if (_native_checkpoint_name(spec[0], spec[1], spec[4]) != demand["name"]
+                        or _native_checkpoint_shape(spec[2], spec[3], spec[1])[1] != tuple(shape)):
+                    raise OracleError("public alias name/shape")
+                coords = b["coordinates"]
+                if len(coords) != count or any(type(w) is not list or len(w) != 2
+                        or any(type(n) is not int or n < 0 for n in w) or w[0] >= meta["logical_len"] for w in coords):
+                    raise OracleError("public boundary coordinates")
+                specs.append(spec)
+                record_words += count
+            declaration.append((demand["name"], tuple(specs)))
+    if len(used) != r or record_words != wc or tape_words != wt or len(meta["frontiers"]) != d:
+        raise OracleError("public complete demand census")
+    if owner_words != meta["tape_words"]:
+        raise OracleError("public owner word census")
+    previous = 0
+    for frontier in meta["frontiers"]:
+        if (type(frontier) is not list or len(frontier) != 3 or any(type(n) is not int for n in frontier)
+                or not previous <= frontier[0] <= meta["logical_len"]
+                or not 0 <= frontier[1] <= meta["capture_peak"] or not 0 <= frontier[2] <= meta["pending_peak"]):
+            raise OracleError("public finite frontier table")
+        previous = frontier[0]
+    if (max(f[1] for f in meta["frontiers"]) != meta["capture_peak"]
+            or max(f[2] for f in meta["frontiers"]) != meta["pending_peak"]
+            or meta["pending_peak"] >= wt):
+        raise OracleError("public frontier peak/release census")
+    ordered = sorted((v for v in spans if v["start"] < v["end"]), key=lambda v: v["start"])
+    if any(a["end"] > b["start"] for a, b in zip(ordered, ordered[1:])):
+        raise OracleError("overlapping public spans")
+    if meta["terminal"] is not None:
+        j = meta["terminal"]
+        if (not checked or guards.entries or type(j) is not int or declaration[-1] !=
+                ("acceptance.valid", ((0, "acceptance.valid", (), False, "acceptance.valid"),))
+                or demands[-1]["aliases"] != [j]):
+            raise OracleError("exact checked-empty terminal group required")
+    elif checked and not guards.entries:
+        raise OracleError("missing genuine checked-empty terminal slot")
+    provenance = (("kind", "generated"), ("fixture", _freeze_public({k: meta[k] for k in
+                  ("config", "config_bytes", "policy", "recipe", "program", "sources")})))
+    return tuple(declaration), provenance, guards
+
+
+class _StreamProvider:
+    """Iterator without a suspended generator frame retaining its last array."""
+    def __init__(self, client, tape):
+        self.client, self.tape = client, tape
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return self.client.take_tape() if self.tape else self.client.take_checkpoint()
+
+
+class GeneratedNativeStream:
+    def __init__(self, reader, writer, meta, replay, *, mutation="none", raw_limit=None):
+        if raw_limit is not None and (type(raw_limit) is not int or raw_limit < 0):
+            raise OracleError("pipe raw requested-payload limit")
+        self.reader, self.writer, self.meta, self.replay = reader, writer, meta, replay
+        self.raw_limit = raw_limit
+        self.sequence, self.at, self.alias_at, self.frontier = 1, 0, 0, 0
+        self.pending, self.mapped, self.binding_owner = {}, {}, {}
+        self.pending_words = self.peak_words = self.events = 0
+        self.span_words = [0]*len(meta["spans"])
+        self.last_tape = [-1]*len(meta["spans"])
+        for i, demand in enumerate(meta["demands"]):
+            if demand["kind"] == "T":
+                self.last_tape[demand["span"]] = i
+        self.tape_eof = self.checkpoint_eof = False
+        self.state, self.mutation = "running", mutation
+
+    def census(self):
+        """Logical payload/last-consumer census, not Python RSS/secure erasure."""
+        words = sum(e["lanes"] for events, _ in self.pending.values() for e in events.values())
+        words += sum(batch["residues"].size for batches in self.mapped.values() for batch in batches.values())
+        if words != self.pending_words or any(self.last_tape[j] < self.at for j in self.pending.keys() | self.mapped.keys()):
+            raise OracleError("old operator survived its last semantic consumer")
+        if self.pending_words > self.meta.get("pending_peak", self.pending_words):
+            raise OracleError("pending payload high-water exceeded")
+
+    def _event(self, index, payload):
+        if self.tape_eof or self.state != "running" or self.events >= 4*self.meta["invocations"]:
+            raise OracleError("event after tape EOF/bound")
+        binding = bytes(payload[:32]).hex()
+        role, to, phase, reserved = struct.unpack_from("<BBBB", payload, 32)
+        node, offset, step, invocation, public, pair, lanes, span = struct.unpack_from("<QQQQQQII", payload, 36)
+        s = self.meta["spans"][index]
+        if (role not in (0, 1, 2) or to not in (0, 1, 2) or phase not in (10, 11) or reserved
+                or span != index or not s["start"] <= node < s["end"] or not 1 <= lanes <= 1024):
+            raise OracleError("physical event owner/geometry")
+        event = {"binding": binding, "role": role, "to": to, "phase": phase, "node": node,
+                 "loop_offset": offset, "tensor_step": None if step == (1 << 64)-1 else step,
+                 "invocation": None if invocation == (1 << 64)-1 else invocation,
+                 "public_end": public, "pair_end": pair, "lanes": lanes}
+        if binding not in self.binding_owner:
+            # Reserve lookahead before AES expansion/array mapping, including a
+            # physically incomplete group. It is not one fictitious batch.
+            if (self.pending_words+lanes > self.meta["pending_peak"]
+                    or self.span_words[index]+lanes > self.meta["tape_words"][index]):
+                raise OracleError("runtime pending operator bound")
+            self.binding_owner[binding] = index
+            self.pending_words += lanes
+            self.span_words[index] += lanes
+            self.peak_words = max(self.peak_words, self.pending_words)
+            self.pending.setdefault(index, ({}, {}))[0][binding] = event
+        elif self.binding_owner[binding] != index:
+            raise OracleError("native invocation crossed owners")
+        # AES replay is shift-independent; the public owner recipe assigns the
+        # exact shift only when the complete owner group is mapped below.
+        complete = self.replay.ingest(event, None)
+        if complete is not None:
+            self.pending[index][1][binding] = complete
+        self.events += 1
+
+    def request(self, kind, index, response, count=0, length=0):
+        if self.state not in ("running", "components") or self.sequence >= 1 << 32:
+            raise OracleError("pipe terminal request")
+        _pipe_send(self.writer, kind, self.sequence, index)
+        payload = _pipe_receive(self.reader, self.sequence, (response, index if kind in (32, 33) else 0, count, length),
+                                event=self._event if self.state == "running" else None, spans=self.meta["spans"],
+                                raw_limit=self.raw_limit)
+        self.sequence += 1
+        self.census()
+        return payload
+
+    def _demand(self, kind):
+        demands = self.meta["demands"]
+        if self.at >= len(demands) or demands[self.at]["kind"] != kind:
+            raise OracleError("semantic demand order")
+        return demands[self.at]
+
+    def take_tape(self):
+        if self.tape_eof:
+            raise StopIteration
+        if self.at == len(self.meta["demands"]) or self.meta["demands"][self.at]["name"] == "acceptance.valid":
+            if self.pending_words or self.pending or self.mapped:
+                raise OracleError("unused pending native operators")
+            self.replay.finish()
+            self.request(35, 0, 10)
+            self.tape_eof = True
+            raise StopIteration
+        d = self._demand("T")
+        span = d["span"]
+        if self.frontier < d["end"]:
+            self.request(32, span, 7)
+            self.frontier = max(self.frontier, d["end"])
+        if span not in self.mapped:
+            events, physical = self.pending.pop(span, ({}, {}))
+            if len(events) != len(physical):
+                raise OracleError("incomplete physical owner")
+            # Existing per-owner branch/stage tables; never an all-run event list.
+            layout = generated_native_layout(self.meta["config"], 2, 2, events.values(), [self.meta["spans"][span]])
+            shifts = {}
+            for spec in layout.values():
+                for binding, _ in spec["lanes"]:
+                    if binding in shifts and shifts[binding] != spec["shift"]:
+                        raise OracleError("inconsistent native owner shift")
+                    shifts[binding] = spec["shift"]
+            if set(shifts) != set(physical):
+                raise OracleError("complete owner invocation coverage")
+            for binding, shift in shifts.items():
+                physical[binding]["shift"] = shift
+                del self.binding_owner[binding]
+            mapped = adapt_tapes(physical, layout)
+            self.mapped[span] = mapped.batches
+            del mapped, physical, events, layout
+        batches = self.mapped[span]
+        if not batches or next(iter(batches)) != d["name"]:
+            raise OracleError("mapped semantic tape order")
+        batch = batches.pop(d["name"])
+        if tuple(batch["residues"].shape) != tuple(d["shape"]) or batch["shift"] != d["shift"]:
+            raise OracleError("mapped semantic tape geometry")
+        words = math.prod(d["shape"])
+        self.pending_words -= words
+        self.span_words[span] -= words
+        if not batches:
+            del self.mapped[span]
+            if self.span_words[span]:
+                raise OracleError("last-consumer operator residue")
+        self.at += 1
+        self.census()
+        return d["name"], batch
+
+    def take_checkpoint(self):
+        if self.at == len(self.meta["demands"]):
+            if self.state != "components" or self.pending_words or self.binding_owner or not self.tape_eof:
+                raise OracleError("premature checkpoint EOF")
+            if not self.checkpoint_eof:
+                self.request(36, 0, 11)
+                self.checkpoint_eof = True
+            raise StopIteration
+        d = self._demand("C")
+        index = d["aliases"][self.alias_at]
+        if self.state == "components" and index != self.meta["terminal"]:
+            raise OracleError("nonterminal checkpoint after FINAL")
+        if index == self.meta["terminal"] and self.state != "components":
+            raise OracleError("checked-empty acceptance must follow real finish")
+        b = self.meta["boundaries"][index]
+        count = math.prod(b["shape"])
+        payload = self.request(33, index, 8, count, 8*count)
+        self.frontier = max(self.frontier, d["end"])
+        values = [n[0] for n in struct.iter_unpack("<q", payload)]
+        if index == self.meta["terminal"]:
+            if self.mutation == "acceptance":
+                values[0] = 1-values[0]
+            elif self.mutation == "missing_acceptance":
+                raise OracleError("mutated missing actual acceptance slot")
+        self.alias_at += 1
+        if self.alias_at == len(d["aliases"]):
+            self.alias_at = 0
+            self.at += 1
+        self.census()
+        return {k: b[k] for k in ("selection", "id", "shape", "oracle_name", "batch_dimension")} | {"values": values}
+
+    def final(self):
+        if not self.tape_eof or self.state != "running":
+            raise OracleError("premature or duplicate FINAL")
+        if self.at < len(self.meta["demands"]):
+            d = self._demand("C")
+            if d["aliases"] != [self.meta["terminal"]] or self.alias_at:
+                raise OracleError("FINAL missing nonterminal checkpoint")
+        width = 2+int(self.meta["policy"]["range_policy"] == "checked")
+        payload = self.request(34, 0, 9, 3*width, 24*width)
+        self.state = "components"
+        components = [list(struct.unpack_from("<"+"Q"*width, payload, 8*width*role)) for role in range(3)]
+        if self.mutation == "final_validity":
+            components[0][-1] = (components[0][-1]+1) % (1 << 64)
+        elif self.mutation == "pipe_after_final":
+            raise OracleError("mutated pipe loss after FINAL")
+        return components
+
+    def success(self):
+        if self.state != "components" or not self.checkpoint_eof or self.pending_words or self.binding_owner:
+            raise OracleError("unfinished native stream")
+        self.request(37, 0, 12)
+        self.state = "closed"
+
+
+def _native_stream_main(backing_limit, mutation, *, json_policy=None):
+    import hashlib
+    import json
+    import sys
+
+    if type(backing_limit) is not int or not 0 < backing_limit <= 64 << 20:
+        raise OracleError("fixed test raw requested-payload policy limit")
+    if mutation not in ("none", "acceptance", "final_validity", "missing_acceptance", "pipe_after_final"):
+        raise OracleError("fixed native stream control")
+    _validate_json_policy(json_policy)
+    reference = _json_census_reference() if json_policy is not None else None
+    reader, writer = sys.stdin.buffer, sys.stdout.buffer
+    # CLI backing_limit name is historical: this is a raw per-call refusal
+    # policy, never a certificate for JSON, Python/native owners or total RSS.
+    init = struct.unpack("<10Q", _pipe_receive(reader, 0, (1, 0, 10, 80), raw_limit=backing_limit))
+    mbytes, r, spans, demands, inv, ws, wc, wt, outputs, rows = init
+    if (not 0 < mbytes <= backing_limit or any(not 0 < n <= 8_000_000 for n in (r, spans, demands, inv, ws, wc, wt))
+            or outputs != 2 or rows != 2 or rows+outputs > MAX_PREFIX):
+        raise OracleError("fixed INIT bounds")
+    metadata_raw_limit = _metadata_raw_remaining(mbytes, backing_limit)
+    metadata = bytearray(mbytes)
+    for offset in range(0, mbytes, 4096):
+        count = min(4096, mbytes-offset)
+        # Direct assignment: no old named part survives into the next receive.
+        metadata[offset:offset+count] = _pipe_receive(reader, 0, (2, offset, count, count),
+                                                     raw_limit=metadata_raw_limit)
+    if json_policy is not None:
+        # Exact assembly is exclusively owned here: no external alias/callback
+        # during synchronous scan. Readonly alone is NOT general alias safety.
+        view = memoryview(metadata).toreadonly()
+        try:
+            _lexical_json_census(view, json_policy, reference)
+        finally:
+            view.release()
+        del view
+    meta = json.loads(metadata)
+    del metadata
+    if json_policy is None:
+        declaration, provenance, guards = _stream_public_schema(meta, init)
+    else:
+        declaration, provenance, guards = _stream_public_schema(meta, init, json_policy=json_policy)
+    weights, received = {}, 0
+    for index, (name, descriptor) in enumerate(sorted(meta["sources"].items())):
+        if "public_q18" in descriptor or "values" in descriptor:
+            raise OracleError("source values forbidden in public metadata")
+        shape = tuple(descriptor["shape"])
+        if not 1 <= len(shape) <= 2 or any(type(n) is not int or n <= 0 for n in shape) or math.prod(shape) > _CAPTURE_WORDS:
+            raise OracleError("bounded generated source shape")
+        total = math.prod(shape)
+        if received+total > ws:
+            raise OracleError("generated source reservation exceeded")
+        values = [None]*total
+        step = min(128, 65536//shape[1])*shape[1] if len(shape) == 2 else 65536
+        digest = hashlib.sha256()
+        for offset in range(0, total, step):
+            count = min(step, total-offset)
+            payload = _pipe_receive(reader, 0, (3, index, count, 8+8*count), raw_limit=backing_limit)
+            if struct.unpack_from("<Q", payload)[0] != offset:
+                raise OracleError("source offset/order")
+            digest.update(payload[8:])
+            values[offset:offset+count] = [n[0] for n in struct.iter_unpack("<q", payload[8:])]
+            del payload
+        if list(digest.digest()) != descriptor["digest"]:
+            raise OracleError("generated source commitment mismatch")
+        received += total
+        if received > ws:
+            raise OracleError("generated source census exceeded")
+        if len(shape) == 2:
+            columns = shape[1]
+            weights[name] = PublicMatrix(shape, lambda start, stop, v=values, cols=columns:
+                                         array(v[start*cols:stop*cols]).reshape(stop-start, cols))
+        else:
+            weights[name] = array(values).reshape(shape)
+        del values
+    if received != ws:
+        raise OracleError("incomplete generated source census")
+    ids = list(struct.unpack("<2Q", _pipe_receive(reader, 0, (4, 0, rows, 8*rows), raw_limit=backing_limit)))
+    if any(i >= meta["config"]["vocab_size"] for i in ids):
+        raise OracleError("input token domain")
+    setup = _pipe_receive(reader, 0, (5, 0, 4, 64), raw_limit=backing_limit)
+    replay = NativeMaskReplay([bytes(setup[i:i+16]) for i in (0, 16, 32)],
+                              int.from_bytes(setup[48:], "little"), max_invocations=inv)
+    del setup
+    client = GeneratedNativeStream(reader, writer, meta, replay, mutation=mutation, raw_limit=backing_limit)
+    comparator = StreamingTraceComparator(_StreamProvider(client, False), declaration=declaration,
+        source_provenance=provenance, checked_ranges=guards, outputs=2, max_records=r, max_total_values=wc)
+    half = meta["config"]["head_dim"]//2
+    if half != 1 and meta["config"]["rope_theta"] != 1:
+        raise OracleError("generated rotary recipe")
+    rotary = {p: ([cos]*half, [sin]*half) for p, cos, sin in
+              ((0, Q, 0), (1, 141637, 220586), (2, -109090, 238366))}
+    result = run_decoder(meta["config"], weights, ids, 2, StreamingTape(_StreamProvider(client, True)),
+                         rotary, checked_ranges=guards, trace_sink=comparator)
+    if type(meta["expected_accepted"]) is not bool or result.accepted != meta["expected_accepted"]:
+        raise OracleError("generated fixture acceptance outcome")
+    components = client.final()
+    comparator.finish(result, final_components=components)
+    client.success()
+
+
 if __name__ == "__main__":
     import sys
 
-    if sys.argv[1:] != ["--audit-native-capture"]:
+    if len(sys.argv) == 4 and sys.argv[1] == "--audit-native-stream":
+        try:
+            _native_stream_main(int(sys.argv[2]), sys.argv[3])
+        except BaseException:
+            # Private operands/keys/tracebacks never reach stdout or stderr.
+            raise SystemExit(1) from None
+    elif sys.argv[1:] != ["--audit-native-capture"]:
         raise SystemExit("test-only anonymous-stdin native capture audit required")
-    _native_capture_main()
+    else:
+        _native_capture_main()
