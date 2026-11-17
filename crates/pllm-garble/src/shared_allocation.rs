@@ -388,6 +388,25 @@ impl<C: AllocationContext> LeaseFor<C> {
         })
     }
 }
+impl<'a> LeaseFor<&'a Budget> {
+    /// Transfer existing logical capacity on the same original budget.
+    ///
+    /// Budget identity is checked first, even for zero bytes, then destination
+    /// addition overflow, then insufficient donor capacity. Rejection leaves both
+    /// leases unchanged. Success changes only their byte balances, not accounting.
+    /// This grants no payload, provenance or execution authority.
+    pub(crate) fn transfer_from(&mut self, donor: &mut Self, bytes: usize) -> Result<(), Error> {
+        if !std::ptr::eq(self.budget, donor.budget) {
+            return Err(Error::Context);
+        }
+        let destination = self.bytes.checked_add(bytes).ok_or(Error::Resource)?;
+        let remainder = donor.bytes.checked_sub(bytes).ok_or(Error::Resource)?;
+        self.bytes = destination;
+        donor.bytes = remainder;
+        Ok(())
+    }
+}
+
 impl<C: AllocationContext> Drop for LeaseFor<C> {
     fn drop(&mut self) {
         self.budget.budget().release_bytes(self.bytes);
@@ -1162,6 +1181,150 @@ mod tests {
         drop(child);
         drop(lease);
         assert_eq!(budget.used_bytes(), 0);
+    }
+
+    fn transfer_snapshot<'a>(lease: &Lease<'a>) -> (usize, &'a Budget, usize, usize, usize) {
+        (
+            lease.bytes,
+            lease.budget,
+            lease.budget.used_bytes(),
+            lease.budget.admitted_peak_bytes(),
+            lease.budget.test_accounting_updates(),
+        )
+    }
+
+    fn assert_transfer_snapshot(
+        lease: &Lease<'_>,
+        before: (usize, &Budget, usize, usize, usize),
+        expected_bytes: usize,
+    ) {
+        assert_eq!(lease.bytes, expected_bytes);
+        assert!(std::ptr::eq(lease.budget, before.1));
+        assert_eq!(lease.budget.used_bytes(), before.2);
+        assert_eq!(lease.budget.admitted_peak_bytes(), before.3);
+        assert_eq!(lease.budget.test_accounting_updates(), before.4);
+    }
+
+    fn assert_transfer<'a>(
+        destination: &mut Lease<'a>,
+        donor: &mut Lease<'a>,
+        bytes: usize,
+        expected: Result<(), Error>,
+        balances: (usize, usize),
+    ) {
+        let destination_before = transfer_snapshot(destination);
+        let donor_before = transfer_snapshot(donor);
+        assert_eq!(destination.transfer_from(donor, bytes), expected);
+        if expected.is_err() {
+            assert_eq!(balances, (destination_before.0, donor_before.0));
+        }
+        assert_transfer_snapshot(destination, destination_before, balances.0);
+        assert_transfer_snapshot(donor, donor_before, balances.1);
+    }
+
+    fn assert_transfer_drops(destination: Lease<'_>, donor: Lease<'_>, destination_first: bool) {
+        assert!(std::ptr::eq(destination.budget, donor.budget));
+        let budget = destination.budget;
+        let peak = budget.admitted_peak_bytes();
+        let updates = budget.test_accounting_updates();
+        let (first, last) = if destination_first {
+            (destination, donor)
+        } else {
+            (donor, destination)
+        };
+        let remaining = last.bytes;
+        drop(first);
+        assert_eq!(budget.used_bytes(), remaining);
+        assert_eq!(budget.admitted_peak_bytes(), peak);
+        assert_eq!(budget.test_accounting_updates(), updates + 1);
+        drop(last);
+        assert_eq!(budget.used_bytes(), 0);
+        assert_eq!(budget.admitted_peak_bytes(), peak);
+        // Even dropping a zero-byte lease performs an accounting update.
+        assert_eq!(budget.test_accounting_updates(), updates + 2);
+    }
+
+    #[test]
+    fn borrowed_lease_transfer_partial_preserves_accounting_in_both_drop_orders() {
+        for destination_first in [false, true] {
+            let budget = Budget::new(64).unwrap();
+            let mut destination = budget.reserve(3).unwrap();
+            let mut donor = budget.reserve(7).unwrap();
+            assert_transfer(&mut destination, &mut donor, 4, Ok(()), (7, 3));
+            assert_transfer_drops(destination, donor, destination_first);
+        }
+    }
+
+    #[test]
+    fn borrowed_lease_transfer_exhausts_donor_in_both_drop_orders() {
+        for destination_first in [false, true] {
+            let budget = Budget::new(64).unwrap();
+            let mut destination = budget.reserve(3).unwrap();
+            let mut donor = budget.reserve(7).unwrap();
+            assert_transfer(&mut destination, &mut donor, 7, Ok(()), (10, 0));
+            assert_transfer_drops(destination, donor, destination_first);
+        }
+    }
+
+    #[test]
+    fn borrowed_lease_transfer_zero_preserves_nonempty_and_empty_balances() {
+        for balances in [(3, 7), (0, 0)] {
+            let budget = Budget::new(64).unwrap();
+            let mut destination = budget.reserve(balances.0).unwrap();
+            let mut donor = budget.reserve(balances.1).unwrap();
+            assert_transfer(&mut destination, &mut donor, 0, Ok(()), balances);
+            assert_transfer_drops(destination, donor, true);
+        }
+    }
+
+    #[test]
+    fn borrowed_lease_transfer_rejects_foreign_identity_before_arithmetic() {
+        let destination_budget = Budget::new(64).unwrap();
+        let donor_budget = Budget::new(64).unwrap();
+        assert_eq!(destination_budget.limit, donor_budget.limit);
+        assert!(!std::ptr::eq(&destination_budget, &donor_budget));
+        let mut destination = destination_budget.reserve(3).unwrap();
+        let mut donor = donor_budget.reserve(7).unwrap();
+        for bytes in [0, 1, usize::MAX] {
+            assert_transfer(&mut destination, &mut donor, bytes, Err(Error::Context), (3, 7));
+        }
+        let destination_before = transfer_snapshot(&destination);
+        let donor_before = transfer_snapshot(&donor);
+        drop(destination);
+        assert_eq!(destination_budget.used_bytes(), 0);
+        assert_eq!(destination_budget.admitted_peak_bytes(), destination_before.3);
+        assert_eq!(destination_budget.test_accounting_updates(), destination_before.4 + 1);
+        assert_transfer_snapshot(&donor, donor_before, 7);
+        drop(donor);
+        assert_eq!(donor_budget.used_bytes(), 0);
+        assert_eq!(donor_budget.admitted_peak_bytes(), donor_before.3);
+        assert_eq!(donor_budget.test_accounting_updates(), donor_before.4 + 1);
+        assert_eq!(destination_budget.used_bytes(), 0);
+        assert_eq!(destination_budget.admitted_peak_bytes(), destination_before.3);
+    }
+
+    #[test]
+    fn borrowed_lease_transfer_rejects_destination_overflow_without_reservation() {
+        let budget = Budget::new(64).unwrap();
+        let mut destination = budget.reserve(1).unwrap();
+        let mut donor = budget.reserve(1).unwrap();
+        assert_transfer(
+            &mut destination,
+            &mut donor,
+            usize::MAX,
+            Err(Error::Resource),
+            (1, 1),
+        );
+        assert_transfer_drops(destination, donor, true);
+    }
+
+    #[test]
+    fn borrowed_lease_transfer_rejects_insufficient_donor_without_changes() {
+        let budget = Budget::new(64).unwrap();
+        let mut destination = budget.reserve(3).unwrap();
+        let mut donor = budget.reserve(7).unwrap();
+        assert_transfer(&mut destination, &mut donor, 8, Err(Error::Resource), (3, 7));
+        assert_transfer_drops(destination, donor, true);
     }
 
     #[test]
