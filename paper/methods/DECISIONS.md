@@ -1770,6 +1770,42 @@ extra disclosure, partial/atomic delivery or authenticated-entitlement enforceme
 All prior D67 limits remain: no numerical-lineage extension, backend, funding,
 security, source implementation or execution qualification; D7 mapping stays open.
 
+## D68. THOR original-BERT generated-RNS planning direction
+
+**Explicit user grant (user92529), following Astra planning25:** document a
+separately labelled **OpenFHE-generated RNS THOR original-BERT profile
+adaptation** and its [whole-execution contract](thor-execution-contract.md).
+This selects a planning direction, **not actual parameters, numerical-profile
+adoption, security qualification, backend implementation or runtime execution**.
+The generic candidate is OpenFHE v1.6.1,
+`b59e1f291965f14fbee5172cd83a20f5b856204f`, verified against the existing
+[backend review §1.1](rust-he-backend-qualification.md#11-openfhe-candidate-direction-approval--4-november-2026).
+No dependency addition, installation, build or wrapper is granted here.
+
+Keep the recovered **30 Q + 4 P / 1759-bit basis** as a distinct, unqualified
+exact-basis alternative. Public Q/P generation does not prove arbitrary ordered
+source-basis import; neither route establishes the authors' evaluated parameters.
+Preserve THOR packing, operation order, client-held secret keys and ciphertext-only
+server evaluation. The author runtime remains an oracle, never a dependency.
+No plaintext-server fallback; any client refresh would require separately approved
+roles, disclosure and traffic, without server secret-key custody.
+
+Completion means source/config/tokenizer/import through every BERT encoder layer,
+pooler/head and final client result via ordinary SDK and benchmark paths, not an
+FFN/arithmetic/refresh demonstration. Original-model qualification and D3/D60's
+separate adapted common-model benchmark remain distinct. Unrecovered checkpoint,
+task, frontend or geometry facts remain explicit stop gates.
+
+The existing **75 MiB encryption payload floor versus one 64 MiB counter** remains
+**UNRESOLVED**. Generated parameters imply no fit, counter splitting or cap waiver.
+Reuse shared funding, original-source custody, consuming moves, ciphertext DAG and
+source/transport admission; foreign-owner coverage and all-role peaks before
+allocation remain required. Missing resource, numerical, backend and source-authority
+proofs must satisfy the contract's separate bounded-qualification and whole-BERT
+execution gates; both stages remain UNAPPROVED, with no backend implementation
+permission inferred. Historical audits
+and results remain unchanged; this two-document amendment supplies no runtime result.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -1841,6 +1877,7 @@ security, source implementation or execution qualification; D7 mapping stays ope
 | D65 | Approved: separately labelled independently parameterized odd-modulus ROSETTA specification study | Preserve paper algorithm/ownership/security targets; derive exact manifest and obtain independent review, then separate adoption before implementation. No evaluated-constant/parity claim, modulus/backend/profile adoption or implementation/execution; original funding/custody/source/admission/Native HOLDs and caps remain. |
 | D66 | Selected: research-only nonresumable SIGMA bridge lifecycle for next security review | Exclude issuer/evaluator/authority/consumer rollback/cloning; permanently abandon uncertain instances/uses, no reissue/refund. Separate authenticated durable non-equivocating authority required; construction/API and two-role alternative unselected. D63 review and original funding/custody/admission/masks/arithmetic/HOLDs remain; no production antirollback, security qualification or implementation/execution grant. |
 | D67 | Selected: BumbleBee wider full-U exact-Down DESIGN family | `bumblebee.olt-wide3x60-p35-fullU-exactDown.v1`; candidate-bound COMMON issuer → consuming-decode admission design only. Conditional directional ±1/assembly ±2 under recorded premises, not whole-model tolerance. D7 mapping remains open; §17 selection unchanged. No concrete primes/backend/storage/trust/disclosure/security/funding/source implementation/execution adoption; caps/HOLDs unchanged. |
+| D68 | Approved: THOR original-BERT OpenFHE-generated RNS planning direction only | Whole-execution contract; exact recovered 30Q+4P/1759-bit alternative remains distinct/unqualified. No actual parameter/numerical/security/backend/runtime adoption, counter splitting, cap waiver or fit claim; source, paired-refresh, foreign-custody and all-role admission gates remain. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
