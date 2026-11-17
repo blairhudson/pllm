@@ -388,6 +388,11 @@ impl PublicSourceImport {
 }
 
 impl PublicSource {
+    #[cfg(test)]
+    pub(super) fn take_files_for_tests(&mut self) -> BTreeMap<String, PublicFile> {
+        std::mem::take(&mut self.files)
+    }
+
     /// Existing immutable handle/key backing only. Retain this owner while using
     /// the census; do not infer aliasing from paths/digests or charge file length
     /// as resident bytes. Parent adds this inventory to its outside baseline.
