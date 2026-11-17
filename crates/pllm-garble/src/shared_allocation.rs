@@ -425,7 +425,146 @@ pub struct OwnedBudgetResources {
     pub initial_reserved_bytes: usize,
 }
 
+/// Compiler-measured storage layout for the current target and compilation unit.
+/// Numeric metadata only; not a stable ABI or an allocation/admission grant.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CallableTypeLayout {
+    pub size: usize,
+    pub alignment: usize,
+}
+
+/// Whole types include tuple padding, rather than sums of their field sizes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ReservationMapperLayouts {
+    pub callable: CallableTypeLayout,
+    pub shared_reference: CallableTypeLayout,
+    pub mutable_reference: CallableTypeLayout,
+    pub receiver: CallableTypeLayout,
+    pub adapter_operands: CallableTypeLayout,
+    pub owned_call: CallableTypeLayout,
+    pub arguments: CallableTypeLayout,
+    pub output: CallableTypeLayout,
+    pub mapped_output: CallableTypeLayout,
+    pub mutable_adapter_reference: CallableTypeLayout,
+    /// Source-derived nominal captures, not reflection of callable fields.
+    pub nominal_captures: CallableTypeLayout,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ReservationFactoryLayouts {
+    pub callable: CallableTypeLayout,
+    pub shared_reference: CallableTypeLayout,
+    pub mutable_reference: CallableTypeLayout,
+    pub arguments: CallableTypeLayout,
+    pub owned_call: CallableTypeLayout,
+    pub output: CallableTypeLayout,
+    /// The named factory item has no captures; this is not its output closure.
+    pub nominal_captures: CallableTypeLayout,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ReservationProposalLayouts {
+    pub callable: CallableTypeLayout,
+    pub shared_reference: CallableTypeLayout,
+    pub mutable_reference: CallableTypeLayout,
+    /// Atomic receiver and both ordering operands, without the proposal.
+    pub receiver: CallableTypeLayout,
+    /// Grouped receiver operands plus F; distinct from the flat call tuple.
+    pub adapter_operands: CallableTypeLayout,
+    pub mutable_adapter_reference: CallableTypeLayout,
+    /// Complete flat `fetch_update` operand tuple, including the proposal.
+    pub fetch_update_operands: CallableTypeLayout,
+    pub mutable_call: CallableTypeLayout,
+    pub owned_call: CallableTypeLayout,
+    pub arguments: CallableTypeLayout,
+    pub output: CallableTypeLayout,
+    pub fetch_update_result: CallableTypeLayout,
+    /// Source-derived `(bytes, limit)`, separate from actual opaque F layout.
+    pub nominal_captures: CallableTypeLayout,
+    pub factory: ReservationFactoryLayouts,
+}
+
+/// Exact native callable definitions only, not nested callers' inline closures.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ReservationCallableLayouts {
+    pub proposal: ReservationProposalLayouts,
+    pub failure_mapper: ReservationMapperLayouts,
+}
+
+const fn callable_type_layout<T>() -> CallableTypeLayout {
+    CallableTypeLayout {
+        size: size_of::<T>(),
+        alignment: std::mem::align_of::<T>(),
+    }
+}
+
+const fn reservation_mapper_layouts<R, A, B, M, F>(_: &F) -> ReservationMapperLayouts
+where
+    F: FnOnce(A) -> B,
+{
+    ReservationMapperLayouts {
+        callable: callable_type_layout::<F>(),
+        shared_reference: callable_type_layout::<&F>(),
+        mutable_reference: callable_type_layout::<&mut F>(),
+        receiver: callable_type_layout::<R>(),
+        adapter_operands: callable_type_layout::<(R, F)>(),
+        owned_call: callable_type_layout::<(F, (A,))>(),
+        arguments: callable_type_layout::<(A,)>(),
+        output: callable_type_layout::<B>(),
+        mapped_output: callable_type_layout::<M>(),
+        mutable_adapter_reference: callable_type_layout::<&mut (R, F)>(),
+        nominal_captures: callable_type_layout::<()>(),
+    }
+}
+
+// The bound infers the existing factory's opaque output F. Neither callable is
+// invoked or consumed; borrowing also avoids generic const-drop requirements.
+const fn reservation_proposal_layouts<Factory, F>(_: &Factory) -> ReservationProposalLayouts
+where
+    Factory: FnOnce(usize, usize) -> F,
+    F: FnMut(usize) -> Option<usize>,
+{
+    ReservationProposalLayouts {
+        callable: callable_type_layout::<F>(),
+        shared_reference: callable_type_layout::<&F>(),
+        mutable_reference: callable_type_layout::<&mut F>(),
+        receiver: callable_type_layout::<(&AtomicUsize, Ordering, Ordering)>(),
+        adapter_operands: callable_type_layout::<((&AtomicUsize, Ordering, Ordering), F)>(),
+        mutable_adapter_reference:
+            callable_type_layout::<&mut ((&AtomicUsize, Ordering, Ordering), F)>(),
+        fetch_update_operands: callable_type_layout::<(&AtomicUsize, Ordering, Ordering, F)>(),
+        mutable_call: callable_type_layout::<(&mut F, (usize,))>(),
+        owned_call: callable_type_layout::<(F, (usize,))>(),
+        arguments: callable_type_layout::<(usize,)>(),
+        output: callable_type_layout::<Option<usize>>(),
+        fetch_update_result: callable_type_layout::<Result<usize, usize>>(),
+        nominal_captures: callable_type_layout::<(usize, usize)>(),
+        factory: ReservationFactoryLayouts {
+            callable: callable_type_layout::<Factory>(),
+            shared_reference: callable_type_layout::<&Factory>(),
+            mutable_reference: callable_type_layout::<&mut Factory>(),
+            arguments: callable_type_layout::<(usize, usize)>(),
+            owned_call: callable_type_layout::<(Factory, (usize, usize))>(),
+            output: callable_type_layout::<F>(),
+            nominal_captures: callable_type_layout::<()>(),
+        },
+    }
+}
+
 impl OwnedBudgetResources {
+    /// Const-only numeric witness of the reservation's actual opaque proposal
+    /// and exact `resource_error::<usize>` item. No factory/proposal/mapper call.
+    /// Available in normal dependency units, not only under `cfg(test)`.
+    /// Each unit measures its own target/cfg; native unit-test Budget fields must
+    /// not be used to price a normal dependency's Budget. No full caller quote,
+    /// inline-closure evidence, fee, reservation or authority follows.
+    pub const RESERVATION_CALLABLE_LAYOUTS: ReservationCallableLayouts = ReservationCallableLayouts {
+        proposal: reservation_proposal_layouts(&reserve_update),
+        failure_mapper: reservation_mapper_layouts::<
+            Result<usize, usize>, usize, Error, Result<usize, Error>, _,
+        >(&resource_error::<usize>),
+    };
+
     /// Actual reservation-update closure and reference widths, without invoking it.
     pub fn reserve_update_layout() -> (usize, usize) {
         let closure = reserve_update(0, 0);

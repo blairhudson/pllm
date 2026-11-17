@@ -1,5 +1,138 @@
 use super::*;
 
+// Independent Layout-based oracle, not the const implementation's helper.
+fn measured_type<T>() -> CallableTypeLayout {
+    let layout = Layout::new::<T>();
+    CallableTypeLayout { size: layout.size(), alignment: layout.align() }
+}
+
+fn measured_mapper<R, A, B, M, F>(_: &F) -> ReservationMapperLayouts
+where
+    F: FnOnce(A) -> B,
+{
+    ReservationMapperLayouts {
+        callable: measured_type::<F>(),
+        shared_reference: measured_type::<&F>(),
+        mutable_reference: measured_type::<&mut F>(),
+        receiver: measured_type::<R>(),
+        adapter_operands: measured_type::<(R, F)>(),
+        owned_call: measured_type::<(F, (A,))>(),
+        arguments: measured_type::<(A,)>(),
+        output: measured_type::<B>(),
+        mapped_output: measured_type::<M>(),
+        mutable_adapter_reference: measured_type::<&mut (R, F)>(),
+        nominal_captures: measured_type::<()>(),
+    }
+}
+
+// F is inferred from a constructed value here, independently of the const
+// factory-output inference. Neither this helper nor its caller invokes F.
+fn measured_proposal<F>(_: &F, factory: ReservationFactoryLayouts) -> ReservationProposalLayouts
+where
+    F: FnMut(usize) -> Option<usize>,
+{
+    ReservationProposalLayouts {
+        callable: measured_type::<F>(),
+        shared_reference: measured_type::<&F>(),
+        mutable_reference: measured_type::<&mut F>(),
+        receiver: measured_type::<(&AtomicUsize, Ordering, Ordering)>(),
+        adapter_operands: measured_type::<((&AtomicUsize, Ordering, Ordering), F)>(),
+        mutable_adapter_reference:
+            measured_type::<&mut ((&AtomicUsize, Ordering, Ordering), F)>(),
+        fetch_update_operands: measured_type::<(&AtomicUsize, Ordering, Ordering, F)>(),
+        mutable_call: measured_type::<(&mut F, (usize,))>(),
+        owned_call: measured_type::<(F, (usize,))>(),
+        arguments: measured_type::<(usize,)>(),
+        output: measured_type::<Option<usize>>(),
+        fetch_update_result: measured_type::<Result<usize, usize>>(),
+        nominal_captures: measured_type::<(usize, usize)>(),
+        factory,
+    }
+}
+
+fn measured_factory<Factory, F>(_: &Factory) -> ReservationFactoryLayouts
+where
+    Factory: FnOnce(usize, usize) -> F,
+{
+    ReservationFactoryLayouts {
+        callable: measured_type::<Factory>(),
+        shared_reference: measured_type::<&Factory>(),
+        mutable_reference: measured_type::<&mut Factory>(),
+        arguments: measured_type::<(usize, usize)>(),
+        owned_call: measured_type::<(Factory, (usize, usize))>(),
+        output: measured_type::<F>(),
+        nominal_captures: measured_type::<()>(),
+    }
+}
+
+#[test]
+fn reservation_callable_const_matches_actual_definition_unit_test_layouts() {
+    // This is garble's cfg(test) unit. The same public associated const must
+    // separately compile in the compiler's normal garble dependency unit;
+    // this test does not certify that unit's cfg-dependent Budget layout.
+    const LAYOUTS: ReservationCallableLayouts = OwnedBudgetResources::RESERVATION_CALLABLE_LAYOUTS;
+    let proposal = reserve_update(3, 7); // Construct only; never invoke proposal.
+    let expected_proposal = measured_proposal(&proposal, measured_factory(&reserve_update));
+    assert_eq!(LAYOUTS.proposal, expected_proposal);
+    let mapper = resource_error::<usize>; // Exact item, not a function pointer.
+    assert_eq!(
+        LAYOUTS.failure_mapper,
+        measured_mapper::<Result<usize, usize>, usize, Error, Result<usize, Error>, _>(&mapper),
+    );
+    // Nominal source captures are checked separately from measured opaque F.
+    assert_eq!(LAYOUTS.proposal.nominal_captures, measured_type::<(usize, usize)>());
+    assert_eq!(LAYOUTS.proposal.factory.nominal_captures, measured_type::<()>());
+    assert_eq!(LAYOUTS.failure_mapper.nominal_captures, measured_type::<()>());
+}
+
+#[test]
+fn reservation_callable_layout_plumbing_preserves_overaligned_whole_tuples() {
+    #[repr(align(64))]
+    struct ProposalCapture { _bytes: [u8; 3] }
+    #[repr(align(128))]
+    struct FactoryCapture { _bytes: [u8; 5] }
+    #[repr(align(256))]
+    struct MapperCapture { _bytes: [u8; 7] }
+
+    let proposal_capture = ProposalCapture { _bytes: [0; 3] };
+    let factory_capture = FactoryCapture { _bytes: [0; 5] };
+    let factory = move |_: usize, _: usize| {
+        let _whole_factory_capture = &factory_capture;
+        move |used: usize| {
+            let _whole_proposal_capture = &proposal_capture;
+            Some(used)
+        }
+    };
+    let layouts = reservation_proposal_layouts(&factory);
+    let expected_factory = measured_factory(&factory);
+    let proposal = factory(0, 0); // Synthetic construction only, not invocation of F.
+    let expected = measured_proposal(&proposal, expected_factory);
+    assert_eq!(layouts, expected);
+    assert_eq!(layouts.callable.alignment, 64);
+    assert_eq!(layouts.factory.callable.alignment, 128);
+    assert!(layouts.owned_call.size > layouts.callable.size + layouts.arguments.size);
+    assert!(layouts.factory.owned_call.size
+        > layouts.factory.callable.size + layouts.factory.arguments.size);
+
+    let mapper_capture = MapperCapture { _bytes: [0; 7] };
+    let mapper = move |_: usize| {
+        let _whole_mapper_capture = &mapper_capture;
+        Error::Resource
+    };
+    let mapper_layouts = reservation_mapper_layouts::<
+        Result<usize, usize>, usize, Error, Result<usize, Error>, _,
+    >(&mapper);
+    assert_eq!(mapper_layouts,
+        measured_mapper::<Result<usize, usize>, usize, Error, Result<usize, Error>, _>(&mapper));
+    assert_eq!(mapper_layouts.callable.alignment, 256);
+    assert!(mapper_layouts.adapter_operands.size
+        > mapper_layouts.receiver.size + mapper_layouts.callable.size);
+    assert!(mapper_layouts.owned_call.size
+        > mapper_layouts.callable.size + mapper_layouts.arguments.size);
+    // Synthetic capture records test padding/wiring only. The nominal fields
+    // remain the native source contracts, not claims about these captures.
+}
+
 #[test]
 fn reserve_update_checks_overflow_limit_and_exact_fit() {
     assert_eq!(reserve_update(1, usize::MAX)(usize::MAX), None);
