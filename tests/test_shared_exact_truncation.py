@@ -199,7 +199,7 @@ def test_exact_truncation_over_two_authenticated_party_channels():
         commitment = SharedSessionCommitment(
             session, "model", hashlib.sha256(b"model").hexdigest(),
             graph_digest, hashlib.sha256(b"scales").hexdigest(),
-            digests, 4,
+            digests, 4, schedule_digest=admission.schedule_digest,
         )
         parties = [SharedComputeParty(
             PartyRuntime(session, i, burn_ledger=PreprocessingBurnLedger(capacity=12)),

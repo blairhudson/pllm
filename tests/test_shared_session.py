@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+from dataclasses import replace
 
+import msgpack
 import pytest
 
 from pllm.runtime.shared_session import (
@@ -55,6 +57,79 @@ def test_commitment_and_peer_frame_round_trip() -> None:
     frame = PeerFrame("session", b"c" * 32, 0, 7, "multiply.open", "op-1", b"opaque")
     assert PeerFrame.unpack(frame.pack(), max_payload_bytes=16) == frame
     assert len(commitment.digest) == 64
+
+
+def test_unbound_commitment_preserves_v1_bytes_and_seven_positional_fields() -> None:
+    commitment = SharedSessionCommitment(
+        "session", "model", "01" * 32, "02" * 32, "03" * 32,
+        ("04" * 32, "05" * 32), 2,
+    )
+    expected = msgpack.packb({
+        "v": 1, "s": "session", "m": "model", "f": b"\x01" * 32,
+        "g": b"\x02" * 32, "c": b"\x03" * 32,
+        "p": (b"\x04" * 32, b"\x05" * 32), "n": 2,
+    }, use_bin_type=True)
+    assert commitment.schedule_digest is None
+    assert commitment.pack() == expected
+    assert SharedSessionCommitment.unpack(expected) == commitment
+    assert commitment.digest == hashlib.sha256(expected).hexdigest()
+
+
+def test_bound_commitment_v2_round_trip_and_channel_binding() -> None:
+    legacy = _commitment()
+    bound = replace(legacy, schedule_digest="ab" * 32)
+    changed = replace(bound, schedule_digest="cd" * 32)
+    encoded = msgpack.unpackb(bound.pack(), raw=False)
+    assert list(encoded) == ["v", "s", "m", "f", "g", "c", "p", "n", "d"]
+    assert encoded["v"] == 2
+    assert encoded["d"] == b"\xab" * 32
+    assert SharedSessionCommitment.unpack(bound.pack()) == bound
+    assert len({legacy.digest, bound.digest, changed.digest}) == 3
+    channels = []
+    for commitment in (legacy, bound, changed):
+        first = SharedSessionState(commitment, party=0)
+        second = SharedSessionState(commitment, party=1)
+        _establish(first, second)
+        assert first.channel_id == second.channel_id
+        channels.append(first.channel_id)
+    assert len(set(channels)) == 3
+    for peer_commitment in (legacy, changed):
+        state = SharedSessionState(bound, party=0)
+        with pytest.raises(SharedSessionError, match="commitment"):
+            state.establish(
+                peer_commitment, local_nonce=b"a" * 32, peer_nonce=b"b" * 32,
+                authenticated_peer_fingerprint=bound.party_fingerprints[1],
+            )
+        assert state.status is SessionStatus.ABORTED
+
+
+@pytest.mark.parametrize("digest", [
+    "", "a" * 63, "a" * 65, "AB" * 32, "g" * 64, " " * 64,
+    b"a" * 64, bytearray(b"a" * 64), 0, True, [], {},
+])
+def test_commitment_constructor_rejects_noncanonical_schedule_digest(digest) -> None:
+    with pytest.raises(SharedSessionError, match="schedule digest"):
+        replace(_commitment(), schedule_digest=digest)
+
+
+@pytest.mark.parametrize("updates, removed", [
+    ({"v": True}, ()), ({"v": False}, ()), ({"v": 0}, ()),
+    ({"v": 3}, ()), ({"v": "2"}, ()), ({"v": 2.0}, ()),
+    ({}, ("v",)), ({}, ("d",)), ({"d": None}, ()),
+    ({"d": "ab" * 32}, ()), ({"d": [0] * 32}, ()),
+    ({"d": 32}, ()), ({"d": False}, ()), ({"d": {}}, ()),
+    ({"d": b""}, ()), ({"d": b"a" * 31}, ()), ({"d": b"a" * 33}, ()),
+    ({"extra": b"x"}, ()), ({}, ("s",)),
+    ({"v": 1}, ()), ({"v": 1, "d": None}, ()),
+    ({"v": 1, "extra": 1}, ("d",)),
+])
+def test_commitment_codec_rejects_malformed_versioned_fields(updates, removed) -> None:
+    value = msgpack.unpackb(replace(_commitment(), schedule_digest="ab" * 32).pack(), raw=False)
+    value.update(updates)
+    for key in removed:
+        del value[key]
+    with pytest.raises(SharedSessionError):
+        SharedSessionCommitment.unpack(msgpack.packb(value, use_bin_type=True))
 
 
 def test_bidirectional_sequences_and_replay_burn_session() -> None:

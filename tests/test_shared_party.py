@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -11,6 +12,7 @@ from pllm.runtime.shared_mlp import SharedMLPWeights
 from pllm.runtime.shared_mpc import (
     ExactSessionSlot,
     PartyRuntime,
+    PreprocessingBurnLedger,
     PublicQuantizedMatrix,
     ReferenceDealer,
     SharedMPCError,
@@ -23,8 +25,10 @@ from pllm.runtime.shared_party import (
     SharedComputeParty,
 )
 from pllm.runtime.shared_session import (
+    SessionStatus,
     SharedPeerConnection,
     SharedSessionCommitment,
+    SharedSessionError,
     SharedSessionState,
 )
 
@@ -48,6 +52,185 @@ class _Socket:
 
 def _digest(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
+
+
+@pytest.mark.parametrize("truncation", [
+    "probabilistic", "exact", "fss", "fss_lowbits_exact_highbits",
+])
+@pytest.mark.parametrize("binding", [
+    "matching", "missing-admission", "v1-downgrade", "schedule-mismatch",
+    "session-mismatch", "graph-mismatch",
+])
+def test_compute_party_validates_admission_without_inventory_mutation(
+    truncation: str, binding: str, monkeypatch,
+) -> None:
+    session = "constructor-binding"
+    dealer = ReferenceDealer(session, opened_element_budget=1)
+    admission = dealer.admit_exact_session(
+        _digest("graph"), (ExactSessionSlot("shift", (1,), 4, "fss"),),
+    )
+    mask = dealer.fss_truncation_masks((1,), "shift", bits=4)[0]
+    inventory = LocalPreprocessingInventory(session, 0, capacity=1)
+    inventory.add_fss_truncation("shift", mask)
+    inventory.bind_exact_admission(admission)
+    commitment = SharedSessionCommitment(
+        session, "model", _digest("model"), admission.graph_digest, _digest("scales"),
+        (_digest("party-0"), _digest("party-1")), 2,
+        schedule_digest=admission.schedule_digest,
+    )
+    if binding == "missing-admission":
+        inventory.exact_admission = None
+    elif binding == "v1-downgrade":
+        commitment = SharedSessionCommitment.unpack(replace(commitment, schedule_digest=None).pack())
+    elif binding == "schedule-mismatch":
+        commitment = replace(commitment, schedule_digest=_digest("other-schedule"))
+    elif binding == "session-mismatch":
+        inventory.exact_admission = replace(admission, session_id="other-session")
+    elif binding == "graph-mismatch":
+        inventory.exact_admission = replace(admission, graph_digest=_digest("other-graph"))
+    ledger = PreprocessingBurnLedger(capacity=4)
+    runtime = PartyRuntime(session, 0, burn_ledger=ledger)
+    peer = SharedPeerConnection(
+        SharedSessionState(commitment, party=0), _Socket(),
+        max_payload_bytes=4096, authenticated_peer_fingerprint=_digest("party-1"),
+        timeout_seconds=0.25,
+    )
+    calls = []
+
+    def forbidden(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("constructor must not consume, reserve, or cancel material")
+
+    for name in (
+        "take_multiplication", "take_truncation", "take_exact_truncation",
+        "take_fss_truncation", "cancel",
+    ):
+        monkeypatch.setattr(inventory, name, forbidden)
+    monkeypatch.setattr(ledger, "burn", forbidden)
+    monkeypatch.setattr(ledger, "burn_truncation", forbidden)
+    valid = binding == "matching" or (
+        binding == "missing-admission" and truncation == "probabilistic"
+    )
+    if valid:
+        assert SharedComputeParty(
+            runtime, peer, inventory, max_opening_elements=1, truncation=truncation,
+        ).preprocessing is inventory
+    else:
+        with pytest.raises(SharedMPCError, match="peer-bound session admission"):
+            SharedComputeParty(
+                runtime, peer, inventory, max_opening_elements=1, truncation=truncation,
+            )
+    assert calls == []
+    assert inventory.remaining == 1
+    assert inventory._fss_masks["shift"] is mask
+    assert not inventory._cancelled
+    assert all(not key._used and key.expanded_bytes > 0 for key in mask.comparison_keys)
+    assert ledger._burned == set()
+    assert ledger._truncation == {}
+    assert runtime.stats.opened_elements == 0
+    assert peer.state.status is SessionStatus.ACTIVE
+
+
+@pytest.mark.parametrize("truncation", ["exact", "fss"])
+def test_schedule_handshake_mismatch_preserves_unopened_inventory(
+    truncation: str, monkeypatch,
+) -> None:
+    async def run() -> None:
+        session = f"schedule-mismatch-{truncation}"
+        sockets = _Socket(), _Socket()
+        sockets[0].peer, sockets[1].peer = sockets[1], sockets[0]
+        parties, inventories, ledgers, inputs = [], [], [], []
+        calls = []
+
+        def forbidden(*args, **kwargs):
+            calls.append((args, kwargs))
+            raise AssertionError("failed handshake must not take, reserve, or cancel material")
+
+        for party in (0, 1):
+            dealer = ReferenceDealer(session, opened_element_budget=2)
+            method = "beaver" if truncation == "exact" else "fss"
+            slots = (
+                ExactSessionSlot("shift", (1,), 4, method),
+                ExactSessionSlot("unopened", (1,), party + 1, method),
+            )
+            admission = dealer.admit_exact_session(_digest("same-graph"), slots)
+            inventory = LocalPreprocessingInventory(session, party, capacity=8)
+            for slot in slots:
+                if truncation == "exact":
+                    masks = dealer.exact_truncation_masks(slot.shape, slot.operation_id, bits=slot.bits)
+                    inventory.add_exact_truncation(slot.operation_id, masks[party])
+                    for bit in range(1, slot.bits):
+                        operation = f"{slot.operation_id}.carry.{bit}"
+                        inventory.add_triple(
+                            operation, dealer.multiplication_triples(slot.shape, operation)[party],
+                        )
+                else:
+                    masks = dealer.fss_truncation_masks(slot.shape, slot.operation_id, bits=slot.bits)
+                    inventory.add_fss_truncation(slot.operation_id, masks[party])
+            inventory.bind_exact_admission(admission)
+            inputs.append(dealer.split([-1], "input", scale=16)[party])
+            commitment = SharedSessionCommitment(
+                session, "model", _digest("model"), admission.graph_digest, _digest("scales"),
+                (_digest("party-0"), _digest("party-1")), 8,
+                schedule_digest=admission.schedule_digest,
+            )
+            ledger = PreprocessingBurnLedger(capacity=16)
+            compute = SharedComputeParty(
+                PartyRuntime(session, party, burn_ledger=ledger),
+                SharedPeerConnection(
+                    SharedSessionState(commitment, party=party), sockets[party],
+                    max_payload_bytes=4096,
+                    authenticated_peer_fingerprint=_digest(f"party-{1 - party}"),
+                    timeout_seconds=0.25,
+                ), inventory, max_opening_elements=1, truncation=truncation,
+            )
+            for name in (
+                "take_multiplication", "take_truncation", "take_exact_truncation",
+                "take_fss_truncation", "cancel",
+            ):
+                monkeypatch.setattr(inventory, name, forbidden)
+            monkeypatch.setattr(ledger, "burn", forbidden)
+            monkeypatch.setattr(ledger, "burn_truncation", forbidden)
+            parties.append(compute)
+            inventories.append(inventory)
+            ledgers.append(ledger)
+        before = [(
+            dict(inventory._triples), dict(inventory._exact_masks),
+            dict(inventory._fss_masks), inventory._fss_key_bytes, inventory.remaining,
+        ) for inventory in inventories]
+        results = await asyncio.wait_for(asyncio.gather(*[
+            compute.truncate(inputs[index], "shift", bits=4, signed_bound=1)
+            for index, compute in enumerate(parties)
+        ], return_exceptions=True), timeout=2)
+        assert all(isinstance(result, SharedSessionError) for result in results)
+        assert all("commitment" in str(result) for result in results)
+        assert calls == []
+        for index, compute in enumerate(parties):
+            inventory = inventories[index]
+            triples, exact_masks, fss_masks, key_bytes, remaining = before[index]
+            assert inventory.remaining == remaining
+            for current, original in (
+                (inventory._triples, triples), (inventory._exact_masks, exact_masks),
+                (inventory._fss_masks, fss_masks),
+            ):
+                assert current.keys() == original.keys()
+                assert all(current[key] is value for key, value in original.items())
+            assert inventory._fss_key_bytes == key_bytes
+            assert not inventory._cancelled
+            assert all(
+                not key._used and key.expanded_bytes > 0
+                for mask in fss_masks.values() for key in mask.comparison_keys
+            )
+            assert ledgers[index]._burned == set()
+            assert ledgers[index]._truncation == {}
+            assert compute.runtime.stats.opened_elements == 0
+            assert compute.peer.stats.sent_frames == compute.peer.stats.received_frames == 0
+            assert compute.peer.state.status is SessionStatus.ABORTED
+            assert not compute.peer._handshake_complete
+            with pytest.raises(SharedSessionError, match="commitment"):
+                compute.peer.state.outbound("later", "later", b"never sent")
+
+    asyncio.run(run())
 
 
 def test_network_shared_mlp_uses_only_party_local_preprocessing() -> None:
@@ -507,6 +690,7 @@ def test_network_causal_attention_uses_resident_shared_kv(truncation: str) -> No
             scale_fingerprint=_digest("scales"),
             party_fingerprints=(_digest("party-0"), _digest("party-1")),
             maximum_operations=operation_count,
+            schedule_digest=None if admission is None else admission.schedule_digest,
         )
         models = []
         for party in (0, 1):

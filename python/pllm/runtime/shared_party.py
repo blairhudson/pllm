@@ -262,13 +262,16 @@ class SharedComputeParty:
             or preprocessing.party != runtime.party
         ):
             raise SharedMPCError("shared compute party bindings do not match")
-        if truncation != "probabilistic":
-            admission = preprocessing.exact_admission
-            if (
-                admission is None or admission.session_id != runtime.session_id
-                or admission.graph_digest != peer.state.commitment.graph_fingerprint
-            ):
-                raise SharedMPCError("exact truncation lacks a peer-bound session admission")
+        admission = preprocessing.exact_admission
+        if truncation != "probabilistic" and admission is None:
+            raise SharedMPCError("exact truncation lacks a peer-bound session admission")
+        if admission is not None and (
+            admission.session_id != runtime.session_id
+            or admission.graph_digest != peer.state.commitment.graph_fingerprint
+            or peer.state.commitment.schedule_digest is None
+            or admission.schedule_digest != peer.state.commitment.schedule_digest
+        ):
+            raise SharedMPCError("exact truncation lacks a peer-bound session admission")
         self.runtime = runtime
         self.peer = peer
         self.preprocessing = preprocessing
@@ -363,6 +366,8 @@ class SharedComputeParty:
         not an executable decoder placement until a distributed issuer and
         whole-session material budget are compiled and admitted.
         """
+        # A rejected commitment aborts the session, not its unopened inventory.
+        await self.peer.handshake()
         try:
             if self.truncation_method not in ("exact", "fss_lowbits_exact_highbits"):
                 raise SharedMPCError("exact Beaver truncation is not selected for this party")
@@ -408,6 +413,8 @@ class SharedComputeParty:
         signed_bound: int,
     ) -> SharedTensor:
         """One-use FSS comparison and bit-to-ring conversion over a peer channel."""
+        # Keep handshake failure outside the consumption/cancellation guard.
+        await self.peer.handshake()
         mask: FssTruncationMaskShare | None = None
         try:
             if (

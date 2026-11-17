@@ -117,6 +117,7 @@ def test_fss_truncation_over_authenticated_separate_party_channels() -> None:
             session_id=session, model_id="model", model_fingerprint=_digest("model"),
             graph_fingerprint=_digest("fss-graph"), scale_fingerprint=_digest("scales"),
             party_fingerprints=(_digest("p0"), _digest("p1")), maximum_operations=2,
+            schedule_digest=admission.schedule_digest,
         )
         parties = [SharedComputeParty(
             PartyRuntime(session, party, minimum_truncation_security_bits=40,
@@ -183,6 +184,7 @@ def test_hybrid_truncation_keeps_wide_carry_secret_shared(bits: int) -> None:
         commitment = SharedSessionCommitment(
             session, "model", _digest("model"), graph, _digest("scales"),
             (_digest("p0"), _digest("p1")), 2 + bits - 8,
+            schedule_digest=admission.schedule_digest,
         )
         parties = [SharedComputeParty(
             PartyRuntime(session, party, burn_ledger=PreprocessingBurnLedger(capacity=bits)),

@@ -33,6 +33,7 @@ class SharedSessionCommitment:
     scale_fingerprint: str
     party_fingerprints: tuple[str, str]
     maximum_operations: int
+    schedule_digest: str | None = None
 
     def __post_init__(self) -> None:
         if not self.session_id or not self.model_id:
@@ -51,21 +52,27 @@ class SharedSessionCommitment:
                 raise SharedSessionError("shared session fingerprint is invalid")
         if type(self.maximum_operations) is not int or self.maximum_operations <= 0:
             raise SharedSessionError("shared session operation budget is invalid")
+        if self.schedule_digest is not None and (
+            type(self.schedule_digest) is not str
+            or len(self.schedule_digest) != 64
+            or any(char not in "0123456789abcdef" for char in self.schedule_digest)
+        ):
+            raise SharedSessionError("shared session schedule digest is invalid")
 
     def pack(self) -> bytes:
-        return msgpack.packb(
-            {
-                "v": 1,
-                "s": self.session_id,
-                "m": self.model_id,
-                "f": bytes.fromhex(self.model_fingerprint),
-                "g": bytes.fromhex(self.graph_fingerprint),
-                "c": bytes.fromhex(self.scale_fingerprint),
-                "p": tuple(bytes.fromhex(value) for value in self.party_fingerprints),
-                "n": self.maximum_operations,
-            },
-            use_bin_type=True,
-        )
+        value = {
+            "v": 1 if self.schedule_digest is None else 2,
+            "s": self.session_id,
+            "m": self.model_id,
+            "f": bytes.fromhex(self.model_fingerprint),
+            "g": bytes.fromhex(self.graph_fingerprint),
+            "c": bytes.fromhex(self.scale_fingerprint),
+            "p": tuple(bytes.fromhex(value) for value in self.party_fingerprints),
+            "n": self.maximum_operations,
+        }
+        if self.schedule_digest is not None:
+            value["d"] = bytes.fromhex(self.schedule_digest)
+        return msgpack.packb(value, use_bin_type=True)
 
     @classmethod
     def unpack(cls, payload: bytes) -> "SharedSessionCommitment":
@@ -73,7 +80,11 @@ class SharedSessionCommitment:
             raise SharedSessionError("shared session commitment is empty or too large")
         try:
             value = msgpack.unpackb(payload, raw=False, strict_map_key=True)
-            if not isinstance(value, dict) or set(value) != {
+            if not isinstance(value, dict):
+                raise SharedSessionError("shared session commitment fields are invalid")
+            if type(value.get("v")) is not int or value["v"] not in (1, 2):
+                raise SharedSessionError("shared session commitment version is unsupported")
+            fields = {
                 "v",
                 "s",
                 "m",
@@ -82,10 +93,17 @@ class SharedSessionCommitment:
                 "c",
                 "p",
                 "n",
-            }:
+            }
+            if value["v"] == 2:
+                fields.add("d")
+            if set(value) != fields:
                 raise SharedSessionError("shared session commitment fields are invalid")
-            if type(value["v"]) is not int or value["v"] != 1:
-                raise SharedSessionError("shared session commitment version is unsupported")
+            schedule_digest = None
+            if value["v"] == 2:
+                raw_digest = value["d"]
+                if type(raw_digest) is not bytes or len(raw_digest) != 32:
+                    raise SharedSessionError("shared session schedule digest is invalid")
+                schedule_digest = raw_digest.hex()
             fingerprints = []
             for key in ("f", "g", "c"):
                 raw = value[key]
@@ -111,6 +129,7 @@ class SharedSessionCommitment:
                 scale_fingerprint=fingerprints[2],
                 party_fingerprints=(parties[0].hex(), parties[1].hex()),
                 maximum_operations=value["n"],
+                schedule_digest=schedule_digest,
             )
         except (KeyError, TypeError, ValueError, msgpack.ExtraData, msgpack.FormatError) as exc:
             raise SharedSessionError("shared session commitment is malformed") from exc
