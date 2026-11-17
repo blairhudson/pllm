@@ -6,10 +6,23 @@ BenchmarkContext = str | list[dict[str, str]]
 def context_bytes(value: BenchmarkContext) -> bytes:
     if isinstance(value, str):
         return value.encode()
+    if isinstance(value, dict):
+        from .prompt_input import _OwnedIds, _token_shape
+        _token_shape(value)
+        ids = value["ids"]
+        if (type(ids) is not _OwnedIds or not 1 <= len(ids) <= 32
+                or any(type(item) is not int or not 0 <= item < 2**32 for item in ids)):
+            raise ValueError("token context bytes require bounded owned IDs")
+        # Invalid UTF-8 prefix cannot collide with ANY legacy text/message bytes.
+        return b"\xffpllm.benchmark.token_ids.v1\0" + json.dumps(
+            value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
 
 
-def validate_context(value) -> BenchmarkContext:
+def validate_context(value, *, budget=None, output_tokens=None, requests=1) -> BenchmarkContext:
+    from .prompt_input import admit_input, is_token_input
+    if is_token_input(value):
+        return admit_input(value, budget, output_tokens=output_tokens, requests=requests)
     if isinstance(value, str):
         if not value.strip():
             raise ValueError("prompt must contain 1 to 16384 bytes")

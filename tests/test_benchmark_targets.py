@@ -244,3 +244,110 @@ def test_research_mlp_selector_failure_cleanup_and_bounds(experiment):
         with client_mlp_execution({"tile_rows": 16}):
             raise RuntimeError("cancel")
     assert CompiledRuntimeModel.runtime is original and SemanticDecoderRuntime._forward is forward
+
+
+def _id_budget(inputs=8, outputs=2, requests=2):
+    return {"requests": requests, "max_input_tokens": inputs, "max_new_tokens": outputs}
+
+
+@pytest.mark.parametrize("value", [
+    {}, {"kind": "token_ids"}, {"kind": "token_ids", "ids": [], "extra": 1},
+    {"kind": "wrong", "ids": [1]}, {"kind": "token_ids", "ids": []},
+    {"kind": "token_ids", "ids": [True]}, {"kind": "token_ids", "ids": [-1]},
+    {"kind": "token_ids", "ids": [2**32]}, {"kind": "token_ids", "ids": [1.0]},
+    {"kind": "token_ids", "ids": (1,)}, {"kind": "token_ids", "ids": [1] * 9},
+])
+def test_internal_ids_strict_shape_and_budget(value):
+    from pllm.runtime.prompt_input import admit_input
+    with pytest.raises(ValueError):
+        admit_input(value, _id_budget())
+
+
+def test_internal_ids_authority_and_all_caps_before_capture():
+    from pllm.runtime.prompt_input import admit_input
+    value = {"kind": "token_ids", "ids": [0, 2**32 - 1]}
+    for budget, options in [(None, {}), ({}, {}), (_id_budget(), {"requests": 3}),
+                            (_id_budget(), {"output_tokens": 3}),
+                            (_id_budget(), {"output_tokens": True})]:
+        with pytest.raises(ValueError):
+            admit_input(value, budget, **options)
+    assert admit_input(value, _id_budget())["ids"] == (0, 2**32 - 1)
+    with pytest.raises(ValueError, match="seal"):
+        admit_input({"kind": "token_ids", "ids": [0] * 33}, _id_budget(inputs=1024))
+
+
+def test_local_ids_missing_output_cap_uses_authoritative_budget_not_legacy_default():
+    from pllm.runtime.prompt_input import admit_body
+    body, _ = admit_body({"input": {"kind": "token_ids", "ids": [1]}}, _id_budget(outputs=2))
+    assert body["max_output_tokens"] == 2
+    legacy = {"input": "hello"}
+    assert admit_body(legacy, None)[0] is legacy
+
+
+def test_internal_ids_immutable_custody_survives_caller_mutation():
+    import copy
+    from pllm.runtime.prompt_input import admit_input
+    raw = {"kind": "token_ids", "ids": [2, 7]}
+    owned = admit_input(raw, _id_budget())
+    raw["ids"][:] = [5] * 1000
+    assert owned["ids"] == (2, 7)
+    assert copy.deepcopy(owned)["ids"] is owned["ids"]
+    assert admit_input(owned, _id_budget())["ids"] is owned["ids"]
+    with pytest.raises(ValueError):
+        admit_input(owned, _id_budget(inputs=1))
+
+
+def test_internal_ids_no_list_iteration_or_unbounded_copy():
+    from pllm.runtime.prompt_input import admit_input
+    class HostileList(list):
+        def __iter__(self):
+            raise AssertionError("must not iterate caller subclasses")
+        def __deepcopy__(self, memo):
+            raise AssertionError("must not copy caller list")
+    with pytest.raises(ValueError):
+        admit_input({"kind": "token_ids", "ids": HostileList([1])}, _id_budget())
+
+
+def test_legacy_context_bytes_and_internal_kind_identity():
+    import hashlib
+    from pllm.runtime.benchmark_context import context_bytes, validate_context
+    from pllm.runtime.prompt_input import admit_input
+    assert context_bytes("Hi π") == b"Hi \xcf\x80"
+    messages = [{"role": "user", "content": "π"}]
+    assert context_bytes(validate_context(messages)) == b'[{"content":"\xcf\x80","role":"user"}]'
+    salt = b"a" * 32
+    expected = hashlib.sha256(b"pllm.benchmark.prompt.v1\0" + salt + b"Hi \xcf\x80").hexdigest()
+    assert hashlib.sha256(b"pllm.benchmark.prompt.v1\0" + salt + context_bytes("Hi π")).hexdigest() == expected
+    ids = admit_input({"kind": "token_ids", "ids": [1]}, _id_budget())
+    assert context_bytes(ids) == b'\xffpllm.benchmark.token_ids.v1\0{"ids":[1],"kind":"token_ids"}'
+    assert context_bytes(ids) != context_bytes("1")
+
+
+def test_token_kind_rejects_without_user_comparison_hooks():
+    from pllm.runtime.prompt_input import admit_input, preflight_response
+    class Kind:
+        def __eq__(self, other):
+            pytest.fail("kind equality hook")
+        def __ne__(self, other):
+            pytest.fail("kind inequality hook")
+    class StrKind(str):
+        __eq__ = Kind.__eq__
+        __ne__ = Kind.__ne__
+    for kind in (Kind(), StrKind("token_ids")):
+        value = {"kind": kind, "ids": [1]}
+        with pytest.raises(ValueError):
+            admit_input(value, _id_budget())
+        with pytest.raises(ValueError):
+            preflight_response({"scenario": {"kind": "cold"}, "local_dispatch": True}, {"prompt": value},
+                experiment_loader=lambda model: pytest.fail("must reject before Experiment normalization"))
+
+
+def test_token_context_identity_cannot_collide_with_literal_legacy_json_text():
+    from pllm.runtime.benchmark_context import context_bytes
+    from pllm.runtime.prompt_input import admit_input
+    admitted = admit_input({"kind": "token_ids", "ids": [1]}, _id_budget())
+    assert context_bytes(admitted) != context_bytes('{"ids":[1],"kind":"token_ids"}')
+    with pytest.raises(UnicodeDecodeError):
+        context_bytes(admitted).decode("utf-8")
+    with pytest.raises(ValueError, match="owned"):
+        context_bytes({"kind": "token_ids", "ids": [1]})
