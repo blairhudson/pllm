@@ -10,13 +10,13 @@ use std::cmp::Ordering;
 pub const FINITE_R32_WORK: usize = 8192;
 
 #[derive(Clone, Copy)]
-struct Parts {
-    negative: bool,
-    m: u32,
-    e: i32,
+pub(super) struct Parts {
+    pub(super) negative: bool,
+    pub(super) m: u32,
+    pub(super) e: i32,
 }
 
-fn decode(value: f32) -> Result<Parts, Error> {
+pub(super) fn decode(value: f32) -> Result<Parts, Error> {
     let bits = value.to_bits();
     let exponent = (bits >> 23) & 255;
     if exponent == 255 {

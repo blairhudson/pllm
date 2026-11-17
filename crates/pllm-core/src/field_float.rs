@@ -31,6 +31,7 @@ mod local_bf16;
 pub use local_bf16::{
     add_bf16_into, add_bf16_work, dot_bf16_rn32, dot_bf16_rn32_work,
     mul_bf16_into, mul_bf16_work, rope_bf16_supplied_into, rope_bf16_supplied_work,
+    swiglu_bf16_into, swiglu_bf16_work,
 };
 
 mod attention_bf16;
@@ -39,7 +40,11 @@ pub use attention_bf16::{
 };
 
 mod rms_norm;
-pub use rms_norm::{rms_norm_bf16_row_into, rms_norm_bf16_row_work};
+pub use rms_norm::{
+    rms_norm_bf16_bound, rms_norm_bf16_bound_work, rms_norm_bf16_q8_energy_bound,
+    rms_norm_bf16_q8_energy_bound_work, rms_norm_bf16_relational_bound,
+    rms_norm_bf16_relational_bound_work, rms_norm_bf16_row_into, rms_norm_bf16_row_work,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Error {
@@ -211,6 +216,52 @@ pub fn quantize_q8(value: f32) -> Result<i64, Error> {
         magnitude as i128
     };
     i64::try_from(signed).map_err(|_| Error::IntegerRange)
+}
+
+/// Exact nearest-even integer of 256 times the binary32 value, reduced by the
+/// Euclidean remainder modulo `modulus`. Every finite binary32 input is allowed;
+/// both zero signs return zero. Composite moduli are allowed.
+///
+/// A modulus below two returns `Geometry` before inspecting the value; otherwise
+/// NaN and infinity return `NonFinite`. Integer-only, fixed-width, no allocation.
+/// Arithmetic helper only: no prime-field, constant-time, security, numeric-profile
+/// or protocol-adoption claim. This does not change `quantize_q8` or importers.
+pub fn quantize_q8_mod(value: f32, modulus: u64) -> Result<u64, Error> {
+    if modulus < 2 {
+        return Err(Error::Geometry);
+    }
+    let parts = finite_r32::decode(value)?;
+    let k = parts.e + 8;
+    let modulus_wide = u128::from(modulus);
+    let residue = if k < 0 {
+        let s = (-k) as u32;
+        let rounded = if s > 24 {
+            0
+        } else {
+            div_round_ties_even_i128(i128::from(parts.m), 1_i128 << s) as u64
+        };
+        rounded % modulus
+    } else {
+        // k<=112: at most seven iterations. Each multiply/square reduces
+        // residues below modulus; their products fit u128 even for u64::MAX.
+        let mut exponent = k as u32;
+        let mut power = 1_u64;
+        let mut base = 2 % modulus;
+        while exponent != 0 {
+            if exponent & 1 != 0 {
+                power = (u128::from(power) * u128::from(base) % modulus_wide) as u64;
+            }
+            base = (u128::from(base) * u128::from(base) % modulus_wide) as u64;
+            exponent >>= 1;
+        }
+        // m<2^24 and power<2^64, so this final product is below 2^88.
+        (u128::from(parts.m) * u128::from(power) % modulus_wide) as u64
+    };
+    Ok(if parts.negative && residue != 0 {
+        modulus - residue
+    } else {
+        residue
+    })
 }
 
 pub fn q8_to_field(value: i64) -> u32 {

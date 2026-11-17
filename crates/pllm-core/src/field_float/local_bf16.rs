@@ -1,6 +1,9 @@
 //! Clear local equations, not a model profile, source owner or admission token.
 //! D31 numeric-source-recovery §3.2–3.3: no stock-Qwen kernel equivalence claim.
-use super::{add_rn32, f32_to_bf16, mul_rn32, promote_bf16, Error, FINITE_R32_WORK};
+use super::{
+    add_rn32, f32_to_bf16, mul_rn32, promote_bf16, silu_bf16_scratch_words,
+    silu_bf16_with_scratch, silu_bf16_work, Error, FINITE_R32_WORK,
+};
 
 // OTHER is separate from prepaid primitive calls. Per coordinate: at most eight
 // promotions and three casts (<64 logical operations each), iterator/index/sign
@@ -29,6 +32,14 @@ pub fn add_bf16_work(width: usize) -> Result<usize, Error> {
 /// Same allowance as addition; no allocation or serving admission implied.
 pub fn mul_bf16_work(width: usize) -> Result<usize, Error> {
     quote(width, 1)
+}
+
+/// Scalar BF16 SiLU plus one RN32 multiply per coordinate and local glue/cleanup.
+/// Logical allowance only, not a model profile or protected-execution admission.
+pub fn swiglu_bf16_work(width: usize) -> Result<usize, Error> {
+    width.checked_mul(silu_bf16_work()?)
+        .and_then(|n| n.checked_add(quote(width, 1).ok()?))
+        .ok_or(Error::WorkLimit)
 }
 
 /// Two separately rounded RN32 calls per coordinate. Empty dot returns +0.
@@ -98,6 +109,38 @@ pub fn mul_bf16_into(
     left: &[u16], right: &[u16], output: &mut [u16], work_limit: usize,
 ) -> Result<(), Error> {
     binary_into(left, right, output, work_limit, mul_rn32)
+}
+
+/// R16(R32(promote(R16(R32(real SiLU(gate)))) * promote(up))).
+/// Preflight order is equal lengths, output capacity, scratch capacity (122
+/// words even when empty), then checked quote/budget; refusals change no buffers.
+/// An admitted arithmetic/conversion error clears the whole active output only.
+/// Output and scratch tails are untouched. Each admitted scalar SiLU wipes its
+/// scratch prefix; a first nonfinite gate leaves scratch unchanged, as does an
+/// empty row. No unconditional scratch-wipe or hidden-copy erasure is promised.
+/// Clear reference algebra only; publish output only on Ok.
+pub fn swiglu_bf16_into(
+    gate: &[u16], up: &[u16], output: &mut [u16], scratch: &mut [u64],
+    work_limit: usize,
+) -> Result<(), Error> {
+    lengths(gate.len(), up.len(), output.len())?;
+    if scratch.len() < silu_bf16_scratch_words() {
+        return Err(Error::Capacity);
+    }
+    budget(swiglu_bf16_work(gate.len())?, work_limit)?;
+    let scalar_work = silu_bf16_work()?;
+    let active = &mut output[..gate.len()];
+    let result = (|| {
+        for ((&g, &u), slot) in gate.iter().zip(up).zip(active.iter_mut()) {
+            let silu = silu_bf16_with_scratch(g, scratch, scalar_work)?;
+            *slot = f32_to_bf16(mul_rn32(promote_bf16(silu)?, promote_bf16(u)?)?)?;
+        }
+        Ok(())
+    })();
+    if result.is_err() {
+        active.fill(0);
+    }
+    result
 }
 
 /// Increasing-coordinate, NONFUSED RN32 multiply then RN32 add starting +0.
