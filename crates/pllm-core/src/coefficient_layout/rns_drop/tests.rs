@@ -155,6 +155,18 @@ fn every_length_and_late_residue_error_preserves_all_output_words() {
 }
 
 #[test]
+fn scalar_refactor_keeps_length_before_canonical_error_precedence() {
+    let drop = plan(1, 9, 25);
+    let mut short = [];
+    assert_eq!(drop.apply_into(&[9], &[25], &mut short), Err(LayoutError::BufferLength));
+    let mut out = [u64::MAX];
+    assert_eq!(drop.apply_into(&[9], &[25], &mut out), Err(LayoutError::NonCanonical));
+    assert_eq!(out, [u64::MAX]);
+    drop.apply_into(&[8], &[24], &mut out).unwrap();
+    assert_eq!(out[0], oracle(8, 24, 9, 25));
+}
+
+#[test]
 fn extracted_inverse_preserves_legacy_rns3_errors_and_crt_down_cases() {
     use crate::coefficient_phase_reference::{Error, LIMBS, Rns3, Wide};
     assert_eq!(Rns3::new([LIMBS[0], LIMBS[0], LIMBS[2]]), Err(Error::Unsupported));

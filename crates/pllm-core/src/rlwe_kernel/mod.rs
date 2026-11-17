@@ -146,11 +146,12 @@ pub(super) enum Operation {
 /// loop/control overhead is not a separate unit: these are logical pass/round
 /// counts, not word-instruction counts or a runtime upper bound.
 ///
-///                 scans  conversions  products       decode    buffer reserve
-/// Key              3N       2N        N^2              0           9N
-/// Encrypt          6N       3N        2N^2+N           0          12N
-/// Add              4N        0        0                0           6N
-/// Decrypt          3N        N        N^2             136N          8N
+/// | Operation | Scans | Conversions | Products | Decode | Buffer reserve |
+/// |-----------|-------|-------------|----------|--------|----------------|
+/// | Key       | 3N    | 2N          | N^2      | 0      | 9N             |
+/// | Encrypt   | 6N    | 3N          | 2N^2+N   | 0      | 12N            |
+/// | Add       | 4N    | 0           | 0        | 0      | 6N             |
+/// | Decrypt   | 3N    | N           | N^2      | 136N   | 8N             |
 ///
 /// All public quote arithmetic is checked before any coefficient is read.
 pub(super) fn quote(operation: Operation, n: usize) -> Result<u64, KernelError> {

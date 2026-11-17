@@ -21,6 +21,10 @@ pub mod schedule;
 pub(crate) mod trace;
 
 pub use rns_drop::RoundedLimbDrop;
+pub use modular::{
+    RootAuxiliaryStorage, RootError, RootRequest, RootWorkQuote,
+    canonical_power_two_root, public_root_work_quote,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LayoutError {

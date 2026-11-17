@@ -18,7 +18,7 @@ pub(crate) use fixed::{
 };
 
 use crate::coefficient_layout::CoefficientRing;
-use crate::coefficient_layout::modular::{mul, sub};
+use crate::coefficient_layout::modular::{mul, pow, prime, sub};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Error {
@@ -82,54 +82,6 @@ pub struct NegacyclicNtt {
     n_inv: u64,
     forward_stage_roots: [u64; 13],
     inverse_stage_roots: [u64; 13],
-}
-
-fn pow(mut a: u64, mut exponent: u64, q: u64) -> u64 {
-    let mut result = 1;
-    while exponent != 0 {
-        if exponent & 1 != 0 {
-            result = mul(result, a, q);
-        }
-        a = mul(a, a, q);
-        exponent >>= 1;
-    }
-    result
-}
-
-// Deterministic Miller–Rabin for the FULL u64 domain, not just small limbs.
-fn prime(q: u64) -> bool {
-    if q < 2 {
-        return false;
-    }
-    for p in [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37] {
-        if q % p == 0 {
-            return q == p;
-        }
-    }
-    let s = (q - 1).trailing_zeros();
-    let d = (q - 1) >> s;
-    for base in [2, 325, 9375, 28178, 450775, 9780504, 1795265022] {
-        let a = base % q;
-        if a == 0 {
-            continue;
-        }
-        let mut x = pow(a, d, q);
-        if x == 1 || x == q - 1 {
-            continue;
-        }
-        let mut passed = false;
-        for _ in 1..s {
-            x = mul(x, x, q);
-            if x == q - 1 {
-                passed = true;
-                break;
-            }
-        }
-        if !passed {
-            return false;
-        }
-    }
-    true
 }
 
 /// Includes parameter/refusal checks, all seven MR rounds, both root checks,
