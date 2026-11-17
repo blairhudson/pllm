@@ -1,7 +1,11 @@
 //! Immutable, file-backed signed-i8 matrices with bounded exact page execution.
 //! A verified private anonymous snapshot severs subsequent source-file mutation.
 use crate::kernels::{Executor, Matrix};
-use crate::public_file::{read_at, PublicFile, PublicFileBacking};
+use crate::public_file::{read_at, PublicFileBacking, PublicFileStorage};
+#[cfg(unix)]
+use crate::resident_fd::FileLease;
+#[cfg(unix)]
+use crate::public_file::{FacadeError, IoAttempt, MAX_CHUNK_BYTES};
 use flate2::{write::ZlibEncoder, Compression, Decompress, FlushDecompress, Status};
 use sha2::{Digest, Sha256};
 use std::{
@@ -199,8 +203,32 @@ fn decode(file: &File, page: Page) -> Result<Vec<u8>, String> {
     Ok(raw)
 }
 
-pub struct PagedMatrix {
-    file: Arc<PublicFileBacking>,
+pub type PagedMatrix = PagedMatrixStorage<File>;
+
+/// Resident paged storage exposes cached metadata, ownership and authorized raw
+/// row reads, never legacy callback-free execution. This fails at the real legacy method:
+/// ```compile_fail
+/// use pllm_core::paged::ResidentPagedMatrix;
+/// fn denied(matrix: &ResidentPagedMatrix) {
+///     let _ = matrix.clear(&[1i8], 1usize);
+/// }
+/// ```
+/// Legacy equivalent remains valid:
+/// ```
+/// use pllm_core::paged::PagedMatrix;
+/// fn allowed(matrix: &PagedMatrix) {
+///     let _ = matrix.clear(&[1i8], 1usize);
+/// }
+/// ```
+#[cfg(unix)]
+pub type ResidentPagedMatrix = PagedMatrixStorage<FileLease>;
+
+/// Shared backing with private fields; no stable Rust ABI/layout promise.
+/// File backing closes before its directory. Resident backing only releases a
+/// reader lease; external coordinator retains descriptor/namespace custody until
+/// explicit retirement. Last Arc drop does not acknowledge retirement.
+pub struct PagedMatrixStorage<B> {
+    file: Arc<PublicFileBacking<B>>,
     pages: Vec<Page>,
     executor: Arc<Executor>,
     rows: usize,
@@ -210,7 +238,7 @@ pub struct PagedMatrix {
     weight_digest: [u8; 32],
     max_weight: u32,
 }
-impl PagedMatrix {
+impl<B> PagedMatrixStorage<B> {
     pub fn shape(&self) -> (usize, usize) {
         (self.rows, self.cols)
     }
@@ -222,8 +250,10 @@ impl PagedMatrix {
     }
     /// Share an already authenticated immutable raw snapshot. Geometry and its
     /// original content digest must agree; no writable descriptor escapes.
+    /// Cached-only, no I/O; allocates page metadata and retains Arcs. This is not
+    /// resident-budget qualified and grants no execution or admission authority.
     pub fn from_public_file(
-        snapshot: &PublicFile,
+        snapshot: &PublicFileStorage<B>,
         expected: [u8; 32],
         rows: usize,
         cols: usize,
@@ -258,6 +288,35 @@ impl PagedMatrix {
             max_weight: snapshot.max_i8(),
         })
     }
+    pub fn metadata_bytes(&self) -> usize {
+        self.pages.len() * std::mem::size_of::<Page>()
+    }
+}
+
+#[cfg(unix)]
+impl PagedMatrixStorage<FileLease> {
+    /// Read one raw signed-i8 row, with cols measured in bytes. Resident matrices
+    /// are constructed only from sealed uncompressed raw snapshots; no numeric
+    /// execution or compressed decoding occurs. Every physical attempt requires
+    /// authorization. Failure may modify a prefix; output is unusable on error.
+    /// Controls remain unqualified for funding. External coordinator retains FD
+    /// custody; dropping a reader lease/backing is no retirement acknowledgement.
+    pub fn read_row_authorized<E>(
+        &self, row: usize, dst: &mut [u8],
+        authorize: &mut impl FnMut(IoAttempt) -> Result<(), E>,
+    ) -> Result<(), FacadeError<E>> {
+        if row >= self.rows || dst.len() != self.cols
+            || dst.is_empty() || dst.len() > MAX_CHUNK_BYTES
+        { return Err(FacadeError::Bounds); }
+        let offset = row.checked_mul(self.cols)
+            .and_then(|offset| u64::try_from(offset).ok()).ok_or(FacadeError::Bounds)?;
+        let end = offset.checked_add(dst.len() as u64).ok_or(FacadeError::Bounds)?;
+        if end > self.artifact_bytes { return Err(FacadeError::Bounds); }
+        self.file.read_authorized(self.artifact_bytes, offset, dst, authorize)
+    }
+}
+
+impl PagedMatrix {
     /// Import canonical raw i8 bytes without constructing a resident matrix or
     /// changing its weight identity. The source is copied into a private file;
     /// geometry, digest and integer bounds are checked before returning a handle.
@@ -418,9 +477,6 @@ impl PagedMatrix {
             max_weight,
         })
     }
-    pub fn metadata_bytes(&self) -> usize {
-        self.pages.len() * std::mem::size_of::<Page>()
-    }
     pub fn transient_weight_bytes(&self) -> usize {
         self.pages
             .iter()
@@ -555,6 +611,33 @@ impl PagedMatrix {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn legacy_paged_layout_matches_original_typed_fields() {
+        use std::mem::{align_of, offset_of, size_of};
+        #[allow(dead_code)]
+        struct LegacyPagedMatrix {
+            file: Arc<PublicFileBacking<File>>,
+            pages: Vec<Page>,
+            executor: Arc<Executor>,
+            rows: usize,
+            cols: usize,
+            page_rows: usize,
+            artifact_bytes: u64,
+            weight_digest: [u8; 32],
+            max_weight: u32,
+        }
+        assert_eq!(size_of::<PagedMatrix>(), size_of::<LegacyPagedMatrix>());
+        assert_eq!(align_of::<PagedMatrix>(), align_of::<LegacyPagedMatrix>());
+        assert_eq!(offset_of!(PagedMatrix, file), offset_of!(LegacyPagedMatrix, file));
+        assert_eq!(offset_of!(PagedMatrix, pages), offset_of!(LegacyPagedMatrix, pages));
+        assert_eq!(offset_of!(PagedMatrix, executor), offset_of!(LegacyPagedMatrix, executor));
+        assert_eq!(offset_of!(PagedMatrix, rows), offset_of!(LegacyPagedMatrix, rows));
+        assert_eq!(offset_of!(PagedMatrix, cols), offset_of!(LegacyPagedMatrix, cols));
+        assert_eq!(offset_of!(PagedMatrix, page_rows), offset_of!(LegacyPagedMatrix, page_rows));
+        assert_eq!(offset_of!(PagedMatrix, artifact_bytes), offset_of!(LegacyPagedMatrix, artifact_bytes));
+        assert_eq!(offset_of!(PagedMatrix, weight_digest), offset_of!(LegacyPagedMatrix, weight_digest));
+        assert_eq!(offset_of!(PagedMatrix, max_weight), offset_of!(LegacyPagedMatrix, max_weight));
+    }
     #[test]
     fn verified_public_file_is_shared_until_the_last_reader_retires() {
         use crate::public_file::PublicFileWriter;
