@@ -63,6 +63,7 @@ pub enum Error {
     Rank,
     Transformations,
     Domain,
+    OutputLength,
     Canonical(StreamError),
 }
 
@@ -201,6 +202,17 @@ fn pass_workspace_bytes<W: io::Write>() -> Result<usize, Error> {
 /// Hash = frames + max(admission construction, collection, sink, hash construction,
 /// hash replay, hash finish/return). No hash exists during admission. Constructor
 /// output Results include their payload slots; successful moves reuse those slots.
+///
+/// For admitted fixed-slice replay use `resources::<&mut [u8]>(slots)`. Its write
+/// workspace W is all supplied frames plus the maximum phase, with Admission
+/// counted once. Exact encoded length B comes from `Admission::usage`; caller
+/// reports destination backing capacity C >= B and lends only its B-byte slice.
+/// Fixed-slice replay has zero destination growth. R + C + W is only a limited
+/// inventory, not a whole-process peak or an allocating-destination bound. R is
+/// caller-accounted retained source backing, not measured or funded here. Caller
+/// copies and controls, private formatter scratch, machine stack, error paths,
+/// and PyBytes/root funding remain outside this inventory; existing unknown
+/// resource fields remain `None`.
 pub fn resources<W: io::Write>(slots: usize) -> Result<ResourceQuote, Error> {
     let stream = Session::<W>::resources_for_slots(slots)?;
     let admission = size_of::<Admission<'_>>();
@@ -265,11 +277,21 @@ enum Schema<'a> {
     Operation(&'a ModelOperation),
 }
 
-struct Admission<'a> {
+/// Serialization-quota preflight for an immutable borrowed schema only.
+///
+/// Not a memory reservation, model validation, source grant, or execution
+/// authority. Construction checks collections and completes the shared sink
+/// pass, including finish. Replay borrows this proof without consuming it; each
+/// pass has the original work bound, not a cumulative source quota. Immutable
+/// source borrows and exclusive stack/output borrows exclude mutation and aliasing
+/// during replay; separately retained caller copies and controls are excluded
+/// from the resource quote.
+pub struct Admission<'a> {
     schema: Schema<'a>,
     limits: Limits,
     collection_work: usize,
     usage: StreamUsage,
+    admitted_stack_slots: usize,
 }
 
 impl<'a> Admission<'a> {
@@ -283,6 +305,7 @@ impl<'a> Admission<'a> {
             limits,
             collection_work: 0,
             usage: StreamUsage::default(),
+            admitted_stack_slots: stack.len(),
         };
         admission.collection_work = {
             let mut collection = CollectionWorkspace {
@@ -298,6 +321,54 @@ impl<'a> Admission<'a> {
         admission.usage = pass(&admission, stack, &mut io::sink())?;
         Ok(admission)
     }
+
+    /// Exact encoded length and counters for one pass, including collection work.
+    pub fn usage(&self) -> StreamUsage {
+        self.usage
+    }
+
+    /// Repeat the admitted pass into exactly `usage().bytes` existing bytes.
+    ///
+    /// Length and minimum admitted stack capacity are checked before output is
+    /// touched. The shared Session constructor also checks the entire supplied
+    /// frame capacity and byte-count overflow before emission. Stack capacity is
+    /// not inferred from leaf depth. No allocation or destination growth occurs.
+    pub fn write_slice(
+        &self,
+        stack: &mut [StreamFrame<'a>],
+        output: &mut [u8],
+    ) -> Result<StreamUsage, Error> {
+        if output.len() != self.usage.bytes {
+            return Err(Error::OutputLength);
+        }
+        if stack.len() < self.admitted_stack_slots {
+            return Err(Error::Canonical(StreamError::StackTooSmall));
+        }
+        let mut cursor = output;
+        let usage = pass(self, stack, &mut cursor)?;
+        if !cursor.is_empty() {
+            return Err(Error::OutputLength);
+        }
+        Ok(usage)
+    }
+}
+
+/// Preflight serialization quotas, not model validity or memory/source authority.
+pub fn admit_plan<'a>(
+    plan: &'a DecoderPlan,
+    limits: Limits,
+    stack: &mut [StreamFrame<'a>],
+) -> Result<Admission<'a>, Error> {
+    Admission::new(Schema::Plan(plan), limits, stack)
+}
+
+/// Preflight serialization quotas, not model validity or memory/source authority.
+pub fn admit_model_operation<'a>(
+    operation: &'a ModelOperation,
+    limits: Limits,
+    stack: &mut [StreamFrame<'a>],
+) -> Result<Admission<'a>, Error> {
+    Admission::new(Schema::Operation(operation), limits, stack)
 }
 
 #[derive(Default)]

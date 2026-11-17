@@ -743,3 +743,185 @@ fn external_writer_failure_is_not_reported_as_admission_success() {
         Err(Error::Canonical(StreamError::Io(_)))
     ));
 }
+
+#[test]
+fn admitted_slice_exact_counts_and_legacy_parity_for_plan_and_operation() {
+    // Existing fixtures include control escapes, numeric bounds and nested attrs.
+    let op = operation();
+    let p = plan(3);
+    let mut stack = [StreamFrame::empty(); 64];
+    for (admission, expected, value) in [
+        (
+            admit_model_operation(&op, limits(), &mut stack).unwrap(),
+            canonical_bytes(&op),
+            serde_json::to_value(&op).unwrap(),
+        ),
+        (
+            admit_plan(&p, limits(), &mut stack).unwrap(),
+            canonical_bytes(&p),
+            serde_json::to_value(&p).unwrap(),
+        ),
+    ] {
+        let usage = admission.usage();
+        assert_eq!(usage.bytes, expected.len());
+        assert_eq!(
+            (usage.nodes, usage.depth, usage.string_bytes),
+            count(&value, 1)
+        );
+        let mut output = vec![0xa5; usage.bytes];
+        assert_eq!(
+            admission.write_slice(&mut stack, &mut output).unwrap(),
+            usage
+        );
+        assert_eq!(output, expected);
+    }
+}
+
+#[test]
+fn admitted_slice_rejects_short_and_oversized_destinations_untouched() {
+    let op = operation();
+    let mut stack = [StreamFrame::empty(); 64];
+    let admission = admit_model_operation(&op, limits(), &mut stack).unwrap();
+    let bytes = admission.usage().bytes;
+    for length in [0, bytes - 1, bytes + 1] {
+        let mut output = vec![0xa5; length];
+        assert!(matches!(
+            admission.write_slice(&mut stack, &mut output),
+            Err(Error::OutputLength)
+        ));
+        assert!(output.iter().all(|byte| *byte == 0xa5));
+    }
+    let mut output = vec![0; bytes];
+    admission.write_slice(&mut stack, &mut output).unwrap();
+    assert_eq!(output, canonical_bytes(&op));
+}
+
+#[test]
+fn admitted_slice_reuses_stack_capacity_not_leaf_depth_and_checks_full_frames() {
+    let mut op = operation();
+    op.attributes = Value::Null;
+    let mut stack = [StreamFrame::empty(); 8];
+    let mut exact = limits();
+    exact.canonical.max_stack_bytes = 8 * StreamFrame::storage_bytes();
+    let admission = admit_model_operation(&op, exact, &mut stack).unwrap();
+    assert!(admission.usage().depth < stack.len());
+    let mut output = vec![0xa5; admission.usage().bytes];
+    // Seven slots suffice for this schema, but are below admitted capacity.
+    let mut short = [StreamFrame::empty(); 7];
+    assert!(matches!(
+        admission.write_slice(&mut short, &mut output),
+        Err(Error::Canonical(StreamError::StackTooSmall))
+    ));
+    assert!(output.iter().all(|byte| *byte == 0xa5));
+    // Unused extra supplied slots still count toward the original stack cap.
+    let mut oversized = [StreamFrame::empty(); 9];
+    assert!(matches!(
+        admission.write_slice(&mut oversized, &mut output),
+        Err(Error::Canonical(StreamError::StackLimit))
+    ));
+    assert!(output.iter().all(|byte| *byte == 0xa5));
+    for _ in 0..3 {
+        assert_eq!(
+            admission.write_slice(&mut stack, &mut output).unwrap(),
+            admission.usage()
+        );
+        assert_eq!(output, canonical_bytes(&op));
+    }
+}
+
+#[test]
+fn admitted_slice_work_bound_is_per_pass_and_replay_keeps_backing_stable() {
+    let op = operation();
+    let p = plan(2);
+    let mut stack = [StreamFrame::empty(); 64];
+    let op_usage = admit_model_operation(&op, limits(), &mut stack)
+        .unwrap()
+        .usage();
+    let plan_usage = admit_plan(&p, limits(), &mut stack).unwrap().usage();
+    for (schema, usage) in [
+        (Schema::Operation(&op), op_usage),
+        (Schema::Plan(&p), plan_usage),
+    ] {
+        let mut exact = limits();
+        exact.canonical.max_work = usage.work;
+        let admission = Admission::new(schema, exact, &mut stack).unwrap();
+        let mut output = Vec::with_capacity(usage.bytes + 17);
+        output.resize(usage.bytes, 0xa5);
+        let pointer = output.as_ptr();
+        let capacity = output.capacity();
+        for _ in 0..4 {
+            assert_eq!(
+                admission.write_slice(&mut stack, &mut output).unwrap(),
+                usage
+            );
+            assert_eq!(output.as_ptr(), pointer);
+            assert_eq!(output.capacity(), capacity);
+            assert_eq!(output.len(), usage.bytes);
+        }
+        let expected = match schema {
+            Schema::Operation(op) => canonical_bytes(op),
+            Schema::Plan(plan) => canonical_bytes(plan),
+        };
+        assert_eq!(output, expected);
+        exact.canonical.max_work -= 1;
+        assert!(matches!(
+            Admission::new(schema, exact, &mut stack),
+            Err(Error::Canonical(StreamError::WorkLimit))
+        ));
+    }
+}
+
+#[test]
+fn admitted_slice_quote_counts_admission_once_and_checks_overflow() {
+    for slots in [0, 8, 64] {
+        let quote = resources::<&mut [u8]>(slots).unwrap();
+        let admission = size_of::<Admission<'_>>();
+        let phases = quote.phases;
+        assert_eq!(quote.admission_state_bytes, admission);
+        assert_eq!(
+            phases.admission_construction_bytes,
+            size_of::<Result<Admission<'_>, Error>>()
+        );
+        assert_eq!(
+            phases.collection_bytes,
+            admission + size_of::<CollectionWorkspace>()
+        );
+        assert_eq!(
+            phases.sink_pass_bytes,
+            admission + independent_pass_bytes::<io::Sink>()
+        );
+        assert_eq!(
+            phases.replay_bytes,
+            admission + independent_pass_bytes::<&mut [u8]>()
+        );
+        assert_eq!(
+            phases.finish_return_bytes,
+            admission + size_of::<Result<StreamUsage, Error>>()
+        );
+        let phase_peak = [
+            phases.admission_construction_bytes,
+            phases.collection_bytes,
+            phases.sink_pass_bytes,
+            phases.replay_bytes,
+            phases.finish_return_bytes,
+        ]
+        .into_iter()
+        .max()
+        .unwrap();
+        assert_eq!(
+            quote.write_workspace_bytes,
+            slots * size_of::<StreamFrame<'_>>() + phase_peak
+        );
+        assert_eq!(quote.stream.dependency_call_stack_bytes, None);
+    }
+    assert!(matches!(
+        resources::<&mut [u8]>(usize::MAX),
+        Err(Error::Canonical(StreamError::StackLimit))
+    ));
+    let slots = usize::MAX / size_of::<StreamFrame<'_>>();
+    assert!(Session::<&mut [u8]>::resources_for_slots(slots).is_ok());
+    assert!(matches!(
+        resources::<&mut [u8]>(slots),
+        Err(Error::Canonical(StreamError::StackLimit))
+    ));
+}
