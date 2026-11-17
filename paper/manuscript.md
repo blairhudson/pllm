@@ -19,7 +19,7 @@ pdf: "paper.pdf"
 source: "paper-source.zip"
 arxiv: "paper-arxiv-source.zip"
 abstract: |
-  Private language-model inference exchanges local work for protected computation, communication, and preprocessing under explicit security assumptions. PLLM connects Python experiment configurations to a Rust compiler and runtime with numerical, state, role, and resource contracts. We define comparisons with client-memory limits and separate costs by role and request phase. The planned study uses independent PLLM reimplementations of ten selected methods. One method currently completes a trained-checkpoint response, but none qualifies for publication comparison. Existing evidence covers generated-state conformance, bounded mechanisms, software development kit integration, and 51 archived clients in four separate cohorts. The historical observations identify different choices for traffic, memory, and decode speed. They do not rank the ten selected methods. Matched experiments, broader quality evaluation, and independent reproduction remain necessary.
+  Private language-model inference exchanges local work for protected computation, communication, and preprocessing under explicit security assumptions. PLLM connects Python experiment configurations to a Rust compiler and runtime with numerical, state, role, and resource contracts. We define comparisons with client-memory limits and separate costs by role and request phase. The planned study uses independent PLLM reimplementations of ten selected methods. One method has a recorded historical trained-checkpoint response, but none qualifies for publication comparison. Existing evidence covers generated-state conformance, bounded mechanisms, software development kit integration, and 51 archived clients in four separate cohorts. The historical observations identify different choices for traffic, memory, and decode speed. They do not rank the ten selected methods. Matched experiments, broader quality evaluation, and independent reproduction remain necessary.
 ---
 
 *This manuscript is a draft. The matched ten-method campaign is planned, not completed. Placeholders identify outstanding publication evidence.*
@@ -46,7 +46,7 @@ operator-level result; and **RQ3**, which configurations fit a client budget.
 The contributions are execution contracts, a tiered evaluation design, independent
 mechanism controls, and reanalysis of four historical cohorts. The source-locked
 ten-method study is the planned complete-system evaluation, not a completed
-result. **Trained-checkpoint response execution is 1/10; publication-qualified
+result. **Historical trained-checkpoint response execution is 1/10; publication-qualified
 methods are 0/10.** Generated decoders, components, and historical measurements
 cannot fill the missing serving cells. Appendices retain the detailed contracts,
 source versions, controls, and reproduction procedures.
@@ -177,18 +177,20 @@ adaptive security, side-channel protection, or non-collusion.
 
 The planned study selects Gupta–Katz–Miers, Maverick, SIGMA, FuseFSS, BumbleBee,
 PUMA, NEXUS, THOR, CacheMir, and ROSETTA. Appendix F gives governing versions,
-source hashes, and comparison roles. Each method needs source-faithful lookup,
-body, output function, token feedback, persistent state, and failure behavior.
+source hashes, and comparison roles. Each method needs a source-defined input/frontend,
+protected computation, declared output, and failure/lifecycle behavior, including
+its own state checks. Token feedback and persistent decoder state are required
+only where the selected generation contract requires them.
 Upstream code supplies specifications/oracles, not PLLM runtime dependencies.
 Substantial protocol, numerical, security, or execution adaptations require author
 approval; CPU ports and common-Qwen extensions remain distinct from original-model
 validation.
 
-GKM currently completes a trained-checkpoint response with signed 16-bit weights,
+The historical common-Qwen GKM run completed a trained-checkpoint response with signed 16-bit weights,
 11 fractional bits, and arithmetic modulo $2^{64}$; request-end verification
 precedes acceptance. This is not prepared W8A8. Generated PUMA/FuseFSS SDK controls
 and six-family operator controls remain bounded integration/mechanism evidence.
-They do not change the **1/10 trained, 0/10 publication-qualified** coverage or
+They do not change the **1/10 historical trained response execution, 0/10 publication-qualified** coverage or
 support a ten-method ranking. Source-model quality and matched serving costs
 remain unqualified.
 
@@ -196,9 +198,12 @@ remain unqualified.
 
 ## 6.1 Planned matched campaign
 
-The matched campaign is unperformed. Shared factories in `examples/papers/`
-feed ordinary response and quality benchmarks using the pinned Qwen source in
-Listing 1. Cells fix source, numerical/privacy track, workload, sampling, stopping,
+The matched campaign is unperformed. The planned common-decoder extension cohort
+and retained historical common-model factories in `examples/papers/` use the pinned
+Qwen source in Listing 1 for ordinary response and quality benchmarks; this is not
+the workload of every current factory. Current canonical THOR/NEXUS declarations
+instead target offline BERT forward tasks, not qualified execution or original-paper
+validation. Cells fix source, numerical/privacy track, workload, sampling, stopping,
 lifecycle, hardware, provider resources, links, and instrumentation. Fresh-process
 replicates estimate within-cell variability; prompt diversity requires different
 prompts. Freeze quality margins, exclusions, and confirmation rules before runs.
@@ -806,22 +811,26 @@ from original-paper validation.
 Each method contract maps source equations and code to numerical rules, roles,
 state, setup, output disclosure, and acceptance. Upstream software supplies
 specifications or independent oracle inputs, not runtime dependencies. Complete
-coverage includes lookup, body, head or declared output function, token feedback,
-persistent state, and failure behavior. A component cannot replace an incomplete
+coverage includes source-defined input/frontend, protected computation, declared
+output, and failure/lifecycle behavior, including each method's own state checks.
+Token feedback and persistent decoder state apply only where the selected
+generation contract requires them. A component cannot replace an incomplete
 method in the serving comparison.
 
 Later bounded implementations include Maverick’s two-batch raw-field protocol owner, SIGMA’s local four-lane LayerNorm, NEXUS’s explicit row-head binary64 reference, THOR’s artifact-call clear FFN, BumbleBee’s clear coefficient phase, CacheMir’s public DAG analysis, and ROSETTA’s coefficient reference. Their distinct execution scopes and correctness evidence are recorded in [the claim-to-evidence matrix](CLAIMS-AND-EVIDENCE.md#framework-claim-to-evidence-matrix). These are component or analytical references, not reproductions of complete author systems or encrypted decoders; the combined regression at `98bedd49` does not change that classification.
 
-The current evidence includes a trained-checkpoint GKM response through the
+The retained historical evidence includes a common-Qwen trained-checkpoint GKM response through the
 ordinary SDK and benchmark. Its declared source-derived arithmetic uses signed
 16-bit weights, 11 fractional bits, and arithmetic modulo $2^{64}$.
 This numerical contract differs from prepared W8A8. Request-end verification
 precedes accepted output.
 
 Generated PUMA and FuseFSS compositions supply additional integration controls,
-not accepted trained-checkpoint results. Thus, one of ten methods reaches trained
-response execution, and zero qualifies for publication comparison. GKM's broader
+not accepted trained-checkpoint results. Thus, one of ten methods has recorded
+historical trained response execution, and zero qualifies for publication comparison. GKM's broader
 source-model quality and matched-cost qualification remain open.
+
+The historical complete-request result and separately recorded state-control PASS retain their bounded execution identities; current-source, fault, quality, and security qualification remain UNKNOWN. The common-Qwen result does not establish original-Llama validation. Existing pointers to the complete-request benchmark and companion report, and to the separate state controls, are retained in the [claim-to-evidence matrix](CLAIMS-AND-EVIDENCE.md#framework-claim-to-evidence-matrix).
 
 Earlier controls cover six mechanism families. They include Slalom-derived
 verification, SmoothQuant equalization, gated operators, function secret sharing,
@@ -843,17 +852,22 @@ They do not satisfy the ten-method acceptance gate.
 
 ## G.1 Planned matched campaign
 
-The ten-method campaign remains unperformed. Reusable experiment factories in
-`examples/papers/` use a shared model, workload bounds, and public prompt file.
-The shared source is the Qwen revision in Listing 1. Ordinary
-`pllm benchmark run` and `pllm benchmark quality` consume these factories.
+The ten-method campaign remains unperformed. The retained historical common-model
+factories in `examples/papers/` share workload bounds, a public prompt file, and
+the Qwen revision in Listing 1, also selected for the planned common-decoder
+extension cohort. This historical configuration does not describe every current
+factory: canonical THOR/NEXUS declarations target offline BERT NSP/classification
+forward workloads and remain unqualified. Ordinary `pllm benchmark run` and
+`pllm benchmark quality` consume response factories; these declarations do not
+establish forward execution or original-paper validation.
 The quality command and response benchmark answer different questions.
 
 A comparison cell fixes source, numerical track, privacy class, workload,
 sampling, output allowance, lifecycle, hardware, provider budget, network, and
 instrumentation. Replicates use fresh processes within that cell. Changed
 arithmetic needs a predeclared quality criterion, not an assumed W8A8 identity.
-Original-model validation and the common-Qwen extension remain separate.
+Original-model validation and the common-Qwen generation extension remain separate,
+with distinct graph, numerical, state, and acceptance contracts.
 
 Reports record configuration, source, and installed-build identifiers without
 private prompts, token IDs, masks, or credentials. Salted prompt-cohort identifiers
@@ -960,8 +974,12 @@ revision of each historical measurement.
 
 The reproducible unit is a versioned experiment definition and its ordinary
 benchmark output, with correctness in normal tests. `examples/papers/common.py`
-pins the common checkpoint and workload bounds. Method factories select
-components, and the ordinary SDK owns execution, admission, and measurements.
+pins the checkpoint and workload bounds for the retained historical common-model
+factories and planned common-decoder extension cohort, not every current workload.
+Canonical THOR/NEXUS forward declarations require offline BERT checkpoints and
+source-defined inputs; declarations alone establish no execution or original-paper
+qualification. Method factories select components, and the ordinary SDK owns
+execution, admission, and measurements.
 `examples/papers/README.md` gives response and quality commands. A reproduction
 must preserve source, numerical, acceptance, workload, build, and metric identities.
 

@@ -9,7 +9,7 @@ No historical record supplies missing replicates in a new campaign.
 
 The approved [framework rewrite](FRAMEWORK-REWRITE-PLAN.md) expands the empirical
 scope to ten genuine independent PLLM reimplementations faithful to the selected
-sources. **Trained-checkpoint response execution: 1/10 (GKM). Publication-qualified
+sources. **Historical trained-checkpoint response execution: 1/10 (GKM). Publication-qualified
 methods: 0/10.** The historical P1-B/P1-C conformance slices do not close this
 study. The matched ten-method campaign remains planned. Substantial protocol,
 numeric, state, security, or execution adaptations require author approval before
@@ -20,9 +20,11 @@ methods in the serving table.
 | --- | --- | --- | --- |
 | P1-A | Fair comparison contract and nested Low/Medium/High budgets | **Normative definitions complete:** `COMPARISON-CONTRACT.md`, `comparison-contract.v1.json`; archived Low sensitivity uses observed maxima | Fresh campaign and sensitivity near Medium/High ceilings remain empirical work; hard aggregate-provider CPU/RSS enforcement is unavailable in the current native driver |
 | P1-B (legacy E1) | Reusable executable components | **Historical conformance slice executed:** clean-build replay passes 29 tests, 29,592 exact state values, independent FP32 references, ordinary benchmark and SDK/gateway; all 31 child identities verified. Listing 1 replay in `artifacts/listing1/qwen-fresh-v2/` binds actual provider imports and complete before/after source locks | The defined local slice is complete, not current-build or ten-method acceptance. Independent external reproduction belongs to P1-E. Historical v1 child imports remain unknown |
-| P1-C | Ten source-faithful independent method implementations | Source-locked contracts in `methods/`, bounded GKM trained execution, generated PUMA/FuseFSS integration, and native/compiler milestones. The earlier six-family slice passes 46 tests and ten operator/replay pairs with all 26 child identities verified | Complete each selected method's trained decoder, ordinary SDK/gateway/benchmark path, source/numeric/security mapping, state and failure controls. Preserve six-family results as component evidence, not full-method acceptance |
+| P1-C | Ten source-faithful independent method implementations | Source-locked contracts in `methods/`, bounded GKM trained execution, generated PUMA/FuseFSS integration, and native/compiler milestones. The earlier six-family slice passes 46 tests and ten operator/replay pairs with all 26 child identities verified | Complete each selected method's trained source-defined model execution, ordinary SDK/gateway/benchmark path, source/numeric/security mapping, state and failure controls. Preserve six-family results as component evidence, not full-method acceptance |
 | P1-D (legacy E2/E3) | Findings on fidelity, complete costs and resource feasibility | Four separately audited historical cohorts, 51 clients, original raw samples in `HISTORICAL-RESULTS.md` and `artifacts/historical-results-v1.json`; generated conformance/reference results | Fresh matched publication campaign, workload breadth and uncertainty; full lifecycle and provider accounting; representative task-quality evaluation; preserve blocked cells |
 | P1-E (legacy A1) | Reproducible publication | Historical standalone paper builds, versioned experiment definitions, ordinary tests and standard benchmark outputs; standard uv/Maturin wheel builds | Independent reproduction, release, claim/author review and current PDF inspection. The paper command is `npm --prefix docs run papers` ([build instructions](../CONTRIBUTING.md#run-the-documentation-site)); successful rendering does not establish scientific completion |
+
+Original-encoder validation remains distinct from separately approved common-Qwen generation extensions.
 
 The initial scaffold's blanket “execution pending” status is superseded by these
 specific conformance records. The newer historical table audit checks 51 original
@@ -60,7 +62,7 @@ The manuscript's title does not establish high performance or autonomous researc
 productivity. A matched runtime comparison and any claimed automation evaluation
 need their own evidence. This revision adds no measurements or method ranks.
 The five earlier component gates coexist at `3f9cca4a`; they are not a combined
-SDK/native benchmark or performance, quality or security comparison. Trained
+SDK/native benchmark or performance, quality or security comparison. Historical trained
 response coverage remains 1/10 and publication qualification 0/10; the matched
 ten-method campaign is unknown/unmeasured and tenfold performance is unmeasured.
 At exact revision `3f9cca4ad6d1455728bce58eee4c3023b75bfa39`, a separate
@@ -201,7 +203,7 @@ cost windows and source availability before setting a disposition.
 | Maintained prepared, placement/tiling/digit8 choices | End-to-end installed recipes; separate archived cohorts | Freeze best eligible current recipes per metric; include controls in one new build/cohort |
 | Two-online-offset and clear client | Installed complete execution with client-owned token/head boundaries | Admit within selected memory/provider budget; clear stays a computational reference; existing offset execution does not cover a two-server remote lookup/full-head comparator |
 | Serial/u32 and parallel/residue private boundaries | Installed complete execution | Own-topology ablations; public certificate/kernel options separate |
-| Gupta–Katz–Miers open-weight outsourcing | Independent bounded two-worker SDK implementation now accepts trained Qwen output, with full head, client KV and final verification; no publication-qualified matched comparison | Mandatory closest comparator; finish source-model quality, workload and matched-cost qualification. Its source paper's 179 MB storage and 4 GB client VM do not establish whole-client Low eligibility or ineligibility |
+| Gupta–Katz–Miers open-weight outsourcing | Historical independent bounded two-worker SDK run accepted trained common-Qwen output, with full head, client KV and final verification; no publication-qualified matched comparison | Mandatory closest comparator; finish source-model quality, workload and matched-cost qualification. Its source paper's 179 MB storage and 4 GB client VM do not establish whole-client Low eligibility or ineligibility |
 | Slalom | Trusted-client Freivalds SDK adaptation, no TEE | Separate verified class and original hardware trust; never label adaptation a complete Slalom reproduction |
 | CrypTen/Cheetah/THE-X | Related-work sources; no qualifying complete reproduction in this inventory | Inspect primary source and exact candidate workloads; decide whether a faithful complete comparator is feasible |
 | SIGMA/FuseFSS | SIGMA native/compiler ownership slices and bounded FuseFSS generated SDK composition; no accepted trained result or reproduced GPU performance | Complete trained execution and source/numerical/security qualification. Component, generated and timeout records cannot supply serving ranks |
@@ -224,8 +226,9 @@ Installed `PrivateLookupAndFullHead` requires the prepared body and two addition
 boundary roles (`crates/pllm-compiler/src/decoder_boundary.rs`). The current
 two-offset baseline therefore does not substitute for a Gupta–Katz–Miers-style
 two-server composition that also executes the private lookup and full head.
-The separate GKM SDK now supplies bounded two-worker lookup/body/full-head
-execution and trained output. That closes an execution gap, not the matched
+The historical common-Qwen GKM SDK run demonstrated bounded two-worker
+lookup/body/full-head execution and trained output. That closed a bounded
+historical execution gap, not the matched
 comparison. Qualify source-model quality, shared access budgets and complete costs
 before claiming that four-provider execution leads the eligible field.
 The author implementation is public at
