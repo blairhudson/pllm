@@ -207,6 +207,106 @@ async def test_cancelled_source_constructor_closes_before_reservation_refund():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("hook_error_type", [RuntimeError, asyncio.CancelledError])
+async def test_cancel_hook_failure_still_drains_and_discards_before_refund(hook_error_type):
+    import sys
+    import threading
+
+    entered, release = threading.Event(), threading.Event()
+    events, cancellations = [], []
+
+    def constructor():
+        entered.set()
+        assert release.wait(5)
+        events.append("returned")
+        return SimpleNamespace(close=lambda: events.append("closed"))
+
+    def cancel():
+        cancellations.append(sys.exception())
+        events.append("cancel hook")
+        raise hook_error_type("private hook payload")
+
+    async def admission():
+        try:
+            await worker.native_call(constructor, _cancel=cancel,
+                                     _discard=lambda owner: owner.close())
+        finally:
+            events.append("refund")
+
+    task = asyncio.create_task(admission())
+    try:
+        assert await asyncio.to_thread(entered.wait, 5)
+        task.cancel("original cancellation")
+        await asyncio.sleep(0)
+        assert events == ["cancel hook"] and not task.done()
+        for _ in range(3):
+            task.cancel("later cancellation")
+            await asyncio.sleep(0)
+            assert events == ["cancel hook"] and not task.done()
+        release.set()
+        with pytest.raises(asyncio.CancelledError) as caught:
+            await task
+        assert len(cancellations) == 1 and cancellations[0] is caught.value
+        assert caught.value.args == ("original cancellation",)
+        assert caught.value.__notes__ == [
+            f"cancelled native cleanup: {hook_error_type.__name__}"]
+        assert events == ["cancel hook", "returned", "closed", "refund"]
+    finally:
+        release.set()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+@pytest.mark.asyncio
+async def test_cancel_hook_and_discard_failures_preserve_original_cancellation():
+    """Diagnostics do not certify retirement or supply failed-owner custody."""
+    import sys
+    import threading
+
+    entered, release = threading.Event(), threading.Event()
+    events, cancellations = [], []
+
+    def close():
+        events.append("close attempted")
+        raise ValueError("private close payload")
+
+    # Test owns this reference; native_call itself has no failed-close registry.
+    owner = SimpleNamespace(close=close)
+
+    def constructor():
+        entered.set()
+        assert release.wait(5)
+        events.append("returned")
+        return owner
+
+    def cancel():
+        cancellations.append(sys.exception())
+        events.append("cancel hook")
+        raise RuntimeError("private hook payload")
+
+    task = asyncio.create_task(worker.native_call(constructor, _cancel=cancel,
+                                                 _discard=lambda result: result.close()))
+    try:
+        assert await asyncio.to_thread(entered.wait, 5)
+        task.cancel("original cancellation")
+        await asyncio.sleep(0)
+        task.cancel("later cancellation")
+        await asyncio.sleep(0)
+        assert not task.done() and events == ["cancel hook"]
+        release.set()
+        with pytest.raises(asyncio.CancelledError) as caught:
+            await task
+        assert len(cancellations) == 1 and cancellations[0] is caught.value
+        assert caught.value.args == ("original cancellation",)
+        assert caught.value.__notes__ == [
+            "cancelled native cleanup: RuntimeError",
+            "cancelled native cleanup: ValueError"]
+        assert events == ["cancel hook", "returned", "close attempted"]
+    finally:
+        release.set()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+@pytest.mark.asyncio
 async def test_peer_credentials_stale_sessions_and_burned_owner(tmp_path, monkeypatch):
     experiment = experiment_fixture(tmp_path)
     publisher, manifest = admit_source(experiment).publisher(experiment, (3, 4), 1, lambda: False)

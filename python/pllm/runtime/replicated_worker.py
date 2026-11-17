@@ -43,7 +43,13 @@ async def native_call(function, *args, _cancel=None, _discard=None):
         return await asyncio.shield(task)
     except asyncio.CancelledError as cancelled:
         if _cancel is not None:
-            _cancel()
+            try:
+                _cancel()
+            except BaseException as error:
+                # Signalling is best effort; even a broken hook must not bypass
+                # the native join or disposal of a returned constructor owner.
+                clear_failure_frames(error)
+                cancelled.add_note(f"cancelled native cleanup: {type(error).__name__}")
         while not task.done():
             try:
                 await asyncio.shield(task)
