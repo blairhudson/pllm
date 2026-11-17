@@ -79,6 +79,28 @@ Work backwards from each source: public descriptors, resolver and numeric/trust/
 source coverage → real primitive owners, scheduler, material, state and transport
 → shared benchmark validation. A declaration alone closes none of these gaps.
 
+### GKM canonical measurement — 2026-11-10
+
+The canonical 17-component target in `gkm.py` completed one cold public
+`pllm.benchmark` native CPU loopback sample on 2026-11-10, using the offline-pinned
+`Qwen/Qwen2.5-0.5B-Instruct` checkpoint at revision
+`7ae557604adf67be50417f59c2c2f167def9a775`. The sample used one process, one
+repetition and zero warmups, with 30 actual input tokens and 2 output tokens
+within the declared 1-request / 32-input-token / 2-output-token budget. Response
+time was 108.985 seconds. The benchmark result completed, but the response was
+incomplete solely because of the `max_output_tokens=2` cap; this is not an EOS
+or full-answer completion claim.
+
+The admission estimate was 9,578,657,520 bytes, including a 25% margin, within
+an explicit GKM-only 10 GiB allowance. This allowance was not a hard RSS limit.
+Ordinary source and resource admission can refuse another run.
+
+The ordinary report, `target/paper-benchmarks/gkm-canonical17.json`, is ignored
+local output and is not distributed. This sample establishes bounded execution
+and measurement only, not independent trained numerical or state equivalence,
+privacy or security qualification, or validation of subsequent source changes
+or work in progress.
+
 ## Historical experiments and results
 
 Each implemented method is a small Python `Experiment` factory. Model and budget
@@ -251,7 +273,11 @@ Budget every measured position as a request and include decode tokens in the
 input bound. Top-k recall and logit error stay unknown; this diagnostic does not
 measure a single multi-output serving response.
 
-Maverick, SIGMA, FuseFSS, BumbleBee, NEXUS, THOR, CacheMir and ROSETTA still need
+FuseFSS's selected 20-component composition passes ordinary SDK qualification on
+a generated dense checkpoint. Its offline trained-model target remains planned
+and unqualified; see the [completion plan](../../paper/methods/fusefss-completion-plan.md#current-generated-source-sdk-evidence).
+
+Maverick, SIGMA, BumbleBee, NEXUS, THOR, CacheMir and ROSETTA still need
 complete SDK compositions under their approved source contracts.
 Their existing primitive references do not substitute for those decoders.
 As each composition lands, add its factory here and use these same commands.
