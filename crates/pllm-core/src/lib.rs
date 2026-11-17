@@ -30,6 +30,8 @@ pub mod compact_product;
 pub mod digit_gemm;
 pub mod edge_contract;
 pub mod exact_buffer;
+#[cfg(unix)]
+pub mod fd_close_once;
 pub mod field_float;
 pub mod fixed_file;
 pub mod fixed_point;
@@ -59,6 +61,8 @@ pub mod public_file;
 pub mod public_transforms;
 pub mod puma;
 pub mod residual_silu_reference;
+#[cfg(unix)]
+pub mod resident_fd;
 pub mod retained_kv;
 pub mod rms_norm;
 mod rlwe_kernel;
