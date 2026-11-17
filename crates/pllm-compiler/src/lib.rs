@@ -20,6 +20,8 @@ use std::fmt;
 use std::sync::{Mutex, OnceLock};
 
 mod bounded_index;
+#[allow(dead_code)]
+mod logical_quote;
 mod semantic_producer_paths;
 mod bound_tensor_kernel;
 mod json_bytes_codec;
