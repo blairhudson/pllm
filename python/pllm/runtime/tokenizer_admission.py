@@ -12,22 +12,30 @@ from enum import Enum
 import json
 from pathlib import Path
 import stat
+import sys
 
 
 DECODER_METADATA_MEMORY_BYTES = 384 << 20
 
 
 @contextmanager
-def reserve_decoder_metadata():
+def reserve_decoder_metadata(*, extra_bytes: int = 0):
     """Shared source-graph, full-vocabulary JSON and reverse-index workspace.
 
     Charge before source inspection/parsing. Retained source bytes have their
-    ordinary caller ownership; this allowance covers transient metadata work.
+    ordinary caller ownership. This historical workspace baseline plus explicit
+    fixed owners is NOT a representation-backed proof of variable-copy peaks.
     """
+    if type(extra_bytes) is not int:
+        raise TypeError("extra_bytes must be an integer")
+    if extra_bytes < 0:
+        raise ValueError("extra_bytes must be nonnegative")
+    if extra_bytes > sys.maxsize - DECODER_METADATA_MEMORY_BYTES:
+        raise OverflowError("decoder metadata reservation size overflow")
     from pllm.deployment.resources import reserve_incremental_memory
     from .delegated_protocol import clear_failure_frames
 
-    with reserve_incremental_memory(DECODER_METADATA_MEMORY_BYTES):
+    with reserve_incremental_memory(DECODER_METADATA_MEMORY_BYTES + extra_bytes):
         try:
             yield
         except BaseException as error:

@@ -1,5 +1,6 @@
 """Shared decoder metadata owner precedes inspection and clears failed owners."""
 from contextlib import contextmanager
+import sys
 import weakref
 
 import pytest
@@ -68,3 +69,24 @@ def test_decoder_metadata_pressure_rejects_before_source_inspection(monkeypatch)
     monkeypatch.setattr(resources, "reserve_incremental_memory", reject)
     with pytest.raises(NetworkError, match="CAPACITY_CHANGED"):
         fss_source.resolve_client_source(configuration("decoder"))
+
+
+@pytest.mark.parametrize("extra,error", [(True, TypeError), (False, TypeError), (1.0, TypeError),
+    ("1", TypeError), (None, TypeError), (-1, ValueError), (sys.maxsize, OverflowError)])
+def test_metadata_extra_bytes_refuses_before_reservation(monkeypatch, extra, error):
+    monkeypatch.setattr(resources, "reserve_incremental_memory",
+                        lambda *_: pytest.fail("invalid extra reached reservation"))
+    with pytest.raises(error):
+        with tokenizer_admission.reserve_decoder_metadata(extra_bytes=extra):
+            pytest.fail("invalid extra entered owner scope")
+
+@pytest.mark.parametrize("extra", [0, 96, sys.maxsize - (384 << 20)])
+def test_metadata_extra_bytes_checked_sum_preserves_baseline(monkeypatch, extra):
+    amounts = []
+    @contextmanager
+    def reserve(amount):
+        amounts.append(amount)
+        yield
+    monkeypatch.setattr(resources, "reserve_incremental_memory", reserve)
+    with tokenizer_admission.reserve_decoder_metadata(extra_bytes=extra):
+        assert amounts == [(384 << 20) + extra]
