@@ -97,11 +97,20 @@ def promote_bf16_to_f32_bits(word: int) -> int:
     return word << 16
 
 
+def validate_positive_finite_scale_bf16(word: int) -> ExactFloat:
+    """Validate the full positive finite stored BF16 scale domain."""
+    scale = decode_f32(promote_bf16_to_f32_bits(word))
+    if scale.value <= 0:
+        raise ValueError("scale must be positive and finite")
+    return scale
+
+
 def validate_scale_bf16(word: int) -> ExactFloat:
-    """Check the separate conditional premise 0 < stored BF16 scale <= 2**45.
+    """Check the sufficient envelope 0 < stored BF16 scale <= 2**45.
 
     This is not source authentication or evidence that checkpoint payloads satisfy
-    the premise. Exact promotion is the sole D32 storage conversion.
+    the premise, nor a universal no-wrap certificate. This compatibility helper
+    is not the projection domain gate. Exact promotion is the D32 storage conversion.
     """
     scale = decode_f32(promote_bf16_to_f32_bits(word))
     if not 0 < scale.value <= SCALE_MAX:
@@ -165,7 +174,7 @@ def q8_i64(value: Fraction | int) -> int:
 
 def projection_f32_bits(byte: int, scale_bf16: int) -> int:
     """R32(E4M3FN(byte) * exact-promoted stored BF16 scale), not inverse scale."""
-    weight, scale = decode_e4m3fn(byte), validate_scale_bf16(scale_bf16)
+    weight, scale = decode_e4m3fn(byte), validate_positive_finite_scale_bf16(scale_bf16)
     return round_f32_bits(weight.value * scale.value, negative_zero=weight.negative_zero)
 
 
@@ -205,8 +214,8 @@ def complete_linear_oracle(
 
     D32 changes scale storage only: exact BF16 promotion, then R32(product),
     then exact Q8. Original BF16 head and activation go directly to exact Q8.
-    Scale <= 2**45 is this oracle's conditional premise, deliberately stricter
-    than native positive_bf16_scale; it adds no runtime rejection rule.
+    Stored scales must be positive finite BF16; product F32 range and coefficient
+    signed-i64 range are checked separately, including for zero activations.
     D45 atomic verification excludes any common BF16 projection/Q8 bridge.
     Complete unbounded dots precede the diagnostic bound and modular reply;
     partial sums may cross the centered bound and cancel. Neither a true nor
@@ -234,7 +243,7 @@ def complete_linear_oracle(
         if len(scales) != (rows // 128) * (columns // 128):
             raise ValueError("global scale grid length mismatch")
         for scale in scales:
-            validate_scale_bf16(scale)
+            validate_positive_finite_scale_bf16(scale)
     inputs = tuple(q8_i64(decode_bf16(word).value) for word in activation)
     dots = []
     for row in range(rows):

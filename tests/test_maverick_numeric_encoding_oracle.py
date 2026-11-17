@@ -99,6 +99,48 @@ class MaverickNumericEncodingOracleTests(unittest.TestCase):
         self.assertEqual(self.o.projection_q8(0x80, 0x3f80), 0)
         self.assertEqual(self.o.centered_reply_to_bf16_bits(0), 0)
 
+    def test_full_positive_finite_scale_domain_and_largest_scale_signed_zeros(self):
+        for word, expected in (
+            (0x0001, F(1, 1 << 133)), (0x5601, F(129 << 38)),
+            (0x5680, F(1 << 46)), (0x7f7f, F(255 << 120)),
+        ):
+            with self.subTest(scale=word):
+                self.assertEqual(self.o.validate_positive_finite_scale_bf16(word).value, expected)
+        for byte, bits in ((0x00, 0), (0x80, 0x80000000)):
+            with self.subTest(byte=byte):
+                self.assertEqual(self.o.projection_f32_bits(byte, 0x7f7f), bits)
+                self.assertEqual(self.o.projection_q8(byte, 0x7f7f), 0)
+
+    def test_invalid_scales_reject_even_for_signed_zero_weights(self):
+        for bad, error in (
+            (True, TypeError), (1.0, TypeError), ("1", TypeError),
+            (-1, ValueError), (65536, ValueError), (0, ValueError),
+            (0x8000, ValueError), (0x8001, ValueError), (0xbf80, ValueError),
+            (0x7f80, ValueError), (0xff80, ValueError),
+            (0x7fc1, ValueError), (0xffc1, ValueError),
+        ):
+            with self.subTest(scale=bad), self.assertRaises(error):
+                self.o.validate_positive_finite_scale_bf16(bad)
+            for byte in (0x00, 0x80):
+                with self.subTest(scale=bad, byte=byte), self.assertRaises(error):
+                    self.o.projection_q8(byte, bad)
+
+    def test_projection_above_envelope_and_asymmetric_i64_boundary(self):
+        self.assertEqual(self.o.projection_f32_bits(0x01, 0x5680), 0x52000000)
+        self.assertEqual(self.o.projection_q8(0x01, 0x5680), 1 << 45)
+        self.assertEqual(self.o.projection_f32_bits(0x38, 0x5b00), 0x5b000000)
+        with self.assertRaisesRegex(OverflowError, "outside signed i64"):
+            self.o.projection_q8(0x38, 0x5b00)
+        self.assertEqual(self.o.projection_f32_bits(0xb8, 0x5b00), 0xdb000000)
+        self.assertEqual(self.o.projection_q8(0xb8, 0x5b00), -(1 << 63))
+
+    def test_projection_product_f32_overflow_is_not_coefficient_i64_overflow(self):
+        for project in (self.o.projection_f32_bits, self.o.projection_q8):
+            with self.subTest(project=project.__name__), self.assertRaisesRegex(
+                OverflowError, "round-to-nearest result is nonfinite",
+            ):
+                project(0x7e, 0x7f7f)
+
     def test_gradual_underflow_ties_and_subnormal_to_normal_boundary(self):
         for round_, precision, sign_bit in (
             (self.o.round_bf16_bits, 7, 1 << 15), (self.o.round_f32_bits, 23, 1 << 31),
@@ -243,6 +285,52 @@ class MaverickNumericEncodingOracleTests(unittest.TestCase):
             self.assertEqual(extreme.bf16_bits, (0,) * 128)
             self.assertEqual(extreme.signed_no_wrap, (True,) * 128)
 
+    def test_complete_fp8_above_envelope_scales_across_both_axes(self):
+        # FP8 1/512 gives Q8 coefficients 2**45, 2**46, 2**47, 2**48.
+        # Each activation is 1/256 (Q8 = 1); each block contributes 128 terms.
+        result = self.o.complete_linear_oracle(
+            rows=256, columns=256, activation_bf16=[0x3b80] * 256,
+            weight_encoding="d32-fp8-bf16-scales", weights=[0x01] * (256 * 256),
+            scales_bf16=[0x5680, 0x5700, 0x5780, 0x5800],
+        )
+        self.assertEqual(
+            result.integer_dots,
+            (13_510_798_882_111_488,) * 128 + (54_043_195_528_445_952,) * 128,
+        )
+
+    def test_complete_invalid_coefficients_reject_even_with_zero_activations(self):
+        base = dict(
+            rows=128, columns=128, activation_bf16=[0] * 128,
+            weight_encoding="d32-fp8-bf16-scales", weights=[0] * (128 * 128),
+        )
+        for byte, scale, error, message in (
+            (True, 0x3f80, TypeError, "serialized words must be integers"),
+            (1.0, 0x3f80, TypeError, "serialized words must be integers"),
+            (-1, 0x3f80, ValueError, "not a canonical 8-bit word"),
+            (256, 0x3f80, ValueError, "not a canonical 8-bit word"),
+            (0x7f, 0x3f80, ValueError, "NaN"),
+            (0xff, 0x3f80, ValueError, "NaN"),
+            (0x38, 0x5b00, OverflowError, "outside signed i64"),
+            (0xb9, 0x5b00, OverflowError, "outside signed i64"),
+            (0x7e, 0x7f7f, OverflowError, "round-to-nearest result is nonfinite"),
+        ):
+            words = [0] * (128 * 128)
+            words[-1] = byte
+            with self.subTest(byte=byte, scale=scale), self.assertRaisesRegex(error, message):
+                self.o.complete_linear_oracle(**(base | dict(weights=words, scales_bf16=[scale])))
+        words = [0] * (128 * 128)
+        words[-1] = 0xb8
+        accepted = self.o.complete_linear_oracle(
+            **(base | dict(weights=words, scales_bf16=[0x5b00]))
+        )
+        self.assertEqual(accepted.integer_dots, (0,) * 128)
+        for bad, error in ((0x7f80, ValueError), (0x5b00, OverflowError)):
+            words[-1] = bad
+            with self.subTest(head=bad), self.assertRaises(error):
+                self.o.complete_linear_oracle(
+                    **(base | dict(weight_encoding="original-bf16-head", weights=words))
+                )
+
     def test_complete_original_head_signed_ties(self):
         result = self.o.complete_linear_oracle(
             rows=128, columns=128, activation_bf16=[0x3bc0] * 128,
@@ -337,7 +425,10 @@ class MaverickNumericEncodingOracleTests(unittest.TestCase):
                               ([0x3f80, 0x3f80], ValueError), ([True], TypeError)):
             with self.subTest(scales=scales), self.assertRaises(error):
                 self.o.complete_linear_oracle(**(fp8 | {"scales_bf16": scales}))
-        for bad in (0x5601, 0, 0x8000, 0x8001, 0xbf80, 0x7f80, 0xff80, 0x7fc1, 0xffc1, -1, 65536):
+        for scale in (0x5601, 0x7f7f):
+            accepted = self.o.complete_linear_oracle(**(fp8 | {"scales_bf16": [scale]}))
+            self.assertEqual(accepted.integer_dots, (0,) * 128)
+        for bad in (0, 0x8000, 0x8001, 0xbf80, 0x7f80, 0xff80, 0x7fc1, 0xffc1, -1, 65536):
             with self.subTest(scale=bad), self.assertRaises(ValueError):
                 self.o.complete_linear_oracle(**(fp8 | {"scales_bf16": [bad]}))
         for bad, error in ((True, TypeError), (-1, ValueError), (256, ValueError),
