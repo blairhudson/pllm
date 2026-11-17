@@ -1,5 +1,8 @@
 use super::*;
 
+#[path = "tensor_predicate_provenance_tests.rs"]
+mod predicate_provenance_tests;
+
 #[test]
 fn resource_breakdown_counts_backing_and_joint_working_peak_independently() {
     let mut b = Builder::new(3, Interval::new(-3, 3).unwrap()).unwrap();

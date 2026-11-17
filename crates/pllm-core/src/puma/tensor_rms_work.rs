@@ -102,12 +102,27 @@ impl RmsWorkWorkspace {
                 self.prepare(lanes, Interval::new(0, 1)?);
                 all_valid_recipe(self, lanes)?
             }
+            Query::CheckedRows { rows, width, incoming, accepted, fallback } => {
+                let lanes = checked_rows_geometry(rows, width)?;
+                self.prepare(lanes, incoming);
+                let input = self.input();
+                let checked = checked_recipe(self, input, accepted, fallback)?;
+                checked_output(self, checked.safe, checked.valid)?;
+                checked.safe
+            }
         };
         self.metadata.finish_work(output)
     }
 }
 
 enum Query<'a> {
+    CheckedRows {
+        rows: usize,
+        width: usize,
+        incoming: Interval,
+        accepted: Interval,
+        fallback: i64,
+    },
     Rms {
         rows: usize,
         width: usize,
@@ -125,6 +140,14 @@ enum Query<'a> {
     AllValid {
         lanes: usize,
     },
+}
+
+// New geometry only. Legacy tile/row constructors retain their original order.
+pub(super) fn checked_rows_geometry(rows: usize, width: usize) -> Result<usize, Error> {
+    if rows == 0 || width == 0 { return Err(Error::Shape); }
+    let lanes = rows.checked_mul(width).ok_or(Error::Bounds)?;
+    if rows > 8 || width > 128 || lanes > 512 { return Err(Error::Bounds); }
+    Ok(lanes)
 }
 
 pub(super) fn geometry(rows: usize, width: usize, gamma: usize) -> Result<usize, Error> {
@@ -356,6 +379,13 @@ pub(super) fn all_valid_recipe<S: SoftmaxSink>(b: &mut S, lanes: usize) -> Resul
 }
 
 impl Program {
+    pub(crate) fn checked_range_rows_work(
+        rows: usize, width: usize, incoming: Interval, accepted: Interval, fallback: i64,
+        workspace: &mut RmsWorkWorkspace,
+    ) -> Result<WorkBudget, Error> {
+        workspace.query(Query::CheckedRows { rows, width, incoming, accepted, fallback })
+    }
+
     /// Work for the original unchecked RMSNorm factory, not compact RMS.
     /// Returns native execution WorkBudget only, not a constructor/source permit.
     /// Native WorkBudget draw/envelope semantics are unchanged. Public proof CPU

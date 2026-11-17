@@ -6,7 +6,7 @@
 //! This executor uses the existing PRSS owner and typed private-channel frames.
 
 use super::{
-    arithmetic::{rescaled_bounds, Affine, BitMap, RowMap},
+    arithmetic::{rescaled_bounds, Affine, BitMap, RowMap, IndexedAffine, IndexedAffineRow},
     boolean,
     conversion::Kind,
     InputBounds, Interval, Operand, PartyRuntime, Status,
@@ -78,6 +78,7 @@ enum Instruction {
     BitConstantXor(Value, u64),
     RowMap(Value, usize, RowMap),
     LaneAffine(Value, u8),
+    IndexedAffine { input: Value, table: u8, output_lanes: usize },
 }
 
 impl Instruction {
@@ -98,7 +99,8 @@ impl Instruction {
             | Self::BitMap(input, _)
             | Self::BitConstantXor(input, _)
             | Self::RowMap(input, _, _)
-            | Self::LaneAffine(input, _) => [Some(input), None],
+            | Self::LaneAffine(input, _)
+            | Self::IndexedAffine { input, .. } => [Some(input), None],
         }
     }
 }
@@ -127,10 +129,161 @@ pub struct Program {
     bit_widths: [u8; MAX_NODES],
     public_affines: [Box<[Affine]>; 2],
     public_affine_count: usize,
+    // Inactive private extension. Original input width and all legacy encodings
+    // stay unchanged; only this path can request a larger temporary capacity.
+    extension: predicate_provenance::Extension,
     work: WorkBudget,
 }
 
 pub struct Builder(Program);
+
+// Installed only by the genuine private checked Rows builder, before emission.
+// This descriptor owns no indexed metadata and grants no certificate authority.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct CheckedRowsIdentity {
+    rows: u64,
+    width: u64,
+}
+
+// Nominal source controls, not SHA backend stack or an allocated transcript.
+const fn checked_rows_conversion_control_bytes<From, To>() -> usize {
+    // ONE try_from(...).map_err(|_| Error::Bounds)? source site. Count distinct
+    // caller/callee transfer slots conservatively together; no ABI/padding guess.
+    // The source field/formal and successful final binding belong to the enclosing
+    // inventory, not this row. These are conversion operand/formal copies only.
+    2 * std::mem::size_of::<From>()
+        // try_from return -> map_err receiver (distinct nominal transfer slots).
+        + 2 * std::mem::size_of::<Result<To, std::num::TryFromIntError>>()
+        + std::mem::size_of::<std::num::TryFromIntError>() // mapper argument
+        + std::mem::size_of::<Error>() // mapper return
+        // map_err return -> Try::branch receiver.
+        + 2 * std::mem::size_of::<Result<To, Error>>()
+        // branch return -> caller's branch match; payload already embedded.
+        + 2 * std::mem::size_of::<std::ops::ControlFlow<Result<std::convert::Infallible, Error>, To>>()
+        // Break binding -> FromResidual formal; no separate payload charge.
+        + 2 * std::mem::size_of::<Result<std::convert::Infallible, Error>>()
+        + std::mem::size_of::<Error>() // FromResidual extracted error
+    // FromResidual's enclosing return and its caller destination are ALREADY the
+    // validator/Builder/commit Result return slots. Failure exits that same call;
+    // it does not create another Program/Builder owner per conversion site.
+}
+
+const fn checked_rows_validation_control_bytes() -> usize {
+    std::mem::size_of::<CheckedRowsIdentity>() // match binding
+        // validate_checked_rows: identity.rows AND identity.width conversions.
+        // Separate sites, both fully reserved; no sequential-expression reuse.
+        + 2 * checked_rows_conversion_control_bytes::<u64, usize>()
+        + 6 * std::mem::size_of::<usize>() // converted rows/width/lanes; geometry formals/local
+        + 2 * std::mem::size_of::<Result<usize, Error>>() // geometry return/expression
+        + std::mem::size_of::<Option<usize>>() // checked product return
+        + 2 * std::mem::size_of::<Result<(), Error>>() // validator/helper return
+        + std::mem::size_of::<Option<Value>>()
+        + std::mem::size_of::<&'static Program>()
+        + std::mem::size_of::<&'static CheckedRowsIdentity>()
+        + std::mem::size_of::<&'static predicate_provenance::Extension>()
+        + 2 * std::mem::size_of::<&'static str>() // profile operands
+}
+
+const fn checked_rows_hash_control_bytes() -> usize {
+    std::mem::size_of::<CheckedRowsIdentity>()
+        + 2 * std::mem::size_of::<[u8; 8]>()
+        + 3 * std::mem::size_of::<&'static [u8]>()
+        + std::mem::size_of::<&'static mut Sha256>()
+        + std::mem::size_of::<&'static Program>()
+        + std::mem::size_of::<&'static CheckedRowsIdentity>()
+        + std::mem::size_of::<[u8; 32]>() // finalize result; digest destination is embedded
+        + std::mem::size_of::<sha2::digest::Output<Sha256>>() // distinct finalize return
+        + 2 * std::mem::size_of::<Sha256>() // new return and consuming finalize receiver
+        + std::mem::size_of::<&'static predicate_provenance::Extension>()
+        + 3 * std::mem::size_of::<()>() // update returns
+}
+
+// Concrete logical resource-calculation controls. These records replace local
+// iterator/closure environments, not owner backing or compiler ABI estimates.
+struct ResourceAdd;
+impl ResourceAdd {
+    fn add(&self, a: usize, b: usize) -> Result<usize, Error> {
+        a.checked_add(b).ok_or(Error::Bounds)
+    }
+}
+struct ResourceTableFold<'a> {
+    iter: std::slice::Iter<'a, Box<[Affine]>>,
+    total: usize,
+    raw_layout: Result<usize, crate::exact_buffer::Error>,
+    layout: Result<usize, Error>,
+    sum: Result<usize, Error>,
+}
+struct WorkingOuter {
+    iter: std::ops::Range<usize>,
+    peak: usize,
+    result: Result<usize, Error>,
+}
+struct WorkingStep<'a> {
+    program: &'a Program,
+    step: usize,
+    iter: std::ops::RangeInclusive<usize>,
+    candidate: usize,
+    live: usize,
+    node: Option<Node>,
+    temporary: usize,
+    lanes: Result<usize, Error>,
+    sum: Result<usize, Error>,
+    bytes: Result<usize, Error>,
+}
+struct ResourceScalars {
+    public_table_bytes: usize,
+    immutable_template_bytes: usize,
+    register_container_bytes: usize,
+    invocation_container_bytes: usize,
+    frame_bytes: usize,
+    checking: usize,
+    working_bytes: usize,
+    common: usize,
+}
+struct ResourceIntermediates {
+    tables: Result<usize, Error>,
+    immutable: Result<usize, Error>,
+    registers: Result<usize, Error>,
+    invocation: Result<usize, Error>,
+    frame: Result<usize, Error>,
+    working: Result<usize, Error>,
+    common: Result<usize, Error>,
+    owned: Result<usize, Error>,
+    shared: Result<usize, Error>,
+}
+
+// Includes the actual controls and each distinct helper return/intermediate
+// while resident caller slots coexist. No borrowed Program counted as an owner.
+const fn resource_calculation_control_bytes() -> usize {
+    std::mem::size_of::<ResourceScalars>() + std::mem::size_of::<ResourceAdd>()
+        + std::mem::size_of::<ResourceTableFold<'static>>()
+        + std::mem::size_of::<WorkingOuter>() + std::mem::size_of::<WorkingStep<'static>>()
+        + std::mem::size_of::<ResourceIntermediates>()
+        + std::mem::size_of::<Result<usize, Error>>() // public_table_bytes return
+        + std::mem::size_of::<Result<usize, Error>>() // immutable_bytes_for_tables return
+        + std::mem::size_of::<Result<usize, Error>>() // working_bytes return
+        + std::mem::size_of::<Result<usize, Error>>() // ResourceAdd::add return
+        + std::mem::size_of::<Result<usize, crate::exact_buffer::Error>>() // layout return
+        + std::mem::size_of::<Result<std::alloc::Layout, std::alloc::LayoutError>>()
+        + std::mem::size_of::<std::alloc::Layout>() // exact layout helper map argument
+        + 2 * std::mem::size_of::<usize>() // add's scalar argument slots
+        + 2 * std::mem::size_of::<usize>() // owned/shared scalar result bindings
+        + std::mem::size_of::<Node>() // step match binding, distinct from stored node
+         + 2 * std::mem::size_of::<usize>() // outer step and inner next item
+         + std::mem::size_of::<usize>() // eligible FromBit's bits binding
+         + std::mem::size_of::<usize>() // table layout's distinct Ok(n) binding
+         + 4 * std::mem::size_of::<usize>() // tables formal, layout count, retained add operand, backing return
+         + 4 * std::mem::size_of::<&'static Program>() // calculation/table/working/extended self
+         + 2 * std::mem::size_of::<&'static predicate_provenance::Extension>() // backing/absent self
+         + std::mem::size_of::<&'static ResourceAdd>() // add self
+         + std::mem::size_of::<Option<Value>>() // Affine.right
+         + 2 * std::mem::size_of::<Value>() // RowMap.input and FromBit.input
+         + 2 * std::mem::size_of::<bool>() // absent and extended returns
+        + std::mem::size_of::<&'static Box<[Affine]>>() // table next item
+        + std::mem::size_of::<Option<&'static Box<[Affine]>>>() // table next return
+        + 2 * std::mem::size_of::<Option<usize>>() // outer and inner next returns
+        + std::mem::size_of::<Resources>()
+}
 
 /// Internal one-attempt custody, not a funded construction envelope. Callers
 /// must retain this owner outside the fallible/unwinding operation. Failed
@@ -139,6 +292,7 @@ pub struct Builder(Program);
 pub(crate) struct ResidentBuilder {
     builder: Option<Builder>,
     pending_affine: ExactStorage<Affine>,
+    pending_indexed: predicate_provenance::Pending,
     state: ResidentState,
 }
 
@@ -226,6 +380,9 @@ impl<T> ExactStorage<Option<T>> {
 #[path = "tensor_resident_builder.rs"]
 mod resident_builder;
 
+#[path = "tensor_predicate_provenance.rs"]
+mod predicate_provenance;
+
 #[path = "tensor_rms_resident.rs"]
 mod rms_resident;
 
@@ -242,6 +399,17 @@ fn validate_tile_lanes(lanes: usize) -> Result<(), Error> {
 }
 
 impl Builder {
+    fn checked_range_rows(rows: usize, width: usize, input: Interval) -> Result<Self, Error> {
+        let lanes = rms_work::checked_rows_geometry(rows, width)?;
+        let identity = CheckedRowsIdentity {
+            rows: u64::try_from(rows).map_err(|_| Error::Bounds)?,
+            width: u64::try_from(width).map_err(|_| Error::Bounds)?,
+        };
+        let mut builder = Self::row(lanes, input)?;
+        builder.0.extension = predicate_provenance::Extension::CheckedRowsIdentity(identity);
+        Ok(builder)
+    }
+
     pub fn new(lanes: usize, input: Interval) -> Result<Self, Error> {
         validate_tile_lanes(lanes)?;
         Self::row(lanes, input)
@@ -266,6 +434,7 @@ impl Builder {
             bit_widths: [0; MAX_NODES],
             public_affines: [Box::default(), Box::default()],
             public_affine_count: 0,
+            extension: predicate_provenance::Extension::Absent,
             work: WorkBudget::default(),
         };
         program.nodes[0] = Some(Node {
@@ -301,7 +470,7 @@ impl Builder {
             &self.0.nodes,
             &self.0.bit_widths,
             self.0.len,
-            self.0.lanes,
+            self.0.extension.capacity(self.0.lanes),
             instruction,
             bounds,
             bit,
@@ -443,6 +612,18 @@ impl Builder {
         if output.0 == 0 || output.0 as usize + 1 != self.0.len {
             return Err(Error::Binding);
         }
+        if predicate_provenance::Dag::extended(&self.0)
+            && self.node(output, false)?.lanes != self.0.lanes { return Err(Error::Shape); }
+        match &self.0.extension {
+        predicate_provenance::Extension::Absent => {},
+        predicate_provenance::Extension::Indexed(_) => {
+            let mut audit = predicate_provenance::Audit::default();
+            predicate_provenance::validate(&self.0, &mut audit)?;
+            let owners = self.0.extension.owners_mut()?;
+            owners.check_visits = owners.check_visits.checked_add(audit.visits).ok_or(Error::Bounds)?;
+        }
+        predicate_provenance::Extension::CheckedRowsIdentity(identity) => self.0.validate_checked_rows(identity)?,
+        }
         let mut h = Sha256::new();
         h.update(PROFILE.as_bytes());
         h.update(self.0.numeric_profile.as_bytes());
@@ -452,10 +633,25 @@ impl Builder {
             h.update(b"checked-validity-output.v1");
             h.update([valid.0]);
         }
+        predicate_provenance::hash_header(&self.0, &mut h);
+        // Move the existing dependency writes before the borrowed hash cache.
+        // Their work is unchanged. Only the extra outer iterator transition is
+        // new; it fits the existing 64/node Absent rule/control maintenance row.
         for (index, node) in self.0.nodes[..self.0.len].iter().flatten().enumerate() {
             for value in node.instruction.inputs().into_iter().flatten() {
+                if usize::from(value.0) >= index { return Err(Error::Binding); }
                 self.0.last_use[value.0 as usize] = index as u8;
             }
+        }
+        let mut hash_audit = predicate_provenance::Audit::default();
+        // Absent executes only None/default scalar setup (within finish's 128
+        // maintenance block). No cache walk/record helper executes on that path.
+        let hash_cache = match &self.0.extension {
+            predicate_provenance::Extension::Absent | predicate_provenance::Extension::CheckedRowsIdentity(_) => None,
+            predicate_provenance::Extension::Indexed(_) =>
+                Some(predicate_provenance::RecordIndex::new(&self.0, &mut hash_audit)?),
+        };
+        for (index, node) in self.0.nodes[..self.0.len].iter().flatten().enumerate() {
             match node.instruction {
                 Instruction::Input => h.update([0]),
                 Instruction::Affine {
@@ -517,10 +713,17 @@ impl Builder {
                         h.update(c.constant.to_le_bytes());
                     }
                 }
+                Instruction::IndexedAffine { input, table, output_lanes } => {
+                    h.update([16, input.0, table]);
+                    h.update((output_lanes as u64).to_le_bytes());
+                    IndexedAffine(hash_cache.as_ref().ok_or(Error::Phase)?.table(table as usize)?).hash(&mut h);
+                }
             }
+            predicate_provenance::hash_rule(&self.0, hash_cache.as_ref(), index, &mut h);
             h.update(node.bounds.lower().to_le_bytes());
             h.update(node.bounds.upper().to_le_bytes());
         }
+        drop(hash_cache);
         self.0.digest = h.finalize().into();
         self.0.last_use[output.0 as usize] = self.0.len as u8;
         if let Some(valid) = self.0.checked_validity {
@@ -575,6 +778,17 @@ fn activation_predicates<S: attention_work::SoftmaxSink>(
 }
 
 impl Program {
+    fn validate_checked_rows(&self, identity: &CheckedRowsIdentity) -> Result<(), Error> {
+        let rows = usize::try_from(identity.rows).map_err(|_| Error::Bounds)?;
+        let width = usize::try_from(identity.width).map_err(|_| Error::Bounds)?;
+        let lanes = rms_work::checked_rows_geometry(rows, width)?;
+        if lanes != self.lanes || self.checked_validity.is_none()
+            || self.numeric_profile != CHECKED_RANGE_PROFILE {
+            return Err(Error::Binding);
+        }
+        Ok(())
+    }
+
     /// The approved source-derived profile, not the unavailable evaluated IR.
     /// Coefficients/pivots are the binary32/toward-zero Q18 constants frozen in
     /// paper/reproduction-contracts/shared-profile-resolution.md, section 3.3.
@@ -650,24 +864,26 @@ impl Program {
 
     // Joint register/primitive/copy peak for the original instruction schedule.
     fn working_bytes(&self) -> Result<usize, Error> {
-        (0..self.len)
-            .map(|step| {
-                let live = (0..=step)
-                    .filter(|&i| i == step || usize::from(self.last_use[i]) >= step)
-                    .try_fold(0usize, |n, i| {
-                        self.nodes[i]
-                            .unwrap()
-                            .lanes
-                            .checked_mul(2)
-                            .and_then(|v| n.checked_add(v))
-                            .ok_or(Error::Bounds)
-                    })?;
-                let node = self.nodes[step].unwrap();
+        let mut outer = WorkingOuter { iter: 0..self.len, peak: 0, result: Ok(0) };
+        while let Some(step) = outer.iter.next() {
+            let mut controls = WorkingStep { program: self, step, iter: 0..=step,
+                candidate: 0, live: 0, node: None, temporary: 0,
+                lanes: Ok(0), sum: Ok(0), bytes: Ok(0) };
+            while let Some(i) = controls.iter.next() {
+                controls.candidate = i;
+                if i == controls.step || usize::from(controls.program.last_use[i]) >= controls.step {
+                    controls.lanes = controls.program.nodes[i].unwrap().lanes.checked_mul(2).ok_or(Error::Bounds);
+                    controls.sum = controls.live.checked_add(controls.lanes?).ok_or(Error::Bounds);
+                    controls.live = controls.sum?;
+                }
+            }
+            controls.node = self.nodes[step];
+            let node = controls.node.unwrap();
                 // Primitive allowance plus this executor's operand copies.
                 // Small-width OT expands each bit separately and can exceed
                 // the old uniform 128-word allowance. Conversion prices its
                 // full source schedule, including original exported frames.
-                let temporary = match node.instruction {
+                controls.temporary = match node.instruction {
                     Instruction::Input => 0,
                     Instruction::Product { .. } => 20 * node.lanes,
                     Instruction::Rescale { .. } => 18 * node.lanes,
@@ -676,6 +892,10 @@ impl Program {
                     }
                     Instruction::LaneAffine(..) => 6 * node.lanes,
                     Instruction::RowMap(input, ..) => {
+                        4 * self.nodes[input.0 as usize].unwrap().lanes + 2 * node.lanes
+                    }
+                    Instruction::IndexedAffine { input, .. } => {
+                        self.extension.owners()?;
                         4 * self.nodes[input.0 as usize].unwrap().lanes + 2 * node.lanes
                     }
                     Instruction::FromBit(input) => {
@@ -691,19 +911,26 @@ impl Program {
                     Instruction::BitXor(..) => 10 * node.lanes,
                     Instruction::BitConstantXor(..) => 6 * node.lanes,
                 };
-                live.checked_add(temporary)
-                    .and_then(|n| n.checked_mul(8))
-                    .ok_or(Error::Bounds)
-            })
-            .try_fold(0usize, |peak, n| Ok(peak.max(n?)))
+            controls.sum = controls.live.checked_add(controls.temporary).ok_or(Error::Bounds);
+            controls.bytes = controls.sum?.checked_mul(8).ok_or(Error::Bounds);
+            outer.result = controls.bytes;
+            outer.peak = outer.peak.max(outer.result?);
+        }
+        Ok(outer.peak)
     }
 
     fn public_table_bytes(&self) -> Result<usize, Error> {
-        // Exactly two owner headers. No instruction, coefficient or liveness walk.
-        self.public_affines.iter().try_fold(0usize, |n, v| {
-            n.checked_add(crate::exact_buffer::layout_bytes::<Affine>(v.len())
-                .map_err(|_| Error::Bounds)?).ok_or(Error::Bounds)
-        })
+        // Two legacy headers plus one immutable cached extension backing total.
+        // No descriptor/proof/instruction walk in this constant-work size query.
+        let mut controls = ResourceTableFold { iter: self.public_affines.iter(),
+            total: self.extension.backing_bytes(), raw_layout: Ok(0), layout: Ok(0), sum: Ok(0) };
+        while let Some(v) = controls.iter.next() {
+            controls.raw_layout = crate::exact_buffer::layout_bytes::<Affine>(v.len());
+            controls.layout = match controls.raw_layout { Ok(n) => Ok(n), Err(_) => Err(Error::Bounds) };
+            controls.sum = controls.total.checked_add(controls.layout?).ok_or(Error::Bounds);
+            controls.total = controls.sum?;
+        }
+        Ok(controls.total)
     }
 
     /// Constant-work immutable owner size, including the original Arc controls.
@@ -713,8 +940,8 @@ impl Program {
     }
 
     fn immutable_bytes_for_tables(tables: usize) -> Result<usize, Error> {
-        std::mem::size_of::<Program>().checked_add(2 * std::mem::size_of::<usize>())
-            .and_then(|n| n.checked_add(tables)).ok_or(Error::Bounds)
+        ResourceAdd.add(ResourceAdd.add(std::mem::size_of::<Program>(),
+            2 * std::mem::size_of::<usize>())?, tables)
     }
 
     /// Independent proposed validation visits for ONE complete resources() call.
@@ -724,45 +951,82 @@ impl Program {
     /// <= 12 reads/tests + 12 operand/branch operations + 12 checked totals/results
     /// + 12 iterator/peak transitions. Per liveness candidate: <= 6 predicate
     /// reads/tests + 8 lane/arithmetic/result operations + 8 fold transitions.
-    /// Each block is <=64; no scalar destructor loop or native AES credit.
+    /// Each block is <=64, plus the separately bounded private descriptor/proof
+    /// walks. Legacy digest/work stays unchanged, but this universal inventory
+    /// is larger. No scalar destructor loop or native AES/funding credit.
     pub fn full_resource_validation_visits() -> Result<u64, Error> {
         let n = u64::try_from(MAX_NODES).map_err(|_| Error::Bounds)?;
         let triangular = n.checked_mul(n.checked_add(1).ok_or(Error::Bounds)?)
             .ok_or(Error::Bounds)? / 2;
         3u64.checked_add(n).and_then(|v| v.checked_add(triangular))
-            .and_then(|v| v.checked_mul(64)).ok_or(Error::Bounds)
+            .and_then(|v| v.checked_mul(64))
+            .and_then(|v| v.checked_add(predicate_provenance::MAX_VALIDATION_VISITS))
+            .ok_or(Error::Bounds)
     }
 
     /// Owner-defined sizes, not a complete enclosing graph's memory admission.
     /// Shared execution grants no credit for caller-retained template ownership.
     pub fn resources(&self) -> Result<Resources, Error> {
-        let add = |a: usize, b: usize| a.checked_add(b).ok_or(Error::Bounds);
-        let public_table_bytes = self.public_table_bytes()?;
-        let immutable_template_bytes = Self::immutable_bytes_for_tables(public_table_bytes)?;
-        let register_container_bytes = self
+        match &self.extension {
+        predicate_provenance::Extension::Absent => {},
+        predicate_provenance::Extension::Indexed(_) => {
+            let mut audit = predicate_provenance::Audit::default();
+            predicate_provenance::validate(self, &mut audit)?;
+        }
+        predicate_provenance::Extension::CheckedRowsIdentity(identity) => self.validate_checked_rows(identity)?,
+        }
+        self.resource_calculation()
+    }
+
+    // Same scalar/table/liveness calculation for public fallback and private
+    // closed-output leaf. Only the fallback can invoke the optional checker.
+    fn resource_calculation(&self) -> Result<Resources, Error> {
+        let add = ResourceAdd;
+        let mut controls = ResourceScalars { public_table_bytes: 0, immutable_template_bytes: 0,
+            register_container_bytes: 0, invocation_container_bytes: 0, frame_bytes: 0,
+            checking: 0, working_bytes: 0, common: 0 };
+        let mut intermediate = ResourceIntermediates { tables: Ok(0), immutable: Ok(0), registers: Ok(0),
+            invocation: Ok(0), frame: Ok(0), working: Ok(0), common: Ok(0), owned: Ok(0), shared: Ok(0) };
+        intermediate.tables = self.public_table_bytes();
+        controls.public_table_bytes = intermediate.tables?;
+        intermediate.immutable = Self::immutable_bytes_for_tables(controls.public_table_bytes);
+        controls.immutable_template_bytes = intermediate.immutable?;
+        intermediate.registers = self
             .register_count
             .checked_mul(std::mem::size_of::<Option<Register>>())
-            .ok_or(Error::Bounds)?;
-        let invocation_container_bytes =
-            add(std::mem::size_of::<Executor>(), register_container_bytes)?;
-        let frame_bytes = 3usize
+            .ok_or(Error::Bounds);
+        controls.register_container_bytes = intermediate.registers?;
+        intermediate.invocation = add.add(std::mem::size_of::<Executor>(), controls.register_container_bytes);
+        controls.invocation_container_bytes = intermediate.invocation?;
+        intermediate.frame = 3usize
             .checked_mul(std::mem::size_of::<Frame>())
-            .ok_or(Error::Bounds)?;
-        let working_bytes = self.working_bytes()?;
-        let common = add(
-            add(FIXED_RESERVE_BYTES, invocation_container_bytes)?,
-            add(frame_bytes, working_bytes)?,
-        )?;
+            .ok_or(Error::Bounds);
+        controls.frame_bytes = intermediate.frame?;
+        // Checker and secret execution buffers belong to disjoint phases.
+        controls.checking = if predicate_provenance::Dag::extended(self) {
+            predicate_provenance::checking_scratch_bytes()
+        } else { 0 };
+        intermediate.working = self.working_bytes();
+        controls.working_bytes = intermediate.working?.max(controls.checking);
+        intermediate.common = add.add(
+            add.add(FIXED_RESERVE_BYTES, controls.invocation_container_bytes)?,
+            add.add(controls.frame_bytes, controls.working_bytes)?,
+        );
+        controls.common = intermediate.common?;
+        intermediate.owned = add.add(controls.common, controls.public_table_bytes);
+        let owned_admitted_bytes = intermediate.owned?;
+        intermediate.shared = add.add(controls.common, controls.immutable_template_bytes);
+        let shared_admitted_bytes = intermediate.shared?;
         Ok(Resources {
             runtime_fixed_reserve_bytes: FIXED_RESERVE_BYTES,
-            immutable_template_bytes,
-            public_table_bytes,
-            register_container_bytes,
-            invocation_container_bytes,
-            frame_bytes,
-            working_bytes,
-            owned_admitted_bytes: add(common, public_table_bytes)?,
-            shared_admitted_bytes: add(common, immutable_template_bytes)?,
+            immutable_template_bytes: controls.immutable_template_bytes,
+            public_table_bytes: controls.public_table_bytes,
+            register_container_bytes: controls.register_container_bytes,
+            invocation_container_bytes: controls.invocation_container_bytes,
+            frame_bytes: controls.frame_bytes,
+            working_bytes: controls.working_bytes,
+            owned_admitted_bytes,
+            shared_admitted_bytes,
         })
     }
 
@@ -822,6 +1086,10 @@ pub enum Construction {
     },
     CheckedRange {
         lanes: usize,
+    },
+    CheckedRangeRows {
+        rows: usize,
+        width: usize,
     },
     AllValid {
         lanes: usize,
@@ -927,6 +1195,10 @@ impl Construction {
         let ranged = sum(&[boxes, std::mem::align_of::<Option<Interval>>()])?;
         let corners = std::mem::size_of::<[i128; 4]>();
         let (borrowed, tables, buffers, proofs) = match self {
+            Self::CheckedRangeRows { rows, width } => {
+                rms_work::checked_rows_geometry(rows, width).map_err(Geometry)?;
+                (0, 0, work_preflight::checked_rows_constructor_control_bytes(), 0)
+            }
             Self::Builder { lanes } | Self::CheckedRange { lanes } => {
                 tile(lanes)?;
                 (0, 0, 0, 0)
@@ -1086,14 +1358,19 @@ impl Construction {
             _ => std::mem::size_of::<Result<Program, Error>>(),
         }
         .max(std::mem::size_of::<Result<Builder, Error>>());
-        if matches!(self, Self::CheckedRange { .. } | Self::AllValid { .. }
-            | Self::RmsNormCertified { .. } | Self::RmsNormWithInputNorm { .. } | Self::RotaryHalf { .. }) {
-            return_slot = return_slot.max(std::mem::size_of::<Result<work_preflight::FactoryOutput, Error>>())
-                .max(std::mem::size_of::<Option<work_preflight::FactoryOutput>>());
-        }
+        // Every closed dispatch uses the actual FactoryOutput (including its
+        // private resource producer). No assumed padding/niche or array credit.
+        return_slot = return_slot.max(std::mem::size_of::<Result<work_preflight::FactoryOutput, Error>>())
+            .max(std::mem::size_of::<Option<work_preflight::FactoryOutput>>());
         let finish = sum(&[
             std::mem::size_of::<Sha256>(),
             std::mem::size_of::<[usize; MAX_NODES]>(),
+            predicate_provenance::hash_cache_scratch_bytes(),
+            match self {
+                Self::CheckedRangeRows { .. } => sum(&[checked_rows_validation_control_bytes(),
+                    checked_rows_hash_control_bytes()])?,
+                _ => 0,
+            },
         ])?;
         let immutable = sum(&[inline, 2 * std::mem::size_of::<usize>(), tables])?;
         let pending = std::mem::size_of::<ExactStorage<Affine>>();
@@ -1101,7 +1378,11 @@ impl Construction {
         // Recipe scratch is dead before finish/publication. Coefficient payload
         // remains one allocation while its inline source/destination slots overlap.
         let finish_phase = sum(&[builder, pending, return_slot, tables, finish])?;
-        let publish = sum(&[return_slot, immutable])?;
+        let mut publish = sum(&[return_slot, immutable])?;
+        if matches!(self, Self::RmsNormCertified { .. } | Self::RmsNormWithInputNorm { .. }) {
+            publish = publish.max(sum(&[rms_resident::handoff_control_bytes(), tables,
+                std::mem::size_of::<rms_resident::RmsResidentSlot>()])?);
+        }
         let peak = build.max(finish_phase).max(publish);
         Ok(ConstructionQuote {
             return_slot_bytes: return_slot,
@@ -1131,7 +1412,7 @@ impl Construction {
         let quote = self.quote()?;
         // Fallback build_core still has its local Builder/pending/return owners.
         if !matches!(self, Self::RmsNormCertified { .. }
-            | Self::RmsNormWithInputNorm { .. } | Self::RotaryHalf { .. }) {
+            | Self::RmsNormWithInputNorm { .. } | Self::RotaryHalf { .. } | Self::CheckedRangeRows { .. }) {
             return Ok((quote, quote.new_peak_bytes));
         }
         let sum = |parts: &[usize]| parts.iter().try_fold(0usize,
@@ -1139,7 +1420,18 @@ impl Construction {
         let build = sum(&[std::mem::size_of::<Program>(), quote.return_slot_bytes,
             quote.public_table_bytes, quote.constructor_buffer_bytes, quote.proof_buffer_bytes])?;
         let finish = sum(&[quote.return_slot_bytes, quote.public_table_bytes, quote.finish_buffer_bytes])?;
-        let publish = sum(&[quote.return_slot_bytes, quote.immutable_template_bytes])?;
+        let mut publish = sum(&[quote.return_slot_bytes, quote.immutable_template_bytes])?;
+        match self {
+        Self::CheckedRangeRows { .. } => {
+            // This conservative Rows control inventory ALSO retains the schedule;
+            // no capacity credit is taken for its already installed inline slots.
+            publish = publish.max(work_preflight::checked_rows_resident_control_bytes());
+        },
+        Self::RmsNormCertified { .. } | Self::RmsNormWithInputNorm { .. } => {
+            publish = publish.max(sum(&[rms_resident::handoff_control_bytes(), quote.public_table_bytes])?);
+        },
+        _ => {},
+        }
         Ok((quote, build.max(finish).max(publish)))
     }
 }
@@ -1836,6 +2128,14 @@ impl Executor {
                 )?;
                 self.registers[slot] = Some(Register::Arithmetic(output));
             }
+            Instruction::IndexedAffine { input, table, .. } => {
+                let mut value = self.copy(input)?;
+                let bounds = self.bounds(input);
+                let descriptor = IndexedAffine(self.program.extension.table(table as usize)?);
+                let output = self.runtime.as_mut().unwrap()
+                    .indexed_affine(&mut value, descriptor, bounds)?;
+                self.registers[slot] = Some(Register::Arithmetic(output));
+            }
         }
         self.wrap(messages)
     }
@@ -2126,6 +2426,9 @@ pub use rms_output_energy::{
     RmsEnergyParameters, RmsEnergyResources, RmsEnergyWorkspace,
 };
 pub use work_preflight::{
+    ProofFreeOutput, ResourceViewSlots, ResourceBodySlots, query_resource_view, resources_proof_free,
+    RESOURCE_VIEW_QUERY, RESOURCE_VIEW_BODY, RESOURCE_VIEW_TOTAL, PROOF_FREE_CONSTRUCTION_EVENTS,
+    RESOURCE_VIEW_CONTROL_BYTES, RESOURCE_VIEW_ACCESSOR, RESOURCE_VIEW_ACCESSOR_CONTROL_BYTES,
     LogicalEvents,
     AdmittedFactory, AdmittedWorkSchedule, CallerWorkLedger, ClosedFactory, FactoryOutput,
     FactoryParameters, FactoryWorkSummary, ProducedCertificate, ResidentFactorySource,

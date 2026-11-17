@@ -2441,3 +2441,52 @@ fn incomplete_or_repeated_step_completion_burns_owner() {
         assert!(usage.iter().all(|u| u.live_bytes() == 0));
     }
 }
+
+#[test]
+fn indexed_owner_layout_baseline_abi_and_wide_rms_owned_admission() {
+    // Actual current owners and the two original failing wide-RMS fixtures.
+    // Measurement uses real owned resources, never a mirror layout/shared owner.
+    assert_eq!(MAX_ADMITTED_BYTES, 262_144);
+    let gamma: Vec<_> = (0..1024).map(|i| [ONE, -3 * ONE / 2, 0][i % 3]).collect();
+    let positive_epsilon_owned = Program::rms_norm(
+        1, 1024, Interval::new(-4 * ONE, 4 * ONE).unwrap(), &gamma,
+    ).unwrap().resources().unwrap().owned_admitted_bytes;
+    let exact_allowances_owned = Program::rms_norm(
+        1, 1024, Interval::new(-ONE, ONE).unwrap(), &[ONE; 1024],
+    ).unwrap().resources().unwrap().owned_admitted_bytes;
+    assert!(positive_epsilon_owned > 0);
+    assert!(exact_allowances_owned > 0);
+    println!(
+        "indexed_owner_layout_baseline IndexedOwners={} Extension={} Program={} ProgramOwner={} Executor={} positive_epsilon_rms_owned={} exact_tensor_allowances_rms_owned={}",
+        std::mem::size_of::<predicate_provenance::IndexedOwners>(),
+        std::mem::size_of::<predicate_provenance::Extension>(),
+        std::mem::size_of::<Program>(),
+        std::mem::size_of::<ProgramOwner>(),
+        std::mem::size_of::<Executor>(),
+        positive_epsilon_owned,
+        exact_allowances_owned,
+    );
+    assert!(positive_epsilon_owned <= MAX_ADMITTED_BYTES);
+    assert!(exact_allowances_owned <= MAX_ADMITTED_BYTES);
+    #[cfg(all(target_os = "macos", target_arch = "aarch64", target_pointer_width = "64"))]
+    {
+        // Parent's ordinary native run of THIS diagnostic, before any sparse
+        // layout edit (frozen Core, Rust 1.85.1, Darwin arm64):
+        // IndexedOwners=6744 Extension=6744 Program=19768 ProgramOwner=19768
+        // Executor=22976; BOTH original RMS fixtures owned=267384. These are
+        // actual pre-repair observations, not HEAD or a reconstructed old type.
+        let baseline = [6744_usize, 6744, 19768, 19768, 22976];
+        let actual = [
+            std::mem::size_of::<predicate_provenance::IndexedOwners>(),
+            std::mem::size_of::<predicate_provenance::Extension>(),
+            std::mem::size_of::<Program>(), std::mem::size_of::<ProgramOwner>(),
+            std::mem::size_of::<Executor>(),
+        ];
+        for (old, new) in baseline.into_iter().zip(actual) {
+            assert!(old.checked_sub(new).unwrap() >= 5256);
+        }
+        let saving = 22976 - std::mem::size_of::<Executor>();
+        assert_eq!(267384 - positive_epsilon_owned, saving);
+        assert_eq!(267384 - exact_allowances_owned, saving);
+    }
+}

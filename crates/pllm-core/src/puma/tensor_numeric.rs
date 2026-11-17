@@ -275,6 +275,15 @@ impl Builder {
 }
 
 impl Program {
+    pub(crate) fn checked_range_rows(
+        rows: usize, width: usize, incoming: Interval, accepted: Interval, fallback: i64,
+    ) -> Result<Self, Error> {
+        let mut builder = Builder::checked_range_rows(rows, width, incoming)?;
+        let input = builder.input();
+        let checked = rms_work::checked_recipe(&mut builder, input, accepted, fallback)?;
+        builder.finish_checked(checked.safe, checked.valid)
+    }
+
     /// Reduce proven arithmetic bits to one shared AND bit. This is local sum
     /// plus protected sign, not an opening. Use on the validity output of a guard
     /// before multiplying into a persistent request-wide scalar validity bit.

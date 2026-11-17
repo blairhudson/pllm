@@ -54,6 +54,11 @@ pub enum FactoryParameters<'a> {
         accepted: Interval,
         fallback: i64,
     },
+    CheckedRangeRows {
+        incoming: Interval,
+        accepted: Interval,
+        fallback: i64,
+    },
     AllValid,
     RmsNormCertified {
         input: Interval,
@@ -148,6 +153,7 @@ fn bind_core(
             | (Construction::Builder { .. }, P::Rescale { .. })
             | (Construction::Builder { .. }, P::Scale18 { .. })
             | (Construction::CheckedRange { .. }, P::CheckedRange { .. })
+            | (Construction::CheckedRangeRows { .. }, P::CheckedRangeRows { .. })
             | (Construction::AllValid { .. }, P::AllValid)
             | (Construction::SoftmaxCertified { .. }, P::SoftmaxCertified { .. }) => true,
             (Construction::RmsNormCertified { gamma_len, .. }, P::RmsNormCertified { gamma, .. })
@@ -168,6 +174,7 @@ fn bind_core(
                 | Construction::EqualZero { .. }
                 | Construction::Builder { .. }
                 | Construction::CheckedRange { .. }
+                | Construction::CheckedRangeRows { .. }
                 | Construction::AllValid { .. }
                 | Construction::SoftmaxCertified { .. }
                 | Construction::RmsNormCertified { .. }
@@ -303,6 +310,88 @@ impl LogicalEvents {
             .into_iter().try_fold(0u64, |n, x| n.checked_add(x).ok_or(Error::Bounds))
     }
 }
+
+// UNADOPTED source controls, not native work or permission to spend. The literal
+// census is recorded beside the new helpers; loops remain in the old N/N^2 rows.
+const fn checked_rows_control_events() -> LogicalEvents {
+    LogicalEvents { writes: 64, validation: 64, transitions: 8,
+        allocation_attempts: 0, cleanup_dispatches: 1 }
+}
+
+// Literal new source sites, nested callees receive separate rows. Geometry has
+// five scalar comparisons, two short-circuit groups, one checked_mul/ok_or/?
+// chain, one local and one Ok return; <=4 writes,32 reads/checks/results,8
+// transitions including exclusive refusal. One K covers that loop-free body.
+// Each try_from/map_err/? chain gets its OWN K, not guessed spare transitions
+// inside its caller's K. Identity validation has TWO such chains and geometry;
+// its remaining body has two profile/validity predicates, one lane comparison,
+// their short-circuit branches and Ok return (<=8 writes,32 validation,8 changes).
+// Builder: geometry + two conversion chains + private entry + identity install
+// =5 K. Finish: geometry + two conversion chains + validator + hash selection
+// =5 K. Ordinary closed producer assembly =1 K: total 11, failure reserve 22.
+// Resident: same builder 5 + occupancy/install/recipe dispatch 3 + finish 5 +
+// finish/transfer/pre-take/commit 4 + pre-take geometry 1 + validator conversions
+// 2 + requested-geometry conversions 2 + SECOND validator BODY 1 =23 K,
+// exclusive failure reserve 46. Pre-take dispatch prices the validator CALL
+// only; its lane/validity/profile tests, branches and return execute separately.
+// Occupancy =3 presence tests/one branch; install =one assignment/Some/from_builder
+// call; recipe dispatch =one sink constructor/input/read/call; finish and transfer
+// =one call/? each. Pre-take dispatch =occupancy, installed borrow, identity match,
+// validator call, two geometry comparisons, one OR/branch; conversions separate.
+// Commit =take, Some match, FactoryOutput+Some construction, destination write,
+// return. No fallible call, hook or allocation after take. Each of these small
+// bodies is <=16 writes,48 reads/checks/results,8 transitions, excluding nested
+// rows. No bounded recipe or schedule loop is hidden inside K.
+// Query entry/output/exit =3 K + geometry =4; bind selection =1; quote selection
+// +geometry =2; price selection+query+quote =7; logical quote+selection =3;
+// borrowed copy/lens =2; installed quote's additional selection =1; unsupported
+// classifier =1. Copies have three scalar fields; all selections are one match.
+// Resources =geometry+validator+two conversions =4 K, exclusive failure =8.
+// shared checked_recipe, checked_output, prepare, row initialization, finish
+// arrays/liveness/work and ordinary resource loops retain their full inventories.
+// This is conservative source-call accounting, not exact CPU counts or SHA rounds.
+
+pub(super) const fn checked_rows_constructor_control_bytes() -> usize {
+    std::mem::size_of::<resident_parameters::CheckedRowsArgs>()
+        + std::mem::size_of::<CheckedRowsIdentity>() // construction temporary
+        // Builder::checked_range_rows: rows and width usize->u64 sites.
+        + 2 * checked_rows_conversion_control_bytes::<usize, u64>()
+        + std::mem::size_of::<Result<usize, Error>>()
+        + std::mem::size_of::<usize>() // lanes binding
+        + 5 * std::mem::size_of::<usize>() // builder/geometry formals and geometry local
+        + std::mem::size_of::<Option<usize>>() // checked product return
+        + 2 * std::mem::size_of::<Interval>() // constructor input/accepted formals
+        + std::mem::size_of::<i64>() // fallback formal
+        + std::mem::size_of::<Builder>() // private entry local, distinct from caller
+        + std::mem::size_of::<Result<Builder, Error>>() // private entry return
+        + std::mem::size_of::<CheckedValue>()
+        + std::mem::size_of::<Result<CheckedValue, Error>>()
+        + std::mem::size_of::<Value>()
+        + std::mem::size_of::<ProducedCertificate>()
+        + std::mem::size_of::<ResourceProducer>()
+        + std::mem::size_of::<FactoryOutput>() // construction temporary
+        + std::mem::size_of::<Option<FactoryOutput>>() // installed destination
+        + 2 * std::mem::size_of::<&'static mut Builder>()
+        + std::mem::size_of::<Result<Program, Error>>() // checked finish return
+        + std::mem::size_of::<Result<(), Error>>()
+}
+
+pub(super) const fn checked_rows_resident_control_bytes() -> usize {
+    resident_parameters::checked_rows_resident_control_bytes()
+}
+
+// The public fallback still performs the complete real calculation. Rows adds
+// only its real geometry/identity controls; never substitute indexed scratch.
+pub(super) const fn checked_rows_resource_control_bytes() -> usize {
+    resource_calculation_control_bytes() + checked_rows_validation_control_bytes()
+        + std::mem::size_of::<Result<Resources, Error>>()
+}
+
+pub(super) fn checked_rows_resource_events() -> Result<LogicalEvents, Error> {
+    LogicalEvents { validation: Program::full_resource_validation_visits()?,
+        ..LogicalEvents::default() }.checked_add(checked_rows_control_events().checked_mul(8)?)
+}
+
 impl Construction {
     /// One native invocation, including the exclusive failure/cleanup path.
     /// Existing query/lookup/AES debits are not subtracted from these bounds.
@@ -311,6 +400,7 @@ impl Construction {
         let (lanes, tables) = match self {
             Self::Builder { lanes } | Self::Negative { lanes } | Self::EqualZero { lanes }
             | Self::AllValid { lanes } | Self::CheckedRange { lanes } | Self::GuardedSilu { lanes } => (lanes, 0),
+            Self::CheckedRangeRows { rows, width } => (rows.checked_mul(width).ok_or(Error::Bounds)?, 0),
             Self::RmsNormCertified { rows, width, .. } | Self::RmsNormWithInputNorm { rows, width, .. } =>
                 (rows.checked_mul(width).ok_or(Error::Bounds)?, 1),
             Self::RotaryHalf { rows, width, .. } => (rows.checked_mul(width).ok_or(Error::Bounds)?, 2),
@@ -372,7 +462,17 @@ impl Construction {
             cleanup_dispatches: 3 + 2 * tables,
         };
         let mut events = base.checked_add(scratch_events)?.checked_add(coefficient_events)?.checked_add(controls)?;
-        if matches!(self, Self::RmsNormCertified { .. } | Self::RmsNormWithInputNorm { .. }) {
+        match self {
+        Self::CheckedRangeRows { .. } => {
+            // Ordinary constructor <=11 K; resident <=23 K. Reserve resident's
+            // exclusive failure envelope (46), plus quote/selection (3) and
+            // installed-quote selection (1), each with exclusive retirement.
+            // Shared N/N^2 recipe/finish work stays in base, not in K or H.
+            events = events.checked_add(checked_rows_control_events().checked_mul(54)?)?
+                .checked_add(LogicalEvents { writes: 3468, validation: 17_728,
+                    transitions: 277, allocation_attempts: 0, cleanup_dispatches: 1 })?;
+        },
+        Self::RmsNormCertified { .. } | Self::RmsNormWithInputNorm { .. } => {
             // Ranged product is the exclusive maximum: two initialized arrays,
             // two cell overwrites, four corners, three source/range locals, two
             // extrema accumulators and three result/return destinations =16.
@@ -399,6 +499,8 @@ impl Construction {
                 ..LogicalEvents::default()
             }.checked_mul(36 * 257)?;
             events = events.checked_add(polynomial)?;
+        },
+        _ => {},
         }
         Ok(events)
     }
@@ -447,6 +549,8 @@ fn price_core(
 ) -> Result<(WorkBudget, ConstructionQuote), WorkPreflightError> {
         use FactoryParameters as P;
         let work = match (construction, parameters) {
+            (Construction::CheckedRangeRows { rows, width }, P::CheckedRangeRows { incoming, accepted, fallback }) =>
+                Program::checked_range_rows_work(*rows, *width, *incoming, *accepted, *fallback, &mut workspace.rms)?,
             (Construction::GuardedSilu { lanes }, P::GuardedSilu { input }) => {
                 Program::activation_guarded_work(
                     Activation::Silu,
@@ -549,6 +653,9 @@ fn build_core(
         // The ephemeral enum copies scalars and borrows original parameter rows;
         // no retained owner moves into a consuming native factory.
         let (program, certificate) = match (*construction, parameters.borrowed()) {
+            (Construction::CheckedRangeRows { rows, width }, P::CheckedRangeRows { incoming, accepted, fallback }) => (
+                Program::checked_range_rows(rows, width, incoming, accepted, fallback)?, ProducedCertificate::None,
+            ),
             (Construction::GuardedSilu { lanes }, P::GuardedSilu { input }) => (
                 Program::activation_guarded(Activation::Silu, lanes, input)?,
                 ProducedCertificate::None,
@@ -623,6 +730,20 @@ fn build_core(
         Ok(FactoryOutput {
             program,
             certificate,
+            producer: match parameters {
+                P::GuardedSilu { .. } => ResourceProducer::GuardedSilu,
+                P::Negative { .. } => ResourceProducer::Negative,
+                P::EqualZero { .. } => ResourceProducer::EqualZero,
+                P::Rescale { .. } => ResourceProducer::Rescale,
+                P::Scale18 { .. } => ResourceProducer::Scale18,
+                P::CheckedRange { .. } => ResourceProducer::CheckedRange,
+                P::CheckedRangeRows { .. } => ResourceProducer::CheckedRangeRows,
+                P::AllValid => ResourceProducer::AllValid,
+                P::RmsNormCertified { .. } => ResourceProducer::RmsCertified,
+                P::RmsNormWithInputNorm { .. } => ResourceProducer::RmsWithInputNorm,
+                P::SoftmaxCertified { .. } => ResourceProducer::Softmax,
+                P::RotaryHalf { .. } => ResourceProducer::Rotary,
+            },
         })
 }
 
@@ -833,28 +954,96 @@ pub enum ProducedCertificate {
     GeneralOutputRowSquared(u128),
     AttentionMass(u64),
 }
+/// Closed native product. Public resource views borrow only genuine closed
+/// outputs; no construction from arbitrary programs or SOURCE funding authority.
+///
+/// ```compile_fail
+/// use pllm_core::puma::multiply::tensor::ProofFreeOutput;
+/// let view = ProofFreeOutput { program: todo!() };
+/// ```
+///
+/// ```compile_fail
+/// use pllm_core::puma::multiply::tensor::rms_resident::RmsOutputHandoff;
+/// let foreign = RmsOutputHandoff { program: &mut None, squared: 0, origin: todo!() };
+/// ```
+///
+/// ```compile_fail
+/// use pllm_core::puma::multiply::tensor::{FactoryOutput, Program, ProducedCertificate};
+/// fn certify_foreign(program: Program) -> FactoryOutput {
+///     FactoryOutput { program, certificate: ProducedCertificate::None, producer: todo!() }
+/// }
+/// ```
+///
+/// ```compile_fail
+/// use pllm_core::puma::multiply::tensor::{FactoryOutput, Program};
+/// fn replace(output: &FactoryOutput, foreign: &Program) {
+///     output.resources_proof_free(foreign); // no replacement-program API
+/// }
+/// ```
+///
+/// ```compile_fail
+/// use pllm_core::puma::multiply::tensor::{FactoryOutput, Program};
+/// fn escape(output: FactoryOutput) -> &'static Program {
+///     output.program() // immutable endpoint cannot escape original output
+/// }
+/// ```
 pub struct FactoryOutput {
     program: Program,
     certificate: ProducedCertificate,
+    // Resource provenance only; never digest, WorkBudget or certification input.
+    producer: ResourceProducer,
 }
 
-// All refusals precede ownership transfer. The map/assignment gap cannot fail,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum ResourceProducer {
+    GuardedSilu, Negative, EqualZero, Rescale, Scale18, CheckedRange, AllValid,
+    CheckedRangeRows,
+    RmsCertified, RmsWithInputNorm, Softmax, Rotary,
+}
+
+// Named commit scalar slots, separate from handoff, take and output temporaries.
+pub(super) struct RmsCommitControls {
+    producer: ResourceProducer,
+    certificate: ProducedCertificate,
+}
+
+pub(super) const fn rms_commit_control_bytes() -> usize {
+    std::mem::size_of::<RmsCommitControls>()
+        + std::mem::size_of::<ResourceProducer>() // origin selection return
+        + std::mem::size_of::<u128>() // squared scalar return
+        + std::mem::size_of::<ProducedCertificate>() // certificate construction
+        + std::mem::size_of::<&'static mut Option<FactoryOutput>>() // destination argument
+        + 2 * std::mem::size_of::<Option<&'static Program>>()
+        + std::mem::size_of::<Result<&'static Program, Error>>()
+        + 2 * std::mem::size_of::<Option<Program>>() // take return and named taken
+        + std::mem::size_of::<Program>() // match binding, before construction
+        + std::mem::size_of::<FactoryOutput>() // named construction temporary
+        + 2 * std::mem::size_of::<Option<FactoryOutput>>() // Some temporary, resident destination
+        + std::mem::size_of::<Result<(), Error>>() // distinct commit return
+}
+
+// All refusals precede ownership transfer. The take/assignment gap cannot fail,
 // allocate or invoke a hook; the original affine backing moves exactly once.
 pub(super) fn commit_rms_output(
-    program: &mut Option<Program>,
-    squared: u128,
+    handoff: rms_resident::RmsOutputHandoff<'_>,
     out: &mut Option<FactoryOutput>,
 ) -> Result<(), Error> {
     if out.is_some() {
         return Err(Error::Binding);
     }
-    if program.is_none() {
+    if handoff.program().is_none() {
         return Err(Error::Phase);
     }
-    *out = program.take().map(|program| FactoryOutput {
-        program,
-        certificate: ProducedCertificate::GeneralOutputRowSquared(squared),
-    });
+    if !handoff.program().ok_or(Error::Phase)?.extension.absent() {
+        return Err(Error::Binding);
+    }
+    let controls = RmsCommitControls { producer: handoff.producer(),
+        certificate: ProducedCertificate::GeneralOutputRowSquared(handoff.squared()) };
+    // No closure environment, allocation, check or hook between take/install.
+    let taken = handoff.take();
+    let program = match taken { Some(program) => program, None => unreachable!() };
+    let output = FactoryOutput { program, certificate: controls.certificate, producer: controls.producer };
+    *out = Some(output);
     Ok(())
 }
 
@@ -869,3 +1058,259 @@ impl FactoryOutput {
         (self.program, self.certificate)
     }
 }
+
+// Opt-in postconstruction leaf. Constants are logical event bounds, NOT
+// funding, permits or a replacement for the public universal resource quote.
+pub const RESOURCE_VIEW_QUERY: u64 = 256;
+pub const RESOURCE_VIEW_BODY: u64 = 1_198_656;
+/// QUERY + BODY only; accessor, initialization and caller controls are separate.
+pub const RESOURCE_VIEW_TOTAL: u64 = 1_198_912;
+const PROOF_FREE_CONSTRUCTION_MAINTENANCE: u64 = 37_568;
+pub const PROOF_FREE_CONSTRUCTION_EVENTS: LogicalEvents = LogicalEvents {
+    writes: 1, validation: PROOF_FREE_CONSTRUCTION_MAINTENANCE,
+    transitions: 0, allocation_attempts: 0, cleanup_dispatches: 1,
+};
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ResourcePhase { Ready, Burned, Complete }
+
+/// Opaque original-output borrow. No public constructor, Clone, mutable endpoint
+/// or conversion from a foreign Program.
+///
+/// ```compile_fail
+/// use pllm_core::puma::multiply::tensor::{Program, ResourceViewSlots};
+/// fn foreign(program: &Program) { let _ = ResourceViewSlots::new(program); }
+/// ```
+pub struct ProofFreeOutput<'p> { program: &'p Program }
+struct ResourceViewQuery<'p> {
+    output: &'p FactoryOutput,
+    producer: ResourceProducer,
+    phase: ResourcePhase,
+}
+/// One-attempt query controls retaining the original output borrow.
+/// Query/body work is intrinsic Core work, not SOURCE authentication. Compiler
+/// integration still needs Stage T's genuine original-root loan. Admit controls
+/// and pay before each operation; initialization and caller frames are separate.
+/// Keep output/backing and its covering charge through postcheck, error and
+/// unwind. Retire views/results before output take or capacity shrink.
+///
+/// ```
+/// use pllm_core::puma::multiply::tensor::{Construction, FactoryParameters,
+///     WorkPreflightWorkspace, CallerWorkLedger, ResourceViewSlots,
+///     ResourceBodySlots, query_resource_view, resources_proof_free};
+/// let factory = Construction::AllValid { lanes: 1 }.bind(FactoryParameters::AllValid).unwrap();
+/// let ticket = factory.preflight(1, &mut WorkPreflightWorkspace::empty()).unwrap();
+/// let mut work = Default::default();
+/// let admitted = CallerWorkLedger::new(&mut work, u64::MAX, u64::MAX).unwrap()
+///     .admit(ticket).unwrap();
+/// let (part, _) = admitted.into_parts();
+/// let output = part.build().unwrap();
+/// {
+///     let mut query = ResourceViewSlots::new(&output);
+///     query_resource_view(&mut query).unwrap();
+///     let view = query.view().unwrap();
+///     let mut body = ResourceBodySlots::empty();
+///     let resources = resources_proof_free(view, &mut body).unwrap();
+///     assert_eq!(resources, output.program().resources().unwrap()); // postcheck before take
+/// }
+/// let (_program, _certificate) = output.into_parts();
+/// ```
+///
+/// ```compile_fail
+/// use pllm_core::puma::multiply::tensor::ResourceViewSlots;
+/// fn private(slots: &ResourceViewSlots<'_>) { let _ = &slots.view; }
+/// ```
+///
+/// ```compile_fail
+/// use pllm_core::puma::multiply::tensor::{ResourceBodySlots, ProofFreeOutput};
+/// fn private(body: &ResourceBodySlots, view: &ProofFreeOutput<'_>) {
+///     let _ = &body.resources;
+///     let _ = view.program;
+/// }
+/// ```
+///
+/// ```compile_fail
+/// use pllm_core::puma::multiply::tensor::{FactoryOutput, ProofFreeOutput,
+///     ResourceViewSlots, query_resource_view};
+/// fn escape(output: &FactoryOutput) -> &ProofFreeOutput<'_> {
+///     let mut slots = ResourceViewSlots::new(output);
+///     query_resource_view(&mut slots).unwrap();
+///     slots.view().unwrap()
+/// }
+/// ```
+///
+/// ```compile_fail
+/// use pllm_core::puma::multiply::tensor::{FactoryOutput, ResourceViewSlots,
+///     ResourceBodySlots, query_resource_view, resources_proof_free};
+/// fn take(output: FactoryOutput) {
+///     let mut slots = ResourceViewSlots::new(&output);
+///     query_resource_view(&mut slots).unwrap();
+///     let view = slots.view().unwrap();
+///     let _ = output.into_parts();
+///     let _ = resources_proof_free(view, &mut ResourceBodySlots::empty());
+/// }
+/// ```
+pub struct ResourceViewSlots<'p> {
+    query: ResourceViewQuery<'p>,
+    view: Option<ProofFreeOutput<'p>>,
+    result: Result<(), WorkPreflightError>,
+}
+/// One-attempt body controls. No output identity or funding authority; callers
+/// pair the sealed view with their original paid output and retain results through postcheck.
+pub struct ResourceBodySlots {
+    resources: Option<Resources>,
+    result: Result<(), Error>,
+    phase: ResourcePhase,
+}
+
+impl<'p> ResourceViewSlots<'p> {
+    /// Borrow the original output; no classification or descriptor access.
+    pub fn new(output: &'p FactoryOutput) -> Self {
+        Self { query: ResourceViewQuery { output, producer: output.producer, phase: ResourcePhase::Ready },
+            view: None, result: Err(WorkPreflightError::WorkspacePoisoned) }
+    }
+    /// Borrow only a completed query. Each call has its own separate accessor
+    /// tariff/control inventory; it does not execute QUERY or BODY again.
+    pub fn view<'s>(&'s self) -> Option<&'s ProofFreeOutput<'p>> {
+        if self.query.phase != ResourcePhase::Complete { return None; }
+        match &self.view { Some(view) => Some(view), None => None }
+    }
+}
+impl ResourceBodySlots {
+    pub const fn empty() -> Self {
+        Self { resources: None, result: Err(Error::Phase), phase: ResourcePhase::Ready }
+    }
+}
+
+pub fn query_resource_view<'p>(slots: &mut ResourceViewSlots<'p>) -> Result<(), WorkPreflightError> {
+    // Block 1: one attempt, burned before classifier, fallibility or unwind.
+    if slots.query.phase != ResourcePhase::Ready { return Err(WorkPreflightError::WorkspacePoisoned); }
+    slots.query.phase = ResourcePhase::Burned;
+    #[cfg(test)]
+    resource_leaf_hook(ResourceLeafFault::QueryBurn);
+    #[cfg(test)]
+    resource_leaf_hook(ResourceLeafFault::QueryInstall);
+    // Blocks 2/3 have a distinct typed callee return; only immutable closed
+    // query fields cross this call. No callback, bind, quote or descriptor walk.
+    let returned = query_proof_free_output(&slots.query);
+    // Block 4: resident result installation and exclusive failure retirement.
+    // No fallible hook between helper return and resident installation.
+    match returned {
+        Ok(view) => { slots.view = Some(view); slots.result = Ok(()); }
+        Err(error) => { slots.result = Err(error); return Err(error); }
+    }
+    #[cfg(test)]
+    resource_leaf_hook(ResourceLeafFault::QueryInstalled);
+    slots.query.phase = ResourcePhase::Complete;
+    slots.result
+}
+
+fn query_proof_free_output<'p>(query: &ResourceViewQuery<'p>)
+    -> Result<ProofFreeOutput<'p>, WorkPreflightError> {
+    // Block 2: closed producer selection plus call/return transitions.
+    let selected = match query.producer {
+        ResourceProducer::Negative | ResourceProducer::EqualZero | ResourceProducer::Rescale
+        | ResourceProducer::Scale18 | ResourceProducer::CheckedRange | ResourceProducer::AllValid
+        | ResourceProducer::RmsCertified | ResourceProducer::RmsWithInputNorm | ResourceProducer::Rotary => true,
+        ResourceProducer::GuardedSilu | ResourceProducer::Softmax | ResourceProducer::CheckedRangeRows => false,
+    };
+    // Block 3: structural absence only; no descriptor, rule or proof access.
+    if !selected || !query.output.program.extension.absent() {
+        Err(WorkPreflightError::Unsupported)
+    } else { Ok(ProofFreeOutput { program: &query.output.program }) }
+}
+
+pub fn resources_proof_free(view: &ProofFreeOutput<'_>, slots: &mut ResourceBodySlots) -> Result<Resources, Error> {
+    // BODY's first 64: phase entry/burn. This is not a debit or funding proof.
+    if slots.phase != ResourcePhase::Ready { return Err(Error::Phase); }
+    slots.phase = ResourcePhase::Burned;
+    #[cfg(test)]
+    resource_leaf_hook(ResourceLeafFault::BodyBurn);
+    // B + four maintenance blocks: immutable endpoint entry, validator bypass,
+    // table backing selection, checker scratch selection/max. Shared numerical
+    // calculation, not a second resource algorithm and no optional checker.
+    #[cfg(test)]
+    resource_leaf_hook(ResourceLeafFault::BodyInstall);
+    let returned = view.program.resource_calculation();
+    // BODY's last 64: resident result write and exclusive failure retirement.
+    // No fallible hook or callback between returned value and installation.
+    match returned {
+        Ok(resources) => { slots.resources = Some(resources); slots.result = Ok(()); }
+        Err(error) => { slots.result = Err(error); return Err(error); }
+    }
+    #[cfg(test)]
+    resource_leaf_hook(ResourceLeafFault::BodyInstalled);
+    slots.phase = ResourcePhase::Complete;
+    returned
+}
+
+// Two independent 64-event rows, each 32 normal + 32 exclusive refusal.
+// Phase gate: receiver/phase read; both operand and formal borrows; Complete
+// operand; derived PartialEq::ne/equality-negation typed logical primitive;
+// bool transport/branch; early None construction/return and trivial retirement.
+// Extraction: Option borrow/discriminant/branch, borrowed match binding,
+// Some/None construction/return and trivial retirement. Exclusive constructors
+// are counted conservatively. No allocation, loop, descriptor or classifier.
+pub const RESOURCE_VIEW_ACCESSOR: u64 = 128;
+
+// Nominal source slots, not ABI stack/RSS. Count receiver, Complete operand,
+// comparison operand/formal borrows, equality/ne/branch bool transport, Option
+// borrow, match binding, and all three exclusive constructors plus final return.
+const fn resource_view_accessor_control_bytes() -> usize {
+    std::mem::size_of::<&'static ResourceViewSlots<'static>>()
+        + std::mem::size_of::<ResourcePhase>()
+        + 4 * std::mem::size_of::<&'static ResourcePhase>()
+        + 3 * std::mem::size_of::<bool>()
+        + std::mem::size_of::<&'static Option<ProofFreeOutput<'static>>>()
+        + std::mem::size_of::<&'static ProofFreeOutput<'static>>()
+        + 4 * std::mem::size_of::<Option<&'static ProofFreeOutput<'static>>>()
+}
+
+/// Separate accessor controls only; caller-held Option/match, admission and
+/// refusal controls remain external, as do retained output/query owners.
+pub const RESOURCE_VIEW_ACCESSOR_CONTROL_BYTES: usize = resource_view_accessor_control_bytes();
+/// Existing QUERY/BODY control inventory, excluding the separate accessor.
+pub const RESOURCE_VIEW_CONTROL_BYTES: usize = resource_view_control_bytes();
+
+// Exact named logical slots, not stack ABI/RSS. Endpoints live inside records;
+// Program/FactoryOutput/affine backing/source guards stay in the OLD envelope.
+// Helpers' distinct returns coexist with resident query/body/results.
+const fn resource_view_control_bytes() -> usize {
+    std::mem::size_of::<ResourceViewSlots<'static>>()
+        + 2 * std::mem::size_of::<Result<ProofFreeOutput<'static>, WorkPreflightError>>() // helper return, named returned
+        + std::mem::size_of::<ProofFreeOutput<'static>>() // match binding
+        + std::mem::size_of::<Result<(), WorkPreflightError>>()
+        + std::mem::size_of::<WorkPreflightError>() // query failure match binding
+        + std::mem::size_of::<Error>() // body failure match binding
+        + std::mem::size_of::<Resources>() // body success match binding
+        + std::mem::size_of::<bool>()
+        + std::mem::size_of::<&'static mut ResourceViewSlots<'static>>()
+        + std::mem::size_of::<&'static ResourceViewQuery<'static>>()
+        + std::mem::size_of::<&'static ProofFreeOutput<'static>>()
+        + std::mem::size_of::<&'static mut ResourceBodySlots>()
+        + std::mem::size_of::<ResourceBodySlots>()
+        + 3 * std::mem::size_of::<Result<Resources, Error>>() // calculation return, named returned, body return
+        + resource_calculation_control_bytes()
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ResourceLeafFault { QueryBurn, QueryInstall, QueryInstalled, BodyBurn, BodyInstall, BodyInstalled }
+#[cfg(test)]
+thread_local! {
+    static RESOURCE_LEAF_FAULT: std::cell::Cell<Option<ResourceLeafFault>> = const { std::cell::Cell::new(None) };
+    static RESOURCE_QUERY_ENTRIES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static RESOURCE_BODY_ENTRIES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+#[cfg(test)]
+fn resource_leaf_hook(stage: ResourceLeafFault) {
+    if stage == ResourceLeafFault::QueryBurn { RESOURCE_QUERY_ENTRIES.with(|n| n.set(n.get() + 1)); }
+    if stage == ResourceLeafFault::BodyBurn { RESOURCE_BODY_ENTRIES.with(|n| n.set(n.get() + 1)); }
+    RESOURCE_LEAF_FAULT.with(|fault| {
+        if fault.get() == Some(stage) { fault.set(None); panic!("injected resource leaf unwind"); }
+    });
+}
+
+#[cfg(test)]
+#[path = "tensor_resource_view_tests.rs"]
+mod resource_view_tests;

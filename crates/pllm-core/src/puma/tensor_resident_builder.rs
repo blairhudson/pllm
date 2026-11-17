@@ -2,8 +2,8 @@ use super::*;
 
 // Borrows only the state field, never the Program or pending allocation. There
 // is no rollback: ordinary Err and unwinding both leave original owners resident.
-struct Entered<'a> {
-    state: &'a mut ResidentState,
+pub(super) struct Entered<'a> {
+    pub(super) state: &'a mut ResidentState,
 }
 
 impl Drop for Entered<'_> {
@@ -19,6 +19,7 @@ impl ResidentBuilder {
         Self {
             builder: Some(builder),
             pending_affine: ExactStorage::empty(),
+            pending_indexed: predicate_provenance::Pending::empty(),
             state: ResidentState::Ready,
         }
     }
@@ -32,6 +33,7 @@ impl ResidentBuilder {
             builder,
             pending_affine,
             state,
+            ..
         } = self;
         if *state != ResidentState::Ready {
             return Err(Error::Phase);
@@ -47,11 +49,14 @@ impl ResidentBuilder {
     }
 
     pub(crate) fn finish(&mut self, output: Value) -> Result<(), Error> {
-        if !matches!(self.pending_affine, ExactStorage::Empty) { return Err(Error::Phase); }
+        if !matches!(self.pending_affine, ExactStorage::Empty) || !self.pending_indexed.is_empty() {
+            return Err(Error::Phase);
+        }
         let Self {
             builder,
             pending_affine: _,
             state,
+            ..
         } = self;
         if *state != ResidentState::Ready {
             return Err(Error::Phase);
@@ -64,11 +69,14 @@ impl ResidentBuilder {
     }
 
     pub(crate) fn finish_checked(&mut self, output: Value, valid: Value) -> Result<(), Error> {
-        if !matches!(self.pending_affine, ExactStorage::Empty) { return Err(Error::Phase); }
+        if !matches!(self.pending_affine, ExactStorage::Empty) || !self.pending_indexed.is_empty() {
+            return Err(Error::Phase);
+        }
         let Self {
             builder,
             pending_affine: _,
             state,
+            ..
         } = self;
         if *state != ResidentState::Ready {
             return Err(Error::Phase);
@@ -81,6 +89,36 @@ impl ResidentBuilder {
             .finish_checked_in_place(output, valid)?;
         *entered.state = ResidentState::Complete;
         Ok(())
+    }
+
+    // Covers every fallible new-path check, not only its final push. Plain
+    // Builder errors deliberately retain their existing non-poisoning behavior.
+    fn predicate_step<T>(&mut self, action: impl FnOnce(&mut Builder,
+        &mut predicate_provenance::Pending) -> Result<T, Error>) -> Result<T, Error> {
+        let Self { builder, pending_indexed, state, .. } = self;
+        if *state != ResidentState::Ready { return Err(Error::Phase); }
+        *state = ResidentState::Entering;
+        let entered = Entered { state };
+        let output = action(builder.as_mut().ok_or(Error::Phase)?, pending_indexed)?;
+        *entered.state = ResidentState::Ready;
+        Ok(output)
+    }
+
+    pub(super) fn indexed_affine(&mut self, input: Value, rows: &[IndexedAffineRow]) -> Result<Value, Error> {
+        self.predicate_step(|b, pending| b.indexed_with_pending(input, rows, false, pending))
+    }
+    pub(super) fn nested_difference(&mut self, input: Value, rows: &[IndexedAffineRow]) -> Result<Value, Error> {
+        self.predicate_step(|b, pending| b.indexed_with_pending(input, rows, true, pending))
+    }
+    pub(super) fn masked_operand(&mut self, original: Value, inside: Value) -> Result<Value, Error> {
+        use predicate_provenance::IndexedSink;
+        self.predicate_step(|b, _| b.masked_operand(original, inside))
+    }
+    pub(super) fn predicate_sign(&mut self, input: Value) -> Result<Value, Error> {
+        self.predicate_step(|b, _| b.sign(input))
+    }
+    pub(super) fn predicate_from_bit(&mut self, input: Value) -> Result<Value, Error> {
+        self.predicate_step(|b, _| b.from_bit(input))
     }
 
     /// Install once into a caller-resident empty slot. Refusal changes nothing.

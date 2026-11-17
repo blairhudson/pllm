@@ -31,6 +31,34 @@ pub(super) struct RmsResidentSlot {
     recipe: Option<(Value, u128)>,
 }
 
+// Only this module can assemble a handoff, from the actual completed resident
+// field below. No arbitrary Program/origin constructor or mutable lens exists.
+enum RmsOrigin { Certified, WithInputNorm }
+pub(super) struct RmsOutputHandoff<'a> {
+    program: &'a mut Option<Program>,
+    squared: u128,
+    origin: RmsOrigin,
+}
+impl RmsOutputHandoff<'_> {
+    pub(super) fn program(&self) -> Option<&Program> { self.program.as_ref() }
+    pub(super) fn squared(&self) -> u128 { self.squared }
+    pub(super) fn producer(&self) -> work_preflight::ResourceProducer {
+        match self.origin {
+            RmsOrigin::Certified => work_preflight::ResourceProducer::RmsCertified,
+            RmsOrigin::WithInputNorm => work_preflight::ResourceProducer::RmsWithInputNorm,
+        }
+    }
+    pub(super) fn take(self) -> Option<Program> { self.program.take() }
+}
+
+pub(super) const fn handoff_control_bytes() -> usize {
+    std::mem::size_of::<RmsOutputHandoff<'static>>()
+        + std::mem::size_of::<RmsOrigin>() // origin match result at handoff assembly
+        + std::mem::size_of::<&'static RmsOutputHandoff<'static>>() // inspection receiver
+        + std::mem::size_of::<Entered<'static>>()
+        + work_preflight::rms_commit_control_bytes()
+}
+
 /// Named, non-additive inventory components; deliberately no envelope total.
 /// Legacy peak/Arc estimates are NOT adopted. Caller capacities, ABI frames,
 /// full/tail overlap and rejected reserve capacity remain unresolved (census).
@@ -51,6 +79,9 @@ pub(super) struct RmsResidentQuote {
     pub(super) output_option_bytes: usize,
     pub(super) output_result_bytes: usize,
     pub(super) unit_result_bytes: usize,
+    pub(super) handoff_bytes: usize,
+    pub(super) commit_control_bytes: usize,
+    pub(super) commit_known_peak_bytes: usize,
 }
 
 impl RmsResidentSlot {
@@ -70,8 +101,13 @@ impl RmsResidentSlot {
                 rows: args.rows, width: args.width, gamma_len: args.gamma.len(),
             },
         };
+        let legacy = construction.quote()?;
+        let commit_known_peak_bytes = std::mem::size_of::<Self>()
+            .checked_add(handoff_control_bytes())
+            .and_then(|n| n.checked_add(legacy.public_table_bytes))
+            .ok_or(ConstructionQuoteError::Geometry(Error::Bounds))?;
         Ok(RmsResidentQuote {
-            legacy: construction.quote()?,
+            legacy,
             slot_bytes: std::mem::size_of::<Self>(),
             schedule_bytes: std::mem::size_of::<ResidentNativeSchedule<'_>>(),
             row_program_bytes: std::mem::size_of::<Program>(),
@@ -87,6 +123,9 @@ impl RmsResidentSlot {
             output_option_bytes: std::mem::size_of::<Option<FactoryOutput>>(),
             output_result_bytes: std::mem::size_of::<Result<FactoryOutput, Error>>(),
             unit_result_bytes: std::mem::size_of::<Result<(), Error>>(),
+            handoff_bytes: std::mem::size_of::<RmsOutputHandoff<'static>>(),
+            commit_control_bytes: handoff_control_bytes(),
+            commit_known_peak_bytes,
         })
     }
 
@@ -127,7 +166,11 @@ impl RmsResidentSlot {
         resident.transfer_complete(program)?;
         #[cfg(test)]
         hook(RmsStage::PostTransfer)?;
-        work_preflight::commit_rms_output(program, squared, out)?;
+        work_preflight::commit_rms_output(RmsOutputHandoff {
+            program, squared, origin: match args.input_norm {
+                None => RmsOrigin::Certified, Some(_) => RmsOrigin::WithInputNorm,
+            },
+        }, out)?;
         *entered.0 = State::Complete;
         Ok(())
     }
@@ -261,6 +304,22 @@ fn hook(stage: RmsStage) -> Result<(), Error> {
 
 #[cfg(test)]
 fn observe_gamma(gamma: &[i64]) { GAMMA.with(|g| g.set((gamma.as_ptr(), gamma.len()))); }
+
+#[cfg(test)]
+pub(super) fn watch_resource_output(output: &FactoryOutput) {
+    let p = output.program();
+    BACKING.with(|b| b.set((p.public_affines[0].as_ptr(), p.public_affines[0].len(), 0)));
+    SECOND_BACKING.with(|b| b.set((p.public_affines[1].as_ptr(), p.public_affines[1].len(), 0)));
+}
+#[cfg(test)]
+pub(super) fn resource_output_drops() -> (usize, usize) {
+    (BACKING.with(|b| b.get().2), SECOND_BACKING.with(|b| b.get().2))
+}
+#[cfg(test)]
+pub(super) fn unwatch_resource_output() {
+    BACKING.with(|b| b.set((std::ptr::null(), 0, 0)));
+    SECOND_BACKING.with(|b| b.set((std::ptr::null(), 0, 0)));
+}
 
 #[cfg(test)]
 pub(super) fn observe_affine(table: &[Affine]) {

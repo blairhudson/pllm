@@ -12,7 +12,83 @@ pub const XOR_PROFILE: &str = "puma.spu-a42c261.local-xor.ring64.replicated3.v1"
 pub const BOOLEAN_MAP_PROFILE: &str = "puma.public-bit-linear-map.replicated3.v1";
 pub const ROW_MAP_PROFILE: &str = "puma.public-row-linear-map.replicated3.v1";
 pub const LANE_AFFINE_PROFILE: &str = "puma.public-lane-affine.replicated3.v1";
+pub(super) const INDEXED_AFFINE_PROFILE: &str = "puma.public-indexed-affine.replicated3.v1";
 pub const BOOLEAN_BIT_SLICE_PROFILE: &str = "puma.public-row-major-bit-slice.replicated3.v1";
+
+/// One source owner, with explicit ordered terms. Unused slots are required to
+/// be zero, so descriptor identity has no unvalidated padding semantics.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct IndexedTerm {
+    pub lane: usize,
+    pub coefficient: i64,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct IndexedAffineRow {
+    pub constant: i64,
+    pub len: u8,
+    pub terms: [IndexedTerm; 2],
+}
+
+/// Borrowed immutable descriptor; construction retains its own exact backing.
+#[derive(Clone, Copy)]
+pub(super) struct IndexedAffine<'a>(pub &'a [IndexedAffineRow]);
+
+impl IndexedAffine<'_> {
+    pub(super) const MAX_OUTPUTS: usize = 1024;
+    pub(super) const MAX_TERMS: usize = 2048;
+
+    pub(super) fn output_bounds(self, lanes: usize, input: Interval) -> Result<Interval, Error> {
+        if lanes == 0 || lanes > MAX_LANES || self.0.is_empty()
+            || self.0.len() > Self::MAX_OUTPUTS {
+            return Err(Error::Bounds);
+        }
+        let mut terms = 0usize;
+        let mut lower = i64::MAX;
+        let mut upper = i64::MIN;
+        for row in self.0 {
+            let len = usize::from(row.len);
+            if len > 2 || row.terms[len..].iter().any(|t| *t != IndexedTerm::default()) {
+                return Err(Error::Bounds);
+            }
+            terms = terms.checked_add(len).ok_or(Error::Bounds)?;
+            if terms > Self::MAX_TERMS { return Err(Error::Bounds); }
+            // Same order as application: constant, then each term. Every
+            // coefficient product AND every ordered partial must fit signed64.
+            let mut lo = i128::from(row.constant);
+            let mut hi = lo;
+            for term in &row.terms[..len] {
+                if term.lane >= lanes { return Err(Error::Shape); }
+                let a = i128::from(term.coefficient).checked_mul(i128::from(input.lower()))
+                    .ok_or(Error::Bounds)?;
+                let b = i128::from(term.coefficient).checked_mul(i128::from(input.upper()))
+                    .ok_or(Error::Bounds)?;
+                i64::try_from(a).map_err(|_| Error::Bounds)?;
+                i64::try_from(b).map_err(|_| Error::Bounds)?;
+                lo = lo.checked_add(a.min(b)).ok_or(Error::Bounds)?;
+                hi = hi.checked_add(a.max(b)).ok_or(Error::Bounds)?;
+                i64::try_from(lo).map_err(|_| Error::Bounds)?;
+                i64::try_from(hi).map_err(|_| Error::Bounds)?;
+            }
+            lower = lower.min(i64::try_from(lo).map_err(|_| Error::Bounds)?);
+            upper = upper.max(i64::try_from(hi).map_err(|_| Error::Bounds)?);
+        }
+        Interval::new(lower, upper)
+    }
+
+    pub(super) fn hash(self, hash: &mut Sha256) {
+        hash.update(INDEXED_AFFINE_PROFILE.as_bytes());
+        hash.update((self.0.len() as u64).to_le_bytes());
+        for row in self.0 {
+            hash.update(row.constant.to_le_bytes());
+            hash.update([row.len]);
+            for term in row.terms {
+                hash.update((term.lane as u64).to_le_bytes());
+                hash.update(term.coefficient.to_le_bytes());
+            }
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RowMap {
@@ -172,6 +248,53 @@ fn reserve(source: &PartyRuntime, additional: usize) -> Result<(), Error> {
 }
 
 impl PartyRuntime {
+    pub(super) fn indexed_affine(
+        &mut self,
+        input: &mut ReplicatedShare,
+        descriptor: IndexedAffine<'_>,
+        bounds: Interval,
+    ) -> Result<ReplicatedShare, Error> {
+        let result = (|| {
+            self.source.live()?;
+            if !matches!(self.phase, Phase::Ready) { return Err(Error::Phase); }
+            validate(self, input)?;
+            let output = descriptor.output_bounds(input.operation.lanes, bounds)?;
+            let n = descriptor.0.len();
+            self.source.limits.core.admit(n)?;
+            reserve(self, 2 * (input.operation.lanes + n) * 8)?;
+            let mut operation = Operation::new(self.context(), self.source.runtime.next_sequence(),
+                Party::P0, n, 1, self.source.limits.core)?;
+            let mut hash = Sha256::new();
+            hash.update(INDEXED_AFFINE_PROFILE.as_bytes());
+            hash.update(self.source.setup);
+            hash.update(input.operation.digest());
+            hash.update((input.operation.lanes as u64).to_le_bytes());
+            hash.update((n as u64).to_le_bytes());
+            for bound in [bounds.lower(), bounds.upper(), output.lower(), output.upper()] {
+                hash.update(bound.to_le_bytes());
+            }
+            descriptor.hash(&mut hash);
+            operation.consumer = Some(hash.finalize().into());
+            self.source.runtime.consume_ordinal(operation)?;
+            let usage = self.payload_usage();
+            input.charge_to(&usage)?;
+            let mut first = usage.zeros(n)?;
+            let mut second = usage.zeros(n)?;
+            for (i, row) in descriptor.0.iter().enumerate() {
+                first[i] = if self.party() == Party::P0 { row.constant as u64 } else { 0 };
+                second[i] = if self.party() == Party::P2 { row.constant as u64 } else { 0 };
+                for term in &row.terms[..usize::from(row.len)] {
+                    first[i] = first[i].wrapping_add(input.first[term.lane]
+                        .wrapping_mul(term.coefficient as u64));
+                    second[i] = second[i].wrapping_add(input.second[term.lane]
+                        .wrapping_mul(term.coefficient as u64));
+                }
+            }
+            Ok(ReplicatedShare { operation, party: self.party(), first, second })
+        })();
+        self.checked(result)
+    }
+
     pub fn row_map(
         &mut self,
         input: &mut ReplicatedShare,

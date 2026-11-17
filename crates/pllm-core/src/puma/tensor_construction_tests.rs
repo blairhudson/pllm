@@ -1,6 +1,170 @@
 use super::*;
 use std::mem::{align_of, size_of};
 
+#[test]
+fn checked_rows_quote_geometry_and_private_origin_identity() {
+    let full = Interval::new(i64::MIN, i64::MAX).unwrap();
+    for (rows, width, error) in [(0, usize::MAX, Error::Shape), (usize::MAX, 0, Error::Shape),
+        (usize::MAX, 2, Error::Bounds), (9, 1, Error::Bounds), (1, 129, Error::Bounds), (8, 128, Error::Bounds)] {
+        assert_eq!(Construction::CheckedRangeRows { rows, width }.quote(), Err(ConstructionQuoteError::Geometry(error)));
+    }
+    let a = Program::checked_range_rows(2, 64, full, full, 0).unwrap();
+    let b = Program::checked_range_rows(4, 32, full, full, 0).unwrap();
+    let legacy = Program::checked_range(128, full, full, 0).unwrap();
+    assert_eq!(a.nodes, b.nodes);
+    assert_eq!(a.nodes, legacy.nodes);
+    assert_ne!(a.digest(), b.digest());
+    assert_ne!(a.digest(), legacy.digest());
+    assert_eq!(a.work_budget(), legacy.work_budget());
+    assert!(!a.extension.absent());
+    assert!(!predicate_provenance::Dag::extended(&a));
+    assert!(a.extension.owners().is_err());
+    assert_eq!(a.extension.backing_bytes(), 0);
+    assert_eq!(a.extension.capacity(a.lanes), 128);
+    for index in 0..a.len {
+        let v = Value(index as u8);
+        assert!(predicate_provenance::Dag::table(&a, v).unwrap().is_empty());
+        assert!(predicate_provenance::Dag::rule(&a, v).is_none());
+        assert!(predicate_provenance::Dag::proofs(&a, v).is_empty());
+    }
+    assert!(legacy.extension.absent());
+    let before = predicate_provenance::access_counts();
+    let clone = a.clone();
+    let _ = clone.resources().unwrap();
+    drop(clone);
+    assert_eq!(predicate_provenance::access_counts(), before);
+}
+
+// Independent literal encodings, never hash_header/hash_rule/BitMap::hash.
+// Track every opaque update occurrence and byte, including legacy header stream.
+fn checked_rows_expected_hash(p: &Program, geometry: Option<(u64, u64)>) -> ([u8; 32], usize, usize) {
+    let mut h = Sha256::new();
+    let mut calls = 0usize;
+    let mut bytes = 0usize;
+    let mut update = |raw: &[u8]| { h.update(raw); calls += 1; bytes += raw.len(); };
+    update(b"pllm.puma.public-tensor-program.q18.v1");
+    update(b"puma.checked-range-q18.v1");
+    update(&(p.lanes as u64).to_le_bytes());
+    update(&(p.len as u64).to_le_bytes());
+    update(b"checked-validity-output.v1");
+    update(&[p.checked_validity.unwrap().0]);
+    if let Some((rows, width)) = geometry {
+        update(b"puma.checked-rows.v1");
+        update(&rows.to_le_bytes());
+        update(&width.to_le_bytes());
+    }
+    for node in p.nodes[..p.len].iter().flatten() {
+        match node.instruction {
+            Instruction::Input => update(&[0]),
+            Instruction::Bits(v) => update(&[6, v.0]),
+            Instruction::BitMap(v, map) => {
+                update(&[7, v.0]);
+                let (tag, parameter) = match map {
+                    BitMap::LowBits(n) => (0, u64::from(n)),
+                    BitMap::ShiftRight(n) => (1, u64::from(n)),
+                    BitMap::ShiftLeft(n) => (2, u64::from(n)),
+                    BitMap::Parity(mask) => (5, mask),
+                    _ => panic!("unexpected Rows map"),
+                };
+                update(&[tag]); update(&parameter.to_le_bytes());
+            }
+            Instruction::BitConstantXor(v, c) => { update(&[12, v.0]); update(&c.to_le_bytes()); }
+            Instruction::BitOr(a, b) => update(&[8, a.0, b.0]),
+            Instruction::BitXor(a, b) => update(&[9, a.0, b.0]),
+            Instruction::FromBit(v) => update(&[5, v.0]),
+            Instruction::Affine { left, right, coefficients } => {
+                update(&[1, left.0, right.map_or(255, |v| v.0)]);
+                update(&coefficients.left.to_le_bytes());
+                update(&coefficients.right.to_le_bytes());
+                update(&coefficients.constant.to_le_bytes());
+            }
+            _ => panic!("unexpected Rows node"),
+        }
+        update(&node.bounds.lower().to_le_bytes()); update(&node.bounds.upper().to_le_bytes());
+    }
+    drop(update);
+    (h.finalize().into(), calls, bytes)
+}
+
+#[test]
+fn checked_rows_complete_hash_literal_census_and_unchanged_legacy_stream() {
+    let full = Interval::new(i64::MIN, i64::MAX).unwrap();
+    let range = Interval::new(-7, 11).unwrap();
+    let legacy = Program::checked_range(128, full, range, 3).unwrap();
+    let (digest, updates, bytes) = checked_rows_expected_hash(&legacy, None);
+    assert_eq!(legacy.digest(), digest);
+    assert_eq!((updates, bytes), (272, 1682));
+    for (rows, width) in [(1, 128), (2, 64), (4, 128), (8, 64)] {
+        let p = Program::checked_range_rows(rows, width, full, range, 3).unwrap();
+        let (digest, updates, bytes) = checked_rows_expected_hash(&p, Some((rows as u64, width as u64)));
+        assert_eq!(p.digest(), digest);
+        assert_eq!((updates, bytes), (275, 1718));
+        assert_eq!((2 * bytes + 32, 64 * (updates + 2), updates + 2), (3468, 17_728, 277));
+    }
+}
+
+#[test]
+fn checked_rows_real_resources_keep_full_liveness_and_inline_owners() {
+    let full = Interval::new(i64::MIN, i64::MAX).unwrap();
+    for (rows, width) in [(1, 128), (3, 128), (4, 128), (8, 64)] {
+        let p = Program::checked_range_rows(rows, width, full, full, 0).unwrap();
+        let r = p.resources().unwrap();
+        assert_eq!(r.public_table_bytes, 0);
+        assert_eq!(r.immutable_template_bytes, size_of::<Program>() + 2 * size_of::<usize>());
+        assert_eq!(r.register_container_bytes, p.register_count * size_of::<Option<Register>>());
+        assert_eq!(r.invocation_container_bytes, size_of::<Executor>() + r.register_container_bytes);
+        assert_eq!(r.frame_bytes, 3 * size_of::<Frame>());
+        let mut peak = 0;
+        for step in 0..p.len {
+            let live: usize = (0..=step).filter(|&i| i == step || usize::from(p.last_use[i]) >= step)
+                .map(|i| 2 * p.nodes[i].unwrap().lanes).sum();
+            let node = p.nodes[step].unwrap();
+            let temporary = match node.instruction {
+                Instruction::Input => 0,
+                Instruction::Affine { right, .. } => if right.is_some() { 10 } else { 6 },
+                Instruction::Bits(_) => 34,
+                Instruction::BitMap(..) | Instruction::BitConstantXor(..) => 6,
+                Instruction::BitOr(..) => 20,
+                Instruction::BitXor(..) => 10,
+                Instruction::FromBit(v) => { let bits = usize::from(p.bit_widths[v.0 as usize]);
+                    if bits <= 8 { 16 * bits + 10 } else { 42 } }
+                _ => panic!("unexpected Rows resource instruction"),
+            } * node.lanes;
+            peak = peak.max(8 * (live + temporary));
+        }
+        assert_eq!(r.working_bytes, peak);
+        assert_eq!(r.owned_admitted_bytes, FIXED_RESERVE_BYTES + r.invocation_container_bytes + r.frame_bytes + peak);
+        assert_eq!(r.shared_admitted_bytes, r.owned_admitted_bytes + r.immutable_template_bytes);
+        let q = Construction::CheckedRangeRows { rows, width }.quote().unwrap();
+        assert_eq!(q.public_table_bytes, 0);
+        assert_eq!(q.immutable_template_bytes, r.immutable_template_bytes);
+        assert!(q.return_slot_bytes >= size_of::<Result<Program, Error>>());
+        assert!(size_of::<ProgramOwner>() >= size_of::<Program>());
+        assert!(size_of::<Executor>() >= size_of::<ProgramOwner>());
+    }
+}
+
+#[test]
+fn checked_rows_identity_validator_refuses_profile_validity_geometry_and_indexed_forgery() {
+    let full = Interval::new(i64::MIN, i64::MAX).unwrap();
+    let p = Program::checked_range_rows(2, 8, full, full, 0).unwrap();
+    for fault in 0..5 {
+        let mut broken = p.clone();
+        match fault {
+            0 => broken.numeric_profile = super::super::NUMERIC_PROFILE,
+            1 => broken.checked_validity = None,
+            2 => broken.lanes = 8,
+            3 => broken.extension = predicate_provenance::Extension::CheckedRowsIdentity(CheckedRowsIdentity { rows: 0, width: 8 }),
+            _ => broken.extension = predicate_provenance::Extension::CheckedRowsIdentity(CheckedRowsIdentity { rows: u64::MAX, width: 2 }),
+        }
+        assert!(broken.resources().is_err());
+    }
+    let mut forged = p.clone();
+    forged.nodes[1].as_mut().unwrap().instruction = Instruction::IndexedAffine { input: Value(0), table: 0, output_lanes: 16 };
+    assert!(matches!(predicate_provenance::Dag::table(&forged, Value(1)), Err(Error::Phase)));
+    assert!(matches!(forged.resources(), Err(Error::Phase)));
+}
+
 // Literal pre-extraction composition. Never call equal_zero_recipe or its work
 // visitor for the expected instructions/digest/slot plan.
 fn original_equal_zero(lanes: usize, input: Interval) -> Result<Program, Error> {
@@ -254,13 +418,14 @@ fn verify_phases(q: ConstructionQuote) {
     assert_eq!(
         q.finish_buffer_bytes,
         size_of::<Sha256>() + MAX_NODES * size_of::<usize>()
+            + size_of::<Option<predicate_provenance::RecordIndex<'static>>>()
+            + size_of::<predicate_provenance::Audit>()
     );
     assert_eq!(q.new_build_bytes, inline + owners + scratch);
     assert_eq!(q.new_finish_bytes, owners + q.finish_buffer_bytes);
-    assert_eq!(
-        q.new_publish_bytes,
-        q.return_slot_bytes + q.immutable_template_bytes
-    );
+    // RMS additionally covers its sealed resident handoff/take/install peak;
+    // that exact owner-local inventory is reconstructed in rms_resident::tests.
+    assert!(q.new_publish_bytes >= q.return_slot_bytes + q.immutable_template_bytes);
     assert_eq!(
         q.new_peak_bytes,
         q.new_build_bytes
@@ -382,6 +547,8 @@ fn native_construction_phase_inventories_are_explicit_not_execution_allowances()
         size_of::<Result<(Program, u64), Error>>()
             .max(size_of::<Result<(Program, Option<u64>), Error>>())
             .max(size_of::<Result<Builder, Error>>())
+            .max(size_of::<Result<FactoryOutput, Error>>())
+            .max(size_of::<Option<FactoryOutput>>())
     );
     assert_eq!(
         softmax.proof_buffer_bytes,
@@ -416,11 +583,12 @@ fn negative_and_equal_zero_have_separate_native_buffer_and_return_inventories() 
         let equality = Construction::EqualZero { lanes }.quote().unwrap();
         for q in [negative, equality] {
             verify_phases(q);
-            // Both APIs return Result<Program>; new/row returns Result<Builder>.
-            // Neither path returns a certificate, tuple or coefficient owner.
+            // Native APIs return Program/Builder; closed dispatch additionally
+            // overlaps the actual producer-bearing FactoryOutput result/slot.
             assert_eq!(
                 q.return_slot_bytes,
                 size_of::<Result<Program, Error>>().max(size_of::<Result<Builder, Error>>())
+                    .max(size_of::<Result<FactoryOutput, Error>>()).max(size_of::<Option<FactoryOutput>>())
             );
             assert_eq!(q.borrowed_public_bytes, 0);
             assert_eq!(q.public_table_bytes, 0);
@@ -868,7 +1036,10 @@ fn installed_resident_quote_retains_inline_return_overlap_and_fallback_builder()
             + q.constructor_buffer_bytes + q.proof_buffer_bytes;
         let finish = q.return_slot_bytes + q.public_table_bytes + q.finish_buffer_bytes;
         let publish = q.return_slot_bytes + q.immutable_template_bytes;
-        assert_eq!(peak, build.max(finish).max(publish));
+        assert!(peak >= build.max(finish).max(publish));
+        if matches!(construction, Construction::RotaryHalf { .. }) {
+            assert_eq!(peak, build.max(finish).max(publish));
+        } // exact sealed RMS peak is reconstructed in its private owner tests
         assert!(q.return_slot_bytes >= size_of::<Result<FactoryOutput, Error>>());
         assert!(q.return_slot_bytes >= size_of::<Option<FactoryOutput>>());
         assert!(q.new_build_bytes >= 2 * size_of::<Builder>() + q.return_slot_bytes
@@ -915,7 +1086,8 @@ fn native_event_categories_separate_affine_attempts_from_caller_arc_and_polynomi
     // constructors and their original protocol-work contracts are unchanged.
     assert!(Construction::SoftmaxCertified { rows: 1, width: 3 }.logical_events().is_err());
     let n = MAX_NODES as u64;
-    assert_eq!(Program::full_resource_validation_visits().unwrap(), 64 * (3 + n + n * (n + 1) / 2));
+    assert_eq!(Program::full_resource_validation_visits().unwrap(),
+        64 * (3 + n + n * (n + 1) / 2) + predicate_provenance::MAX_VALIDATION_VISITS);
 }
 
 #[test]
@@ -955,27 +1127,281 @@ fn construction_quote_does_not_enter_frozen_digest_or_certificate_equations() {
         p.resources().unwrap().immutable_template_bytes
     );
 
+    pre_extension_legacy_vectors::assert_factories();
+
+    // Retain the original nontrivial-width quote NONINTERFERENCE checks too.
+    // These snapshots test quote purity only, not historical identity: the
+    // independent Git-derived expectations above supply that separate oracle.
     let bound = Interval::new(-(1 << 18), 1 << 18).unwrap();
     let (a, radius_a) = Program::rms_norm_certified(1, 3, bound, &[1 << 18; 3]).unwrap();
-    Construction::RmsNormCertified {
-        rows: 1,
-        width: 3,
-        gamma_len: 3,
-    }
-    .quote()
-    .unwrap();
+    Construction::RmsNormCertified { rows: 1, width: 3, gamma_len: 3 }.quote().unwrap();
     let (b, radius_b) = Program::rms_norm_certified(1, 3, bound, &[1 << 18; 3]).unwrap();
-    assert_eq!(
-        (a.digest(), a.work_budget(), radius_a),
-        (b.digest(), b.work_budget(), radius_b)
-    );
+    assert_eq!((a.digest(), a.work_budget(), radius_a),
+        (b.digest(), b.work_budget(), radius_b));
     let (a, mass_a) = Program::softmax_certified(1, 3, bound).unwrap();
-    Construction::SoftmaxCertified { rows: 1, width: 3 }
-        .quote()
-        .unwrap();
+    Construction::SoftmaxCertified { rows: 1, width: 3 }.quote().unwrap();
     let (b, mass_b) = Program::softmax_certified(1, 3, bound).unwrap();
-    assert_eq!(
-        (a.digest(), a.work_budget(), mass_a),
-        (b.digest(), b.work_budget(), mass_b)
-    );
+    assert_eq!((a.digest(), a.work_budget(), mass_a),
+        (b.digest(), b.work_budget(), mass_b));
+}
+
+mod pre_extension_legacy_vectors {
+    use super::*;
+
+    // Git provenance: 3a21be5a3a8922ab2b9d363805cbe584ef1240cd,
+    // crates/pllm-core/src/puma/{tensor.rs,tensor_numeric.rs,
+    // tensor_attention_work.rs,arithmetic.rs,work.rs}. `git show` confirms that
+    // Program has no indexed extension; numeric.rs matches the current source.
+    // These ONE-LANE fixtures transcribe the old RMS/softmax compositions and
+    // finish byte tags, NOT a second general numeric implementation. Their
+    // single positive exponent/point proof cell needs no bucket/partition code.
+    // Expectations never use Builder, production interval/proof/work helpers,
+    // Instruction::inputs, BitMap::hash, finish, or a current constructor.
+    const Q: i64 = 262_144;
+    const LOCAL: [u64; 5] = [1, 0, 0, 0, 0];
+    const RESCALE: [u64; 5] = [1, 1, 2, 1, 6];
+    // Work columns: operations, public, pair, private, AES. Each source fill
+    // rounds separately: at one lane an 8-byte fill and a 2*8-byte fill each
+    // cost one block; full A2B has two initial fills and six carry fills.
+    struct Stream {
+        rows: Vec<(Vec<u8>, [i64; 2], u8)>,
+        work: [u64; 5],
+    }
+    impl Stream {
+        fn new() -> Self {
+            let mut s = Self { rows: Vec::new(), work: [0; 5] };
+            s.emit(vec![0], [0, 0], 0, [0; 5]);
+            s
+        }
+        fn emit(&mut self, bytes: Vec<u8>, bounds: [i64; 2], width: u8, work: [u64; 5]) -> u8 {
+            let id = u8::try_from(self.rows.len()).unwrap();
+            self.rows.push((bytes, bounds, width));
+            for (total, add) in self.work.iter_mut().zip(work) { *total += add; }
+            id
+        }
+        fn bounds(&self, id: u8) -> [i64; 2] { self.rows[id as usize].1 }
+        fn affine(&mut self, a: u8, b: Option<u8>, c: [i64; 3]) -> u8 {
+            let term = |v: [i64; 2], c: i64| {
+                let x = i128::from(v[0]) * i128::from(c);
+                let y = i128::from(v[1]) * i128::from(c);
+                [x.min(y), x.max(y)]
+            };
+            let left = term(self.bounds(a), c[0]);
+            let right = term(b.map_or([0, 0], |b| self.bounds(b)), c[1]);
+            let bounds = std::array::from_fn(|i|
+                i64::try_from(left[i] + right[i] + i128::from(c[2])).unwrap());
+            let mut bytes = vec![1, a, b.unwrap_or(255)];
+            for coefficient in c { bytes.extend(coefficient.to_le_bytes()); }
+            self.emit(bytes, bounds, 0, LOCAL)
+        }
+        fn product(&mut self, a: u8, b: u8, rescale: bool, certified: bool) -> u8 {
+            let x = self.bounds(a);
+            let y = self.bounds(b);
+            let corners = [i128::from(x[0]) * i128::from(y[0]),
+                i128::from(x[0]) * i128::from(y[1]), i128::from(x[1]) * i128::from(y[0]),
+                i128::from(x[1]) * i128::from(y[1])];
+            let raw = [i64::try_from(*corners.iter().min().unwrap()).unwrap(),
+                i64::try_from(*corners.iter().max().unwrap()).unwrap()];
+            let mut bytes = vec![2, a, b, u8::from(rescale)];
+            if certified {
+                bytes.extend(b"conditional-product-envelope.v1");
+                for bound in raw { bytes.extend(bound.to_le_bytes()); }
+            }
+            self.emit(bytes, if rescale { rounded(raw, 18) } else { raw }, 0,
+                if rescale { [1, 1, 3, 1, 8] } else { [1, 0, 1, 0, 2] })
+        }
+        fn rescale(&mut self, a: u8, shift: u8) -> u8 {
+            self.emit(vec![3, a, shift], rounded(self.bounds(a), shift), 0, RESCALE)
+        }
+        fn map(&mut self, a: u8, tag: u8, parameter: u64, width: u8) -> u8 {
+            let mut bytes = vec![7, a, tag];
+            bytes.extend(parameter.to_le_bytes());
+            self.emit(bytes, [0, 0], width, LOCAL)
+        }
+        fn highest(&mut self, a: u8, width: u8) -> u8 {
+            let bits = self.emit(vec![6, a], [0, 0], 64, [1, 0, 8, 0, 16]);
+            let mut spread = self.map(bits, 0, u64::from(width), width);
+            for shift in [1_u8, 2, 4, 8, 16, 32] {
+                let lower = self.map(spread, 1, u64::from(shift), width.saturating_sub(shift));
+                spread = self.emit(vec![8, spread, lower], [0, 0], width, [3, 0, 1, 0, 2]);
+            }
+            let lower = self.map(spread, 1, 1, width - 1);
+            self.emit(vec![9, spread, lower], [0, 0], width, LOCAL)
+        }
+        fn from(&mut self, a: u8, width: u8, exact: Option<i64>) -> u8 {
+            self.emit(vec![5, a], exact.map_or([0, (1_i64 << width) - 1], |v| [v, v]), 0,
+                if width == 1 { [1, 1, 3, 0, 5] } else {
+                    assert!(width > 8); [1, 0, 9, 0, 18]
+                })
+        }
+        fn row(&mut self, a: u8, broadcast: bool) -> u8 {
+            let mut bytes = vec![10, a];
+            bytes.extend(1_u64.to_le_bytes());
+            bytes.extend((u64::MAX - u64::from(broadcast)).to_le_bytes());
+            self.emit(bytes, self.bounds(a), 0, LOCAL)
+        }
+        fn assert_program(&self, p: &Program, profile: &[u8]) {
+            let mut hash = Sha256::new();
+            hash.update(b"pllm.puma.public-tensor-program.q18.v1");
+            hash.update(profile);
+            hash.update(1_u64.to_le_bytes());
+            hash.update((self.rows.len() as u64).to_le_bytes());
+            assert_eq!(p.len, self.rows.len());
+            assert_eq!(p.numeric_profile().as_bytes(), profile);
+            assert!(p.extension.absent());
+            assert_eq!(p.checked_validity, None);
+            for (i, (bytes, bounds, width)) in self.rows.iter().enumerate() {
+                hash.update(bytes);
+                for bound in bounds { hash.update(bound.to_le_bytes()); }
+                assert_eq!(p.bit_widths[i], *width, "legacy width at {i}");
+                let node = p.nodes[i].unwrap();
+                assert_eq!((node.bounds.lower(), node.bounds.upper()), (bounds[0], bounds[1]));
+                assert_eq!((node.lanes, node.bit), (1, *width != 0));
+            }
+            assert_eq!(p.digest(), <[u8; 32]>::from(hash.finalize()));
+            let c = p.work_budget().cursors();
+            assert_eq!([p.work_budget().operations(), c.public_blocks, c.pair_blocks,
+                c.private_blocks, c.aes_work], self.work);
+        }
+    }
+    fn rounded(bounds: [i64; 2], shift: u8) -> [i64; 2] {
+        let q = 1_i128 << shift;
+        [i64::try_from(i128::from(bounds[0]).div_euclid(q)).unwrap(),
+            i64::try_from(-(-i128::from(bounds[1])).div_euclid(q)).unwrap()]
+    }
+
+    // Zero row, width one: epsilon-one denominator=1, exponent=0, U=Q/4.
+    // All three powers are exact integers. The partitioned polynomial proof
+    // has ONE point cell, so its result is exactly this literal interval chain.
+    fn rms(gamma: i64) -> Stream {
+        let mut s = Stream::new();
+        let square = s.product(0, 0, true, true);
+        let sum = s.row(square, false);
+        let raw_mean = s.affine(sum, None, [Q, 0, 0]);
+        let mean = s.rescale(raw_mean, 18);
+        let denominator = s.affine(mean, None, [1, 0, 1]);
+        let highest = s.highest(denominator, 35);
+        let z = s.map(highest, 2, 1, 36);
+        let reversed = s.map(z, 3, 36, 36);
+        let factor = s.from(reversed, 36, Some(1 << 34));
+        let u = s.product(denominator, factor, true, true);
+        let u2 = s.product(u, u, true, true);
+        let u3 = s.product(u2, u, true, true);
+        let u4 = s.product(u3, u, true, true);
+        let mut raw = s.affine(u, None, [-4_057_974, 0, 0]);
+        for (power, coefficient) in [(u2, 10_085_068), (u3, -13_072_088), (u4, 6_823_457)] {
+            raw = s.affine(raw, Some(power), [1, coefficient, 0]);
+        }
+        let scaled = s.rescale(raw, 18);
+        let polynomial = s.affine(scaled, None, [1, 0, 1_086_023]);
+        let parity = s.map(z, 5, 0x5555_5555_5555_5555, 1);
+        let parity = s.from(parity, 1, Some(0));
+        let coefficient = s.affine(parity, None, [212, 0, 512]);
+        let folded = s.map(z, 4, 0, 18);
+        let reversed = s.map(folded, 3, 18, 18);
+        let scale = s.from(reversed, 18, Some(1 << 17));
+        let compensation = s.product(coefficient, scale, false, true);
+        let inverse = s.product(polynomial, compensation, true, true);
+        let inverse = s.row(inverse, true);
+        let normalized = s.product(0, inverse, true, true);
+        let mut bytes = vec![11, normalized, 0];
+        bytes.extend(gamma.to_le_bytes());
+        bytes.extend(0_i64.to_le_bytes());
+        let scaled = s.emit(bytes, [0, 0], 0, LOCAL);
+        s.rescale(scaled, 18);
+        s
+    }
+
+    // Zero score, width one: total's public lower bound refines [0,Q] to
+    // [Q,Q]. Reciprocal mass proof has ONE point cell at exponent 18; no use
+    // of the current reciprocal primitive or reciprocal_mass_bounds here.
+    fn softmax() -> (Stream, u64) {
+        let mut s = Stream::new();
+        let z = s.affine(0, Some(0), [1, -1, 0]);
+        let threshold = s.affine(z, None, [-1, 0, -14 * Q]);
+        let sign = s.emit(vec![4, threshold], [0, 1], 1, [1, 0, 8, 0, 16]);
+        let keep = s.from(sign, 1, None);
+        let safe = s.product(z, keep, false, false);
+        let reduced = s.rescale(safe, 5);
+        let mut exp = s.affine(reduced, None, [1, 0, Q]);
+        for _ in 0..5 { exp = s.product(exp, exp, true, true); }
+        let exp = s.product(exp, keep, false, false);
+        let total = s.row(exp, false);
+        s.rows[total as usize].1 = [Q, Q];
+        let highest = s.highest(total, 36);
+        let reversed = s.map(highest, 3, 36, 36);
+        let factor = s.from(reversed, 36, Some(1 << 17));
+        let c = s.product(total, factor, true, true);
+        let guess = s.affine(c, None, [-2, 0, 763_940]);
+        let w = s.product(guess, factor, true, true);
+        let xw = s.product(total, w, true, true);
+        let e = s.affine(xw, None, [-1, 0, Q]);
+        let one_e = s.affine(e, None, [1, 0, Q]);
+        let r = s.product(w, one_e, true, true);
+        let e2 = s.product(e, e, true, true);
+        let one_e2 = s.affine(e2, None, [1, 0, Q]);
+        let inverse = s.product(r, one_e2, true, true);
+        // ceil(Q*inverse.upper/Q), width=1; the independent point-cell
+        // arithmetic above is also the old certificate calculation.
+        let mass = u64::try_from(s.bounds(inverse)[1]).unwrap();
+        let inverse = s.row(inverse, true);
+        s.product(exp, inverse, true, false);
+        (s, mass)
+    }
+
+    pub(super) fn assert_factories() {
+        for input_norm in [false, true] {
+            let gamma = if input_norm { -Q } else { Q };
+            let expected = rms(gamma);
+            let construction = if input_norm {
+                Construction::RmsNormWithInputNorm { rows: 1, width: 1, gamma_len: 1 }
+            } else { Construction::RmsNormCertified { rows: 1, width: 1, gamma_len: 1 } };
+            // Reconstruct before AND after quote; neither current output is an
+            // oracle for the other. E<=0 refines declared [-1,1] to zero first.
+            for _ in 0..2 {
+                let (program, energy) = if input_norm {
+                    Program::rms_norm_with_input_norm(1, 1, Interval::new(-1, 1).unwrap(), &[gamma], 0)
+                } else { Program::rms_norm_certified(1, 1, Interval::new(0, 0).unwrap(), &[gamma]) }.unwrap();
+                expected.assert_program(&program, b"puma.rmsnorm-epsilon1-q18.v1");
+                assert_eq!(program.public_affine_count, 1);
+                assert_eq!(program.public_affines[0].as_ref(), &[Affine { left: gamma, right: 0, constant: 0 }]);
+                assert!(program.public_affines[1].is_empty());
+                // E=0 => ceil(sqrt(E*r^2)/Q)+ceil(sqrt(1))=1;
+                // |gamma|=Q adds the final rounding guard: (1+1)^2=4.
+                assert_eq!(energy, 4);
+                let gamma = [gamma];
+                let parameters = if input_norm {
+                    FactoryParameters::RmsNormWithInputNorm { input: Interval::new(-1, 1).unwrap(), gamma: &gamma, squared_norm: 0 }
+                } else { FactoryParameters::RmsNormCertified { input: Interval::new(0, 0).unwrap(), gamma: &gamma } };
+                let output = build(construction, parameters);
+                expected.assert_program(output.program(), b"puma.rmsnorm-epsilon1-q18.v1");
+                assert_eq!(output.certificate(), ProducedCertificate::GeneralOutputRowSquared(4));
+                construction.quote().unwrap();
+            }
+        }
+        let (expected, mass) = softmax();
+        for _ in 0..2 {
+            let (program, actual_mass) = Program::softmax_certified(1, 1, Interval::new(0, 0).unwrap()).unwrap();
+            expected.assert_program(&program, b"puma.source-derived-q18.v1");
+            assert_eq!(actual_mass, mass);
+            assert_eq!(program.public_affine_count, 0);
+            assert!(program.public_affines.iter().all(|table| table.is_empty()));
+            let output = build(Construction::SoftmaxCertified { rows: 1, width: 1 },
+                FactoryParameters::SoftmaxCertified { input: Interval::new(0, 0).unwrap() });
+            expected.assert_program(output.program(), b"puma.source-derived-q18.v1");
+            assert_eq!(output.certificate(), ProducedCertificate::AttentionMass(mass));
+            Construction::SoftmaxCertified { rows: 1, width: 1 }.quote().unwrap();
+        }
+    }
+    fn build(construction: Construction, parameters: FactoryParameters<'_>) -> FactoryOutput {
+        let factory = construction.bind(parameters).unwrap();
+        let mut workspace = WorkPreflightWorkspace::empty();
+        let ticket = factory.preflight(1, &mut workspace).unwrap();
+        let mut total = WorkBudget::default();
+        let admitted = CallerWorkLedger::new(&mut total, u64::MAX, u64::MAX).unwrap()
+            .admit(ticket).unwrap();
+        let (full, tail) = admitted.into_parts();
+        assert!(tail.is_none());
+        full.build().unwrap()
+    }
 }

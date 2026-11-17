@@ -1,6 +1,224 @@
 use super::*;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
+fn checked_rows_source(rows: usize, width: usize, fallback: i64) -> ResidentFactorySource<'static> {
+    Construction::CheckedRangeRows { rows, width }.resident_parameters(FactoryParameters::CheckedRangeRows {
+        incoming: Interval::new(i64::MIN, i64::MAX).unwrap(), accepted: Interval::new(-7, 11).unwrap(), fallback,
+    })
+}
+
+fn checked_rows_args() -> CheckedRowsArgs {
+    CheckedRowsArgs { rows: 2, width: 8, incoming: Interval::new(i64::MIN, i64::MAX).unwrap(),
+        accepted: Interval::new(-7, 11).unwrap(), fallback: 3 }
+}
+
+#[test]
+fn checked_rows_resident_conversion_sites_and_sequential_validator_capacity_inventory() {
+    use std::mem::size_of;
+    // Independently reconstruct each typed transfer family, not a call to the
+    // production conversion/validation/constructor inventory under test.
+    let to_u64 = 2 * size_of::<usize>()
+        + 2 * size_of::<Result<u64, std::num::TryFromIntError>>()
+        + size_of::<std::num::TryFromIntError>() + size_of::<Error>()
+        + 2 * size_of::<Result<u64, Error>>()
+        + 2 * size_of::<std::ops::ControlFlow<Result<std::convert::Infallible, Error>, u64>>()
+        + 2 * size_of::<Result<std::convert::Infallible, Error>>() + size_of::<Error>();
+    let to_usize = 2 * size_of::<u64>()
+        + 2 * size_of::<Result<usize, std::num::TryFromIntError>>()
+        + size_of::<std::num::TryFromIntError>() + size_of::<Error>()
+        + 2 * size_of::<Result<usize, Error>>()
+        + 2 * size_of::<std::ops::ControlFlow<Result<std::convert::Infallible, Error>, usize>>()
+        + 2 * size_of::<Result<std::convert::Infallible, Error>>() + size_of::<Error>();
+    let validator = size_of::<CheckedRowsIdentity>() + to_usize + to_usize
+        + 6 * size_of::<usize>() + 2 * size_of::<Result<usize, Error>>()
+        + size_of::<Option<usize>>() + 2 * size_of::<Result<(), Error>>()
+        + size_of::<Option<Value>>() + size_of::<&'static Program>()
+        + size_of::<&'static CheckedRowsIdentity>()
+        + size_of::<&'static predicate_provenance::Extension>() + 2 * size_of::<&'static str>();
+    // Finish validator has returned before commit validator starts: share one
+    // complete capacity envelope, but price BOTH body executions in logical K.
+    let expected = size_of::<ResidentNativeSchedule<'static>>()
+        + 2 * size_of::<FactoryBody<'static>>() + 2 * size_of::<EphemeralBoundLens<'static>>()
+        + size_of::<CheckedRowsArgs>() + size_of::<Builder>() + size_of::<Result<Builder, Error>>()
+        + size_of::<ResidentBuilder>() + size_of::<Option<ResidentBuilder>>()
+        + size_of::<rms_resident::ResidentRecipeSink<'static>>()
+        + size_of::<CheckedValue>() + size_of::<Result<CheckedValue, Error>>()
+        + 3 * size_of::<Result<(), Error>>() + 2 * size_of::<Option<&'static Program>>()
+        + size_of::<Result<&'static Program, Error>>() + 2 * size_of::<Option<Program>>()
+        + size_of::<Program>() + size_of::<FactoryOutput>() + 3 * size_of::<Option<FactoryOutput>>()
+        + size_of::<ResourceProducer>() + size_of::<ProducedCertificate>()
+        + size_of::<CheckedRowsIdentity>() + validator
+        // Builder rows/width AND pre-take requested rows/width: four sites.
+        + to_u64 + to_u64 + to_u64 + to_u64
+        + size_of::<&'static mut NativeFinishSlot>() + size_of::<&'static CheckedRowsArgs>()
+        + size_of::<&'static mut Option<FactoryOutput>>() + size_of::<&'static mut ResidentBuilder>()
+        + size_of::<Result<WorkSummary, WorkPreflightError>>()
+        + size_of::<Result<(), WorkPreflightError>>();
+    assert_eq!(checked_rows_resident_control_bytes(), expected);
+}
+
+fn checked_rows_admitted(tail: bool) -> ResidentNativeSchedule<'static> {
+    let mut source = Some(checked_rows_source(2, 8, 3));
+    let mut tail_source = if tail { Some(checked_rows_source(1, 8, 3)) } else { None };
+    let mut owner = WorkPreflightWorkspace::resident_schedule();
+    owner.install(&mut source, if tail { Some(&mut tail_source) } else { None }, 1).unwrap();
+    owner.bind().unwrap();
+    owner.preflight(&mut WorkPreflightWorkspace::empty()).unwrap();
+    let mut total = WorkBudget::default();
+    owner.admit(&mut CallerWorkLedger::new(&mut total, u64::MAX, u64::MAX).unwrap()).unwrap();
+    owner
+}
+
+#[test]
+fn checked_rows_closed_binding_refuses_legacy_parameters_and_preserves_full_tail_queries() {
+    let args = checked_rows_args();
+    assert!(matches!(Construction::CheckedRangeRows { rows: 0, width: 0 }.bind(FactoryParameters::CheckedRange {
+        incoming: args.incoming, accepted: args.accepted, fallback: 99,
+    }), Err(WorkPreflightError::ParameterBinding)));
+    assert!(matches!(Construction::CheckedRange { lanes: 16 }.bind(FactoryParameters::CheckedRangeRows {
+        incoming: args.incoming, accepted: args.accepted, fallback: 3,
+    }), Err(WorkPreflightError::ParameterBinding)));
+    for count in [0, 2] {
+        let mut full = Some(checked_rows_source(2, 8, 3));
+        let mut tail = Some(checked_rows_source(1, 8, 3));
+        let mut owner = WorkPreflightWorkspace::resident_schedule();
+        owner.install(&mut full, Some(&mut tail), count).unwrap();
+        owner.bind().unwrap();
+        let mut preflight_workspace = WorkPreflightWorkspace::empty();
+        let result = owner.preflight(&mut preflight_workspace);
+        if count == 0 {
+            assert_eq!(result, Err(WorkPreflightError::EmptySchedule));
+            // Full query ran before zero-count refusal; tail is not entered
+            // after that existing refusal. No changed preflight precedence.
+            preflight_workspace.rms.assert_native_metadata(&Program::checked_range_rows(
+                2, 8, args.incoming, args.accepted, 3).unwrap());
+            continue;
+        }
+        result.unwrap();
+        let summary = owner.summary().unwrap();
+        let mut workspace = RmsWorkWorkspace::empty();
+        let full_work = Program::checked_range_rows_work(2, 8, args.incoming, args.accepted, 3, &mut workspace).unwrap();
+        let tail_work = Program::checked_range_rows_work(1, 8, args.incoming, args.accepted, 3, &mut workspace).unwrap();
+        assert_eq!(summary.full.unit_work, full_work);
+        assert_eq!(summary.work, full_work.checked_mul(count).unwrap().checked_add(tail_work).unwrap());
+    }
+    // Zero invocation count does not bypass invalid FULL parameters.
+    let mut full = Some(checked_rows_source(0, 8, 99));
+    let mut owner = WorkPreflightWorkspace::resident_schedule();
+    owner.install(&mut full, None, 0).unwrap();
+    owner.bind().unwrap();
+    assert_eq!(owner.preflight(&mut WorkPreflightWorkspace::empty()), Err(WorkPreflightError::Native(Error::Shape)));
+}
+
+#[test]
+fn checked_rows_real_resident_and_ordinary_producers_are_distinct_and_uncertified() {
+    let mut owner = checked_rows_admitted(true);
+    let mut full = None;
+    let mut tail = None;
+    owner.build_into(&mut full, &mut tail).unwrap();
+    for output in [full.as_ref().unwrap(), tail.as_ref().unwrap()] {
+        assert_eq!(output.producer, ResourceProducer::CheckedRangeRows);
+        assert_eq!(output.certificate(), ProducedCertificate::None);
+        assert!(matches!(output.program.extension, predicate_provenance::Extension::CheckedRowsIdentity(_)));
+    }
+    let args = checked_rows_args();
+    let ordinary = build_core(&Construction::CheckedRangeRows { rows: args.rows, width: args.width },
+        &FactoryParameters::CheckedRangeRows { incoming: args.incoming, accepted: args.accepted, fallback: args.fallback }).unwrap();
+    assert_eq!(ordinary.program.digest(), full.as_ref().unwrap().program.digest());
+    assert_eq!(ordinary.producer, ResourceProducer::CheckedRangeRows);
+    assert_eq!(ordinary.certificate(), ProducedCertificate::None);
+    assert_eq!(owner.build_into(&mut None, &mut None), Err(Error::Phase));
+}
+
+#[test]
+fn checked_rows_recipe_failure_retains_installed_builder_and_burns_schedule() {
+    let mut occupied = Some(build_core(&Construction::AllValid { lanes: 1 }, &FactoryParameters::AllValid).unwrap());
+    let occupied_digest = occupied.as_ref().unwrap().program.digest();
+    let mut fresh = NativeFinishSlot::empty();
+    assert_eq!(fresh.build_checked_rows(&checked_rows_args(), &mut occupied), Err(Error::Phase));
+    assert!(fresh.builder.is_none() && fresh.program.is_none());
+    assert_eq!(occupied.as_ref().unwrap().program.digest(), occupied_digest);
+    let mut args = checked_rows_args();
+    args.fallback = 99;
+    let mut slot = NativeFinishSlot::empty();
+    assert_eq!(slot.build_checked_rows(&args, &mut None), Err(Error::Bounds));
+    let builder = slot.builder.as_ref().unwrap();
+    assert!(matches!(builder.builder.as_ref().unwrap().0.extension, predicate_provenance::Extension::CheckedRowsIdentity(_)));
+    assert!(slot.program.is_none());
+    assert_eq!(slot.build_checked_rows(&checked_rows_args(), &mut None), Err(Error::Phase));
+    // A genuinely preflighted schedule cannot retry even after a retained native
+    // finish/transfer failure; native work admission remains debited.
+    let mut owner = checked_rows_admitted(false);
+    CHECKED_ROWS_FAULT.with(|fault| fault.set(Some((CheckedRowsStage::Transferred, 1, false))));
+    assert_eq!(owner.build_into(&mut None, &mut None), Err(Error::Binding));
+    assert!(owner.full_finish.program.is_some());
+    assert_eq!(owner.build_into(&mut None, &mut None), Err(Error::Phase));
+}
+
+#[test]
+fn checked_rows_installed_faults_and_unwinds_keep_original_resident_owner() {
+    for stage in [CheckedRowsStage::Installed, CheckedRowsStage::Recipe, CheckedRowsStage::Transferred] {
+        for panic in [false, true] {
+            let mut owner = checked_rows_admitted(false);
+            CHECKED_ROWS_FAULT.with(|fault| fault.set(Some((stage, 1, panic))));
+            let result = catch_unwind(AssertUnwindSafe(|| owner.build_into(&mut None, &mut None)));
+            if panic { assert!(result.is_err()); } else { assert_eq!(result.unwrap(), Err(Error::Binding)); }
+            if stage == CheckedRowsStage::Transferred { assert!(owner.full_finish.program.is_some()); }
+            else { assert!(owner.full_finish.builder.as_ref().unwrap().builder.is_some()); }
+            assert_eq!(owner.build_into(&mut None, &mut None), Err(Error::Phase));
+        }
+    }
+}
+
+#[test]
+fn checked_rows_pre_take_refusals_keep_program_and_occupied_output_unchanged() {
+    let args = checked_rows_args();
+    for fault in 0..6 {
+        let mut slot = NativeFinishSlot::empty();
+        CHECKED_ROWS_FAULT.with(|pending| pending.set(Some((CheckedRowsStage::Transferred, 1, false))));
+        assert_eq!(slot.build_checked_rows(&args, &mut None), Err(Error::Binding));
+        let mut output = None;
+        let mut expected_args = checked_rows_args();
+        match fault {
+            0 => { // The destination itself is genuinely factory-produced.
+                output = Some(build_core(&Construction::AllValid { lanes: 1 }, &FactoryParameters::AllValid).unwrap());
+            }
+            1 => slot.program.as_mut().unwrap().extension = predicate_provenance::Extension::Absent,
+            2 => slot.program.as_mut().unwrap().extension = predicate_provenance::Extension::Indexed(predicate_provenance::IndexedOwners::empty()),
+            3 => slot.program.as_mut().unwrap().checked_validity = None,
+            4 => slot.program.as_mut().unwrap().numeric_profile = "foreign",
+            _ => { expected_args.rows = 1; expected_args.width = 16; }
+        }
+        let digest = slot.program.as_ref().unwrap().digest();
+        let occupied = output.as_ref().map(|o| o.program.digest());
+        assert!(slot.commit_checked_rows(&expected_args, &mut output).is_err());
+        assert_eq!(slot.program.as_ref().unwrap().digest(), digest);
+        assert_eq!(output.as_ref().map(|o| o.program.digest()), occupied);
+    }
+    let mut empty = NativeFinishSlot::empty();
+    assert_eq!(empty.commit_checked_rows(&args, &mut None), Err(Error::Phase));
+}
+
+#[test]
+fn checked_rows_full_output_survives_all_tail_fault_stages() {
+    for stage in [CheckedRowsStage::Installed, CheckedRowsStage::Recipe, CheckedRowsStage::Transferred] {
+        for panic in [false, true] {
+            let mut owner = checked_rows_admitted(true);
+            let mut full = None;
+            let mut tail = None;
+            CHECKED_ROWS_FAULT.with(|fault| fault.set(Some((stage, 2, panic))));
+            let result = catch_unwind(AssertUnwindSafe(|| owner.build_into(&mut full, &mut tail)));
+            if panic { assert!(result.is_err()); } else { assert_eq!(result.unwrap(), Err(Error::Binding)); }
+            assert!(tail.is_none());
+            let full = full.unwrap();
+            assert_eq!(full.producer, ResourceProducer::CheckedRangeRows);
+            assert_eq!(full.certificate(), ProducedCertificate::None);
+            assert!(full.program.resources().is_ok());
+            assert_eq!(owner.build_into(&mut None, &mut None), Err(Error::Phase));
+        }
+    }
+}
+
 const ONE: i64 = 1 << 18;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Backing {
@@ -638,6 +856,7 @@ fn parameter_build_tail_unwind_keeps_caller_resident_full_output_and_both_rows()
     let expected_full = FactoryOutput {
         program: Program::rotary_half(1, 4, input(), &[ONE, ONE / 2], &[0, -ONE / 2]).unwrap(),
         certificate: ProducedCertificate::None,
+        producer: ResourceProducer::Rotary,
     };
     let mut full_out = None;
     let mut tail_out = None;
@@ -915,6 +1134,7 @@ fn parameter_build_occupied_output_burns_once_without_replacing_output_or_rows()
     let charged = total;
     let mut full_out = Some(FactoryOutput {
         program: Program::equal_zero(1, input()).unwrap(), certificate: ProducedCertificate::None,
+        producer: ResourceProducer::EqualZero,
     });
     let output_before = output_snapshot(full_out.as_ref().unwrap());
     let mut tail_out = None;

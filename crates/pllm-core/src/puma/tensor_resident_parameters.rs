@@ -47,6 +47,9 @@ impl FactoryParameters<'_> {
             P::CheckedRange { incoming, accepted, fallback } => P::CheckedRange {
                 incoming: *incoming, accepted: *accepted, fallback: *fallback,
             },
+            P::CheckedRangeRows { incoming, accepted, fallback } => P::CheckedRangeRows {
+                incoming: *incoming, accepted: *accepted, fallback: *fallback,
+            },
             P::AllValid => P::AllValid,
             P::RmsNormCertified { input, gamma } => P::RmsNormCertified { input: *input, gamma },
             P::RmsNormWithInputNorm { input, gamma, squared_norm } => P::RmsNormWithInputNorm {
@@ -185,6 +188,53 @@ struct NativeFinishSlot {
     rms: rms_resident::RmsResidentSlot,
 }
 
+pub(super) struct CheckedRowsArgs {
+    rows: usize,
+    width: usize,
+    incoming: Interval,
+    accepted: Interval,
+    fallback: i64,
+}
+
+pub(super) const fn checked_rows_resident_control_bytes() -> usize {
+    // Schedule is retained through exclusive refusal, including completed full
+    // during tail failure. Two finish slots are already embedded, not added again.
+    std::mem::size_of::<ResidentNativeSchedule<'static>>()
+        + 2 * std::mem::size_of::<FactoryBody<'static>>() // full/tail lens sources
+        + 2 * std::mem::size_of::<EphemeralBoundLens<'static>>()
+        + std::mem::size_of::<CheckedRowsArgs>()
+        + std::mem::size_of::<Builder>()
+        + std::mem::size_of::<Result<Builder, Error>>()
+        + std::mem::size_of::<ResidentBuilder>() // installation temporary
+        + std::mem::size_of::<Option<ResidentBuilder>>()
+        + std::mem::size_of::<rms_resident::ResidentRecipeSink<'static>>()
+        + std::mem::size_of::<CheckedValue>()
+        + std::mem::size_of::<Result<CheckedValue, Error>>()
+        + 3 * std::mem::size_of::<Result<(), Error>>() // finish, transfer, commit
+        + 2 * std::mem::size_of::<Option<&'static Program>>()
+        + std::mem::size_of::<Result<&'static Program, Error>>()
+        + 2 * std::mem::size_of::<Option<Program>>() // take return and binding
+        + std::mem::size_of::<Program>() // match binding before output assembly
+        + std::mem::size_of::<FactoryOutput>()
+        + 3 * std::mem::size_of::<Option<FactoryOutput>>() // full/tail and Some temporary
+        + std::mem::size_of::<ResourceProducer>()
+        + std::mem::size_of::<ProducedCertificate>()
+        + std::mem::size_of::<CheckedRowsIdentity>()
+        // finish_checked's validator returns before transfer/commit invokes the
+        // second validator. Their conversion/branch frames cannot coexist: one
+        // complete validator envelope is reused, NOT one logical execution.
+        + checked_rows_validation_control_bytes()
+        // Four separate usize->u64 source sites: builder rows/width and commit's
+        // requested rows/width. Conservatively sum both phases, no reuse credit.
+        + 4 * checked_rows_conversion_control_bytes::<usize, u64>()
+        + std::mem::size_of::<&'static mut NativeFinishSlot>()
+        + std::mem::size_of::<&'static CheckedRowsArgs>()
+        + std::mem::size_of::<&'static mut Option<FactoryOutput>>()
+        + std::mem::size_of::<&'static mut ResidentBuilder>()
+        + std::mem::size_of::<Result<WorkSummary, WorkPreflightError>>()
+        + std::mem::size_of::<Result<(), WorkPreflightError>>()
+}
+
 impl NativeFinishSlot {
     const fn empty() -> Self {
         Self { builder: None, program: None, rms: rms_resident::RmsResidentSlot::empty() }
@@ -192,6 +242,10 @@ impl NativeFinishSlot {
 
     fn build_into(&mut self, lens: EphemeralBoundLens<'_>, out: &mut Option<FactoryOutput>) -> Result<(), Error> {
         match (*lens.construction, &lens.parameters) {
+            (Construction::CheckedRangeRows { rows, width }, FactoryParameters::CheckedRangeRows { incoming, accepted, fallback }) => {
+                let args = CheckedRowsArgs { rows, width, incoming: *incoming, accepted: *accepted, fallback: *fallback };
+                self.build_checked_rows(&args, out)
+            }
             (Construction::RmsNormCertified { rows, width, .. }, FactoryParameters::RmsNormCertified { input, gamma }) => {
                 #[cfg(test)]
                 test_hook(TestStage::Build);
@@ -235,6 +289,48 @@ impl NativeFinishSlot {
         }
     }
 
+    fn build_checked_rows(&mut self, args: &CheckedRowsArgs, out: &mut Option<FactoryOutput>) -> Result<(), Error> {
+        if self.builder.is_some() || self.program.is_some() || out.is_some() { return Err(Error::Phase); }
+        #[cfg(test)]
+        test_hook(TestStage::Build);
+        self.builder = Some(ResidentBuilder::from_builder(
+            Builder::checked_range_rows(args.rows, args.width, args.incoming)?));
+        #[cfg(test)]
+        checked_rows_hook(CheckedRowsStage::Installed)?;
+        let mut sink = rms_resident::ResidentRecipeSink(self.builder.as_mut().ok_or(Error::Phase)?);
+        let input = attention_work::SoftmaxSink::input(&sink);
+        let checked = rms_work::checked_recipe(&mut sink, input, args.accepted, args.fallback)?;
+        #[cfg(test)]
+        checked_rows_hook(CheckedRowsStage::Recipe)?;
+        let builder = self.builder.as_mut().ok_or(Error::Phase)?;
+        builder.finish_checked(checked.safe, checked.valid)?;
+        builder.transfer_complete(&mut self.program)?;
+        #[cfg(test)]
+        checked_rows_hook(CheckedRowsStage::Transferred)?;
+        self.commit_checked_rows(args, out)
+    }
+
+    // Only the genuine installed checked-factory path calls this endpoint.
+    // Descriptor, geometry/profile/validity and ALL occupancy checks precede take.
+    fn commit_checked_rows(&mut self, args: &CheckedRowsArgs, out: &mut Option<FactoryOutput>) -> Result<(), Error> {
+        if out.is_some() { return Err(Error::Binding); }
+        let program = self.program.as_ref().ok_or(Error::Phase)?;
+        let predicate_provenance::Extension::CheckedRowsIdentity(identity) = &program.extension else {
+            return Err(Error::Binding);
+        };
+        program.validate_checked_rows(identity)?;
+        if identity.rows != u64::try_from(args.rows).map_err(|_| Error::Bounds)?
+            || identity.width != u64::try_from(args.width).map_err(|_| Error::Bounds)? {
+            return Err(Error::Binding);
+        }
+        let taken = self.program.take();
+        let program = match taken { Some(program) => program, None => unreachable!() };
+        let output = FactoryOutput { program, certificate: ProducedCertificate::None,
+            producer: ResourceProducer::CheckedRangeRows };
+        *out = Some(output);
+        Ok(())
+    }
+
     fn finish_into(&mut self, output: Value, out: &mut Option<FactoryOutput>) -> Result<(), Error> {
         if out.is_some() {
             return Err(Error::Binding);
@@ -245,7 +341,8 @@ impl NativeFinishSlot {
         match self.program.take() {
             Some(program) => {
                 // Infallible commit gap: no hooks, checks, allocation or callbacks.
-                *out = Some(FactoryOutput { program, certificate: ProducedCertificate::None });
+                *out = Some(FactoryOutput { program, certificate: ProducedCertificate::None,
+                    producer: ResourceProducer::Rotary });
                 Ok(())
             }
             None => Err(Error::Phase),
@@ -370,6 +467,30 @@ impl<'a> ResidentNativeSchedule<'a> {
 #[cfg(test)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum TestStage { Bind, Price, Admit, Build }
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum CheckedRowsStage { Installed, Recipe, Transferred }
+#[cfg(test)]
+thread_local! {
+    static CHECKED_ROWS_FAULT: std::cell::Cell<Option<(CheckedRowsStage, usize, bool)>> = const { std::cell::Cell::new(None) };
+}
+#[cfg(test)]
+fn checked_rows_hook(stage: CheckedRowsStage) -> Result<(), Error> {
+    CHECKED_ROWS_FAULT.with(|fault| {
+        if let Some((wanted, remaining, panic)) = fault.get() {
+            if wanted == stage {
+                if remaining == 1 {
+                    fault.set(None);
+                    if panic { panic!("checked Rows resident unwind"); }
+                    return Err(Error::Binding);
+                }
+                fault.set(Some((wanted, remaining - 1, panic)));
+            }
+        }
+        Ok(())
+    })
+}
 
 #[cfg(test)]
 thread_local! {

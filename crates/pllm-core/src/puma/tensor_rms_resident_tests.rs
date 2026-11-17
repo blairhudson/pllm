@@ -297,22 +297,46 @@ fn transferred_factory_output_owns_table_after_schedule_teardown_and_commit_refu
         assert_eq!(drops(), 1);
         unwatch();
 
-        let (p, c) = legacy(&a);
-        let mut retained = Some(p);
-        let pointer = retained.as_ref().unwrap().public_affines[0].as_ptr();
+        // Retain the genuine sole producer's private slot at its existing
+        // post-transfer hook. Never certify a legacy/arbitrary Program option.
+        let mut retained = RmsResidentSlot::empty();
+        FAULT.with(|f| f.set(Some((RmsStage::PostTransfer, 1, false))));
+        assert_eq!(retained.build_into(&a, &mut None), Err(Error::Bounds));
+        assert_eq!(retained.state, State::Failed);
+        let pointer = retained.program.as_ref().unwrap().public_affines[0].as_ptr();
+        let c = retained.recipe.unwrap().1;
+        let handoff = |slot: &mut RmsResidentSlot, destination: &mut Option<FactoryOutput>| {
+            work_preflight::commit_rms_output(RmsOutputHandoff {
+                program: &mut slot.program, squared: c,
+                origin: if norm { RmsOrigin::WithInputNorm } else { RmsOrigin::Certified },
+            }, destination)
+        };
         let mut occupied = None;
         let mut another = RmsResidentSlot::empty();
         another.build_into(&a, &mut occupied).unwrap();
         let occupied_digest = occupied.as_ref().unwrap().program().digest;
-        assert_eq!(work_preflight::commit_rms_output(&mut retained, c, &mut occupied), Err(Error::Binding));
-        assert_eq!(retained.as_ref().unwrap().public_affines[0].as_ptr(), pointer);
+        assert_eq!(handoff(&mut retained, &mut occupied), Err(Error::Binding));
+        assert_eq!(retained.program.as_ref().unwrap().public_affines[0].as_ptr(), pointer);
         assert_eq!(occupied.as_ref().unwrap().program().digest, occupied_digest);
         let mut empty_out = None;
-        assert_eq!(work_preflight::commit_rms_output(&mut None, c, &mut empty_out), Err(Error::Phase));
+        let actual_program = retained.program.take();
+        assert_eq!(handoff(&mut retained, &mut occupied), Err(Error::Binding));
+        assert_eq!(handoff(&mut retained, &mut empty_out), Err(Error::Phase));
         assert!(empty_out.is_none());
-        watch(pointer, retained.as_ref().unwrap().public_affines[0].len());
-        work_preflight::commit_rms_output(&mut retained, c, &mut empty_out).unwrap();
-        assert!(retained.is_none());
+        retained.program = actual_program;
+        // Adversarial private corruption: even genuine provenance cannot make
+        // an Indexed owner proof-free. Refusal precedes the one-shot take.
+        retained.program.as_mut().unwrap().extension = predicate_provenance::Extension::Indexed(
+            predicate_provenance::IndexedOwners::empty());
+        assert_eq!(handoff(&mut retained, &mut empty_out), Err(Error::Binding));
+        assert!(empty_out.is_none());
+        assert_eq!(retained.program.as_ref().unwrap().public_affines[0].as_ptr(), pointer);
+        retained.program.as_mut().unwrap().extension = predicate_provenance::Extension::Absent;
+        watch(pointer, retained.program.as_ref().unwrap().public_affines[0].len());
+        handoff(&mut retained, &mut empty_out).unwrap();
+        assert!(retained.program.is_none());
+        assert_eq!(handoff(&mut retained, &mut None), Err(Error::Phase));
+        assert_eq!(empty_out.as_ref().unwrap().certificate(), ProducedCertificate::GeneralOutputRowSquared(c));
         assert_eq!(empty_out.as_ref().unwrap().program().public_affines[0].as_ptr(), pointer);
         assert_eq!(drops(), 0);
         drop(empty_out);
@@ -529,6 +553,38 @@ fn proposal_inventory_names_inline_returns_but_never_grants_native_prepaid_autho
         assert_eq!(quote.output_option_bytes, std::mem::size_of::<Option<FactoryOutput>>());
         assert_eq!(quote.output_result_bytes, std::mem::size_of::<Result<FactoryOutput, Error>>());
         assert_eq!(quote.unit_result_bytes, std::mem::size_of::<Result<(), Error>>());
+        // Independent concrete ABI inventory. Never call the layout/pricing
+        // helper to obtain the expected value and never assume enum padding.
+        use std::mem::size_of;
+        let commit = size_of::<work_preflight::RmsCommitControls>()
+            + size_of::<work_preflight::ResourceProducer>() + size_of::<u128>()
+            + size_of::<ProducedCertificate>() + size_of::<&mut Option<FactoryOutput>>()
+            + 2 * size_of::<Option<&Program>>() + size_of::<Result<&Program, Error>>()
+            + 2 * size_of::<Option<Program>>() + size_of::<Program>()
+            + size_of::<FactoryOutput>() + 2 * size_of::<Option<FactoryOutput>>()
+            + size_of::<Result<(), Error>>();
+        let handoff = size_of::<RmsOutputHandoff<'_>>() + size_of::<RmsOrigin>()
+            + size_of::<&RmsOutputHandoff<'_>>()
+            + size_of::<Entered<'_>>() + commit;
+        assert_eq!(quote.handoff_bytes, size_of::<RmsOutputHandoff<'_>>());
+        assert_eq!(quote.commit_control_bytes, handoff);
+        assert_eq!(work_preflight::rms_commit_control_bytes(), commit);
+        assert_eq!(handoff_control_bytes(), handoff);
+        assert_eq!(quote.commit_known_peak_bytes,
+            size_of::<RmsResidentSlot>() + handoff + quote.legacy.public_table_bytes);
+        assert_eq!(quote.legacy.new_publish_bytes,
+            (quote.legacy.return_slot_bytes + quote.legacy.immutable_template_bytes)
+                .max(quote.commit_known_peak_bytes));
+        let construction = if norm {
+            Construction::RmsNormWithInputNorm { rows: 1, width: 2, gamma_len: 2 }
+        } else { Construction::RmsNormCertified { rows: 1, width: 2, gamma_len: 2 } };
+        let (q, peak) = construction.quote_for_installed_resident().unwrap();
+        let build = size_of::<Program>() + q.return_slot_bytes + q.public_table_bytes
+            + q.constructor_buffer_bytes + q.proof_buffer_bytes;
+        let finish = q.return_slot_bytes + q.public_table_bytes + q.finish_buffer_bytes;
+        let publish = (q.return_slot_bytes + q.immutable_template_bytes)
+            .max(handoff + q.public_table_bytes);
+        assert_eq!(peak, build.max(finish).max(publish));
         assert_eq!(quote.legacy.public_table_bytes, 2 * std::mem::size_of::<Affine>());
         assert!(quote.legacy.proof_buffer_bytes > 0 && quote.legacy.finish_buffer_bytes > 0);
     }

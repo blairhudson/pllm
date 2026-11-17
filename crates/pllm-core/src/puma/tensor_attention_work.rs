@@ -135,8 +135,26 @@ pub(super) fn checked_node_with(
     bounds: Interval,
     bit: bool,
 ) -> Result<(Value, Node, u8), Error> {
-    if len == MAX_NODES {
+    // Scalar/RMS/rotary/negative metadata sinks do not own descriptor lifetime
+    // or predicate rules. Only the private indexed sink can opt into this shape.
+    if matches!(instruction, Instruction::IndexedAffine { .. }) { return Err(Error::Binding); }
+    checked_indexed_node_with(read, width, len, capacity, instruction, bounds, bit)
+}
+
+pub(super) fn checked_indexed_node_with(
+    read: impl Fn(Value) -> Result<Node, Error>,
+    width: impl Fn(Value) -> Result<u8, Error>,
+    len: usize,
+    capacity: usize,
+    instruction: Instruction,
+    bounds: Interval,
+    bit: bool,
+) -> Result<(Value, Node, u8), Error> {
+    if len >= MAX_NODES {
         return Err(Error::Bounds);
+    }
+    for input in instruction.inputs().into_iter().flatten() {
+        if usize::from(input.0) >= len { return Err(Error::Binding); }
     }
     let value = Value(len as u8);
     let [first, second] = instruction.inputs();
@@ -151,6 +169,7 @@ pub(super) fn checked_node_with(
         Instruction::RowMap(_, width, RowMap::Broadcast) => {
             lanes.checked_mul(width).ok_or(Error::Bounds)?
         }
+        Instruction::IndexedAffine { output_lanes, .. } => output_lanes,
         _ => lanes,
     };
     if lanes == 0 || lanes > capacity {
@@ -178,6 +197,222 @@ pub(super) fn checked_node_with(
     ))
 }
 
+/// Private one-attempt metadata sink. Owns exact descriptors/proofs but no
+/// Program, execution payload, digest, slots or eager constructor. No reset can
+/// turn a failed attempt into a successful quote; a fresh owner is required.
+pub(super) struct IndexedWorkWorkspace {
+    graph: IndexedWorkGraph,
+    state: ResidentState,
+}
+
+struct IndexedWorkGraph {
+    metadata: SoftmaxWorkWorkspace,
+    owners: predicate_provenance::IndexedOwners,
+    pending: predicate_provenance::Pending,
+}
+
+// Read-only lens excludes pending storage. Splitting fields keeps exact owners
+// installed in the workspace across Err AND unwind; never move them to a local.
+struct IndexedWorkView<'a> {
+    metadata: &'a SoftmaxWorkWorkspace,
+    owners: &'a predicate_provenance::IndexedOwners,
+}
+// The local lens remains alive through prepare_map, alongside the workspace
+// and CachedDag borrowing it. A graph reference does not own this inline lens.
+pub(super) const INDEXED_WORK_VIEW_BYTES: usize = std::mem::size_of::<IndexedWorkView<'static>>();
+
+impl predicate_provenance::Dag for IndexedWorkView<'_> {
+    fn storage(&self) -> Option<&predicate_provenance::IndexedOwners> { Some(self.owners) }
+    fn extended(&self) -> bool { true }
+    fn len(&self) -> usize { self.metadata.len }
+    fn capacity(&self) -> usize { self.owners.capacity }
+    fn backing_bytes(&self) -> usize { self.owners.backing_bytes }
+    fn read(&self, v: Value) -> Result<Node, Error> {
+        if usize::from(v.0) >= self.metadata.len { return Err(Error::Binding); }
+        self.metadata.nodes[usize::from(v.0)].ok_or(Error::Binding)
+    }
+    fn width(&self, v: Value) -> Result<u8, Error> { SoftmaxSink::width(self.metadata, v) }
+    fn table(&self, v: Value) -> Result<&[IndexedAffineRow], Error> { Ok(self.owners.table(usize::from(v.0))) }
+    fn rule(&self, v: Value) -> Option<predicate_provenance::Rule> { self.owners.rules[usize::from(v.0)] }
+    fn proofs(&self, v: Value) -> &[predicate_provenance::LaneProof] { self.owners.proofs(usize::from(v.0)) }
+}
+
+impl predicate_provenance::Dag for IndexedWorkGraph {
+    fn storage(&self) -> Option<&predicate_provenance::IndexedOwners> { Some(&self.owners) }
+    fn extended(&self) -> bool { true }
+    fn len(&self) -> usize { self.metadata.len }
+    fn capacity(&self) -> usize { self.owners.capacity }
+    fn backing_bytes(&self) -> usize { self.owners.backing_bytes }
+    fn read(&self, value: Value) -> Result<Node, Error> {
+        if usize::from(value.0) >= self.metadata.len { return Err(Error::Binding); }
+        self.metadata.nodes[usize::from(value.0)].ok_or(Error::Binding)
+    }
+    fn width(&self, value: Value) -> Result<u8, Error> {
+        SoftmaxSink::width(&self.metadata, value)
+    }
+    fn table(&self, value: Value) -> Result<&[IndexedAffineRow], Error> {
+        Ok(self.owners.table(usize::from(value.0)))
+    }
+    fn rule(&self, value: Value) -> Option<predicate_provenance::Rule> {
+        self.owners.rules[usize::from(value.0)]
+    }
+    fn proofs(&self, value: Value) -> &[predicate_provenance::LaneProof] {
+        self.owners.proofs(usize::from(value.0))
+    }
+}
+
+impl IndexedWorkWorkspace {
+    pub(super) fn new(lanes: usize, input: Interval) -> Result<Self, Error> {
+        validate_tile_lanes(lanes)?;
+        let mut metadata = SoftmaxWorkWorkspace::empty();
+        metadata.reset(lanes, input);
+        Ok(Self { graph: IndexedWorkGraph { metadata,
+            owners: predicate_provenance::IndexedOwners::empty(),
+            pending: predicate_provenance::Pending::empty() }, state: ResidentState::Ready })
+    }
+    pub(super) const fn workspace_bytes() -> usize { std::mem::size_of::<Self>() }
+    fn enter<T>(&mut self, action: impl FnOnce(&mut IndexedWorkGraph) -> Result<T, Error>) -> Result<T, Error> {
+        let Self { graph, state } = self;
+        if *state != ResidentState::Ready { return Err(Error::Phase); }
+        *state = ResidentState::Entering;
+        let entered = resident_builder::Entered { state };
+        let result = action(graph)?;
+        *entered.state = ResidentState::Ready;
+        Ok(result)
+    }
+    pub(super) fn finish(&mut self, output: Value) -> Result<WorkBudget, Error> {
+        let work = self.enter(|g| {
+            if !g.pending.is_empty() { return Err(Error::Phase); }
+            let mut audit = predicate_provenance::Audit::default();
+            predicate_provenance::validate(g, &mut audit)?;
+            g.owners.check_visits = g.owners.check_visits.checked_add(audit.visits).ok_or(Error::Bounds)?;
+            if g.metadata.node(output, false)?.lanes != g.metadata.lanes { return Err(Error::Shape); }
+            g.metadata.finish_work(output)
+        })?;
+        self.state = ResidentState::Complete;
+        Ok(work)
+    }
+    pub(super) fn backing_bytes(&self) -> usize { self.graph.owners.backing_bytes }
+    pub(super) fn checking_visits(&self) -> u64 { self.graph.owners.check_visits }
+    #[cfg(test)]
+    pub(super) fn attempt_snapshot(&self) -> (ResidentState, usize, usize, usize, usize) {
+        (self.state, self.graph.metadata.len, self.graph.pending.rows.len(),
+            self.graph.pending.proofs.len(), self.graph.owners.backing_bytes)
+    }
+    #[cfg(test)]
+    pub(super) fn assert_native_metadata(&self, program: &Program) {
+        self.graph.metadata.assert_native_metadata(program);
+        let owners = program.extension.owners().unwrap();
+        for index in 0..MAX_NODES {
+            assert_eq!(self.graph.owners.table(index), owners.table(index));
+            assert_eq!(self.graph.owners.proofs(index), owners.proofs(index));
+        }
+        assert_eq!(self.graph.owners.rules, owners.rules);
+        assert_eq!(self.graph.owners.backing_bytes, owners.backing_bytes);
+        assert_eq!(self.graph.owners.check_visits, owners.check_visits);
+    }
+}
+
+impl SoftmaxSink for IndexedWorkGraph {
+    fn node(&self, v: Value, bit: bool) -> Result<Node, Error> { self.metadata.node(v, bit) }
+    fn push(&mut self, i: Instruction, b: Interval, bit: bool) -> Result<Value, Error> {
+        let (v, node, width) = checked_node(&self.metadata.nodes, &self.metadata.widths,
+            self.metadata.len, self.owners.capacity, i, b, bit)?;
+        self.metadata.nodes[self.metadata.len] = Some(node);
+        self.metadata.widths[self.metadata.len] = width;
+        self.metadata.len += 1;
+        Ok(v)
+    }
+    fn refine(&mut self, _: Value, _: Interval) { unreachable!("indexed facts require actual-DAG checking") }
+    fn compact(&self) -> bool { false }
+    fn sign_compact(&mut self, _: Value) -> Result<Value, Error> { Err(Error::Binding) }
+    fn width(&self, v: Value) -> Result<u8, Error> { self.metadata.width(v) }
+}
+
+impl SoftmaxSink for IndexedWorkWorkspace {
+    fn node(&self, v: Value, bit: bool) -> Result<Node, Error> { self.graph.node(v, bit) }
+    fn push(&mut self, i: Instruction, b: Interval, bit: bool) -> Result<Value, Error> {
+        self.enter(|g| g.push(i, b, bit))
+    }
+    fn refine(&mut self, _: Value, _: Interval) {
+        self.state = ResidentState::Failed;
+        unreachable!("indexed facts require actual-DAG checking")
+    }
+    fn compact(&self) -> bool { false }
+    fn sign_compact(&mut self, _: Value) -> Result<Value, Error> { self.enter(|_| Err(Error::Binding)) }
+    fn width(&self, v: Value) -> Result<u8, Error> { self.graph.width(v) }
+    fn sign(&mut self, v: Value) -> Result<Value, Error> { self.enter(|g| g.sign(v)) }
+    fn from_bit(&mut self, v: Value) -> Result<Value, Error> { self.enter(|g| g.from_bit(v)) }
+    fn affine(&mut self, a: Value, b: Option<Value>, c: Affine) -> Result<Value, Error> {
+        self.enter(|g| g.affine(a, b, c))
+    }
+    fn product(&mut self, a: Value, b: Value, rescale: bool) -> Result<Value, Error> {
+        self.enter(|g| g.product(a, b, rescale))
+    }
+    fn square(&mut self, v: Value) -> Result<Value, Error> { self.enter(|g| g.square(v)) }
+    fn rescale(&mut self, v: Value, shift: u8) -> Result<Value, Error> {
+        self.enter(|g| g.rescale(v, shift))
+    }
+    fn row_map(&mut self, v: Value, width: usize, map: RowMap) -> Result<Value, Error> {
+        self.enter(|g| g.row_map(v, width, map))
+    }
+    fn bits(&mut self, v: Value) -> Result<Value, Error> { self.enter(|g| g.bits(v)) }
+    fn bit_map(&mut self, v: Value, map: BitMap) -> Result<Value, Error> {
+        self.enter(|g| g.bit_map(v, map))
+    }
+    fn bit_or(&mut self, a: Value, b: Value) -> Result<Value, Error> { self.enter(|g| g.bit_or(a, b)) }
+    fn bit_xor(&mut self, a: Value, b: Value) -> Result<Value, Error> { self.enter(|g| g.bit_xor(a, b)) }
+    fn from_boolean(&mut self, v: Value) -> Result<Value, Error> { self.enter(|g| g.from_boolean(v)) }
+    fn highest_bit(&mut self, v: Value, width: u8) -> Result<Value, Error> {
+        self.enter(|g| g.highest_bit(v, width))
+    }
+}
+
+impl IndexedWorkGraph {
+    fn indexed(&mut self, input: Value, rows: &[IndexedAffineRow], nested: bool) -> Result<Value, Error> {
+        let index = self.metadata.len;
+        if index >= MAX_NODES || !self.owners.table(index).is_empty() || !self.owners.proofs(index).is_empty()
+            || self.owners.rules[index].is_some() || self.metadata.nodes[index].is_some()
+            || self.metadata.widths[index] != 0 { return Err(Error::Phase); }
+        let Self { metadata, owners, pending } = self;
+        let view = IndexedWorkView { metadata, owners };
+        let prepared = predicate_provenance::prepare_map(&view, input, rows, nested, pending)?;
+        let backing = self.owners.backing_bytes.checked_add(prepared.bytes).ok_or(Error::Bounds)?;
+        let visits = self.owners.check_visits.checked_add(prepared.visits).ok_or(Error::Bounds)?;
+        self.pending.ready(nested, prepared.value)?;
+        self.pending.publish(&mut self.owners);
+        self.owners.rules[index] = nested.then_some(predicate_provenance::Rule::NestedDifference { packed: input });
+        self.metadata.nodes[index] = Some(prepared.node);
+        self.metadata.widths[index] = prepared.width;
+        self.metadata.len += 1;
+        self.owners.backing_bytes = backing;
+        self.owners.check_visits = visits;
+        Ok(prepared.value)
+    }
+}
+
+impl predicate_provenance::IndexedSink for IndexedWorkWorkspace {
+    fn indexed_affine(&mut self, input: Value, rows: &[IndexedAffineRow]) -> Result<Value, Error> {
+        self.enter(|g| g.indexed(input, rows, false))
+    }
+    fn nested_difference(&mut self, input: Value, rows: &[IndexedAffineRow]) -> Result<Value, Error> {
+        self.enter(|g| g.indexed(input, rows, true))
+    }
+    fn masked_operand(&mut self, original: Value, inside: Value) -> Result<Value, Error> {
+        self.enter(|g| {
+            let mut audit = predicate_provenance::Audit::default();
+            let bounds = predicate_provenance::masked(g, original, inside,
+                Value(g.metadata.len as u8), &mut audit)?;
+            let visits = g.owners.check_visits.checked_add(audit.visits).ok_or(Error::Bounds)?;
+            let value = g.product(original, inside, false)?;
+            g.metadata.nodes[usize::from(value.0)].as_mut().unwrap().bounds = bounds;
+            g.owners.rules[usize::from(value.0)] = Some(predicate_provenance::Rule::MaskedOperand { original, inside });
+            g.owners.check_visits = visits;
+            Ok(value)
+        })
+    }
+}
+
 pub(super) fn instruction_work(node: Node, widths: &[u8; MAX_NODES]) -> Result<WorkBudget, Error> {
     instruction_work_with(node, |v| widths[v.0 as usize])
 }
@@ -201,6 +436,7 @@ pub(super) fn instruction_work_with(
             WorkBudget::bit_or(node.lanes, width(a).max(width(b)))?
         }
         Instruction::Affine { .. }
+        | Instruction::IndexedAffine { .. }
         | Instruction::LaneAffine(..)
         | Instruction::RowMap(..)
         | Instruction::BitMap(..)
