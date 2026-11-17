@@ -4,7 +4,7 @@
 //! secret observations. Source authentication, certificate provenance and no-wrap
 //! proofs belong to callers. Rounding envelopes are explicit absolute errors in
 //! output-code units; an envelope of one covers either signed floor or ceiling.
-use std::mem::size_of;
+use std::mem::{size_of, size_of_val};
 
 pub const MAX_ROWS: usize = 16_384;
 pub const MAX_COLUMNS: usize = 16_384;
@@ -154,6 +154,160 @@ impl Pending {
 /// Every append error drops its state. Finish consumes the scan, and incomplete
 /// scans cannot mint certificates. Dropping the owner releases all payload.
 pub struct MatrixScan(Option<Pending>);
+
+/// Borrowed-owner observation, not an allocation promise or admission receipt.
+/// Bytes exclude the inline Pending/Vec headers already inside MatrixScan.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ColumnBacking {
+    pub initialized_columns: usize,
+    pub capacity: usize,
+    pub bytes: usize,
+}
+
+/// Separate exact-constructor/query rows. Ordinary lifecycle rates are unchanged.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ExactScanWorkRates {
+    pub construct: u64,
+    pub initialize_column: u64,
+    pub observe: u64,
+    pub inline_bytes: usize,
+}
+
+// The selected tier counts logical typed endpoints, not compiler stack copies.
+// A call owns actual/formal arguments and returned/received results. A mapped
+// propagation owns its Result, Try classification and residual separately. Plain
+// returns and iterator Options do not acquire fictional Result/Try endpoints.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(not(test), allow(dead_code))]
+struct ExactRow {
+    key: &'static str,
+    arguments: &'static str,
+    output: &'static str,
+    bytes: usize,
+    calls: u64,
+    controls: u64,
+}
+
+impl ExactRow {
+    fn work(&self) -> Result<u64, Error> {
+        let b = u64::try_from(self.bytes).map_err(|_| Error::Bounds)?;
+        let e = self.calls.checked_add(self.controls).ok_or(Error::Bounds)?;
+        e.checked_add(2u64.checked_mul(b).and_then(|n| n.checked_mul(e.checked_add(1)?))
+            .ok_or(Error::Bounds)?).ok_or(Error::Bounds)
+    }
+}
+
+fn exact_cells<A, R>(key: &'static str, calls: u64, controls: u64) -> ExactRow {
+    ExactRow { key, arguments: std::any::type_name::<A>(), output: std::any::type_name::<R>(),
+        bytes: 2 * size_of::<A>() + 2 * size_of::<R>(), calls, controls }
+}
+
+fn exact_item1<A, R, F: FnOnce(A) -> R>(key: &'static str, f: F) -> ExactRow {
+    let mut row = exact_cells::<A, R>(key, 1, 0);
+    row.bytes += 3 * size_of_val(&f); // item expression, argument and consumed self
+    row
+}
+fn exact_item2<A, B, R, F: FnOnce(A, B) -> R>(key: &'static str, f: F) -> ExactRow {
+    let mut row = exact_cells::<(A, B), R>(key, 1, 0);
+    row.bytes += 3 * size_of_val(&f);
+    row
+}
+fn exact_item3<A, B, C, R, F: FnOnce(A, B, C) -> R>(key: &'static str, f: F) -> ExactRow {
+    let mut row = exact_cells::<(A, B, C), R>(key, 1, 0);
+    row.bytes += 3 * size_of_val(&f);
+    row
+}
+fn exact_try<T>(key: &'static str) -> ExactRow {
+    use std::{convert::Infallible, ops::ControlFlow};
+    ExactRow { key, arguments: std::any::type_name::<Result<T, Error>>(),
+        output: std::any::type_name::<ControlFlow<Result<Infallible, Error>, T>>(),
+        bytes: size_of::<Result<T, Error>>()
+            + size_of::<ControlFlow<Result<Infallible, Error>, T>>()
+            + size_of::<Result<Infallible, Error>>(), calls: 0, controls: 3 }
+}
+
+fn exact_constructor_rows() -> [ExactRow; 21] {
+    use crate::exact_buffer::{layout_bytes, ExactBuffer};
+    use std::ops::Range;
+    [
+        exact_item2("payload", MatrixScan::payload_bytes),
+        exact_item2("shape", shape),
+        exact_try::<()>("shape-try"),
+        exact_try::<usize>("shape-product-try"),
+        // shape/payload local checked products, multiply/add/and_then, predicates,
+        // explicit Err/Ok and return. Each of <=32 source controls owns this pool;
+        // helper endpoints above and caller propagation below are not in it.
+        exact_cells::<(usize, usize, bool, Option<usize>, Error), Result<usize, Error>>(
+            "preflight-local", 0, 32),
+        exact_try::<usize>("payload-try"),
+        exact_cells::<(usize, usize, bool), Result<MatrixScan, Error>>("limit-return", 0, 3),
+        exact_item1("layout-raw", layout_bytes::<u128>),
+        exact_item1("layout-map", exact_error),
+        exact_try::<usize>("layout-try"),
+        exact_item1("acquire-raw", ExactBuffer::<u128>::new),
+        exact_item1("acquire-map", exact_error),
+        exact_try::<ExactBuffer<u128>>("acquire-try"),
+        exact_cells::<(usize, usize), Range<usize>>("range", 0, 1),
+        exact_item1("terminal-next", <Range<usize> as Iterator>::next),
+        exact_cells::<Option<usize>, ()>("terminal-none", 0, 1),
+        exact_item1("finish-raw", ExactBuffer::<u128>::finish),
+        exact_item1("finish-map", exact_error),
+        exact_try::<Box<[u128]>>("finish-try"),
+        // Three calls to the same named mapper; each owns its match/return
+        // controls here, separately from the mapper's typed call endpoints.
+        exact_cells::<(crate::exact_buffer::Error, Error), Error>("exact-map-bodies", 0, 12),
+        // Single constructor failure-prefix reserve. ExactBuffer/std cleanup
+        // implementations remain imports; these are moved local owner headers.
+        exact_cells::<(ExactBuffer<u128>, Box<[u128]>, Vec<u128>, Error), Result<MatrixScan, Error>>(
+            "exact-constructor-error", 0, 8),
+    ]
+}
+
+fn exact_constructor_tail() -> [ExactRow; 3] {
+    [exact_item1::<Box<[u128]>, Vec<u128>, _>("box-into-vec", <[u128]>::into_vec),
+        exact_item3("start", MatrixScan::start),
+        // start's nine field installations, Pending/Some/Self and final Ok.
+        exact_cells::<(Pending, Option<Pending>, MatrixScan), Result<MatrixScan, Error>>(
+            "install-return", 0, 13)]
+}
+
+fn exact_initialize_rows() -> [ExactRow; 6] {
+    use crate::exact_buffer::ExactBuffer;
+    [exact_item1("some-next", <std::ops::Range<usize> as Iterator>::next),
+        exact_cells::<Option<usize>, usize>("some-bind", 0, 1),
+        exact_item2("push-raw", ExactBuffer::<u128>::push),
+        exact_item1("push-map", exact_column_push_error),
+        exact_try::<()>("push-try"),
+        exact_cells::<(u128, Error), Error>("push-map-body", 0, 2)]
+}
+
+fn exact_observe_rows() -> [ExactRow; 8] {
+    [exact_item1("observe", MatrixScan::pending_backing),
+        exact_item1("column-bytes", column_backing_bytes),
+        exact_try::<usize>("column-bytes-try"),
+        exact_item1("initialized-length", Vec::<u128>::len),
+        exact_item1("capacity-field", Vec::<u128>::capacity),
+        exact_item1("capacity-bytes-argument", Vec::<u128>::capacity),
+        exact_cells::<(usize, Option<usize>, Error), Result<usize, Error>>(
+            "capacity-arithmetic", 0, 6),
+        exact_cells::<(&Option<Pending>, Option<ColumnBacking>, ColumnBacking), Result<Option<ColumnBacking>, Error>>(
+            "observation-branches", 0, 6)]
+}
+
+fn exact_column_layout_rows() -> [ExactRow; 4] {
+    [exact_item1("column-layout-raw", crate::exact_buffer::layout_bytes::<u128>),
+        exact_item1("column-layout-map", exact_error),
+        exact_cells::<Result<usize, crate::exact_buffer::Error>, Result<usize, Error>>(
+            "column-layout-mapped-return", 0, 1),
+        exact_cells::<(crate::exact_buffer::Error, Error), Error>("column-layout-map-body", 0, 4)]
+}
+
+fn exact_rows_work(rows: impl IntoIterator<Item = ExactRow>) -> Result<u64, Error> {
+    rows.into_iter().try_fold(0u64, |n, row| n.checked_add(row.work()?).ok_or(Error::Bounds))
+}
+fn exact_rows_inline(rows: impl IntoIterator<Item = ExactRow>) -> Result<usize, Error> {
+    rows.into_iter().try_fold(0usize, |n, row| n.checked_add(row.bytes).ok_or(Error::Bounds))
+}
 
 /// Inert, conservative logical source-slot rates for PARTIAL append/retire work.
 /// Units are named slot bytes plus scalar-control allowances, not MIR copies,
@@ -528,6 +682,27 @@ const SCAN_FINISH_SHAPE_FAILURE: &[(usize, usize)] = &[
 ];
 
 impl MatrixScan {
+    /// Body of exact_column_bytes, excluding its caller-owned call endpoints.
+    /// Imported ExactBuffer layout internals remain their qualified contract.
+    pub fn exact_column_work_rates() -> Result<(u64, usize), Error> {
+        Ok((exact_rows_work(exact_column_layout_rows())?, exact_rows_inline(exact_column_layout_rows())?))
+    }
+    pub fn exact_work_rates() -> Result<ExactScanWorkRates, Error> {
+        use crate::exact_buffer::ExactBuffer;
+        let construct = exact_rows_work(exact_constructor_rows().into_iter().chain(exact_constructor_tail()))?;
+        // Conservative simultaneous union of logical endpoint pools; reuse per
+        // loop site, never columns times a pool. This is not physical stack ABI.
+        let endpoints = exact_rows_inline(exact_constructor_rows().into_iter()
+            .chain(exact_constructor_tail()).chain(exact_initialize_rows()).chain(exact_observe_rows()))?;
+        Ok(ExactScanWorkRates {
+            construct,
+            initialize_column: exact_rows_work(exact_initialize_rows())?,
+            observe: exact_rows_work(exact_observe_rows())?,
+            inline_bytes: size_of::<ExactBuffer<u128>>() + size_of::<Box<[u128]>>()
+                + size_of::<Vec<u128>>() + 2 * size_of::<Self>()
+                + size_of::<Result<Self, Error>>() + size_of::<ColumnBacking>() + endpoints,
+        })
+    }
     /// Pure metadata calculation: no state reads, dummy scan or allocation.
     /// Only fixed const inventories; future caller sponsors this calculation.
     pub fn lifecycle_work_rates() -> Result<MatrixScanLifecycleRates, Error> {
@@ -599,6 +774,39 @@ impl MatrixScan {
             .map_err(|_| Error::Allocation)?;
         sums.resize(columns, 0);
         Ok(Self::start(rows, columns, sums))
+    }
+
+    /// Exact logical column acquisition on the same, untagged scan type.
+    /// The caller must already cover this constructor and all failure cleanup.
+    pub fn new_exact(rows: usize, columns: usize, payload_limit: usize) -> Result<Self, Error> {
+        if Self::payload_bytes(rows, columns)? > payload_limit {
+            return Err(Error::Bounds);
+        }
+        crate::exact_buffer::layout_bytes::<u128>(columns).map_err(exact_error)?;
+        let mut sums = crate::exact_buffer::ExactBuffer::new(columns).map_err(exact_error)?;
+        for _ in 0..columns {
+            sums.push(0u128).map_err(exact_column_push_error)?;
+        }
+        let sums = sums.finish().map_err(exact_error)?.into_vec();
+        Ok(Self::start(rows, columns, sums))
+    }
+
+    /// Observe actual capacity, including ordinary-created spare capacity.
+    /// None means retired; a live row-energy scan has Some with zero bytes.
+    pub fn pending_backing(&self) -> Result<Option<ColumnBacking>, Error> {
+        match &self.0 {
+            None => Ok(None),
+            Some(pending) => Ok(Some(ColumnBacking {
+                initialized_columns: pending.columns.len(),
+                capacity: pending.columns.capacity(),
+                bytes: column_backing_bytes(pending.columns.capacity())?,
+            })),
+        }
+    }
+
+    /// Exact acquisition layout exported by the actual column owner.
+    pub fn exact_column_bytes(columns: usize) -> Result<usize, Error> {
+        crate::exact_buffer::layout_bytes::<u128>(columns).map_err(exact_error)
     }
 
     /// Constant-state row-energy preflight. Unlike a full matrix certificate,
@@ -723,6 +931,174 @@ impl MatrixScan {
             columns: pending.width,
             maximum_row_squared_energy: pending.maximum_row_squared,
         })
+    }
+}
+
+fn column_backing_bytes(capacity: usize) -> Result<usize, Error> {
+    capacity.checked_mul(size_of::<u128>()).ok_or(Error::Bounds)
+}
+
+fn exact_error(error: crate::exact_buffer::Error) -> Error {
+    match error {
+        crate::exact_buffer::Error::Allocation => Error::Allocation,
+        crate::exact_buffer::Error::Overflow | crate::exact_buffer::Error::Incomplete => Error::Bounds,
+    }
+}
+fn exact_column_push_error(_: u128) -> Error { Error::Bounds }
+
+#[cfg(test)]
+mod exact_column_tests {
+    use super::*;
+
+    #[test]
+    fn exact_columns_actual_capacity_numeric_and_retirement() {
+        let mut exact = MatrixScan::new_exact(2, 3, usize::MAX).unwrap();
+        assert_eq!(exact.pending_backing().unwrap(), Some(ColumnBacking {
+            initialized_columns: 3, capacity: 3, bytes: 48,
+        }));
+        let mut ordinary = MatrixScan::new(2, 3, usize::MAX).unwrap();
+        for (offset, values) in [(0, &[1, -2][..]), (2, &[3, -4, 0, 5][..])] {
+            exact.append(offset, values).unwrap();
+            ordinary.append(offset, values).unwrap();
+        }
+        assert_eq!(exact.finish().unwrap(), ordinary.finish().unwrap());
+        let mut columns = Vec::with_capacity(11);
+        columns.resize(3, 0);
+        let mut larger = MatrixScan::start(1, 3, columns);
+        assert_eq!(larger.pending_backing().unwrap().unwrap().bytes,
+            larger.0.as_ref().unwrap().columns.capacity() * 16);
+        assert!(larger.pending_backing().unwrap().unwrap().capacity >= 11);
+        larger.cancel();
+        assert_eq!(larger.pending_backing().unwrap(), None);
+        let zero = MatrixScan::new_row_energy(1, 3, usize::MAX).unwrap();
+        assert_eq!(zero.pending_backing().unwrap().unwrap().bytes, 0);
+        assert_eq!(column_backing_bytes(usize::MAX), Err(Error::Bounds));
+        assert!(matches!(MatrixScan::new_exact(0, 1, usize::MAX), Err(Error::Shape)));
+        assert!(matches!(MatrixScan::new_exact(1, 1, 0), Err(Error::Bounds)));
+    }
+
+    #[test]
+    fn exact_column_source_rows_have_independent_typed_u128_oracle() {
+        use std::{any::TypeId, convert::Infallible, ops::ControlFlow};
+        use crate::exact_buffer::ExactBuffer;
+        fn actual_output<F, T: 'static>(_: F) -> TypeId
+        where F: for<'a> FnOnce(&'a MatrixScan) -> Result<T, Error>
+        {
+            TypeId::of::<T>()
+        }
+        use crate::exact_buffer::Error as Raw;
+        use std::{any::type_name, ops::Range};
+        // Handwritten endpoint roster. No production row generator supplies
+        // expected types, keys, counts, extents or u128 arithmetic.
+        fn call<A, R>(key: &'static str) -> ExactRow {
+            ExactRow { key, arguments: type_name::<A>(), output: type_name::<R>(),
+                bytes: 2 * size_of::<A>() + 2 * size_of::<R>(), calls: 1, controls: 0 }
+        }
+        fn local<A, R>(key: &'static str, controls: u64) -> ExactRow {
+            let mut row = call::<A, R>(key);
+            row.calls = 0; row.controls = controls; row
+        }
+        fn propagation<T>(key: &'static str) -> ExactRow {
+            ExactRow { key, arguments: type_name::<Result<T, Error>>(),
+                output: type_name::<ControlFlow<Result<Infallible, Error>, T>>(),
+                bytes: size_of::<Result<T, Error>>()
+                    + size_of::<ControlFlow<Result<Infallible, Error>, T>>()
+                    + size_of::<Result<Infallible, Error>>(), calls: 0, controls: 3 }
+        }
+        fn oracle(rows: &[ExactRow]) -> u128 {
+            rows.iter().map(|r| { let e = u128::from(r.calls) + u128::from(r.controls);
+                e + 2 * r.bytes as u128 * (e + 1) }).sum()
+        }
+        let rows = [
+            call::<(usize, usize), Result<usize, Error>>("payload"),
+            call::<(usize, usize), Result<(), Error>>("shape"), propagation::<()>("shape-try"),
+            propagation::<usize>("shape-product-try"),
+            local::<(usize, usize, bool, Option<usize>, Error), Result<usize, Error>>("preflight-local", 32),
+            propagation::<usize>("payload-try"),
+            local::<(usize, usize, bool), Result<MatrixScan, Error>>("limit-return", 3),
+            call::<usize, Result<usize, Raw>>("layout-raw"), call::<Raw, Error>("layout-map"),
+            propagation::<usize>("layout-try"),
+            call::<usize, Result<ExactBuffer<u128>, Raw>>("acquire-raw"),
+            call::<Raw, Error>("acquire-map"), propagation::<ExactBuffer<u128>>("acquire-try"),
+            local::<(usize, usize), Range<usize>>("range", 1),
+            call::<&mut Range<usize>, Option<usize>>("terminal-next"),
+            local::<Option<usize>, ()>("terminal-none", 1),
+            call::<ExactBuffer<u128>, Result<Box<[u128]>, Raw>>("finish-raw"),
+            call::<Raw, Error>("finish-map"), propagation::<Box<[u128]>>("finish-try"),
+            local::<(Raw, Error), Error>("exact-map-bodies", 12),
+            local::<(ExactBuffer<u128>, Box<[u128]>, Vec<u128>, Error), Result<MatrixScan, Error>>(
+                "exact-constructor-error", 8),
+            call::<Box<[u128]>, Vec<u128>>("box-into-vec"),
+            call::<(usize, usize, Vec<u128>), MatrixScan>("start"),
+            local::<(Pending, Option<Pending>, MatrixScan), Result<MatrixScan, Error>>("install-return", 13),
+        ];
+        let initialize = [call::<&mut Range<usize>, Option<usize>>("some-next"),
+            local::<Option<usize>, usize>("some-bind", 1),
+            call::<(&mut ExactBuffer<u128>, u128), Result<(), u128>>("push-raw"),
+            call::<u128, Error>("push-map"), propagation::<()>("push-try"),
+            local::<(u128, Error), Error>("push-map-body", 2)];
+        let observe = [call::<&MatrixScan, Result<Option<ColumnBacking>, Error>>("observe"),
+            call::<usize, Result<usize, Error>>("column-bytes"), propagation::<usize>("column-bytes-try"),
+            call::<&Vec<u128>, usize>("initialized-length"),
+            call::<&Vec<u128>, usize>("capacity-field"),
+            call::<&Vec<u128>, usize>("capacity-bytes-argument"),
+            local::<(usize, Option<usize>, Error), Result<usize, Error>>("capacity-arithmetic", 6),
+            local::<(&Option<Pending>, Option<ColumnBacking>, ColumnBacking), Result<Option<ColumnBacking>, Error>>(
+                "observation-branches", 6)];
+        let column_layout = [call::<usize, Result<usize, Raw>>("column-layout-raw"),
+            call::<Raw, Error>("column-layout-map"),
+            local::<Result<usize, Raw>, Result<usize, Error>>("column-layout-mapped-return", 1),
+            local::<(Raw, Error), Error>("column-layout-map-body", 4)];
+        assert_eq!(exact_column_layout_rows(), column_layout);
+        let layout_quote = MatrixScan::exact_column_work_rates().unwrap();
+        assert_eq!(u128::from(layout_quote.0), oracle(&column_layout));
+        assert_eq!(layout_quote.1, column_layout.iter().map(|r| r.bytes).sum::<usize>());
+        assert_eq!(exact_constructor_rows().into_iter().chain(exact_constructor_tail()).collect::<Vec<_>>(), rows);
+        assert_eq!(exact_initialize_rows(), initialize);
+        assert_eq!(exact_observe_rows(), observe);
+        let expected = oracle(&rows);
+        let rates = MatrixScan::exact_work_rates().unwrap();
+        assert_eq!(rates.construct as u128, expected);
+        assert_eq!(rates.initialize_column as u128, oracle(&initialize));
+        assert_eq!(rates.observe as u128, oracle(&observe));
+        assert_eq!(rates.inline_bytes as u128,
+            (size_of::<ExactBuffer<u128>>() + size_of::<Box<[u128]>>() + size_of::<Vec<u128>>()
+                + 2 * size_of::<MatrixScan>() + size_of::<Result<MatrixScan, Error>>()
+                + size_of::<ColumnBacking>()) as u128
+                + rows.iter().chain(&initialize).chain(&observe).map(|r| r.bytes as u128).sum::<u128>());
+        for index in 0..rows.len() { // includes every mapper and terminal next/None
+            let mut missing = rows.to_vec(); missing.remove(index);
+            let mut duplicate = rows.to_vec(); duplicate.push(rows[index].clone());
+            assert_ne!(expected, oracle(&missing)); assert_ne!(expected, oracle(&duplicate));
+        }
+        for index in 0..initialize.len() {
+            let mut missing = initialize.to_vec(); missing.remove(index);
+            assert_ne!(oracle(&initialize), oracle(&missing));
+        }
+        let mut wrong = rows.clone();
+        wrong[7] = call::<usize, Result<usize, Error>>("layout-raw");
+        assert_ne!(wrong, rows); // nominal error identity, even if layouts coincide
+        wrong = rows.clone(); wrong[21] = call::<Box<[u128]>, Result<Vec<u128>, Error>>("box-into-vec");
+        assert_ne!(wrong, rows);
+        #[repr(transparent)]
+        struct WrongRaw(Raw);
+        #[repr(transparent)]
+        struct WrongVec(Vec<u128>);
+        let wrong_map = call::<WrongRaw, Error>("layout-map");
+        assert_eq!(wrong_map.bytes, rows[8].bytes);
+        assert_ne!(wrong_map, rows[8]);
+        let wrong_plain = call::<Box<[u128]>, WrongVec>("box-into-vec");
+        assert_eq!(wrong_plain.bytes, rows[21].bytes);
+        assert_ne!(wrong_plain, rows[21]);
+        let mut wrong_push = initialize.clone();
+        wrong_push[2] = call::<(&mut ExactBuffer<u128>, u128), Result<(), Error>>("push-raw");
+        assert_ne!(wrong_push, initialize);
+        // Same-layout semantic mutations need nominal evidence, not an ABI
+        // inequality. Infer T from the actual method item, without a pointer
+        // cast, replacement closure, invocation or guessed callable layout.
+        let observed = actual_output(MatrixScan::pending_backing);
+        assert_eq!(observed, TypeId::of::<Option<ColumnBacking>>());
+        assert_ne!(observed, TypeId::of::<ColumnBacking>());
     }
 }
 
