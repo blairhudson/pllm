@@ -123,6 +123,519 @@ specification hole in the earlier draft. It is fixed: use that source's tied
 embedding, not the candidate's table or an invented head tensor. Source payload
 validation remains undone; no missing numerical rule is delegated to user guesswork.
 
+**Bounded numeric regression evidence:** Source2's standard-library oracle at
+`benchmarks/research/maverick_numeric_encoding_oracle.py` and regressions at
+`tests/test_maverick_numeric_encoding_oracle.py` cover the full positive finite
+BF16 scale domain for scalar projection and complete linear encoding, including
+actual F32-product and signed-i64 checks. They retain the old `<=2^45`
+sufficient-premise helper and test literal four-block, 128-coordinate axes in a
+256×256 matrix, signed limits, zero, and invalid-scale rejection before zero
+shortcuts. Fresh Sol execution of
+`.venv/bin/python -B -m unittest discover -s tests -p 'test_maverick_numeric_encoding_oracle.py'`
+passed 28 tests with zero failures, errors or skips, exit 0, in 16.401s;
+independent Source review passed (Astra97; 28 cases). This is bounded numeric
+regression evidence, not Rust/runtime validation, profile adoption, author-source
+recovery, universal no-wrap or all-reply totality proof, global verification,
+security, or whole-method qualification. The earlier seven BF16 SwiGLU
+clear-candidate passes remain separate, not original-paper numeric adoption.
+D31/D32 and the normative Source Recovery §3.2 rules and target remain unchanged;
+no acceptance item is completed by this evidence.
+
+**Separate Rust component evidence:** Test-only
+`crates/pllm-core/src/field_float/tests.rs` changes passed two source reviews;
+three new definitions plus two existing regressions passed five unique tests
+across three commands, zero failed/ignored, exits 0. Coverage: full-domain scale
+edge cases, F32/Q8 bits, signed zeros/subnormals/endpoints/errors; all 65,536
+four-block cells and literal raw-i128 dots; separate field/BF16 outputs; existing
+direct-conversion and independent scalar vectors. This slice leaves production
+code unchanged. Python 28 remains separate, not rerun. No full-profile/adoption,
+authenticated parameters, universal no-wrap/plaintext equivalence, totality,
+security or whole-method qualification follows.
+
+**Shared RMSNorm public-bound evidence:** Independent source and mathematical
+reviews cover the shared `field_float::{rms_norm_bf16_bound,
+rms_norm_bf16_bound_work}` helpers, separately from the reported native test
+packet. The contract uses canonical finite BF16 bounds `H` and `G`, normalizes
+both signed zeros to `+0`, and checks exact width, checked work arithmetic and
+budget before inspecting bounds. It accounts for ordered RN32 square, sum and
+mean operations, the epsilon check, `beta = rsqrt_rn32(epsilon)`, and the BF16
+cast before gamma multiplication. Success gives a sufficient numeric bound for
+covered rows; refusal does not mean that all covered rows fail. Q8 remains a
+separate contract. The reported packet used pinned Cargo/Rust 1.85.1 and one
+ordinary command:
+`RUST_MIN_STACK=8388608 cargo test -p pllm-core -j1 --lib field_float::rms_norm::tests -- --test-threads=1`.
+It reports 13 passed, 0 failed, 0 ignored and 1158 filtered: four new
+`public_bound_*` tests and nine legacy tests. One pre-existing unused NTT import
+warning prompted no fix or retry. This records reported execution, not a rerun
+for this documentation update. Python 28, the older Rust five-test packet and
+historical SwiGLU seven-test evidence remain separate; these counts are not
+summed or double-counted. No new benchmark, full-profile or universal no-wrap
+qualification, authenticated source or public-bound provenance, malicious-reply
+or request-totality guarantee, quality or security qualification, physical
+`SourceWork` funding, whole-method or SDK qualification, launch authority, cap
+custody, ranking or publication 0/10 status changes follow.
+
+**Relational RMSNorm bound evidence:** The new relational bound API and its work
+helper are allocation-free, enumerating the finite BF16 magnitude prefix, taking the maximum after the first BF16 cast, then applying gamma multiplication and the final cast. The
+older epsilon-based API remains unchanged. The checked work quote is
+`Q = 9216*d + 1236701184`. Independent mathematical and resource source reviews
+passed; those reviews are separate from the fresh reported native execution.
+That execution used direct Cargo, `RUSTC`, `RUSTDOC` and `PATH` bindings to the
+1.85.1 arm64 toolchain, an 8 MiB stack (`RUST_MIN_STACK=8388608`), serial build
+and test settings, and a 600-second timeout. One ordinary command ran once:
+`cargo test -p pllm-core -j1 --lib field_float::rms_norm::tests:: -- --test-threads=1`.
+The reported result is 17 passed, 0 failed, 0 ignored and 1158 filtered, with
+21.30s build time and 37.86s test time. These are 13 retained tests plus four
+relational tests, not 30 tests when combined with the earlier 13-test history.
+One existing unused-import warning for `Quote as FixedQuote`,
+`forward_into as fixed_forward_into` and `inverse_into as fixed_inverse_into`
+at `coefficient_ntt.rs:15–16` remained visible; no fix,
+retry or source change occurred during native execution. The strict fixture
+improvement `0x3fb5 < 0x44fa` is not a universal improvement claim. Python 28,
+older Rust 5, historical SwiGLU 7 and the separate 66-test garbled-computation
+result remain distinct, not whole-method proof. Q8 energy validation was outside
+this 17-test packet. Its later source review/execution is recorded separately
+below. This documentation update records reported
+execution, not a rerun. No representability, universal no-wrap, provenance,
+row-certificate, full-funding, profile, quality, security, model or SDK
+qualification, launch authority, cap or publication 0/10 promotion follows.
+
+**Later Q8 energy-bound evidence:** Independent mathematical and resource source
+reviews passed before the fresh reported native run. The new public `u128`
+energy-bound API is allocation-free and uses checked integer/dyadic arithmetic.
+Its source formula is `K = ceil(392*G) + 1`, then `E = d*K^2`. The contract
+requires width `1..=16384`, finite relational `H`/`G`, and the specified error
+precedence: positive-bound Q8 checks precede the coarse checks, with no `G=0`
+bypass. Q8-before-coarse ordering is a source-only finding: identical
+`IntegerRange` errors prevent runtime tests from distinguishing that order.
+The checked quote is `Q_energy = 9216*d + 1236705280 = Q_rel + 4096`; this is
+logical work, not CPU timing or physical `SourceWork` funding. Four new
+`q8_energy_bound_*` tests cover independent constants, signed rows, private
+dyadic-overflow cases, and preflight integration with the real `MatrixScan`
+Cauchy path.
+
+The later reported execution used matching direct Cargo, `RUSTC`, `RUSTDOC` and
+`PATH` bindings to Rust/Cargo 1.85.1 arm64, an 8 MiB stack
+(`RUST_MIN_STACK=8388608`), `-j1` and serial tests, and a 600-second timeout.
+One ordinary command ran once:
+`cargo test -p pllm-core -j1 --lib field_float::rms_norm::tests:: -- --test-threads=1`.
+It reports 21 passed, 0 failed, 0 ignored and 1158 filtered, with 10.34s build
+time and 19.49s test time: 17 retained tests plus four energy-bound tests. The
+21 includes the earlier 17 and 13, not 38 or 51 distinct tests. One existing
+unused-import warning at `coefficient_ntt.rs:15–16` for `Quote as FixedQuote`,
+`forward_into as fixed_forward_into` and `inverse_into as fixed_inverse_into`
+remained visible; no edit or retry occurred during the run. This update records
+reported execution, not a rerun. The separate garbled-computation 66, Python 28,
+older Rust 5 and historical SwiGLU 7 results remain separate, not whole-method
+proof. The scalar bound is conditional, not an authenticated `RowEnergyCert`,
+`H`/`G` provenance or universal no-wrap proof. It establishes no ranking policy,
+physical `SourceWork` funding, security, model/SDK qualification, profile or
+other adoption, launch authority, cap or publication 0/10 advancement.
+
+### Original-source BF16 gamma component evidence
+
+Independent mathematical, resource/custody and oracle source reviews passed for
+the selected first input-norm gamma maximum. The whole selected gamma extent is
+scanned in the existing pass; its absolute maximum is retained privately in
+`AdmittedRawNormSpec` only after successful original-owner assembly. The reviewed
+`ScalarDirectDestinationV1` logical body envelope is `50*d+23` work and seven
+bytes of standalone storage; checked query funding and actual typed owner
+layouts were reviewed separately. These are logical source-accounting claims,
+not physical CPU/stack or full `SourceWork` qualification.
+
+The fresh post-repair compiler packet reports **34 passed, zero failed or
+ignored**: nine new gamma scalar tests, fifteen retained norm/bootstrap tests
+and ten retained first-norm descendant tests. Each of 34 ordinary commands
+selected exactly one test, once; the previously failed whole-gamma selector ran
+first, followed by the other 33 in the inventory order below, with no extra
+commands or retries. Execution used matching direct Rust/Cargo, `RUSTC`,
+`RUSTDOC` and `PATH` bindings to 1.85.1 on arm64 Darwin, offline/locked Cargo,
+one build job, serial tests, an 8 MiB test-thread stack and a 600-second timeout
+per command. This records reported execution, not a documentation-update rerun.
+Coverage includes genuine original-file/source binding, whole-extent maxima
+and single-pass read counts, pre-I/O admission funding, late fault/burn/wipe
+paths, and retirement.
+
+The earlier attempt stopped at three pure-quote passes and one failure, leaving
+30 cases unrun. Its positive fixtures incorrectly used finite BF16 extrema
+`0xff7f`/`0x7f7f`, which original signed-Q8 source sealing rejects with `Binding`
+before gamma admission. Test-only repair uses `0xdb00` (exactly `-2^55`, Q8
+`i64::MIN`) and `0x5aff` (largest positive BF16 below `2^55`); expected absolute
+maximum `0x5b00` is a summary encoding, not an admissible positive source value.
+The original extrema remain explicit sealing-rejection cases. Production quote
+pricing and the first three pure-quote tests were unchanged by this repair.
+Historical three passes are not added to the fresh 34. This compiler packet is
+separate from Core's 21-test packet, which already includes its earlier 17;
+the six legacy FuseFSS BEFORE checks are separate, not a 40-test gamma packet.
+
+This is model-free component evidence for a source-derived public gamma
+maximum, not an `H` bound, energy certificate or certificate issuer. It does
+not establish runtime profile adoption, universal no-wrap, quality, security,
+full source funding, physical erasure, model/SDK or whole-method qualification.
+Issuer entry costs, scratch and funding remain open. Existing numerical rules,
+acceptance gates, caps, activation and publication **0/10** remain unchanged.
+
+#### Reproducing the bounded 34-case packet
+
+The following is an ordinary reproduction template, not a verbatim transcript
+of historical command bindings. From repository root, use the matching 1.85.1
+arm64 Darwin toolchain and run each selector separately, sequentially, with an
+external runner timeout of 600 seconds per command:
+
+```sh
+RUST_MIN_STACK=8388608 cargo +1.85.1 test --offline --locked -p pllm-compiler --lib -j 1 FULL_SELECTOR -- --exact --test-threads=1
+```
+
+Replace `FULL_SELECTOR` with the common prefix
+`replicated_decoder::program::source_entry::ingress::raw_owner::` followed by
+one group prefix and one function name below. Do not run a broad prefix filter
+in place of the exact selectors. Each invocation must select one test; zero
+selected tests is not a pass. For the reported post-repair order, run
+`raw_clear_producer::gamma_scalar_tests::retained_owner_entire_gamma_numeric_max_and_single_pass`
+first, then traverse this inventory, omitting that already-run selector.
+
+Nine new cases; group prefix `raw_clear_producer::gamma_scalar_tests::`:
+
+```text
+normalized_body_rows_independent_oracle
+normalized_query_rows_paths_and_storage
+scalar_quote_min_max_width_and_checked_overflows
+retained_owner_entire_gamma_numeric_max_and_single_pass
+retained_owner_max_in_later_4096_byte_window
+late_nonfinite_read_and_length_failures_issue_no_owner
+norm_and_descendant_actual_layout_quote_oracles
+exact_marginal_work_original_ledger_and_preheader_refusal
+exact_marginal_storage_original_reservation_and_preheader_refusal
+```
+
+Fifteen retained norm/bootstrap cases; group prefix `tests::`:
+
+```text
+norm_spec_prefill_decode_original_custody
+norm_spec_exact_work_one_short_before_reads_factory
+norm_spec_exact_bytes_one_short_before_reads_factory
+norm_spec_exhausted_shared_work
+norm_spec_epsilon_exact_decimal_component
+norm_spec_original_epsilon_equivalents_and_adjacent_rejection
+norm_spec_ambiguous_wrongedge_shape_component_only
+norm_spec_weight_offset_component_only
+norm_spec_postseal_gamma_metadata_faults
+norm_spec_foreign_root_header_equalcontent_backing
+norm_spec_nonfinite_and_late_read_fault_wipe_burn
+norm_spec_multiwindow_second_window_fault_wipes_burns
+norm_spec_byte_one_short_burns_original_work
+raw_bootstrap_const_layouts_and_retained_initial_inventory_are_independent
+raw_bootstrap_registration_cover_survives_freeze_busy_retirement_and_reader_drop
+```
+
+Ten retained descendants; group prefix `tests::first_bf16_norm::`:
+
+```text
+original_lookup_norm_geometry_quote_refuses_without_factory
+original_lookup_norm_continuity_exact_bits
+original_lookup_norm_cumulative_exact_work_short_and_sibling_burn
+original_lookup_norm_exact_bytes_short_before_gamma_or_output
+original_lookup_norm_profile_plan_gamma_epsilon_width_mismatch
+original_lookup_norm_late_arithmetic_failure_wipes_whole_output
+cast_before_gamma_independent_core_oracle_literals
+original_lookup_norm_source_gamma_cast_order_discriminator
+original_lookup_norm_genuine_foreign_reader_composed_refusal
+original_lookup_norm_equalcontent_foreign_backing_composed_refusal
+```
+
+These names are defined respectively in
+`crates/pllm-compiler/src/replicated_decoder/raw_clear_producer.rs`,
+`crates/pllm-compiler/src/verified_source/raw_owner_tests.rs` and
+`crates/pllm-compiler/src/replicated_decoder/raw_first_norm_tests.rs`.
+
+### Private source-geometry entry preparation evidence
+
+Independent actual-source resource/trace and compatibility/custody reviews
+passed for the private opt-in geometry preparation cut. Shared source expansion
+preserves the ordinary constructor and its paid baseline prefix; the new
+success-side representation and logical controls are funded at the existing
+Original controller boundary. New storage is controller-backed, not attributed
+to a collection reservation. The reviewed additive logical envelope has one
+helper edge and 38 visits, with potential and storage calculated from actual
+typed sizes. This is a bounded logical source profile, not physical CPU/stack
+or full `SourceWork` qualification.
+
+The fresh compiler packet reports **41 passed, zero failed or ignored**:
+**seven new entry cases plus the retained 34 (9 gamma, 15 norm/bootstrap,
+10 first-norm descendants)**. Each ordinary command selected exactly one test,
+once, exited zero, and had no retry, timeout or unrun case. Matching direct
+Rust/Cargo, `RUSTC`, `RUSTDOC` and `PATH` bindings used 1.85.1 on ARM64 Darwin,
+explicit `--target aarch64-apple-darwin`, offline/locked Cargo, the repository
+target directory, one build job, one test thread, an 8 MiB stack and a
+600-second timeout per command. Existing Rust warnings remained visible and
+were non-errors. No source change occurred during the packet. Compilation
+passed the unchanged assertions equating the prepared wrapper and geometry
+sizes, and their respective whole `Result` sizes. This records reported
+execution; the documentation update performs no rerun.
+
+New cases cover an independently expanded typed row/layout oracle, source-prefix
+sentinels, genuine small-metadata construction, actual debit and controller
+charge boundaries, refusal before assembly, and synchronous unwind release.
+Exact/one-short work is exercised **after a zero-entry-fee specialization at the
+actual debit**, not by constraining the full energy constructor. Exact/one-short
+bytes exercise the controller allocation primitive, not whole-factory
+exhaustion. Stage-specific allocation/quotation faults and internal destructor
+order are not instrumented. Text sentinels are not AST instrumentation, and the
+logical drop-forwarding model is not a physical destructor-order measurement.
+
+The constructor remains private and preparation-only. Its wrapper retains the
+geometry's five fields, with no ingress, extraction or numeric continuation;
+the canonical `EnergyFirstNorm` representation has no constructor or getter.
+The broader energy issuer, its continuation and combined funding remain open.
+This packet issues no `H`/energy/Q8/projection certificate and establishes no
+numeric profile adoption, universal no-wrap, cryptographic/whole-method proof,
+funding for all source operations, PUMA/CacheMir funding, model qualification or
+activation. Existing numerical rules, acceptance gates, caps and publication
+**0/10** remain unchanged. Historical Gamma34 remains separately recorded;
+these fresh 41 already include its 34 selectors and are **not 75 distinct
+cases**. Core and FuseFSS evidence remain separate.
+
+#### Reproducing the bounded 41-case packet
+
+From repository root, use this ordinary per-selector template with the matching
+direct 1.85.1 ARM64 toolchain. Set an external runner timeout of 600 seconds for
+each invocation. This is a reproduction template, not a recovery of the earlier
+Gamma34 command environment.
+
+```sh
+TOOLCHAIN="$HOME/.rustup/toolchains/1.85.1-aarch64-apple-darwin"
+PATH="$TOOLCHAIN/bin:$PATH" RUSTC="$TOOLCHAIN/bin/rustc" RUSTDOC="$TOOLCHAIN/bin/rustdoc" CARGO_TARGET_DIR="$PWD/target" CARGO_BUILD_JOBS=1 RUST_MIN_STACK=8388608 "$TOOLCHAIN/bin/cargo" test --offline --locked --target aarch64-apple-darwin -j1 -p pllm-compiler --lib FULL_SELECTOR -- --exact --nocapture --test-threads=1
+```
+
+First run these seven names in order, each prefixed by
+`replicated_decoder::program::source_entry::ingress::source_geometry::energy_entry::tests::`:
+
+```text
+energy_entry_actual_layout_and_independent_typed_event_oracle
+energy_entry_default_source_expansion_and_constants_unchanged
+energy_entry_small_metadata_retains_all_owners_without_factories
+energy_entry_actual_fee_exact_remainder_and_one_short_burn
+energy_entry_controller_exact_one_short_and_release
+energy_entry_prefix_refusals_preserve_raw_errors_and_skip_assembly
+energy_entry_unwind_releases_whole_geometry_without_continuation
+```
+
+Definitions are in
+`crates/pllm-compiler/src/replicated_decoder/source_geometry/energy_entry.rs`.
+Then run all 34 selectors in the existing
+[Gamma packet inventory](#reproducing-the-bounded-34-case-packet), in its listed
+9+15+10 order, using its stated common/group prefixes. For this 41-case packet,
+do **not** apply the historical failed-case-first scheduling exception: the
+seven new cases precede the listed 34, each exactly once. Current successful
+gamma endpoints remain `0xdb00` and `0x5aff`, with absolute summary `0x5b00`;
+finite extrema remain sealing-rejection cases.
+
+Run each selector separately and sequentially. Exactly one selected passing
+test is required per invocation; stop on a compile error, failed test, zero or
+multiple selected tests, timeout or ignored test. Do not retry, substitute a
+selector or update expected results within the packet. No ignored planning
+artifact, custom driver, receipt collection or source archive is needed to
+reproduce these ordinary commands.
+
+### Private source-geometry Header transition evidence
+
+Independent actual-source production reviews, the final test-only identity repair
+review, and subsequent fixture/selector resolution reviews passed before Native
+fresh5. The fresh decision-FIVE worker (`ses_e19e43ed6ffeZZGgHbD8tRZP9R`)
+reports **64 passed, zero failed or ignored**: commands 1–64 ran individually,
+serially, once, in order; each exited zero with exactly one passing test.
+Partition: **18 new Header + 7 retained entry + 9 gamma + 15 norm/bootstrap +
+10 descendants + 5 legacy = 64**, equivalently **18 + 41 + 5**. These 64
+already include preparation41 and Gamma34; do not add them again. Core17/Core21
+remain separate overlapping history, not additional tests in this packet.
+
+Execution used matching direct Cargo, `RUSTC`, `RUSTDOC` and `PATH` bindings to
+Rust/Cargo 1.85.1 on ARM64 Darwin, explicit `--target aarch64-apple-darwin`,
+offline/locked Cargo, the repository target root, one build job, one test thread,
+an 8 MiB stack and a **600,000 ms tool timeout per command**, including compilation.
+Warnings remained visible. Source stayed frozen and the runner exclusive;
+there was no retry, substitution, timeout, preliminary native command or
+source/document edit during execution. The slot is now idle. This records
+reported execution; this documentation update runs no compiler or tests.
+
+Current command 1 accepted the nominal layout/canonical-type gates, and command 2
+passed the independent typed-event/source-fee oracle. Its reviewed logical
+test-configuration counters include Stage Result endpoint cells (26 slots /
+78 accesses), Stage `(K,V)=(78,2247)`, outer `(24,2028)` and combined
+`(102,4275)`, with independent potential/storage equations. Compilation and
+layout acceptance cover only this Rust 1.85.1 ARM64 target/configuration, not
+release builds, other target ABIs or physical stack/CPU proof. Coverage includes
+private preparation, shared borrowed Stage execution, opaque Header Ready/Refused
+custody retaining actual G and its original controller, refusal/commit/cancellation,
+default retirement, supported synchronous unwind and legacy compatibility.
+Command 17 passed with intentional caught panic output; those panics are expected
+only with that passing result. No expected-panic claim applies to command 10.
+
+Earlier Native64 attempts remain **history**, not current failures or extra passes:
+
+- Fresh1 stopped at command 1 with E0583 (missing Header module); zero tests ran,
+  and 63 commands remained unrun. The reviewed mount fix supplied
+  `#[path="energy_entry/header_entry.rs"]`.
+- Fresh2 stopped at command 1 with E0365 involving unused Header aliases; zero
+  tests ran, and 63 commands remained unrun. Two unused aliases were removed,
+  preserving the old `PreparedEnergyGeometry` export and canonical private
+  `EnergyFirstNorm`.
+- Fresh3 compiled and passed commands 1–9 individually, including nominal layouts
+  and the independent oracle. Command 10 failed an invalid movable-inline-payload
+  pointer assertion; commands 11–64 (54) were unrun: **9 PASS, 1 FAIL, 54 UNRUN**.
+- Fresh4 passed commands 1–10, including repaired identity command 10. Historical
+  command 11, `header_entry_stage_missing_activation_retains_geometry`, stopped
+  with exit 101, `unwrapErrBinding` at historical `header_entry.rs:240:81`;
+  commands 12–64 (53), including unwind command 17, were unrun:
+  **10 PASS, 1 FAIL, 53 UNRUN**. No edit, retry or timeout occurred during it.
+
+After the explicit mount/two-alias fixes, subsequent source corrections were
+test-only: move-safe identity, invalid missing-activation fixture and observer
+inline-root accounting. Production bodies, fees, signatures and defaults were
+unchanged by these fixes; the independent oracle stayed unchanged. Independent65
+reviewed actual fixture corrections and the complete 64-selector inventory.
+Historical definition-line tables are offsets, not current source anchors;
+the exact selectors below and in the linked durable inventories are authoritative.
+
+Command 10 now checks the stable nonempty raw Vec backing pointer plus length,
+exact bytes and parsed Value, not the address of movable inline
+`OwnedCharged`/`ImportedValue` payloads. It retains two foreign-root controls and
+one same-root independently imported control using actual `import_json`, without
+owning-original clones or saved-pointer dereferences. Shared Ready/Refused identity
+checks, deterministic PlanDigest handling, eight snapshot callers, no-I/O checks
+and lifecycles remain intact.
+
+Only command 11 was renamed, to
+`header_entry_admission_and_reachable_stage_refusals`. Compact
+`max_abs_activation` must be an integer in `1..=1024` at SourceStorage admission,
+before Original/G exists. Missing activation checks new HeaderPrepared/legacy
+Geometry constructor `Binding` parity and no I/O: this early branch claims
+neither admitted G nor terminal retention/release. A separate ordinary genuine-G
+branch reaches Stage `Bounds` through a one-short metadata Work debit, retains G
+and checks the burned ledger with zero and positive probes. Command 15's four
+default-drop cases are genuine; its Stage-refusal case uses that reachable Bounds
+path. The invalid `prepared_without_activation` helper was removed.
+
+Command 16 accounts for charged **inline** `OwnedBudget` observer/trace handles,
+not new heap allocations. With baseline `b`, actual typed root size `r` and
+controller charge `c`, usage is `b+2r+c` after the guard, `b+r` after output drop,
+then `b` after explicit `drop(trace)`, observed through the still-live observer.
+This is not a production leak, a read after the last observer dies, a
+zero-after-last-observer claim or a final physical-allocation observation.
+
+Coverage remains bounded: entry-fee one-short uses genuine zero-entry-fee
+specialization at the actual debit, and controller one-short uses the allocation
+primitive; neither proves whole fixed-factory exhaustion. Legacy token/event
+correspondence is independent static evidence, not full expansion-equivalence
+testing. Raw outer guards are not exhaustively dynamically covered. Arithmetic
+overflow unreachable under caps, ARM64 conversion failure, allocator/excess-capacity
+behavior, private invariant panic and arbitrary interior initializer/destructor
+unwind remain excluded. Logical event/layout checks are not physical erasure,
+CPU measurement or full standard-library `SourceWork` qualification.
+
+The read-only Astra90 next-owned-continuation audit preserves consuming whole
+HeaderPrepared/Outcome custody feasibility, but establishes **no funded next-entry
+envelope**. The actual production host chain is
+`CompactPublisher::prepare_raw_host -> SourceHeaderEntry::begin_raw_host ->
+begin_raw_entry -> into_raw_host`, with differing String/Try endpoints, not the
+proposed new terminal caller. New Header constructors have test-only callers,
+not production callers; no accepted generic caller envelope was identified.
+Existing banks are role-specific: unused Stage/legacy fees cannot be reassigned
+to a new caller. Stage Try accounting and `Result<RawHeaderStage, Error>`
+cancellation occur after G issuance and do not fund constructor-result extraction
+or first refusal before Original/G exists. The earliest-payer finding (Payer81)
+therefore remains open for both FuseFSS RootOnly and Maverick RawPending prefix33.
+Component64 closes neither the actual parent nor its entry-payer obligation;
+the prior bounded Header custody PASS is not reopened.
+
+Program construction/preflight, canonical native E, authentic source binding and
+the production compiler bridge remain separate unfunded/unproved obligations.
+This is not an H/energy/Q8/projection certificate, complete issuer or full
+source-funding proof, source provenance/projection authority, universal no-wrap,
+security, model execution or model/SDK qualification. No profile/adoption,
+production activation or cap waiver follows. Existing numerical contracts,
+acceptance gates, caps and full-method activation/publication **0/10** are unchanged.
+
+#### Reproducing the bounded 64-case Header packet
+
+From repository root, freeze production inputs and run each full selector below
+individually, serially, once, in command order, with an exclusive runner and an
+external **600-second timeout per command**, including compilation. Default test
+unwind configuration is required. This ordinary template is not execution here:
+
+```sh
+TOOLCHAIN="$HOME/.rustup/toolchains/1.85.1-aarch64-apple-darwin"
+PATH="$TOOLCHAIN/bin:$PATH" RUSTC="$TOOLCHAIN/bin/rustc" RUSTDOC="$TOOLCHAIN/bin/rustdoc" CARGO_TARGET_DIR="$PWD/target" CARGO_BUILD_JOBS=1 RUST_MIN_STACK=8388608 "$TOOLCHAIN/bin/cargo" test --offline --locked --target aarch64-apple-darwin -j1 -p pllm-compiler --lib FULL_SELECTOR -- --exact --nocapture --test-threads=1
+```
+
+For commands 1–18, concatenate common prefix
+`replicated_decoder::program::source_entry::ingress::` with group prefix
+`source_geometry::energy_entry::header_entry::tests::` and the exact name:
+
+| Command | Exact function name |
+|---:|---|
+| 1 | `header_entry_actual_layout_and_canonical_types` |
+| 2 | `header_entry_independent_typed_event_oracle` |
+| 3 | `header_entry_shared_sponsor_refusal_skips_finish_without_io` |
+| 4 | `header_entry_legacy_defaults_and_v1_remain_unchanged` |
+| 5 | `header_entry_first_refusals_preserve_legacy_errors_without_io` |
+| 6 | `header_entry_constructor_reserves_exact_controller_and_live_owners` |
+| 7 | `header_entry_entry_fee_exact_one_short_on_genuine_original` |
+| 8 | `header_entry_controller_primitive_exact_one_short_release` |
+| 9 | `header_entry_workload_arity_and_context_capacity_refuse_before_brand` |
+| 10 | `header_entry_three_identity_refusals_retain_exact_geometry` |
+| 11 | `header_entry_admission_and_reachable_stage_refusals` |
+| 12 | `header_entry_stage_metadata_work_exact_one_short_retains_geometry` |
+| 13 | `header_entry_stage_storage_boundaries_retain_original_controller` |
+| 14 | `header_entry_ready_preserves_original_fields_and_workload` |
+| 15 | `header_entry_default_drop_releases_prepared_ready_and_refused` |
+| 16 | `header_entry_ready_existing_guard_probes_retire_in_field_order` |
+| 17 | `header_entry_supported_unwind_releases_whole_terminal_owner` |
+| 18 | `header_entry_stage_result_cancellation_keeps_geometry_live` |
+
+Definitions:
+`crates/pllm-compiler/src/replicated_decoder/source_geometry/energy_entry/header_entry.rs`.
+Commands 19–59 are exactly the following durable linked inventories, each name
+once, retaining their stated full common/group prefixes:
+
+| Commands | Exact durable inventory / order |
+|---|---|
+| 19–25 | Seven entry names in [preparation41](#reproducing-the-bounded-41-case-packet), in listed order |
+| 26–34 | Nine gamma names in [Gamma34](#reproducing-the-bounded-34-case-packet), in listed order |
+| 35–49 | Fifteen norm/bootstrap names in [Gamma34](#reproducing-the-bounded-34-case-packet), in listed order |
+| 50–59 | Ten descendant names in [Gamma34](#reproducing-the-bounded-34-case-packet), in listed order |
+
+Do **not** apply Gamma34's historical failed-case-first scheduling exception.
+The compiler descendant at command 56 is not an extra Core17/Core21 run.
+Gamma successful endpoints remain `0xdb00`/`0x5aff`, absolute summary `0x5b00`;
+finite extrema remain source-sealing rejection cases.
+
+Commands 60–64 concatenate the same common ingress prefix above with each row's
+group prefix and name. These five legacy extras duplicate none of the prior 59:
+
+| Command | Group prefix | Exact function name |
+|---:|---|---|
+| 60 | `tests::` | `owned_directory_lives_through_last_escaped_paged_reader` |
+| 61 | `source_geometry::tests::` | `header_identity_and_byte_guards_stay_before_factory_but_json_stays_after` |
+| 62 | `source_geometry::tests::` | `candidate_header_selects_sponsored_pending_route_without_factory` |
+| 63 | `raw_owner::tests::` | `pending_and_host_preparation_are_filesystem_free_and_fully_charged` |
+| 64 | `raw_owner::tests::` | `raw_header_cannot_enter_legacy_collection_or_q18_import` |
+
+Definitions are respectively in compiler `replicated_decoder/source_entry_ingress.rs`,
+the geometry tests mounted by `replicated_decoder/source_geometry.rs`, and
+`verified_source/raw_owner_tests.rs`. These cover ordinary immediate directory /
+escaped reader custody, ordinary guards, candidate and deferred compact Headers,
+legacy raw preparation and legacy collection/Q18 authority separation. Command 14
+already covers legacy raw manifest comparison; no duplicate is added.
+
+Each invocation must exit zero with exactly **1 passed, 0 failed, 0 ignored**.
+Stop immediately on compile error, zero/multiple selection, failure, ignored test,
+nonzero exit or timeout; remaining commands are unrun. No retry, selector
+substitution, broad filter, preliminary build/list, loop/custom harness, receipt
+collection, environment dump, copied source or archive is needed. The ordinary
+template and durable linked inventories fully specify all 64 selectors without
+relying on an ignored target plan as sole reproduction or evidence.
+
 ## Hard acceptance and security dependencies
 
 1. **Honest numeric equivalence:** prove each intended integer row dot lies in

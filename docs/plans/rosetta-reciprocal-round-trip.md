@@ -84,6 +84,45 @@ Exact prime values, auxiliary moduli and roots are **unknown**. Full largest
 simultaneous cryptographic modulus including auxiliary material must respect the
 source 1763-bit envelope; that bound is not a composite security proof.
 
+**Source-level selector obstruction, not encrypted execution.** The paper's
+[§3.1.2](https://arxiv.org/html/2609.16915v1#S3.SS1.SSS2) specifies floor;
+the [§3.2](https://arxiv.org/html/2609.16915v1#S3.SS2) example at 1.2 does not
+distinguish floor from nearest. The half-shift/RNE construction below is this
+frozen proposal, not a recovered paper algorithm. At HE3DB pin
+`1d8d7827baf32b4094b7547aeeaa9faf59253b26`, TFHEpp's
+[`gatebootstrapping.hpp`](https://github.com/zhouzhangwalker/HE3DB/blob/1d8d7827baf32b4094b7547aeeaa9faf59253b26/thirdparty/TFHEpp/include/gatebootstrapping.hpp)
+supports encrypted-accumulator `BlindRotate` with `num_out=1`: body switching
+uses floor, mask switching uses round-half-up (`RHU`).
+[`tlwe.cpp`](https://github.com/zhouzhangwalker/HE3DB/blob/1d8d7827baf32b4094b7547aeeaa9faf59253b26/thirdparty/TFHEpp/src/tlwe.cpp)
+fixes phase `B-sum(A_j*s_j)`;
+[`cloudkey.cpp`](https://github.com/zhouzhangwalker/HE3DB/blob/1d8d7827baf32b4094b7547aeeaa9faf59253b26/thirdparty/TFHEpp/src/cloudkey.cpp)
+constructs domain-bit bootstrapping keys, and
+[`detwfa.cpp`](https://github.com/zhouzhangwalker/HE3DB/blob/1d8d7827baf32b4094b7547aeeaa9faf59253b26/thirdparty/TFHEpp/src/detwfa.cpp)
+implements CMUX, yielding negacyclic `Y^(-J)`. The local
+[converter](../../crates/pllm-core/src/coefficient_torus_conversion.rs) is body-first:
+`B=R_T(b)`, `A_j=-R_T(a_j)`; its output must be reordered to masks-first,
+body-last, not passed unchanged to TFHEpp.
+
+For `T=2^64`, `N=2048`, `M=4096`, `n=1024`, the resulting selector is
+`J=floor(M*B/T)-sum_j s_j*RHU(M*A_j/T) mod M`. A source-level algebraic
+witness exists for every odd 53-bit `q`: set `t=floor(q/(3*M))`,
+`a_1=a_2=t`, other masks zero, `s_1=s_2=1` and other secret bits zero, and
+`b=q-2*t+p`. For the segment route choose `p=0`; for the interval route use
+segment 3's `B_3=4096`, `X=K_3+B_3/2`, and
+`p=RNE(q/(8192*M))`. Write `r=M*t/q`, approximately `1/3`, and
+`u=M*p/q`, either zero or approximately `1/8192`. The body's ideal scaled value
+`M-2*r+u` both floors and rounds to `M-1`; each nonzero adapted mask has value
+`M-r` and rounds to `M`, equivalent to zero modulo `M`. Torus-conversion
+perturbation is at most `2^-53` rotation cells per component, with no tie or
+boundary crossing here. Thus `J=4095`, while whole-phase RNE is zero. This is a
+wrong rotation: the constant of `Y^(-4095)*C` is `-c_2047`, not `c_0`; it is not
+an ordinary entry 4095 or an automatic numerical-value failure. No actual
+reachability, frequency or failure-probability claim follows. Alignment alone
+still leaves a body-floor bias requiring proof. Both `S` and `I` need a
+compatible phase-faithful attachment; HomComp, return-key transitions, circuit
+privacy, funding and admission remain open. This bounded source analysis adopts
+no numeric profile, authority, cap, ranking or publication 0/10 change.
+
 Input/output CKKS scale is `Delta=2^36`. Proposed StC layout is
 `coefficient[2j]=Delta*Re(slot[j])`, `coefficient[2j+1]=Delta*Im(slot[j])`.
 Only logical slot0 contains `x`; other 32767 complex slots are zero. Inverse

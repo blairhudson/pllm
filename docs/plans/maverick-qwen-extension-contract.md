@@ -4,9 +4,11 @@
 
 Contract proposal for independent review, based on Root `23d691c6`.
 Common-decoder extension direction was selected previously; the continuation
-below remains an unapproved contract proposal, not implementation permission.
+below remains an unapproved contract proposal. The current grant authorizes this
+document edit only, not code, tests, checkpoint inspection or execution.
 This document implements no Rust, source acquisition, preprocessing, verification
-or trained execution.
+or trained execution. Common-FP32/profile selection remains a proposal; no field
+modulus, verifier, hash identity or security profile is adopted here.
 It is not a new FP8 interpretation, tolerance, security certificate or GKM route.
 
 Source-backed premises (links identify existing definitions, not new authority):
@@ -104,6 +106,257 @@ rounding, RoPE frequencies/layout/positions, and KV stored dtype/append semantic
 Existing lowering supplies epsilon attributes, bias presence and producer topology,
 not floating-point execution order. Do not invent numeric parameters or inherit
 Qwen3 per-head norms when absent. Unsupported or unresolved rules block admission.
+
+The provisional common-FP32 Maverick candidate with `p = 2^61 − 1` and Q8
+complete-dot decoding, reusing the existing signed-i64 quantization boundary, is
+rejected and unadopted; this is not an original BabyBear bug. For the active
+canonical gate/up residue `r = 2^60 − 1`, positive centered decoding gives
+`RNE_F32(r / 2^16) = 2^44` (exact before rounding: `2^44 − 2^-16`). Correctly
+rounded `SiLU(2^44) = 2^44`; their product `2^88` is finite F32, but down-input
+Q8 requires `2^96`, outside signed i64. The existing scalar-F32 function
+`field_float.rs::quantize_q8(value: f32) -> Result<i64, Error>` (lines 164–206)
+refuses exact quantization with `IntegerRange`; this is not a BF16-only claim or
+an implemented whole FP32 decoder path. Refusal precedes request-global
+verification: an honest no-wrap proof does not cover active-branch totality.
+
+Original BabyBear/BF16 remains separate, within its original scope. Common-FP32
+BabyBear needs both no-wrap and active-path totality. A wider field needs exact
+wider quantization/modular reduction, total local arithmetic and new security
+review. This source-only documentation evidence prevents revisiting an invalid
+candidate; it records no policy decision, adoption, tolerance, clipping, fallback,
+early verification, runtime/security qualification or complete-method qualification.
+
+## Proposed numeric certification contract: two independent certificates
+
+The following requirements are normative for judging a future candidate, not an
+adoption of that candidate. Preserve the rejected signed-i64 candidate above as
+historical evidence. Neither a conversion repair nor either certificate alone
+establishes a complete numeric contract.
+
+### Existing modular conversion: supplied evidence, no routing adoption
+
+Supplied evidence reports `quantize_q8_mod` tests **PASSED**; this document edit
+does not rerun or independently reproduce them. The existing
+[`field_float.rs:209–253`](../../crates/pllm-core/src/field_float.rs#L209)
+defines `quantize_q8_mod(value: f32, modulus: u64) -> Result<u64, Error>` for every
+finite F32 input and every representable u64 modulus at least two, including
+composites. Moduli below two refuse with `Geometry` before value inspection;
+otherwise NaN/infinity refuse with `NonFinite`; both zero signs map to zero.
+It computes exact nearest-even integer quantization followed by Euclidean
+reduction, without requiring that integer to fit i64.
+
+Thus finite `2^88` can convert to `2^96 mod p` for an admissible `p`: this closes
+that conversion limitation ONLY. It proves neither finite downstream arithmetic
+nor honest no-wrap, field primality, security or whole-decoder coverage. Existing
+[`quantize_q8:165–206`](../../crates/pllm-core/src/field_float.rs#L165) and the
+[`bf16_q8`/`fp8_q8` import boundaries:295–300](../../crates/pllm-core/src/field_float.rs#L295)
+remain unchanged. A future seam selection MUST enumerate every activation,
+weight, import and re-encoding call site and its selected conversion semantics;
+availability of this helper does not automatically route production through it.
+
+### Shared SPEC and authentic source obligations
+
+Certificates A and B MUST reference the same explicit SPEC. SPEC is a mathematical
+contract, not a new wire manifest, receipt collection or hash/permit authority.
+It binds source revision and genuine graph producers/state edges; complete
+prefill and decode graphs; token domain, batch and sequence-length domain, request
+horizon, KV visibility and absolute positions. Workload restrictions must be
+explicit, not inferred from a sampled prompt or operation name.
+
+| SourceFacts obligation | Required authentic binding; unknowns remain obligations |
+| --- | --- |
+| Tensors and topology | Source revision, actual tensor identities/extents, dtype, orientation, scales and axes or authentic scale absence; every graph producer and state edge. A checkpoint pin alone proves none of these facts. |
+| Bias and norms | Bias presence/absence and cast/add order; exact epsilon bits, gamma dtype/order and source bound; actual Q/K norm presence/absence rather than family inheritance. |
+| Embedding and head | Complete embedding maximum, full vocabulary/head extent and orientation, tied-head aliases and exact storage identity. |
+| RoPE and state | Coefficient/profile, layout, scaling, position products and ranges; KV stored dtype, cast/read/write semantics, visibility and feedback edges. |
+| Arithmetic | Every input/output dtype, Q8 rule and complete-dot decode; reduction order, every rounding point and transcendental-error semantics; signed zero, subnormal behavior, FTZ/DAZ and FMA selection. Unselected behavior is UNRESOLVED. |
+| Coverage and provenance | Complete prefill/decode, batch/length/token/horizon domain and required outputs, with authentic source references for all parameters; no checkpoint inspection is supplied by this document. |
+
+Each certificate MUST contain node/edge/state proof rows naming its domain, exact
+rational bounds, predecessor rows, derivation, exceptional-intermediate rule,
+required outputs and evidence references. State rows require an initial condition
+and induction across every admitted decode step, including cache visibility and
+feedback. Both certificates separately record **math**, **source authenticity**,
+**coverage** and **independent-review** status and explicit unresolved reasons.
+Conditional mathematics must not be promoted to source or coverage PASS.
+
+### Certificate A: universal arbitrary-canonical-reply totality
+
+For every admitted workload and state-induction step, quantify over arbitrary
+canonical replies **independently at every delegated node**, not just one active
+projection or an honest correlated trace. Under the specified ACTUAL arithmetic
+semantics, every required output must be finite, with no NaN, numeric abort or
+conversion failure anywhere required for completing that workload.
+
+| Proof rows required | Universal totality obligation |
+| --- | --- |
+| Embedding and residuals | Complete token-domain lookup bound, initial state and every residual addition/cast, including accumulated depth and decode horizon. |
+| Norms, including optional Q/K norms | Square, ordered reduction, mean, exact epsilon addition, positive denominator, rsqrt and gamma multiply/casts; bind actual order and rounding at each intermediate. |
+| QKV and positions | Every complete-dot decode, bias cast/add and RoPE coefficient/position product, rotation and layout, including position extremes. |
+| Attention scores | QK products, reductions, scale, max, subtraction and mask arithmetic for all visible/padded/causal cases. |
+| Softmax and context | Exp semantics/error, positive denominator, reductions, division and rounded probabilities, then value/context accumulation and GQA mapping. |
+| MLP and downstream path | SiLU internals, gate-times-up, down re-encoding/complete-dot decode, downstream residuals, final norm and full output head. |
+| Selection and state induction | Required logits/selection, token feedback, KV casts/read/writes, positions and complete prefill/decode workload closure. |
+| Exceptional intermediates | Operation-specific proof of harmless consumption of any causal `-inf` or sigmoid-exp infinity, finite required outputs and no NaN/abort under actual semantics; otherwise UNESTABLISHED. |
+
+The exceptional-intermediate row is not a blanket permission for nonfinite
+arithmetic. Do not invent runtime behavior from an exact-real sigmoid identity,
+mask convention or assumed kernel implementation. Missing rounding, exp/rsqrt
+error or FTZ/FMA semantics leaves the affected rows unresolved.
+
+### Certificate B: universal honest complete-dot no-wrap
+
+Independently prove, for **every complete exact row** and honest input in the
+entire admitted workload/state domain,
+
+```text
+abs(sum_j Wq[i,j] * xq[j]) <= (p - 1) / 2.
+```
+
+Here `Wq` and `xq` mean exact signed mathematical quantized integers under SPEC,
+before modular reduction, even when implementation exposes only residues. Bind
+the candidate's centered-decoding convention; no field modulus is selected here.
+
+| Proof rows required | Honest no-wrap obligation |
+| --- | --- |
+| Exact weight rows | Authentic source-derived signed integer weights, orientation, scales/rounding and complete row extents; exact row bounds, not stock tensor-format norms. |
+| Honest activation propagation | Bounds from authentic embeddings through every actual local/decoded predecessor and state step, with all rounding errors propagated outward. |
+| Gate/up shared input | Preserve shared-input correlation in the gate/up product derivation; prove a sound joint bound rather than substituting an active canonical envelope or assuming independence. |
+| Every complete dot | Exhaustive prefill/decode projection and full-head rows, tokens, batch/length and horizon; row derivations establish the displayed inequality for whole dots, not rounded partials. |
+| Bias and subsequent state | Separately bound bias at its actual placement/cast order and propagate honest results into residuals, selection, feedback and KV induction. |
+
+Samples, observed cancellation and active-reply envelopes cannot substitute for
+authentic exact weight-row bounds plus propagated HONEST activation bounds.
+Certificate A does not imply B: arbitrary canonical totality says nothing about
+the intended integer dot fitting the centered interval. B does not imply A:
+honest no-wrap says nothing about independently adversarial canonical replies.
+
+### Original BF16/Q8 numeric-premise issuance — specification only
+
+This source-audit SPEC describes possible original-profile premise issuance, not
+an executable authority, implemented API or completed Certificate A/B. It reuses
+the shared SPEC above and the
+[original-request continuation](#reviewed-original-request-continuation-proposal-only);
+it does not widen that proposal's first-projection phase. No future publication,
+routing, API, numeric profile, quality, security, model/SDK support, geometry cap or
+**0/10** qualification status changes here.
+
+**Actual seams, not issued premises.**
+[`raw_owner.rs:1223–1260`](../../crates/pllm-compiler/src/verified_source/raw_owner.rs#L1223)
+visits every tensor coordinate in `validate_numeric_inventory`: original semantic
+`TokenLookup`/head mapping, global `block128_scale_index`, positive BF16 scales,
+`scaled_e4m3fn` or actual finite scalar decoding, then `raw::q8`. It currently
+discards each signed Q8 result and returns `Result<(), Error>`; the
+[source validation/commit boundary](../../crates/pllm-compiler/src/verified_source/raw_owner.rs#L207)
+also exposes no retained H summary.
+[`raw_clear_producer.rs:621–644`](../../crates/pllm-compiler/src/replicated_decoder/raw_clear_producer.rs#L621)
+finite-validates all gamma words once and retains capability, file, extent and
+reservation in `AdmittedRawNormSpec`.
+[`RawFirstNormActivation { words, norm }`](../../crates/pllm-compiler/src/replicated_decoder/raw_first_norm.rs#L10)
+is an owned current output, not a universal input bound H. D45's
+[`AcceptedRequest { batches: [AcceptedBatch; 2] }`](../../crates/pllm-core/src/maverick_batch/request.rs#L39)
+supplies atomic two-batch acceptance, not dependent full-decoder execution or a
+source numeric certificate.
+
+1. **H: complete original embedding envelope.** During the existing whole-source
+   visitor, fold canonical BF16 magnitudes `word & 0x7fff` over the WHOLE original
+   semantic `TokenLookup` embedding extent, covering every admitted row independently
+   of private prompt selection. Require the actual BF16 branch and original numeric
+   profile; never reinterpret F32/E4M3 storage as BF16. Publish the summary only
+   after complete inventory validation, head checks and source commit succeed.
+   Embedding H is neither residual nor decode H: every later node needs a separate
+   predecessor proof. Retained summary owner, original reservation, observer,
+   cleanup and transfer are **UNISSUED**.
+
+2. **G: fold in the existing owned norm admission.** Proposed private
+   `gamma_abs: u16` belongs in the existing owned norm capability/spec, not a
+   caller-G constructor. Accumulate `max(word & 0x7fff)` DURING existing finite
+   validation, with no extra gamma copy or pass. Retain exact graph, lookup/norm
+   operations, gamma tensor, shape, weight offset, epsilon, numeric profile, file
+   extent and original reservation. New local/retained slots, per-word work,
+   failure cleanup and later revalidation remain **UNISSUED**.
+
+3. **Selected projection Q8 row certificate.** Feed the ACTUAL signed i64 returned
+   by existing `raw::q8`, at that same quantization site, in ordered coordinates to
+   existing [`MatrixScan::new_row_energy`](../../crates/pllm-core/src/integer_bounds.rs#L615),
+   using its existing append/`finish_row_energy` lifecycle over the COMPLETE selected
+   matrix extent. Reuse existing `RowEnergyCertificate`, not a second quantizer,
+   scanner implementation or certificate type. Bind it to the same original tensor,
+   custody, shape, orientation, full rows, exact D31/D32 scaled-E4M3 rule (or approved
+   direct-BF16 head), scale tensor, global block axes/indices and original semantic
+   projection operation. Q12/Q18 certificates are wrong for this Q8 contract.
+   Current visitor discards Q8; derived Q8 matrix ownership and certificate
+   consumption are absent. An independently recomputed certificate must bind the
+   exact later publication encoding, not merely equal dimensions. Preserve existing
+   geometry caps and refusals: no cap increase or assumed chunk coverage.
+
+4. **Consuming transition: schematic only.** Until an actual retained original
+   owner is selected, the following is an obligation, NOT Rust or an API:
+
+   ```text
+   complete original inventory + complete H/G/row summaries
+     + original norm owner + selected projection binding
+     + separately PREPAID original-ledger reservation
+       -> source-owned conditional numeric premise
+   ```
+
+   Private H/G/width/E and the existing row certificate are not authority merely
+   because fields exist. Reuse
+   [`rms_norm_bf16_q8_energy_bound`](../../crates/pllm-core/src/field_float/rms_norm.rs#L279),
+   then [`integer_bounds::dot_radius`](../../crates/pllm-core/src/integer_bounds.rs#L824).
+   Separately check dimensions and centered-field coverage against the selected
+   original profile. Refuse BEFORE execution for unsupported width, nonfinite
+   values, Q8 conversion failure, energy/product overflow or no-wrap threshold
+   failure; no online private-bound refusal, clipping or fallback. Helper E/K are
+   conditional plain `u128` bounds, never forged `RowEnergyCertificate` values.
+
+**Incremental funding and proof gaps.** Symbolic ΔQ must cover observer work,
+shared scan lifecycle/appends, gamma fold, binding/retention/cleanup, existing Q8
+energy work and composition checks. Coefficients and simultaneous storage overlap
+remain **UNISSUED**; old reads touching these bytes do not fund new work. No new
+Root/Arc, hash equality or caller-admitted shortcut supplies original custody or
+SourceAuth. Config factory pins are not publisher authentication.
+
+- [ ] Choose actual retained original summary/derived-matrix owner and consuming
+  transfer; preserve original reservation and all failure/cleanup paths.
+- [ ] Prove complete semantic extents, exact later publication encoding and norm/
+  projection linkage; discharge each later-node predecessor bound separately.
+- [ ] Price and separately prepay ΔQ on the original ledger, including new slots,
+  overlap, refusal, revalidation and retirement; preserve current caps/refusals.
+- [ ] Independently check dimensions, original arithmetic profile and centered-field
+  thresholds before execution, without private online bound-based aborts.
+
+Supplied Core21 bounded-component test evidence concerns existing bound/scanner
+composition only, not a whole-layer proof or implementation of this SPEC. This
+edit runs no tests or native execution and claims no checkpoint numeric facts.
+
+### Independent oracle contract and evidence index
+
+The independent conversion oracle MUST map exact F32 bits to an exact rational,
+multiply by 256 exactly, round nearest-even to an **arbitrary-size integer**, then
+take its Euclidean remainder modulo the candidate modulus. It must not reuse the
+implementation's fixed-width shift/reduction procedure as its sole reference.
+Outward graph bounds must include ALL rounding errors at the selected arithmetic
+points, including reductions, casts and specified transcendental errors.
+
+| Existing evidence/reference | Actual scope and limits |
+| --- | --- |
+| [`field_float/tests.rs`](../../crates/pllm-core/src/field_float/tests.rs) and [`quantize_q8_mod`](../../crates/pllm-core/src/field_float.rs#L209) | Supplied test PASS for conversion only; no new execution here and neither certificate established. |
+| [`maverick_numeric_encoding_oracle.py:90–150`](../../benchmarks/research/maverick_numeric_encoding_oracle.py#L90) | `decode_f32`, `promote_bf16_to_f32_bits`, `validate_scale_bf16`, `_nearest_ieee_bits`, `round_bf16_bits`, `round_f32_bits`: exact decoding/rounding references; original scale premises are not generic FP32 source facts. Later `q8_i64` retains its i64 restriction, not the arbitrary-integer modular oracle contract. |
+| [`maverick_totality_bounds.py:26–54`](../../benchmarks/research/maverick_totality_bounds.py#L26) | `nearest_integer` and `round_bound`: exact rational nearest-even and selected BF16/F32 bound rounding; not complete common-graph coverage. |
+| [`maverick_no_wrap_bounds.py:99–106`](../../benchmarks/research/maverick_no_wrap_bounds.py#L99) | `ConditionalCertificate` separates math, source and whole-graph statuses; conditional parameters do not authenticate a checkpoint. |
+| [`maverick_weight_product_bounds.py:73–106`](../../benchmarks/research/maverick_weight_product_bounds.py#L73) | `verify_class`: original selected finite weight/scale classes and sufficient exact-F32 product/i64 conditions; not generic FP32 weights or a new whole-graph certificate. |
+| [Original conditional totality §5](../research/maverick-canonical-reply-totality.md#5-conditional-totality-of-the-complete-client-numeric-graph) | Original BF16 schedule/source-envelope theorem only; its hypotheses remain necessary within that claim and unproved for the checkpoint. |
+| [Original honest no-wrap §1](../research/maverick-honest-no-wrap-conditions.md#1-premises-and-exact-integer-row-tests) | Original BabyBear/i64/BF16 conditional exact-row inequalities, not universal common-FP32 certification. |
+
+This index is an ordinary numerical-contract reference table, not a new evidence
+archive, receipt format, custom test driver or tool-completion gate. Unknown
+parameters, source facts and proof rows remain explicit obligations. Accept
+numeric certification ONLY when both independently judged proofs, authentic
+complete coverage and independent review pass; otherwise **REFUSE CERTIFICATION**.
+Do not repair arithmetic online by clipping, saturation, fallback, early
+verification or secret-dependent numeric abort. Numeric certification is neither
+security certification nor whole-trained-model qualification.
 
 ## Custody, admission and request-global acceptance
 
@@ -1426,6 +1679,10 @@ numerics. No item is discharged by documenting it.
 Numeric review: check all producer edges/roles, dtype/alias facts, Q8 ties, complete
 dots/no-wrap, exact scale promotion, epsilon/bias casts, SiLU, attention/RoPE and
 prefill/decode/KV positions against independent exact references; no new tolerance.
+Apply the separate [Certificate A](#certificate-a-universal-arbitrary-canonical-reply-totality)
+and [Certificate B](#certificate-b-universal-honest-complete-dot-no-wrap) requirements
+under their shared SPEC; neither conversion tests nor original BF16 conditions
+discharge the common-FP32 proposal's two proof obligations.
 Security review: keep dual-LPN assumptions, actual-code distance evidence, sparse
 sampling, independence, request/query horizon, secondary checks and source-security
 holds explicit and pending. Default attempt count is not whole-decoder security;
