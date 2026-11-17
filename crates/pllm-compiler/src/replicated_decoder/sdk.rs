@@ -4,6 +4,13 @@ use crate::{ExperimentDeployment, ExperimentDocument, ExperimentPipeline};
 use pllm_types::canonical_bytes;
 use std::sync::Arc;
 
+// Inactive layout inventory only; no selector call or admission authority.
+#[allow(dead_code)]
+#[path = "sdk_source_storage_capacity.rs"]
+mod source_storage_capacity;
+#[allow(unused_imports)]
+pub(crate) use source_storage_capacity::{SDK_SELECTOR_BYTES, SDK_SELECTOR_NOMINAL_MAX};
+
 pub const PROTOCOL: &str = "pllm/puma-three-party-decoder/v1";
 pub const TOPOLOGY: &str = "pllm/three-party-replicated/v1";
 pub const STATE: &str = "pllm/replicated-private-prefix/v1";
@@ -29,8 +36,28 @@ pub(crate) enum SourceStorage {
     Expanded,
     Compact,
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SourceStorageError {
+    UnsupportedCompactComposition,
+    NoncanonicalChoice,
+}
+
+impl SourceStorageError {
+    fn message(self) -> &'static str {
+        match self {
+            Self::UnsupportedCompactComposition =>
+                "unsupported compact replicated storage composition",
+            Self::NoncanonicalChoice =>
+                "noncanonical replicated storage choice",
+        }
+    }
+}
+
 impl SourceStorage {
-    pub(crate) fn from_params(params: &serde_json::Value) -> Result<Self, String> {
+    pub(crate) fn from_params_bounded(
+        params: &serde_json::Value,
+    ) -> Result<Self, SourceStorageError> {
         match params.get("storage") {
             None => Ok(Self::Expanded),
             Some(value) if value.as_str() == Some("compact") => {
@@ -43,12 +70,16 @@ impl SourceStorage {
                     || params.get("selection").is_some()
                     || params.get("peer_transport").is_some()
                 {
-                    return Err("unsupported compact replicated storage composition".into());
+                    return Err(SourceStorageError::UnsupportedCompactComposition);
                 }
                 Ok(Self::Compact)
             }
-            _ => Err("noncanonical replicated storage choice".into()),
+            _ => Err(SourceStorageError::NoncanonicalChoice),
         }
+    }
+
+    pub(crate) fn from_params(params: &serde_json::Value) -> Result<Self, String> {
+        Self::from_params_bounded(params).map_err(|error| error.message().into())
     }
     fn component_params(
         self,
@@ -350,10 +381,90 @@ pub fn source_contract(
     Ok(canonical_bytes(&contract))
 }
 
+// Shared regression inputs only, not another selector or production policy.
+#[cfg(test)]
+pub(super) fn source_storage_selector_cases() -> Vec<(
+    &'static str,
+    serde_json::Value,
+    Result<SourceStorage, SourceStorageError>,
+)> {
+    use serde_json::json;
+    let base = json!({"weights":"public","range_policy":"checked",
+        "max_abs_activation":1,"storage":"compact"});
+    let mut expanded = base.clone();
+    expanded.as_object_mut().unwrap().remove("storage");
+    let mut cases = vec![
+        ("absent storage", expanded, Ok(SourceStorage::Expanded)),
+        ("compact minimum", base.clone(), Ok(SourceStorage::Compact)),
+    ];
+    let mut maximum = base.clone();
+    maximum["max_abs_activation"] = json!(1024);
+    cases.push(("compact maximum", maximum, Ok(SourceStorage::Compact)));
+    for key in ["weights", "range_policy", "max_abs_activation"] {
+        let mut params = base.clone();
+        params.as_object_mut().unwrap().remove(key);
+        cases.push((key, params, Err(SourceStorageError::UnsupportedCompactComposition)));
+    }
+    for (key, value) in [
+        ("weights", json!("private")),
+        ("weights", json!(null)),
+        ("range_policy", json!("static")),
+        ("range_policy", json!(false)),
+        ("max_abs_activation", json!(0)),
+        ("max_abs_activation", json!(1025)),
+        ("max_abs_activation", json!(-1)),
+        ("max_abs_activation", json!(1.5)),
+        ("max_abs_activation", json!("1")),
+        ("max_abs_activation", json!(null)),
+        ("max_abs_activation", json!(true)),
+        ("max_abs_activation", json!([])),
+        ("max_abs_activation", json!({})),
+        ("lookup", json!("per_token")),
+        ("lookup", json!(null)),
+        ("selection", json!("expanded")),
+        ("selection", json!(null)),
+        ("peer_transport", json!("http")),
+        ("peer_transport", json!(null)),
+    ] {
+        let mut params = base.clone();
+        params[key] = value;
+        cases.push((key, params, Err(SourceStorageError::UnsupportedCompactComposition)));
+    }
+    for value in [json!(null), json!(false), json!(true), json!(0), json!(-1),
+        json!(1.5), json!([]), json!(["compact"]), json!({}),
+        json!({"storage":"compact"}), json!(""), json!("expanded"),
+        json!("unknown"), json!("Compact"), json!("compact ")] {
+        let mut params = base.clone();
+        params["storage"] = value;
+        cases.push(("invalid storage", params, Err(SourceStorageError::NoncanonicalChoice)));
+    }
+    cases
+}
+
 #[cfg(test)]
 mod storage_tests {
     use super::*;
     use serde_json::json;
+    #[test]
+    fn bounded_storage_selector_preserves_legacy_results_and_error_text() {
+        for (case, params, expected) in source_storage_selector_cases() {
+            assert_eq!(SourceStorage::from_params_bounded(&params), expected,
+                "{case}: {params}");
+            let legacy = match expected {
+                Ok(storage) => Ok(storage),
+                Err(SourceStorageError::UnsupportedCompactComposition) =>
+                    Err("unsupported compact replicated storage composition".to_owned()),
+                Err(SourceStorageError::NoncanonicalChoice) =>
+                    Err("noncanonical replicated storage choice".to_owned()),
+            };
+            assert_eq!(SourceStorage::from_params(&params), legacy, "{case}: {params}");
+        }
+        for params in [json!({}), json!({"weights":"private","lookup":null})] {
+            assert_eq!(SourceStorage::from_params_bounded(&params), Ok(SourceStorage::Expanded));
+            assert_eq!(SourceStorage::from_params(&params), Ok(SourceStorage::Expanded));
+        }
+    }
+
     #[test]
     fn storage_omission_preserves_canonical_component_bytes() {
         for params in [
