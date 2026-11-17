@@ -1,7 +1,10 @@
 """Independent complete-state GKM conformance, generated and opt-in offline Qwen.
 
 Legacy opt-in: PLLM_RUN_GKM_CHECKPOINT=1. Corrected Hello opt-in separately:
-PLLM_RUN_GKM_CORRECTED_PROMPT=1. Use ordinary HF_HUB_CACHE to select existing
+PLLM_RUN_GKM_CORRECTED_PROMPT=1. Canonical conformance separately:
+PLLM_RUN_GKM_CANONICAL_CONFORMANCE=1. All new canonical definitions are unrun;
+cached-source/native execution requires separate explicit permission.
+Use ordinary HF_HUB_CACHE to select existing
 cache location. No downloads, wheel builds, or benchmark driver needed.
 Use pytest --basetemp=target/gkm-conformance for temporary source/role files.
 """
@@ -1165,14 +1168,52 @@ def test_corrected_prompt_workspace_prices_complete_owners_without_arrays():
         corrected_prompt_workspace_estimate(cfg, prefill=1)
 
 
-def _corrected_prompt_memory_admission(experiment, snapshot, *, audit_bytes=0, check=lambda: None):
+def _corrected_prompt_cohort_binding(experiment, *, cohort_experiment=None,
+                                     declared_input_capacity=30):
+    """Declaration checks only; neither source admission nor native authority."""
+    if cohort_experiment is None:
+        assert type(declared_input_capacity) is int and declared_input_capacity == 30
+        assert (experiment.budget.requests, experiment.budget.max_input_tokens,
+                experiment.budget.max_new_tokens) == (1, 30, OUTPUTS)
+        return
+
+    from examples.papers.gkm import benchmark_experiment
+    from pllm import Experiment
+    from pllm.profiles import resolve_runtime_composition
+
+    canonical = benchmark_experiment()
+    assert isinstance(experiment, Experiment) and isinstance(cohort_experiment, Experiment)
+    assert type(declared_input_capacity) is int and declared_input_capacity == 32
+    assert (experiment.budget.requests, experiment.budget.max_input_tokens,
+            experiment.budget.max_new_tokens) == (1, declared_input_capacity, OUTPUTS)
+    # Only deployment root may differ for isolated role custody. No alternative
+    # model, legacy profile, component set, budget, or numeric declaration passes.
+    assert cohort_experiment.configuration_digest() == canonical.configuration_digest()
+    assert experiment.deployment.kind == "local"
+    assert experiment.with_params(deployment=cohort_experiment.deployment).configuration_digest() == (
+        cohort_experiment.configuration_digest())
+    assert experiment.pipeline.model == canonical.pipeline.model
+    assert experiment.pipeline.digest() == canonical.pipeline.digest()
+    assert len(experiment.pipeline.components) == 17
+    composition = resolve_runtime_composition(experiment.pipeline)
+    assert composition == resolve_runtime_composition(canonical.pipeline)
+    assert composition.runtime_kind == "gkm" and composition.client_runtime == "compiled_gkm_v1"
+    assert composition.sharing == "full" and composition.delegation_capacity == "decoder"
+    assert composition.numeric_profile == (
+        "gkm.nearest-even.2048.i16.ring64.signed.f32-before-div22.le-finite-f32.sha256.secp256k1.v1")
+    assert composition.local_numeric_profile == (
+        "semantic.float32.dense-full-kv.client-bias-after-div22.v1")
+
+
+def _corrected_prompt_memory_admission(experiment, snapshot, *, audit_bytes=0, check=lambda: None,
+                                       cohort_experiment=None, declared_input_capacity=30):
     """Config-only estimate first; provisional bytes never grant source custody."""
     from pllm.runtime import benchmark_memory as memory, delegated_source, tokenizer_admission
 
     if type(audit_bytes) is not int or audit_bytes not in (0, 32 * memory.MiB):
         raise memory.BenchmarkMemoryError("corrected audit_bytes must be exactly 0 or 32 MiB")
-    assert (experiment.budget.requests, experiment.budget.max_input_tokens,
-            experiment.budget.max_new_tokens) == (1, 30, OUTPUTS)
+    _corrected_prompt_cohort_binding(experiment, cohort_experiment=cohort_experiment,
+                                     declared_input_capacity=declared_input_capacity)
     # Existing approved bounded named-metadata reader ONLY. No HF resolution,
     # tokenizer/index/header/tensor reads or native admission in this precheck.
     check()
@@ -1232,7 +1273,8 @@ def _corrected_prompt_memory_admission(experiment, snapshot, *, audit_bytes=0, c
 @pytest.mark.parametrize("audit_bytes", [0, 32 << 20])
 @pytest.mark.parametrize("cap_delta", [-1, 0, 1])
 @pytest.mark.parametrize("headroom_limited", [False, True])
-def test_corrected_prompt_combined_cap_margin(monkeypatch, audit_bytes, cap_delta, headroom_limited):
+def test_corrected_prompt_combined_cap_margin(monkeypatch, audit_bytes, cap_delta, headroom_limited,
+                                             *, cohort_experiment=None, declared_input_capacity=30):
     from pllm.deployment import resources
     from pllm.runtime import delegated_source, tokenizer_admission
     from pllm.runtime.safetensors_store import SafeTensorStore
@@ -1249,6 +1291,10 @@ def test_corrected_prompt_combined_cap_margin(monkeypatch, audit_bytes, cap_delt
     source = SimpleNamespace(path=snapshot, config_source_bytes=raw_config, config=cfg)
     experiment = SimpleNamespace(budget=SimpleNamespace(
         requests=1, max_input_tokens=30, max_new_tokens=2))
+    if cohort_experiment is not None:
+        experiment = cohort_experiment
+    cohort = {"cohort_experiment": cohort_experiment,
+              "declared_input_capacity": declared_input_capacity}
     raw_oracle = 512 * memory.MiB
     oracle_charge, audit_charge = memory._slack(raw_oracle), memory._slack(audit_bytes)
     assert oracle_charge == 640 * memory.MiB
@@ -1285,7 +1331,9 @@ def test_corrected_prompt_combined_cap_margin(monkeypatch, audit_bytes, cap_delt
         events.append("config")
         return raw_config, None
 
-    def quote(*args, **kwargs):
+    def quote(selected, **kwargs):
+        assert selected is experiment and kwargs == {"backend": "native"}
+        assert selected.budget.max_input_tokens == declared_input_capacity
         events.append("quote")
         return {"estimate": quoted}
 
@@ -1318,14 +1366,14 @@ def test_corrected_prompt_combined_cap_margin(monkeypatch, audit_bytes, cap_delt
     monkeypatch.setattr(delegated_source._AdmittedTensorStore, "get", forbidden)
     for invalid in (False, True, -1, 1, 33 << 20):
         with pytest.raises(memory.BenchmarkMemoryError, match="audit_bytes"):
-            _corrected_prompt_memory_admission(experiment, snapshot, audit_bytes=invalid)
+            _corrected_prompt_memory_admission(experiment, snapshot, audit_bytes=invalid, **cohort)
         assert events == [] and reports == [] and values == []
     if cap_delta > 0:
         with pytest.raises(memory.BenchmarkMemoryError, match="exceeds safe headroom"):
-            _corrected_prompt_memory_admission(experiment, snapshot, audit_bytes=audit_bytes)
+            _corrected_prompt_memory_admission(experiment, snapshot, audit_bytes=audit_bytes, **cohort)
     else:
         actual, estimate, report, workspace, extra = _corrected_prompt_memory_admission(
-            experiment, snapshot, audit_bytes=audit_bytes)
+            experiment, snapshot, audit_bytes=audit_bytes, **cohort)
         assert actual is source and extra == raw_oracle
         assert workspace["required_estimate_bytes"] <= extra
         assert report is reports[0] and estimate is report["estimate"]
@@ -1354,7 +1402,7 @@ def test_corrected_prompt_combined_cap_margin(monkeypatch, audit_bytes, cap_delt
         events.clear()
         quoted["allocation_slack_percent"] = invalid_margin
         with pytest.raises(memory.BenchmarkMemoryError, match="unchanged 25%"):
-            _corrected_prompt_memory_admission(experiment, snapshot, audit_bytes=audit_bytes)
+            _corrected_prompt_memory_admission(experiment, snapshot, audit_bytes=audit_bytes, **cohort)
         assert events == ["metadata-enter", "config", "metadata-exit", "quote"]
     assert len(reports) == 1 and values == []
 
@@ -1389,6 +1437,99 @@ def test_corrected_prompt_budget_refuses_before_metadata(monkeypatch, budget):
     assert type(refusal.value) is AssertionError
     assert str(refusal.value).splitlines()[0] == f"assert {budget} == (1, 30, 2)"
     assert events == []
+
+
+@pytest.mark.parametrize("canonical", [False, True])
+def test_canonical_cohort_capacity_binding(tmp_path, canonical):
+    """Pure SDK declarations: no resolution, source reads, or native admission."""
+    from examples.papers.gkm import benchmark_experiment
+    from examples.benchmarks.gkm_corrected_prompt import experiment as legacy
+    from pllm import Deployment
+
+    declared = benchmark_experiment() if canonical else legacy
+    capacity = 32 if canonical else 30
+    selected = declared.with_params(deployment=Deployment.local(root=str(tmp_path / "roles")))
+    _corrected_prompt_cohort_binding(
+        selected, cohort_experiment=declared if canonical else None,
+        declared_input_capacity=capacity)
+    assert selected.budget.requests == 1 and selected.budget.max_new_tokens == OUTPUTS
+    assert selected.budget.max_input_tokens == capacity
+    assert selected.pipeline.model == declared.pipeline.model
+    assert selected.pipeline.digest() == declared.pipeline.digest()
+    assert selected.with_params(deployment=declared.deployment).configuration_digest() == (
+        declared.configuration_digest())
+    if canonical:
+        assert capacity == 32 and capacity != 30  # Ceiling, not rendered prompt length.
+        with pytest.raises(AssertionError):
+            _corrected_prompt_cohort_binding(selected, cohort_experiment=declared)
+
+
+@pytest.mark.parametrize("case", [
+    "input30", "input33", "requests2", "outputs3", "capacity30", "capacity_bool",
+    "experiment_profile", "cohort_profile", "experiment_model",
+])
+def test_canonical_unsupported_budget_before_metadata(monkeypatch, case):
+    """Authentic declarations; traps test ordering only, not Native admission."""
+    from examples.papers.gkm import benchmark_experiment, experiment as legacy_factory
+    from pllm import ExecutionBudget, Model
+    from pllm.runtime import delegated_source, tokenizer_admission
+
+    cohort = benchmark_experiment()
+    selected, capacity = cohort, 32
+    budgets = {"input30": (1, 30, 2), "input33": (1, 33, 2),
+               "requests2": (2, 32, 2), "outputs3": (1, 32, 3)}
+    if case in budgets:
+        requests, inputs, outputs = budgets[case]
+        selected = benchmark_experiment(budget=ExecutionBudget(
+            requests=requests, max_input_tokens=inputs, max_new_tokens=outputs))
+    elif case == "capacity30":
+        capacity = 30
+    elif case == "capacity_bool":
+        capacity = True
+    elif case == "experiment_profile":
+        selected = legacy_factory(budget=cohort.budget)
+    elif case == "cohort_profile":
+        cohort = legacy_factory(budget=cohort.budget)
+    elif case == "experiment_model":
+        selected = benchmark_experiment(model=Model.hf(
+            MODEL, revision="0" * 40, local_files_only=True))
+
+    events = []
+
+    def forbidden(*args, **kwargs):
+        events.append("metadata-or-source")
+        raise AssertionError("metadata/source reached before canonical declaration refusal")
+
+    class PoisonSnapshot:
+        resolve = __fspath__ = __str__ = forbidden
+
+    monkeypatch.setattr(tokenizer_admission, "reserve_decoder_metadata", forbidden)
+    monkeypatch.setattr(tokenizer_admission, "_read_named", forbidden)
+    monkeypatch.setattr(memory, "benchmark_memory", forbidden)
+    monkeypatch.setattr(delegated_source, "admit_source", forbidden)
+    with pytest.raises(AssertionError):
+        _corrected_prompt_memory_admission(
+            selected, PoisonSnapshot(), cohort_experiment=cohort,
+            declared_input_capacity=capacity)
+    assert events == []
+
+
+@pytest.mark.parametrize("audit_bytes", [0, 32 << 20])
+@pytest.mark.parametrize("cap_delta", [-1, 0, 1])
+@pytest.mark.parametrize("headroom_limited", [False, True])
+def test_canonical_combined_cap_preserves_oracle_allowance(
+        monkeypatch, audit_bytes, cap_delta, headroom_limited):
+    """Real budget/factory + ordinary admit_memory; mocked estimates/order only.
+
+    Synthetic source metadata below is NOT an admitted Native source. These
+    boundary controls prove arithmetic/refusal ordering, never model fit or RSS.
+    The opt-in path separately obtains genuine source/session custody.
+    """
+    from examples.papers.gkm import benchmark_experiment
+
+    test_corrected_prompt_combined_cap_margin(
+        monkeypatch, audit_bytes, cap_delta, headroom_limited,
+        cohort_experiment=benchmark_experiment(), declared_input_capacity=32)
 
 
 def test_corrected_prompt_oversized_geometry_refuses_before_native_or_checkpoint_body(monkeypatch):
@@ -1631,27 +1772,275 @@ def test_pinned_qwen_corrected_prompt(tmp_path, monkeypatch, record_property):
                 adapter=adapter, deadline=deadline)
 
 
-def _pinned_qwen_corrected_prompt_adapter(tmp_path, monkeypatch, record_property, *, adapter, deadline):
+@pytest.mark.slow
+@pytest.mark.skipif(os.getenv("PLLM_RUN_GKM_CANONICAL_CONFORMANCE") != "1",
+                    reason="opt-in unrun canonical complete-request definition; separate permission required")
+def test_pinned_qwen_canonical_complete_request(tmp_path, monkeypatch, record_property):
+    from examples.papers.gkm import benchmark_experiment
+
+    with monkeypatch.context() as scoped:
+        _pinned_qwen_corrected_prompt_adapter(
+            tmp_path, scoped, record_property, adapter="sdk", deadline=_CorrectedPromptDeadline(),
+            cohort_experiment=benchmark_experiment(), declared_input_capacity=32)
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(os.getenv("PLLM_RUN_GKM_CANONICAL_CONFORMANCE") != "1",
+                    reason="opt-in unrun canonical final-barrier definition; separate permission required")
+def test_pinned_qwen_canonical_final_barrier_failure(tmp_path, monkeypatch, record_property):
+    from examples.papers.gkm import benchmark_experiment
+
+    # Fresh admission/client and one-request budget; never spend success's lease.
+    with monkeypatch.context() as scoped:
+        _pinned_qwen_corrected_prompt_adapter(
+            tmp_path, scoped, record_property, adapter="sdk", deadline=_CorrectedPromptDeadline(),
+            cohort_experiment=benchmark_experiment(), declared_input_capacity=32,
+            final_barrier_failure=True)
+
+
+def _canonical_failure_note(error, *, guard=None, stopped=None, deadline=None, finished=None):
+    """Best-effort scalar diagnostics only; never replace the primary failure."""
+    def attribute(owner, name):
+        try:
+            return getattr(owner, name, None)
+        except BaseException:
+            return None
+
+    def text(value, limit):
+        return value[:limit] if type(value) is str else "unknown"
+
+    def byte_count(value):
+        return str(value) if type(value) is int and 0 <= value < 10**32 else "unknown"
+
+    try:
+        observation = attribute(guard, "failure_observation")
+        if type(observation) is not dict:
+            observation = {}
+        try:
+            cancelled = stopped.is_set()
+        except BaseException:
+            cancelled = None
+        stopped_value = str(cancelled) if type(cancelled) is bool else "unknown"
+        remaining = "unknown"
+        expires = attribute(deadline, "expires")
+        if type(expires) in (int, float):
+            try:
+                delta = expires - time.monotonic()
+                if math.isfinite(expires) and math.isfinite(delta):
+                    remaining = format(delta, ".6g")
+            except BaseException:
+                pass
+        finish_count = "unknown"
+        if type(finished) is list:
+            if not finished:
+                finish_count = "0"
+            elif (len(finished) == 1 and type(finished[0]) is str
+                  and finished[0] == "finished"):
+                finish_count = "1"
+        note = (
+            "canonical_failure: guard.error=" + text(attribute(guard, "error"), 256)
+            + "; guard.error_class=" + text(attribute(guard, "error_class"), 64)
+            + "; stopped.is_set=" + stopped_value
+            + "; pressure=" + text(observation.get("pressure"), 64)
+            + "; available_bytes=" + byte_count(observation.get("available_bytes"))
+            + "; swap_used_bytes=" + byte_count(observation.get("swap_used_bytes"))
+            + "; deadline_remaining_seconds=" + remaining
+            + "; native_finish_count=" + finish_count
+            + "; peer_cancelled_or_deadline=unknown"
+        )
+        error.add_note(note[:1024])
+    except BaseException:
+        pass
+
+
+def test_canonical_failure_note_preserves_primary_exception():
+    primary = RuntimeError("primary")
+    with pytest.raises(RuntimeError) as caught:
+        try:
+            raise primary
+        except BaseException as error:
+            original_traceback = error.__traceback__
+            _canonical_failure_note(error, finished=["finished"])
+            assert error.__traceback__ is original_traceback
+            raise
+    assert caught.value is primary
+    assert caught.value.__traceback__ is original_traceback
+    assert len(primary.__notes__) == 1
+    assert "native_finish_count=1;" in primary.__notes__[0]
+
+    class BrokenNote(RuntimeError):
+        def add_note(self, note):
+            raise BaseException("diagnostic failure")
+
+    primary = BrokenNote("primary")
+    with pytest.raises(BrokenNote) as caught:
+        try:
+            raise primary
+        except BaseException as error:
+            _canonical_failure_note(error)
+            raise
+    assert caught.value is primary
+
+
+def test_canonical_failure_note_whitelists_and_bounds_values():
+    guard = SimpleNamespace(error="e" * 257, error_class="c" * 65,
+                            failure_observation={"pressure": "p" * 65,
+                                "available_bytes": 123, "swap_used_bytes": 0,
+                                "private": "must-not-appear"})
+    error = RuntimeError("primary")
+    _canonical_failure_note(error, guard=guard, stopped=threading.Event(),
+                            deadline=SimpleNamespace(expires=time.monotonic() + 10), finished=[])
+    note, = error.__notes__
+    assert len(note) <= 1024
+    assert "guard.error=" + "e" * 256 + ";" in note
+    assert "guard.error_class=" + "c" * 64 + ";" in note
+    assert "pressure=" + "p" * 64 + ";" in note
+    assert "available_bytes=123; swap_used_bytes=0;" in note
+    assert "stopped.is_set=False;" in note and "native_finish_count=0;" in note
+    assert "deadline_remaining_seconds=unknown;" not in note
+    assert "must-not-appear" not in note and "private" not in note
+    for malformed in (True, -1, float("nan"), float("inf"), object()):
+        guard.error = guard.error_class = malformed
+        guard.failure_observation = dict(pressure=malformed, available_bytes=malformed,
+                                         swap_used_bytes=malformed)
+        error = RuntimeError("primary")
+        _canonical_failure_note(error, guard=guard,
+                                deadline=SimpleNamespace(expires=malformed),
+                                finished=["finished", "finished"])
+        note, = error.__notes__
+        for field in ("guard.error", "guard.error_class", "pressure", "available_bytes",
+                      "swap_used_bytes", "native_finish_count"):
+            assert field + "=unknown;" in note
+        if type(malformed) is not int:
+            assert "deadline_remaining_seconds=unknown;" in note
+    error = RuntimeError("primary")
+    _canonical_failure_note(error, guard=SimpleNamespace(failure_observation="unusable"),
+                            stopped=SimpleNamespace(is_set=lambda: "not a boolean"),
+                            deadline=SimpleNamespace(expires="not a scalar"), finished=[object()])
+    note, = error.__notes__
+    for field in ("pressure", "available_bytes", "swap_used_bytes", "stopped.is_set",
+                  "deadline_remaining_seconds", "native_finish_count"):
+        assert field + "=unknown;" in note
+
+
+def test_canonical_failure_note_missing_state_never_masks_primary():
+    class Unusable:
+        def __getattribute__(self, name):
+            raise BaseException("unusable diagnostic state")
+
+        def __repr__(self):
+            raise AssertionError("must not render arbitrary objects")
+
+        def __format__(self, spec):
+            raise AssertionError("must not format arbitrary objects")
+
+    for state in (None, Unusable()):
+        error = RuntimeError("primary")
+        _canonical_failure_note(error, guard=state, stopped=state, deadline=state,
+                                finished=state)
+        note, = error.__notes__
+        assert len(note) <= 1024
+        for field in ("guard.error", "guard.error_class", "stopped.is_set", "pressure",
+                      "available_bytes", "swap_used_bytes", "deadline_remaining_seconds",
+                      "native_finish_count"):
+            assert field + "=unknown;" in note
+        assert note.endswith("peer_cancelled_or_deadline=unknown")
+
+
+def test_canonical_failure_note_retains_no_payload_objects():
+    class Payload:
+        def __repr__(self):
+            raise AssertionError("must not render payload")
+
+    payload = Payload()
+    reference = weakref.ref(payload)
+    guard = SimpleNamespace(error=payload, error_class=payload,
+                            failure_observation=dict(pressure=payload, available_bytes=payload,
+                                                     swap_used_bytes=payload, private=payload))
+    error = RuntimeError("primary")
+    _canonical_failure_note(error, guard=guard, finished=[])
+    del guard, payload
+    assert reference() is None
+    note, = error.__notes__
+    assert type(note) is str and len(note) <= 1024
+
+
+def _canonical_final_barrier_request(client, monkeypatch, deadline, captured, records, audit_owner,
+                                     finished):
+    """Same genuine native post-finish/pre-publication seam as delegated SDK tests."""
+    from pllm.runtime.delegated_source import AdmittedSource
+    from test_delegated_sdk import active_sessions
+
+    original = AdmittedSource.load_transport
+    observed = []
+
+    class FinalBarrier:
+        def __init__(self, native):
+            self.native = native
+
+        def __getattr__(self, name):
+            return getattr(self.native, name)
+
+        def finish(self):
+            self.native.finish()  # Real verification; no fabricated core/witness/acceptance.
+            finished.append("finished")
+            raise ValueError("injected canonical final barrier failure")
+
+    def failed_barrier(source, *args, **kwargs):
+        native = original(source, *args, **kwargs)
+        return FinalBarrier(native) if kwargs.get("worker") is None else native
+
+    try:
+        with monkeypatch.context() as scoped:
+            scoped.setattr(AdmittedSource, "load_transport", failed_barrier)
+            client._core.timeout = deadline.remaining()
+            with pytest.raises(ValueError, match="injected canonical final barrier failure"):
+                with client.responses.create(input="Hello", max_output_tokens=OUTPUTS,
+                                             stream=True) as stream:
+                    for event in stream:
+                        observed.append(event)
+            deadline.remaining()
+            assert finished == ["finished"]
+            assert observed == captured == records == []
+            assert audit_owner.claimed and audit_owner.accepted is None
+            assert not client._core.records and client._core._active is None
+            assert client._core.audit.generation_completed_responses == 0
+            assert active_sessions(client._core) == [0, 0]
+    finally:
+        assert AdmittedSource.load_transport is original
+
+
+def _pinned_qwen_corrected_prompt_adapter(tmp_path, monkeypatch, record_property, *, adapter, deadline,
+                                         cohort_experiment=None, declared_input_capacity=30,
+                                         final_barrier_failure=False):
     """Separate current-request qualification; legacy checkpoint cohort stays historical.
 
     Future launch requires explicit permission, coherent wheel and physical
     headroom. Opt-in is not permission to bypass ordinary source/memory admission.
     """
+    finished = []
+    guard = stopped = None
     # Import candidate configuration ONLY after opt-in. Never construct alternate
     # token-vector requests, pipelines or execution overrides for this cohort.
-    from examples.benchmarks.gkm_corrected_prompt import experiment as saved
+    if cohort_experiment is None:
+        from examples.benchmarks.gkm_corrected_prompt import experiment as saved
+    else:
+        saved = cohort_experiment
     from pllm import Deployment, OpenAI
     from pllm.runtime import benchmark_memory as memory, benchmark_response_audit as audit, delegated_source
     from pllm.runtime.safetensors_store import SafeTensorStore
     from test_delegated_sdk import active_sessions
 
+    experiment = saved.with_params(deployment=Deployment.local(root=str(tmp_path / "roles")))
+    _corrected_prompt_cohort_binding(experiment, cohort_experiment=cohort_experiment,
+                                     declared_input_capacity=declared_input_capacity)
+    assert not final_barrier_failure or (cohort_experiment is not None and adapter == "sdk")
     cache = Path(HF_HUB_CACHE).expanduser().resolve()
     snapshot = cache / "models--Qwen--Qwen2.5-0.5B-Instruct" / "snapshots" / PIN
     if not snapshot.is_dir():
         pytest.skip(f"missing pinned offline checkpoint cache: {snapshot}; no download/fallback")
     monkeypatch.setenv("HF_HUB_CACHE", str(cache))
     monkeypatch.setenv("HF_HUB_OFFLINE", "1")
-    experiment = saved.with_params(deployment=Deployment.local(root=str(tmp_path / "roles")))
     model = experiment.pipeline.model
     assert model == saved.pipeline.model
     assert model.source == MODEL
@@ -1660,7 +2049,7 @@ def _pinned_qwen_corrected_prompt_adapter(tmp_path, monkeypatch, record_property
     assert linear["capacity"] == "decoder" and linear["sharing"] == "full"
     assert linear.get("execution") is None
     assert (experiment.budget.requests, experiment.budget.max_input_tokens,
-            experiment.budget.max_new_tokens) == (1, 30, OUTPUTS)
+            experiment.budget.max_new_tokens) == (1, declared_input_capacity, OUTPUTS)
     assert experiment.pipeline.digest() == saved.pipeline.digest()
 
     def forbidden(*args, **kwargs):
@@ -1672,7 +2061,8 @@ def _pinned_qwen_corrected_prompt_adapter(tmp_path, monkeypatch, record_property
         early.setattr(SafeTensorStore, "get", forbidden)
         early.setattr(delegated_source._AdmittedTensorStore, "get", forbidden)
         source, estimate, report, workspace, extra = _corrected_prompt_memory_admission(
-            experiment, snapshot, check=deadline.remaining)
+            experiment, snapshot, check=deadline.remaining, cohort_experiment=cohort_experiment,
+            declared_input_capacity=declared_input_capacity)
 
     pins = estimate["gkm_admission"]
     assert source.model == model and source.source_lock["commit"] == PIN
@@ -1684,19 +2074,33 @@ def _pinned_qwen_corrected_prompt_adapter(tmp_path, monkeypatch, record_property
         "runtime_contract_digest": source.runtime_contract_digest,
         "numeric_profile": source.contract["numeric_profile"],
         "local_numeric_profile": source.contract["local_numeric_profile"],
-        "max_input_tokens": 30, "max_output_tokens": OUTPUTS,
+        "max_input_tokens": declared_input_capacity, "max_output_tokens": OUTPUTS,
     }.items():
         assert pins[key] == value
     assert source.configuration_digest == experiment.configuration_digest()
     assert source.composition_digest == experiment.pipeline.digest()
-    assert source.contract["input_rows"] == 30 and source.contract["decode_steps"] == 1
+    assert source.contract["input_rows"] == declared_input_capacity
+    assert source.contract["decode_steps"] == 1
     assert source.contract["numeric_profile"] == (
         "gkm.nearest-even.2048.i16.ring64.signed.f32-before-div22.le-finite-f32.sha256.secp256k1.v1")
     assert source.contract["local_numeric_profile"] == (
         "semantic.float32.dense-full-kv.client-bias-after-div22.v1")
     runtime = source.runtime_contract(experiment, 30, OUTPUTS)
-    assert runtime == source.runtime_contract_bytes
-    assert json.loads(runtime)["decoder"] == source.contract
+    request_contract = json.loads(runtime)["decoder"]
+    if cohort_experiment is None:
+        assert runtime == source.runtime_contract_bytes
+        assert request_contract == source.contract
+    else:
+        # Admission/session envelope remains 32; real source-rendered request is
+        # 30 prefill + one feedback, never padded to the declaration's ceiling.
+        assert source.runtime_contract(experiment, declared_input_capacity, OUTPUTS) == (
+            source.runtime_contract_bytes)
+        assert runtime != source.runtime_contract_bytes
+        assert request_contract["input_rows"] == 30 and request_contract["decode_steps"] == 1
+        for key in ("numeric_profile", "local_numeric_profile"):
+            assert request_contract[key] == source.contract[key]
+        assert json.loads(runtime)["configuration"] == experiment.configuration_digest()
+        assert json.loads(runtime)["composition"] == experiment.pipeline.digest()
 
     stopped, clients = threading.Event(), []
 
@@ -1747,30 +2151,35 @@ def _pinned_qwen_corrected_prompt_adapter(tmp_path, monkeypatch, record_property
                 _corrected_prompt_discover(client, experiment, source, check)
                 # Ordinary one-use preparation remains runtime authority. Oracle
                 # IDs never enter request, prepared payload or transport inputs.
-                response, value = _corrected_prompt_dispatch(client, adapter, deadline)
-                assert value["status"] == "incomplete"
-                assert value["incomplete_details"] == {"reason": "max_output_tokens"}
+                if final_barrier_failure:
+                    _canonical_final_barrier_request(
+                        client, monkeypatch, deadline, captured, records, audit_owner, finished)
+                else:
+                    response, value = _corrected_prompt_dispatch(client, adapter, deadline)
+                    assert value["status"] == "incomplete"
+                    assert value["incomplete_details"] == {"reason": "max_output_tokens"}
                 actual = client._core._ensure_source()
                 for attribute in ("model", "config_bytes", "contract_bytes", "experiment_bytes",
                                   "runtime_contract_bytes", "source_lock_digest", "checkpoint_digest",
                                   "tokenizer_digest", "configuration_digest", "composition_digest"):
                     assert getattr(actual, attribute) == getattr(source, attribute)
-                result, = captured
-                assert_complete_result(result, expected)
-                assert result.executed == ids + result.selected[:-1]
-                assert result.position == 31 and len(result.selected) == OUTPUTS
-                acceptance = json.loads(result.acceptance)
-                assert acceptance["schema_version"] == "pllm.gkm.sdk-acceptance.v1"
-                assert acceptance["sharing"] == "full"
-                assert acceptance["contract"] == hashlib.sha256(
-                    b"pllm.gkm.sdk-contract.v1\0" + runtime).hexdigest()
-                assert value["usage"]["input_tokens"] == 30
-                assert value["usage"]["output_tokens"] == OUTPUTS
-                text = "".join(part["text"] for item in value["output"]
-                               for part in item.get("content", []) if part["type"] == "output_text")
-                check()
-                assert text == source.tokenizer().decode(list(result.selected))
-                check()
+                if not final_barrier_failure:
+                    result, = captured
+                    assert_complete_result(result, expected)
+                    assert result.executed == ids + result.selected[:-1]
+                    assert result.position == 31 and len(result.selected) == OUTPUTS
+                    acceptance = json.loads(result.acceptance)
+                    assert acceptance["schema_version"] == "pllm.gkm.sdk-acceptance.v1"
+                    assert acceptance["sharing"] == "full"
+                    assert acceptance["contract"] == hashlib.sha256(
+                        b"pllm.gkm.sdk-contract.v1\0" + runtime).hexdigest()
+                    assert value["usage"]["input_tokens"] == 30
+                    assert value["usage"]["output_tokens"] == OUTPUTS
+                    text = "".join(part["text"] for item in value["output"]
+                                   for part in item.get("content", []) if part["type"] == "output_text")
+                    check()
+                    assert text == source.tokenizer().decode(list(result.selected))
+                    check()
                 assert active_sessions(client._core) == [0, 0]
                 roles = topology.statuses
                 assert {role.role for role in roles} == {"worker_a", "worker_b"}
@@ -1780,15 +2189,21 @@ def _pinned_qwen_corrected_prompt_adapter(tmp_path, monkeypatch, record_property
                 check()
             assert all(not status.running for status in topology.statuses)
         tensors.verify_lock()
-        assert records == [observer.expected_record(source.contract)]
+        if final_barrier_failure:
+            assert records == captured == []
+        else:
+            assert records == [observer.expected_record(request_contract)]
         assert audit_owner.closed and audit._GKM_OWNER is None
         check()
         for key, value in {
-            "cohort": "pinned_qwen_corrected_prompt", "model_revision": PIN,
+            "cohort": ("pinned_qwen_corrected_prompt" if cohort_experiment is None else
+                       "pinned_qwen_canonical_final_barrier_failure" if final_barrier_failure else
+                       "pinned_qwen_canonical_complete_request"), "model_revision": PIN,
             "configuration_digest": source.configuration_digest,
             "composition_digest": source.composition_digest,
             "config_digest": source.config_digest, **pins,
             "input_tokens": 30, "executed_positions": 31, "output_tokens": OUTPUTS,
+            "declared_input_capacity": declared_input_capacity,
             "sharing": "full", "execution": "scalar", "oracle_row_block": ROW_BLOCK,
             "oracle_workspace_estimate": workspace, "oracle_and_audit_allowance_bytes": extra,
             "checked_selections": len(observer.selections),
@@ -1796,6 +2211,8 @@ def _pinned_qwen_corrected_prompt_adapter(tmp_path, monkeypatch, record_property
         }.items():
             record_property(key, value)
     except BaseException as error:
+        _canonical_failure_note(error, guard=guard, stopped=stopped, deadline=deadline,
+                                finished=finished)
         from pllm.runtime.delegated_protocol import clear_failure_frames
 
         # Failed decoder/tokenizer frames must not keep payloads beyond refund.
