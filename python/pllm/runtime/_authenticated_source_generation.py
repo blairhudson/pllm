@@ -224,8 +224,8 @@ class _Generation:
         self.__busy, self.__stopped = True, False
         self.__io_active = self.__ready = False
         self.__slots = []  # [owner, terminal ambiguity]; staged before any seal
-        self.__publisher = None
-        self.__publisher_unknown = False
+        self.__native = None  # publisher OR worker, retained before first append
+        self.__native_unknown = False
         self.__by_name = {}
         self.inventory = ()
         self.envelope = None
@@ -395,20 +395,14 @@ class _Generation:
             result.clear()
             del raw, widened
 
-    def _publish(self, source, experiment, ids, outputs):
-        from .replicated_source import _expanded_publisher
-        from .replicated_protocol import validate_execution_binding
-
+    def _append_verified(self, *, public_worker=False):
+        """One closed-over frame loop; append comes only from our native owner."""
         if not self.__ready:
             _refuse("metadata join is not ready")
-        self.__ready = False  # one publication attempt, never replay
+        self.__ready = False  # one native ingestion attempt, never replay
         self._checkpoint()
-        self.__publisher = _expanded_publisher(source, experiment, len(ids), outputs)
-        owner = self.__publisher
-        append = owner.append
-        expected_shapes = tuple((row[0], row[3]) for row in self.mapping)
-        if tuple((key, tuple(shape)) for key, shape in owner.shapes) != expected_shapes:
-            _refuse("publisher order/shape/coverage differs")
+        owner = self.__native
+        append = owner.append_public_source if public_worker else owner.append
         for index, row in enumerate(self.mapping):
             key, _, filename, shape, dtype, offset, _ = row
             width = source_io._DTYPES[dtype].itemsize
@@ -431,9 +425,68 @@ class _Generation:
         if self.__cursor != (len(self.mapping), 0):
             _refuse("incomplete append coverage")
         self._checkpoint()  # includes cancellation after the last append
+
+    def _publish(self, source, experiment, ids, outputs):
+        from .replicated_source import _expanded_publisher
+        from .replicated_protocol import validate_execution_binding
+
+        if not self.__ready:
+            _refuse("metadata join is not ready")
+        self._checkpoint()
+        self.__native = _expanded_publisher(source, experiment, len(ids), outputs)
+        owner = self.__native
+        expected_shapes = tuple((row[0], row[3]) for row in self.mapping)
+        if tuple((key, tuple(shape)) for key, shape in owner.shapes) != expected_shapes:
+            _refuse("publisher order/shape/coverage differs")
+        self._append_verified()
         manifest = owner.seal(b"".join(token.to_bytes(4, "little") for token in ids))
         validate_execution_binding(experiment, source_io._json(manifest, "publisher manifest"))
         return manifest
+
+    def _seal_worker(self, source, experiment, ids, outputs, manifest, role):
+        """Dormant checked/public route, never an externally selected append."""
+        from pllm import _native
+        from .replicated_protocol import (
+            ADMISSION_LIMIT, execution_policy, validate_execution_binding,
+        )
+
+        policy = execution_policy(experiment)
+        if (source.contract.get("weights") != "public"
+                or policy["range_policy"] != "checked" or policy["lookup"] != "per_token"
+                or policy["selection"] != "expanded" or policy["peer_transport"] != "http"):
+            _refuse("worker requires checked public expanded per-token HTTP policy")
+        if (type(manifest) is not bytes or not 0 < len(manifest) <= ADMISSION_LIMIT
+                or type(role) is not int or not 0 <= role < 3):
+            _refuse("invalid worker publication or role")
+        public = source_io._json(manifest, "worker publication")
+        def matches_wire_bytes(value, expected):
+            # Do not let bytes(untrusted_integer) allocate outside the envelope.
+            return (type(value) is list and len(value) == len(expected)
+                    and all(type(word) is int and word == actual
+                            for word, actual in zip(value, expected, strict=True)))
+
+        # Mirror replicated_worker admission. Native checks the session/program,
+        # tensor commitments and SourceRequest lifecycle; Python supplies no
+        # coefficient authority. Manifest binds workload dimensions, not secret
+        # prompt token values (those are not carried by this public envelope).
+        if (not matches_wire_bytes(public.get("source"), bytes.fromhex(source.source_lock_digest))
+                or not matches_wire_bytes(public.get("composition"), bytes.fromhex(experiment.pipeline.digest()))
+                or not matches_wire_bytes(public.get("config"), source.config_bytes)
+                or public.get("weights", "private") != "public"
+                or type(public.get("rows")) is not int or public["rows"] != len(ids)
+                or type(public.get("outputs")) is not int or public["outputs"] != outputs):
+            _refuse("worker publication differs from source or workload")
+        validate_execution_binding(experiment, public)
+        source.runtime_contract(experiment, len(ids), outputs)
+        if not self.__ready:
+            _refuse("metadata join is not ready")
+        self._checkpoint()
+        # No legacy constructor fallback. Match canonical server policy tuple.
+        self.__native = _native.ReplicatedWorker._from_source_request(
+            manifest, role, server_policy=(source.experiment_bytes, source.config_bytes))
+        self._append_verified(public_worker=True)
+        self.__native.seal_public_source()  # native finish -> SourceSetup, NOT activation
+        self._checkpoint()  # cancellation/concurrent drain during seal must reject success
 
     def _finish_operation(self):
         with self.__gate:
@@ -464,17 +517,17 @@ class _Generation:
                 except BaseException:
                     slot[1] = True
                     failed = True
-            if self.__publisher is not None:
-                if self.__publisher_unknown:
+            if self.__native is not None:
+                if self.__native_unknown:
                     failed = True
                 else:
                     try:
-                        if self.__publisher.close() is False:
+                        if self.__native.close() is False:
                             failed = True
                         else:
-                            self.__publisher = None
+                            self.__native = None
                     except BaseException:
-                        self.__publisher_unknown = True
+                        self.__native_unknown = True
                         failed = True
             if failed:
                 _refuse("retirement pending or ambiguous; custody retained")
@@ -484,7 +537,7 @@ class _Generation:
             self._finish_operation()
 
 
-def _run_local_toy(experiment, ids, outputs, cancelled, *, cleanup_scope):
+def _run_attempt(experiment, ids, outputs, cancelled, cleanup_scope, *, worker=None):
     from .replicated_source import admit_source
 
     attempt = _Generation(cleanup_scope, cancelled)
@@ -500,7 +553,12 @@ def _run_local_toy(experiment, ids, outputs, cancelled, *, cleanup_scope):
             _refuse("SDK source changed")
         attempt._stage(source, inventory)
         attempt._join(source, experiment, encoded, ids, outputs)
-        manifest = attempt._publish(source, experiment, ids, outputs)
+        if worker is None:
+            result = attempt._publish(source, experiment, ids, outputs)
+        else:
+            manifest, role = worker
+            attempt._seal_worker(source, experiment, ids, outputs, manifest, role)
+            result = None
     except BaseException as error:
         attempt._finish_operation()
         try:
@@ -514,4 +572,19 @@ def _run_local_toy(experiment, ids, outputs, cancelled, *, cleanup_scope):
         raise
     attempt._finish_operation()
     cleanup_scope.drain()  # no success result unless all cleanup is confirmed
-    return manifest
+    return result
+
+
+def _run_local_toy(experiment, ids, outputs, cancelled, *, cleanup_scope):
+    return _run_attempt(experiment, ids, outputs, cancelled, cleanup_scope)
+
+
+def _run_local_toy_worker(experiment, ids, outputs, cancelled, *, manifest, role, cleanup_scope):
+    """Separate worker-local preflight/admission/generation; return no native owner.
+
+    Dormant, temporary toy only. No dispatch, setup exchange, activation or payer
+    claim. The supplied publication is confirmed against the exact local server
+    Experiment/config/source lock and actual workload before native acquisition.
+    """
+    return _run_attempt(experiment, ids, outputs, cancelled, cleanup_scope,
+                        worker=(manifest, role))

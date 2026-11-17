@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import struct
+import threading
 from types import SimpleNamespace
 
 import psutil
@@ -87,10 +88,10 @@ def _forbidden(*args, **kwargs):
     raise AssertionError("sealed generation attempted ordinary path metadata/range I/O")
 
 
-def _run(experiment, cancelled=lambda: False):
+def _run(experiment, cancelled=lambda: False, *, ids=(3, 4), outputs=2):
     scope = reserve_cleanup_slot()
     try:
-        result = replicated._local_toy_generation(experiment, (3, 4), 2, cancelled,
+        result = replicated._local_toy_generation(experiment, ids, outputs, cancelled,
                                                    cleanup_scope=scope)
         assert scope.closed
         assert type(result) is bytes
@@ -915,3 +916,401 @@ def test_generation_serializes_reentrant_cross_file_io_before_any_descriptor_rea
     with pytest.raises(source_io.DelegatedSourceError, match="cancelled or retired"):
         replicated._local_toy_generation(experiment, (3, 4), 2, cancelled, cleanup_scope=scope)
     assert reentered and started == [] and scope.closed
+
+
+def _worker_run(experiment, manifest, *, role=0, ids=(3, 4), outputs=2,
+                cancelled=lambda: False, scope=None):
+    scope = reserve_cleanup_slot() if scope is None else scope
+    try:
+        result = generation._run_local_toy_worker(experiment, ids, outputs, cancelled,
+            manifest=manifest, role=role, cleanup_scope=scope)
+        assert result is None and scope.closed
+    except BaseException:
+        # A test's fallback drain must never manufacture implementation cleanup
+        # evidence on a failure path.
+        assert scope.closed and scope._payload is None
+        raise
+    finally:
+        if not scope.closed:
+            scope.drain()
+
+
+def _assert_worker_generation_retired(scope, attempt):
+    assert scope.closed and scope._payload is None
+    assert attempt._Generation__native is None
+    assert all(owner is None for owner, _ in attempt._Generation__slots)
+    assert attempt.mapping == attempt.inventory == ()
+
+
+def test_unwrapped_real_worker_source_setup_retires_without_activation(tmp_path, monkeypatch):
+    from pllm import _native
+
+    experiment, _ = _fixture(tmp_path, weights="public")
+    experiment = experiment.with_params(pipeline__components__linear__range_policy="checked")
+    manifest = _run(experiment)
+    seal_worker = generation._Generation._seal_worker
+    owners = []
+    before_fds = psutil.Process().num_fds()
+
+    def sealed(self, *args):
+        seal_worker(self, *args)
+        owner = self._Generation__native
+        assert type(owner) is _native.ReplicatedWorker  # no proxy/fake destination
+        complete, frames = owner.call("offer", b"", 0)
+        assert complete is False and len(frames) == 1 and frames[0][0] == 0
+        name, offset, _ = _SPANS[_NORM]
+        assert self._read_at(name, offset + 2, 2) == struct.pack("<H", 0x8000)
+        owners.append(owner)  # no consuming finish: cleanup must retire live Setup
+
+    monkeypatch.setattr(generation._Generation, "_seal_worker", sealed)
+    _worker_run(experiment, manifest)
+    with pytest.raises(ValueError, match="replicated worker retired"):
+        owners[0].call("offer", b"", 0)
+    assert psutil.Process().num_fds() == before_fds
+
+
+@pytest.mark.parametrize("role", [0, 1, 2])
+@pytest.mark.parametrize("mutation", ["pathname", "in_place"])
+def test_real_worker_seal_keeps_original_generation_through_reverse_signed_zero_reread(
+        tmp_path, monkeypatch, role, mutation):
+    from pllm import _native
+
+    experiment, root = _fixture(tmp_path, weights="public")
+    experiment = experiment.with_params(pipeline__components__linear__range_policy="checked")
+    manifest = _run(experiment)  # real publisher, already fully retired
+    native_type = _native.ReplicatedWorker
+    factory = native_type._from_source_request  # required; never legacy fallback
+    stage, seal_worker = generation._Generation._stage, generation._Generation._seal_worker
+    converter = source_io._source_float_frame_from_bytes
+    admit, preflight = replicated.admit_source, generation._preflight
+    close_file = _AuthenticatedSourceFile.close
+    converted, appended, retired, owners, attempts, phases, reread = [], [], [], [], [], [], []
+    before_fds = psutil.Process().num_fds()
+    scope = reserve_cleanup_slot()
+
+    def checked(*args):
+        phases.append("preflight")
+        return preflight(*args)
+
+    def admitted(value):
+        assert phases == ["preflight"]
+        source = admit(value)  # separate real worker-local admission
+        phases.append("admit")
+        return source
+
+    def staged(self, source, inventory):
+        assert phases == ["preflight", "admit"]
+        stage(self, source, inventory)
+        attempts.append(self)
+        phases.append("stage")
+        for name in ("_files", "_locked", "_read_range", "_read_bounded", "_identity"):
+            scoped.setattr(source_io, name, _forbidden)
+
+    def converted_frame(raw, dtype):
+        frame = converter(raw, dtype)
+        converted.append(frame)
+        return frame
+
+    class ForwardingWorker:
+        def __init__(self, real):
+            self.real, self.sealed, self.closed = real, False, False
+
+        def append_public_source(self, key, begin, frame):
+            assert not self.sealed and not self.closed
+            assert key == sorted(_WORDS)[len(appended)] and begin == 0
+            assert frame is converted[-1] and len(converted) == len(appended) + 1
+            assert frame == _WORDS[key]  # independent pre-Q18 literal oracle
+            self.real.append_public_source(key, begin, frame)
+            appended.append((key, frame))
+
+        def seal_public_source(self):
+            assert len(appended) == len(_WORDS) and not self.sealed
+            self.real.seal_public_source()  # Rust SourceRequestImport.finish -> SourceSetup
+            self.sealed = True
+            # Offer is accepted only in Setup/SourceSetup, not SourceRequest.
+            complete, frames = self.real.call("offer", b"", role)
+            assert complete is False and len(frames) == 1 and frames[0][0] == role
+
+        def activate(self):
+            pytest.fail("dormant generation must never activate worker")
+
+        def close(self):
+            assert not self.closed
+            self.real.close()
+            self.closed = True
+
+    class Constructors:
+        def __new__(cls, *args, **kwargs):
+            pytest.fail("legacy worker constructor is not source-request evidence")
+
+        @staticmethod
+        def _from_source_request(raw, actual_role, *, server_policy):
+            assert raw is manifest and actual_role == role
+            assert server_policy == (experiment.canonical_bytes(), bytes(json.loads(manifest)["config"]))
+            assert phases == ["preflight", "admit", "stage"]
+            assert attempts[0]._Generation__ready  # real worker-local join completed
+            owner = ForwardingWorker(factory(raw, actual_role, server_policy=server_policy))
+            owners.append(owner)
+            return owner
+
+    def refuse_source_path(original):
+        def guard(path, *args, **kwargs):
+            if not isinstance(path, int) and Path(os.path.abspath(path)).is_relative_to(root):
+                raise AssertionError("post-seal source pathname lookup/reopen")
+            return original(path, *args, **kwargs)
+        return guard
+
+    def sealed_then_reread(self, *args):
+        seal_worker(self, *args)
+        assert owners[0].sealed and not owners[0].closed
+        assert not scope.closed and scope._payload is self
+        assert all(owner is not None for owner, _ in self._Generation__slots)
+        filename, offset, size = _SPANS[_NORM]
+        path = root / filename
+        original = path.read_bytes()
+        assert original[offset:offset + size] == struct.pack("<2H", 1, 0x8000)
+        changed = original[:offset + 2] + b"\0\0" + original[offset + 4:]
+        assert len(changed) == len(original)
+        if mutation == "pathname":
+            path.rename(root / "parked-original")
+        path.write_bytes(changed)
+        # An ordinary reopen now yields +0. Authenticated generation must retain
+        # -0 for pathname replacement, or fail closed for an in-place leaf edit.
+        assert path.read_bytes()[offset + 2:offset + 4] == b"\0\0"
+        for name in ("open", "stat", "lstat"):
+            scoped.setattr(os, name, refuse_source_path(getattr(os, name)))
+        if mutation == "in_place":
+            with pytest.raises(_SourceFileError, match="SHA-256"):
+                self._read_at(filename, offset + 2, 2)
+            assert not scope.closed and scope._payload is self
+            assert not owners[0].closed  # native custody survives failed source read
+            # Poisoned owners cannot be restored/reused, even with original bytes.
+            with pytest.raises(_SourceFileError, match="not ready"):
+                self._read_at(filename, offset + 2, 2)
+        else:
+            # Reverse physical order, last word then first. No parsed tensor spec
+            # or admission output supplies these literal positions/words.
+            for record in reversed(_RECORD_ORACLE):
+                name, start, _ = _SPANS[record.name]
+                for lane in (len(record.words) - 1, 0):
+                    raw = self._read_at(name, start + lane * record.width, record.width)
+                    assert raw == struct.pack("<" + record.fmt, record.words[lane])
+                    reread.append((record.name, lane, raw))
+            assert reread[0] == (_NORM, 1, struct.pack("<H", 0x8000))
+        # A native not-active refusal confirms no activation; consumes handle.
+        # Successful offer above plus source-request-only constructor establish
+        # SourceSetup, rather than treating this refusal alone as seal evidence.
+        with pytest.raises(ValueError, match="replicated worker not active"):
+            owners[0].real.finish()
+
+    def retired_file(self):
+        result = close_file(self)
+        retired.append((self, result))
+        return result
+
+    with monkeypatch.context() as scoped:
+        scoped.setattr(generation, "_preflight", checked)
+        scoped.setattr(replicated, "admit_source", admitted)
+        scoped.setattr(generation._Generation, "_stage", staged)
+        scoped.setattr(generation._Generation, "_seal_worker", sealed_then_reread)
+        scoped.setattr(source_io, "_source_float_frame_from_bytes", converted_frame)
+        scoped.setattr(_native, "ReplicatedWorker", Constructors)
+        scoped.setattr(_AuthenticatedSourceFile, "close", retired_file)
+        _worker_run(experiment, manifest, role=role, scope=scope)
+    assert scope.closed and owners[0].closed
+    assert len(retired) == len(attempts[0]._Generation__slots)
+    assert all(result is True for _, result in retired)
+    assert all(owner is None for owner, _ in attempts[0]._Generation__slots)
+    assert attempts[0]._Generation__native is None
+    assert attempts[0].mapping == attempts[0].inventory == ()
+    with pytest.raises(ValueError, match="replicated worker retired"):
+        owners[0].real.call("offer", b"", role)
+    assert psutil.Process().num_fds() == before_fds
+
+
+@pytest.mark.parametrize("field", ["source", "composition", "config", "weights", "rows", "outputs", "execution",
+                                 "source_integer", "config_integer", "rows_bool", "outputs_bool"])
+def test_worker_generation_binds_publication_before_native_constructor(tmp_path, monkeypatch, field):
+    from pllm import _native
+
+    experiment, _ = _fixture(tmp_path, weights="public")
+    experiment = experiment.with_params(pipeline__components__linear__range_policy="checked")
+    # True == 1: equality alone would accept either boolean at matching geometry.
+    ids, outputs = ((3,), 1) if field.endswith("_bool") else ((3, 4), 2)
+    public = json.loads(_run(experiment, ids=ids, outputs=outputs))
+    if field in {"source", "composition", "config"}:
+        public[field][0] ^= 1
+    elif field.endswith("_integer"):
+        public[field.removesuffix("_integer")] = 1 << 40  # not bytes(integer) authority
+    elif field.endswith("_bool"):
+        name = field.removesuffix("_bool")
+        assert public[name] == 1 and type(public[name]) is int
+        public[name] = True
+    elif field == "weights":
+        public[field] = "private"
+    elif field in {"rows", "outputs"}:
+        public[field] += 1
+    else:
+        public[field]["range_policy"] = "static"
+    stage, attempts = generation._Generation._stage, []
+
+    def staged(self, *args):
+        attempts.append(self)
+        return stage(self, *args)
+
+    monkeypatch.setattr(generation._Generation, "_stage", staged)
+    monkeypatch.setattr(_native, "ReplicatedWorker", SimpleNamespace(_from_source_request=_forbidden))
+    scope = reserve_cleanup_slot()
+    try:
+        with pytest.raises(ValueError, match="publication differs|execution binding differs"):
+            generation._run_local_toy_worker(experiment, ids, outputs, lambda: False,
+                manifest=source_io._canonical(public), role=0, cleanup_scope=scope)
+        _assert_worker_generation_retired(scope, attempts[0])
+    finally:
+        if not scope.closed:
+            scope.drain()
+
+
+@pytest.mark.parametrize("weights", ["public", "private"])
+def test_worker_local_policy_ineligible_even_with_matching_real_publication(tmp_path, monkeypatch, weights):
+    from pllm import _native
+    from pllm.runtime.replicated_protocol import validate_execution_binding
+
+    # Static/public isolates the checked-policy guard; static/private also checks
+    # local weight eligibility. Neither negative relies on a manifest mismatch.
+    experiment, _ = _fixture(tmp_path, weights=weights)
+    manifest = _run(experiment)
+    public = json.loads(manifest)
+    source = replicated.admit_source(experiment)
+    assert bytes(public["source"]).hex() == source.source_lock_digest
+    assert bytes(public["composition"]).hex() == experiment.pipeline.digest()
+    assert bytes(public["config"]) == source.config_bytes
+    assert public.get("weights", "private") == weights
+    assert (public["rows"], public["outputs"]) == (2, 2)
+    validate_execution_binding(experiment, public)
+    stage, attempts = generation._Generation._stage, []
+
+    def staged(self, *args):
+        attempts.append(self)
+        return stage(self, *args)
+
+    monkeypatch.setattr(generation._Generation, "_stage", staged)
+    monkeypatch.setattr(_native, "ReplicatedWorker", SimpleNamespace(_from_source_request=_forbidden))
+    scope = reserve_cleanup_slot()
+    try:
+        with pytest.raises(source_io.DelegatedSourceError, match="worker requires checked public"):
+            generation._run_local_toy_worker(experiment, (3, 4), 2, lambda: False,
+                manifest=manifest, role=0, cleanup_scope=scope)
+        _assert_worker_generation_retired(scope, attempts[0])
+    finally:
+        if not scope.closed:
+            scope.drain()
+
+
+@pytest.mark.parametrize("fault", ["sign", "append", "seal", "cancel_after_last",
+                                 "cancel_after_seal", "drain_after_seal"])
+def test_worker_generation_native_faults_retire_native_and_all_files(tmp_path, monkeypatch, fault):
+    from pllm import _native
+
+    experiment, _ = _fixture(tmp_path, weights="public")
+    experiment = experiment.with_params(pipeline__components__linear__range_policy="checked")
+    manifest = _run(experiment)
+    factory = _native.ReplicatedWorker._from_source_request
+    converter = source_io._source_float_frame_from_bytes
+    before_fds = psutil.Process().num_fds()
+    owners, appended, seals, closed, attempts, drain_errors = [], [], [], [], [], []
+    scope = reserve_cleanup_slot()
+    stage = generation._Generation._stage
+    primary = RuntimeError("worker native fault")
+
+    class ForwardingWorker:
+        def __init__(self, real):
+            self.real = real
+            self.sealed = False
+
+        def append_public_source(self, key, begin, frame):
+            if fault == "append" and len(appended) == 2:
+                raise primary
+            self.real.append_public_source(key, begin, frame)
+            appended.append(key)
+
+        def seal_public_source(self):
+            seals.append(True)
+            if fault == "seal":
+                raise primary
+            self.real.seal_public_source()
+            self.sealed = True
+            # Prove native finish reached live SourceSetup, without consuming it.
+            complete, frames = self.real.call("offer", b"", 0)
+            assert complete is False and len(frames) == 1 and frames[0][0] == 0
+            if fault == "drain_after_seal":
+                def drain():
+                    try:
+                        scope.drain()
+                    except BaseException as error:
+                        drain_errors.append((type(error), str(error)))
+
+                thread = threading.Thread(target=drain)
+                thread.start()
+                thread.join(timeout=5)
+                assert not thread.is_alive()
+                assert drain_errors == [(source_io.DelegatedSourceError,
+                    "local toy generation: operation in flight; retirement deferred")]
+                assert not scope.closed and scope._payload is attempts[0]
+                assert attempts[0]._Generation__native is self and not closed
+                assert all(owner is not None for owner, _ in attempts[0]._Generation__slots)
+
+        def activate(self):
+            pytest.fail("post-seal cancellation must not activate worker")
+
+        def close(self):
+            self.real.close()
+            closed.append(True)
+
+    def construct(*args, **kwargs):
+        owner = ForwardingWorker(factory(*args, **kwargs))
+        owners.append(owner)
+        return owner
+
+    def staged(self, *args):
+        attempts.append(self)
+        return stage(self, *args)
+
+    def wrong_sign(raw, dtype):
+        frame = converter(raw, dtype)
+        if dtype == "BF16":
+            assert frame[:8] == struct.pack("<2I", 0, 0x80000000)
+            return struct.pack("<2I", 0, 0) + frame[8:]
+        return frame
+
+    monkeypatch.setattr(_native, "ReplicatedWorker", SimpleNamespace(_from_source_request=construct))
+    monkeypatch.setattr(generation._Generation, "_stage", staged)
+    if fault == "sign":
+        monkeypatch.setattr(source_io, "_source_float_frame_from_bytes", wrong_sign)
+    def cancelled():
+        return ((fault == "cancel_after_last" and len(appended) == len(_WORDS))
+                or (fault == "cancel_after_seal" and bool(owners) and owners[0].sealed))
+
+    try:
+        with pytest.raises((source_io.DelegatedSourceError, RuntimeError)) as caught:
+            generation._run_local_toy_worker(experiment, (3, 4), 2, cancelled,
+                manifest=manifest, role=0, cleanup_scope=scope)
+        if fault in {"append", "seal"}:
+            assert caught.value is primary
+        elif fault in {"cancel_after_last", "cancel_after_seal", "drain_after_seal"}:
+            assert "cancelled or retired" in str(caught.value)
+        expected = (sorted(_WORDS).index("model.embed_tokens.weight") if fault == "sign"
+                    else 2 if fault == "append" else len(_WORDS))
+        reached_seal = fault in {"seal", "cancel_after_seal", "drain_after_seal"}
+        assert len(appended) == expected and len(seals) == reached_seal
+        assert owners[0].sealed == (fault in {"cancel_after_seal", "drain_after_seal"})
+        # Every assertion precedes fallback cleanup: real code must drain files
+        # and the live SourceSetup produced by successful native seal itself.
+        _assert_worker_generation_retired(scope, attempts[0])
+        assert closed == [True]
+        with pytest.raises(ValueError, match="replicated worker retired"):
+            owners[0].real.call("offer", b"", 0)
+        assert psutil.Process().num_fds() == before_fds
+    finally:
+        if not scope.closed:
+            scope.drain()
